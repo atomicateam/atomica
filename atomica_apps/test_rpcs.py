@@ -17,15 +17,15 @@ torun = [
 #'project_io',
 #'get_cascade_plot',
 #'get_cascade_json',
-#'make_plots',
+'make_plots',
 #'run_scenarios',
-'run_cascade_optimization',
+#'run_cascade_optimization',
 #'run_tb_optimization',
 # 'export_results',
 ]
 
 # Set parameters
-tool = ['tb','cascade'][1] # Change this to change between TB and Cascade
+tool = ['tb','cascade'][0] # Change this to change between TB and Cascade
 default_which = {'tb':'tb', 'cascade':'hypertension'}[tool]
 user_id  = '12345678123456781234567812345678' # This is the hard-coded UID of the "demo" user
 proj_id  = sc.uuid(as_string=True) # These can all be the same

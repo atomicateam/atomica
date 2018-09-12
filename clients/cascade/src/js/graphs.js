@@ -72,31 +72,44 @@ function makeGraphs(vm, data, routepath) {
         }
         for (var index = 0; index <= n_plots; index++) {
           console.log('Rendering plot ' + index)
+          console.log('a')
           var figlabel    = 'fig' + index
           var figdiv  = document.getElementById(figlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
+          console.log('b')
           if (figdiv) {
             while (figdiv.firstChild) {
               figdiv.removeChild(figdiv.firstChild);
+              console.log('c')
             }
           } else {
+            console.log('d')
             console.log('WARNING: figdiv not found: ' + figlabel)
           }
 
           // Show figure containers
+          console.log('e')
           if (index>=1 && index<n_plots) {
+            console.log('f')
             var figcontainerlabel = 'figcontainer' + index
             var figcontainerdiv = document.getElementById(figcontainerlabel); // CK: Not sure if this is necessary? To ensure the div is clear first
+            console.log('g')
             if (figcontainerdiv) {
+              console.log('h')
               figcontainerdiv.style.display = 'flex'
             } else {
+              console.log('i')
               console.log('WARNING: figcontainerdiv not found: ' + figcontainerlabel)
             }
 
+            console.log('j')
             var legendlabel = 'legend' + index
             var legenddiv  = document.getElementById(legendlabel);
+            console.log('k')
             if (legenddiv) {
               while (legenddiv.firstChild) {
+                console.log('l')
                 legenddiv.removeChild(legenddiv.firstChild);
+                console.log('m')
               }
             } else {
               console.log('WARNING: legenddiv not found: ' + legendlabel)
@@ -104,7 +117,9 @@ function makeGraphs(vm, data, routepath) {
           }
 
           // Draw figures
+          console.log('n')
           mpld3.draw_figure(figlabel, graphdata[index], function (fig, element) {
+            console.log('o')
             fig.setXTicks(6, function (d) {
               return d3.format('.0f')(d);
             });
@@ -116,6 +131,7 @@ function makeGraphs(vm, data, routepath) {
           // Draw legends
           if (index>=1 && index<n_plots) {
             mpld3.draw_figure(legendlabel, legenddata[index], function (fig, element) {
+              console.log('p')
               fig.setXTicks(6, function (d) {
                 return d3.format('.0f')(d);
               });
@@ -124,6 +140,7 @@ function makeGraphs(vm, data, routepath) {
               });
             });
           }
+          console.log('q')
           vm.showGraphDivs[index] = true;
         }
         status.succeed(vm, 'Graphs created') // CK: This should be a promise, otherwise this appears before the graphs do
