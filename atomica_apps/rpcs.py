@@ -1280,7 +1280,7 @@ def customize_fig(fig=None, output=None, plotdata=None, xlims=None, figsize=None
         ax.set_position([0.25,0.15,0.70,0.75])
         ax.set_facecolor('none')
         ax.set_title(output.keys()[0]) # This is in a loop over outputs, so there should only be one output present
-        ax.set_ylabel(plotdata.series[0].units) # All outputs should have the same units (one output for each pop/result)
+        ax.set_ylabel(plotdata.series[0].units.title()) # All outputs should have the same units (one output for each pop/result)
         if xlims is not None: ax.set_xlim(xlims)
         try:
             legend = fig.findobj(Legend)[0]
@@ -1327,7 +1327,7 @@ def get_program_plots(results,year,budget=True,coverage=True):
         for fig,(output_name,output_label) in zip(coverage_figs,d.outputs.items()):
             fig.axes[0].set_title(output_label)
             series = d[d.results.keys()[0],d.pops.keys()[0],output_name]
-            fig.axes[0].set_ylabel(series.units)
+            fig.axes[0].set_ylabel(series.units.title())
         figs += coverage_figs
         print('Coverage plots succeeded')
 
