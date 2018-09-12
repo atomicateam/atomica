@@ -12,12 +12,12 @@ from atomica.optimization import optimize
 #test = "sir"
 #test = "tb"
 #test = "hypertension"
-#test = "hypertension_dyn"
+test = "hypertension_dyn"
 #test = "dt"
 #test = "udt"
 #test = "usdt"
 #test = "hiv"
-test = "diabetes"
+#test = "diabetes"
 #test = "service"
 
 torun = [
@@ -36,7 +36,7 @@ torun = [
 #"makeplots",
 #"export",
 # "manualcalibrate",
-"autocalibrate",
+#"autocalibrate",
 #"parameterscenario",
 #'budgetscenarios',
 #'optimization',
@@ -289,16 +289,17 @@ if "runsim_programs" in torun:
 
         au.plot_multi_cascade([baselineresults, scenresults],'main',year=[2017])
 
-    elif test == 'hypertension':
+    elif test in ['hypertension','hypertension_dyn']:
         scenalloc = {'Screening - urban':  30000 }
     
         bl_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018) 
         scen_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scenalloc) 
 
+        noprogs = P.run_sim(parset="default", result_name="default-noprogs")
         baselineresults = P.run_sim(parset="default", progset='default',progset_instructions=bl_instructions,result_name="baseline")
         scenresults = P.run_sim(parset="default", progset='default',progset_instructions=scen_instructions,result_name="scen")
 
-        au.plot_multi_cascade([baselineresults, scenresults],'main',year=[2020])
+        au.plot_multi_cascade([noprogs, baselineresults, scenresults],'Hypertension care cascade',year=[2018])
 
     elif test == 'hiv':
         scen1alloc = {'Testing - clinics': 1500000}
