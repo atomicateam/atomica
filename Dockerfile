@@ -35,4 +35,4 @@ RUN python install_client.py
 WORKDIR ${WHICH}
 RUN python build_client.py
 
-CMD /etc/init.d/redis-server start && python start_server.py
+CMD /etc/init.d/redis-server start && supervisord
