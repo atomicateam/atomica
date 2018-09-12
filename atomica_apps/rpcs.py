@@ -1281,10 +1281,19 @@ def customize_fig(fig=None, output=None, plotdata=None, xlims=None, figsize=None
         if figsize is None: figsize = (5,3)
         fig.set_size_inches(figsize)
         ax = fig.get_axes()[0]
-        ax.set_position([0.25,0.15,0.70,0.75])
+        ax.set_position([0.25,0.18,0.70,0.72])
         ax.set_facecolor('none')
         ax.set_title(output.keys()[0]) # This is in a loop over outputs, so there should only be one output present
-        ax.set_ylabel(plotdata.series[0].units) # All outputs should have the same units (one output for each pop/result)
+        y_max = ax.get_ylim()[1]
+        labelpad = 7
+        if y_max < 1e-3: labelpad = 15
+        if y_max > 1e3:  labelpad = 15
+        if y_max > 1e6:  labelpad = 20
+        if y_max > 1e9:  labelpad = 25
+        ylabel = plotdata.series[0].units
+        if ylabel == 'probability': ylabel = 'Probability'
+        if ylabel == '':            ylabel = 'Proportion'
+        ax.set_ylabel(ylabel, labelpad=labelpad) # All outputs should have the same units (one output for each pop/result)
         if xlims is not None: ax.set_xlim(xlims)
         try:
             legend = fig.findobj(Legend)[0]
