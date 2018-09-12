@@ -1009,7 +1009,7 @@ class Covout(object):
                 additive = np.maximum(cov - np.maximum(cov - (1 - (np.cumsum(cov) - cov)), 0), 0)
                 remainder = 1 - additive
                 random = cov - additive
-                # If remainder is 0, then random tvmust also be 0 i.e. it's always 0/0
+                # If remainder is 0, then random must also be 0 i.e. it's always 0/0
                 # This happens if the best program has coverage of exactly 1.0 which means it's entirely additive but also has no remainder
                 random_portion = np.divide(random,remainder,out=np.zeros_like(random), where=remainder!=0)
                 additive_portion_coverage = self.combinations * additive
