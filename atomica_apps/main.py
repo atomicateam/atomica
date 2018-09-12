@@ -14,9 +14,11 @@ def make_app(which=None, **kwargs):
     if which == 'tb':
         name = 'Optima TB'
         import config_tb as config
+        import apptasks_tb as apptasks # analysis:ignore
     elif which == 'cascade':
         name = 'Cascade Analysis Tools'
         import config_cascade as config
+        import apptasks_cascade as apptasks # analysis:ignore
     else:
         raise Exception('"%s" not understood; which must be "tb" or "cascade"' % which)
     app = sw.ScirisApp(name=name, filepath=__file__, config=config, **kwargs) # Create the ScirisApp object.  NOTE: app.config will thereafter contain all of the configuration parameters, including for Flask.
