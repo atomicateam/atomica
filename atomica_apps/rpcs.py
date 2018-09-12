@@ -1224,16 +1224,16 @@ def get_atomica_plots(proj, results=None, plot_names=None, plot_options=None, po
             else:
                if stacked: figs,legends = au.plot_series(plotdata, axis='pops', data=data, plot_type='stacked', legend_mode='separate')
                else:       figs,legends = au.plot_series(plotdata, axis='results', data=data, legend_mode='separate')
-            for fig,legend in figs:
+            for fig,legend in zip(figs, legends):
                 allfigjsons.append(customize_fig(fig=fig, output=output, plotdata=plotdata, xlims=xlims, figsize=figsize))
-#                alllegendjsons.append(customize_fig(fig=legend, output=output, plotdata=plotdata, xlims=xlims, figsize=figsize, is_legend=True))
+                alllegendjsons.append(customize_fig(fig=legend, output=output, plotdata=plotdata, xlims=xlims, figsize=figsize, is_legend=True))
                 allfigs.append(fig)
-#                alllegends.append(legend)
+                alllegends.append(legend)
                 pl.close(fig)
             print('Plot %s succeeded' % (output))
         except Exception as E:
             print('WARNING: plot %s failed (%s)' % (output, repr(E)))
-    output = {'graphs':allfigjsons, 'legends':[]}
+    output = {'graphs':allfigjsons, 'legends':alllegendjsons}
     return output, allfigs, alllegends
 
 
