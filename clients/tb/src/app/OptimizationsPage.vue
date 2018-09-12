@@ -106,11 +106,27 @@ Last update: 2018-09-10
             <!-- ### Start: plots ### -->
             <div class="calib-card-body">
               <div class="calib-graphs">
+
+                <div class="other-graphs">
+                  <div v-for="index in placeholders">
+                    <div :id="'figcontainer'+index" style="display:flex; justify-content:flex-start; padding:5px; border:1px solid #ddd" v-show="showGraphDivs[index]">
+                      <div :id="'fig'+index" class="calib-graph">
+                        <!--mpld3 content goes here-->
+                      </div>
+                      <!--<div style="display:inline-block">-->
+                      <!--<button class="btn __bw btn-icon" @click="maximize(index)" data-tooltip="Show legend"><i class="ti-menu-alt"></i></button>-->
+                      <!--</div>-->
+                    </div>
+                  </div>
+                </div>
+
+                <!-- ### Start: Cascade plot ### -->
                 <div class="featured-graphs">
                   <div :id="'fig0'">
                     <!-- mpld3 content goes here, no legend for it -->
                   </div>
                 </div>
+                <!-- ### End: Cascade plot ### -->
 
                 <!-- ### Start: cascade table ### -->
                 <div v-if="$globaltool=='cascade' && table" class="calib-tables">
@@ -132,38 +148,25 @@ Last update: 2018-09-10
                 </div>
                 <!-- ### End: cascade table ### -->
 
-                <div class="other-graphs">
-                  <div v-for="index in placeholders">
-                    <div :id="'figcontainer'+index" style="display:flex; justify-content:flex-start; padding:5px; border:1px solid #ddd" v-show="showGraphDivs[index]">
-                      <div :id="'fig'+index" class="calib-graph">
-                        <!--mpld3 content goes here-->
-                      </div>
-                      <div style="display:inline-block">
-                        <button class="btn __bw btn-icon" @click="maximize(index)" data-tooltip="Show legend"><i class="ti-menu-alt"></i></button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
               </div> <!-- ### End: calib-graphs ### -->
             </div>
             <!-- ### End: plots ### -->
 
             <!-- ### Start: dialogs ### -->
-            <div v-for="index in placeholders">
-              <div class="dialogs" :id="'legendcontainer'+index" style="display:flex" v-show="showLegendDivs[index]">
-                <dialog-drag :id="'DD'+index"
-                             :key="index"
-                             @close="minimize(index)"
-                             :options="{top: openDialogs[index].options.top, left: openDialogs[index].options.left}">
+            <!--<div v-for="index in placeholders">-->
+            <!--<div class="dialogs" :id="'legendcontainer'+index" style="display:flex" v-show="showLegendDivs[index]">-->
+            <!--<dialog-drag :id="'DD'+index"-->
+            <!--:key="index"-->
+            <!--@close="minimize(index)"-->
+            <!--:options="{top: openDialogs[index].options.top, left: openDialogs[index].options.left}">-->
 
-                  <span slot='title' style="color:#fff">Legend</span>
-                  <div :id="'legend'+index">
-                    <!-- Legend content goes here-->
-                  </div>
-                </dialog-drag>
-              </div>
-            </div>
+            <!--<span slot='title' style="color:#fff">Legend</span>-->
+            <!--<div :id="'legend'+index">-->
+            <!--&lt;!&ndash; Legend content goes here&ndash;&gt;-->
+            <!--</div>-->
+            <!--</dialog-drag>-->
+            <!--</div>-->
+            <!--</div>-->
             <!-- ### End: dialogs ### -->
 
 
@@ -469,25 +472,25 @@ Last update: 2018-09-10
               optimSummary.executionTime = '--'
             })
         }
-        
+
         else {
           // Check whether there is a cached result.
           rpcs.rpc('check_results_cache_entry', [optimSummary.serverDatastoreId])
             .then(result => {
               if (result.data.found) {
-                optimSummary.status = 'completed'                
+                optimSummary.status = 'completed'
               }
               else {
                 optimSummary.status = 'not started'
               }
               optimSummary.pendingTime = '--'
-              optimSummary.executionTime = '--'              
+              optimSummary.executionTime = '--'
             })
             .catch(error => {
               optimSummary.status = 'not started'
               optimSummary.pendingTime = '--'
               optimSummary.executionTime = '--'
-            })          
+            })
         }
       },
 
@@ -513,7 +516,7 @@ Last update: 2018-09-10
         return new Promise((resolve, reject) => {
           let datastoreId = optimSummary.serverDatastoreId  // hack because this gets overwritten soon by caller
           console.log('clearTask() called for '+this.currentOptim)
-          
+
           rpcs.rpc('delete_results_cache_entry', [datastoreId]) // Delete cached result.
             .then(response => {
               if (this.useCelery) {
@@ -524,7 +527,7 @@ Last update: 2018-09-10
                   })
                   .catch(error => {
                     resolve(error)  // yes, resolve because at least cache entry deletion succeeded
-                  })                  
+                  })
               }
               else {
                 this.getOptimTaskState(optimSummary) // Get the task state for the optimization.
@@ -558,26 +561,26 @@ Last update: 2018-09-10
         console.log('getOptimSummaries() called')
         status.start(this)
         rpcs.rpc('get_optim_info', [this.projectID]) // Get the current project's optimization summaries from the server.
-        .then(response => {
-          this.optimSummaries = response.data // Set the optimizations to what we received.
-          this.optimSummaries.forEach(optimSum => { // For each of the optimization summaries...
-            optimSum.serverDatastoreId = this.$store.state.activeProject.project.id + ':opt-' + optimSum.name // Build a task and results cache ID from the project's hex UID and the optimization name.
-            optimSum.status = 'not started' // Set the status to 'not started' by default, and the pending and execution times to '--'.
-            optimSum.pendingTime = '--'
-            optimSum.executionTime = '--'
-            
-            // Get the task state for the optimization.
-            this.getOptimTaskState(optimSum) // Get the task state for the optimization.
+          .then(response => {
+            this.optimSummaries = response.data // Set the optimizations to what we received.
+            this.optimSummaries.forEach(optimSum => { // For each of the optimization summaries...
+              optimSum.serverDatastoreId = this.$store.state.activeProject.project.id + ':opt-' + optimSum.name // Build a task and results cache ID from the project's hex UID and the optimization name.
+              optimSum.status = 'not started' // Set the status to 'not started' by default, and the pending and execution times to '--'.
+              optimSum.pendingTime = '--'
+              optimSum.executionTime = '--'
+
+              // Get the task state for the optimization.
+              this.getOptimTaskState(optimSum) // Get the task state for the optimization.
+            })
+            if (this.useCelery) {
+              this.pollAllTaskStates() // Start polling of tasks states.
+            }
+            this.optimsLoaded = true
+            status.succeed(this, 'Optimizations loaded')
           })
-          if (this.useCelery) {
-            this.pollAllTaskStates() // Start polling of tasks states.
-          }
-          this.optimsLoaded = true
-          status.succeed(this, 'Optimizations loaded')
-        })
-        .catch(error => {
-          status.fail(this, 'Could not load optimizations', error)
-        })
+          .catch(error => {
+            status.fail(this, 'Could not load optimizations', error)
+          })
       },
 
       setOptimSummaries() {
@@ -618,11 +621,11 @@ Last update: 2018-09-10
         if (this.addEditDialogMode === 'edit') { // If we are editing an existing optimization...
           let index = optimNames.indexOf(this.addEditDialogOldName) // Get the index of the original (pre-edited) name
           if (index > -1) {
-            this.optimSummaries[index].name = newOptim.name  // hack to make sure Vue table updated            
+            this.optimSummaries[index].name = newOptim.name  // hack to make sure Vue table updated
             this.optimSummaries[index] = newOptim
             if (newOptim.name !== this.addEditDialogOldName) {  // If we've renamed an optimization
               if (newOptim.status !== 'not started') { // Clear the present task.
-                this.clearTask(newOptim)  // Clear the task from the server. 
+                this.clearTask(newOptim)  // Clear the task from the server.
               }
 
               // Set a new server DataStore ID.
@@ -727,52 +730,52 @@ Last update: 2018-09-10
           RPCname = 'run_tb_optimization'
         }
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries]) // Make sure they're saved first
-        .then(response => {
+          .then(response => {
 
-          // We are using Celery
-          if (this.useCelery) {
-            rpcs.rpc('make_results_cache_entry', [optimSummary.serverDatastoreId])
-            .then(response => {           
-              rpcs.rpc('launch_task', [optimSummary.serverDatastoreId, RPCname,
-                [this.projectID, optimSummary.serverDatastoreId, optimSummary.name], 
+            // We are using Celery
+            if (this.useCelery) {
+              rpcs.rpc('make_results_cache_entry', [optimSummary.serverDatastoreId])
+                .then(response => {
+                  rpcs.rpc('launch_task', [optimSummary.serverDatastoreId, RPCname,
+                    [this.projectID, optimSummary.serverDatastoreId, optimSummary.name],
+                    {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':this.$globaltool,
+                      'plotyear':this.endYear, 'pops':this.activePop, 'cascade':null}])  // should this last be null?
+                    .then(response => {
+                      this.getOptimTaskState(optimSummary)
+                      status.succeed(this, 'Started optimization')
+                    })
+                    .catch(error => {
+                      status.fail(this, 'Could not start optimization', error)
+                    })
+                })
+                .catch(error => {
+                  status.fail(this, 'Could not start optimization', error)
+                })
+            }
+
+            // We are NOT using Celery
+            else {
+              optimSummary.status = 'started'
+              rpcs.rpc('run_optimization', [this.projectID, optimSummary.serverDatastoreId, optimSummary.name],
                 {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':this.$globaltool,
-                'plotyear':this.endYear, 'pops':this.activePop, 'cascade':null}])  // should this last be null?
-              .then(response => {           
-                this.getOptimTaskState(optimSummary)               
-                status.succeed(this, 'Started optimization')
-              })
-              .catch(error => {
-                status.fail(this, 'Could not start optimization', error)
-              })
-            })
-            .catch(error => {
-              status.fail(this, 'Could not start optimization', error)
-            })
-          }
+                  'plotyear':this.endYear, 'pops':this.activePop, 'cascade':null})  // should this last be null?
+                .then(response => {
+                  this.getOptimTaskState(optimSummary)
+                  this.makeGraphs(response.data.graphs)
+                  this.table = response.data.table
+                  this.displayResultName = optimSummary.name
+                  this.displayResultDatastoreId = optimSummary.serverDatastoreId
+                  status.succeed(this, 'Graphs created')
+                })
+                .catch(error => {
+                  status.fail(this, 'Could not make graphs', error) // Indicate failure.
+                })
+            }
 
-          // We are NOT using Celery
-          else {
-            optimSummary.status = 'started'          
-            rpcs.rpc('run_optimization', [this.projectID, optimSummary.serverDatastoreId, optimSummary.name], 
-              {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':this.$globaltool,
-              'plotyear':this.endYear, 'pops':this.activePop, 'cascade':null})  // should this last be null?
-            .then(response => {
-                this.getOptimTaskState(optimSummary)
-                this.makeGraphs(response.data.graphs)
-                this.table = response.data.table
-                this.displayResultName = optimSummary.name
-                this.displayResultDatastoreId = optimSummary.serverDatastoreId
-                status.succeed(this, 'Graphs created')                
-            })
-            .catch(error => {
-              status.fail(this, 'Could not make graphs', error) // Indicate failure.
-            })
-          }
-     
-        })
-        .catch(error => {
-          status.fail(this, 'Could not start optimization', error)
-        })
+          })
+          .catch(error => {
+            status.fail(this, 'Could not start optimization', error)
+          })
       },
 
     }
