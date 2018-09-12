@@ -51,14 +51,8 @@ def run_cascade_optimization(project_id, cache_id, optim_name=None, plot_options
         proj = rpcs.load_project(project_id, raise_exception=True)
     else: # Otherwise try using it as a project
         proj = project_id
-        
-    # Actually run the optimization and get its results (list of baseline and optimized Result objects).
     results = proj.run_optimization(optim_name, maxtime=float(maxtime), store_results=False)
-    
-    # Put the results into the ResultsCache.
-    rpcs.put_results_cache_entry(cache_id, results, apptasks_call=True)
-
-    # Plot the results.    
+    rpcs.put_results_cache_entry(cache_id, results, apptasks_call=True) # Put the results into the ResultsCache.
     output = rpcs.make_plots(proj, results, tool='cascade', year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, online=online, plot_budget=True)
     return output
 

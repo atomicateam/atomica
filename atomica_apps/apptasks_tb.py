@@ -4,13 +4,36 @@ apptasks_tb.py -- The Celery tasks module for this webapp
 Last update: 2018sep07
 """
 
-from . import config_tb as config
-import matplotlib.pyplot as ppl
-ppl.switch_backend(config.MATPLOTLIB_BACKEND)
+import sys
 import scirisweb as sw
 from . import projects as prj
 from . import rpcs
+from . import config_tb as config
+import matplotlib.pyplot as ppl
+ppl.switch_backend(config.MATPLOTLIB_BACKEND)
 
+
+print('')
+print('##############################')
+print('Starting Optima TB Celery...')
+print('##############################')
+
+# Process arguments
+for i,arg in enumerate(sys.argv[1:]):
+    try:
+        if arg.find('=')>0:
+            k = arg.split("=")[0]
+            v = arg.split("=")[1]
+            K = k.upper()
+            if hasattr(config, K):
+                setattr(config, K, v)
+                print('Including kwarg: "%s" = %s' % (K,v))
+                del sys.argv[i]
+            else:
+                print('Skipping attribute "%s" = %s, not found' % (K,v))
+    except Exception as E:
+        errormsg = 'Failed to parse argument key="%s", value="%s": %s' % (K, v, str(E))
+        raise Exception(errormsg)
 
 # Globals
 task_func_dict = {} # Dictionary to hold all of the registered task functions in this module.
@@ -23,17 +46,13 @@ def run_tb_optimization(project_id, cache_id, optim_name=None, plot_options=None
     print('Running optimization...')
     import sciris as sc
     sc.printvars(locals(), ['project_id', 'optim_name', 'plot_options', 'maxtime', 'tool', 'plotyear', 'pops', 'cascade', 'dosave', 'online'], color='blue')
-
     if online: # Assume project_id is actually an ID
         prj.apptasks_load_projects(config) # Load the projects from the DataStore.
         proj = rpcs.load_project(project_id, raise_exception=True)
     else: # Otherwise try using it as a project
         proj = project_id
     results = proj.run_optimization(optim_name, maxtime=float(maxtime), store_results=False)
-    
-    # Put the results into the ResultsCache.
-    rpcs.put_results_cache_entry(cache_id, results, apptasks_call=True)
-    
+    rpcs.put_results_cache_entry(cache_id, results, apptasks_call=True) # Put the results into the ResultsCache.
     output = rpcs.make_plots(proj, results, tool='tb', year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, online=online, plot_budget=True)
     return output
 
