@@ -1203,11 +1203,7 @@ def get_atomica_plots(proj, results=None, plot_names=None, plot_options=None, po
     data = proj.data if do_plot_data is True else None # Plot data unless asked not to
     for output in outputs:
         try:
-            if isinstance(output.values()[0],list):
-                plotdata = au.PlotData(results, outputs=output, project=proj, pops=pops)
-            else:
-                plotdata = au.PlotData(results, outputs=output.values()[0], project=proj, pops=pops) # Pass string in directly so that it is not treated as a function aggregation
-
+            plotdata = au.PlotData(results, outputs=output.values()[0], project=proj, pops=pops)
             nans_replaced = 0
             for series in plotdata.series:
                 if replace_nans and any(np.isnan(series.vals)):
