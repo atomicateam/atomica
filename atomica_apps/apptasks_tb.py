@@ -28,7 +28,6 @@ for i,arg in enumerate(sys.argv[1:]):
             if hasattr(config, K):
                 setattr(config, K, v)
                 print('Including kwarg: "%s" = %s' % (K,v))
-                del sys.argv[i]
             else:
                 print('Skipping attribute "%s" = %s, not found' % (K,v))
     except Exception as E:
