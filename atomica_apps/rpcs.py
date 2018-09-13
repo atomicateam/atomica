@@ -1956,7 +1956,7 @@ def export_results(cache_id):
 #        result = result.get()
     
     dirname = sw.globalvars.downloads_dir.dir_path 
-    file_name = 'results.xlsx'
+    file_name = 'results.zip'
     full_file_name = os.path.join(dirname, file_name)
     au.export_results(resultset, full_file_name)
     print(">> export_results %s" % (full_file_name))
