@@ -1035,7 +1035,9 @@ def set_y_factors(project_id, parsetname=-1, parlist=None):
             origdispvalue = to_float(newpoppar['origdispvalue'])
             changed = (dispvalue != origdispvalue)
             if changed:
-                print('Note: parameter %s %s updated! %s -> %s' % (parname, popname, origdispvalue, dispvalue))
+                print('Parameter %10s %10s UPDATED! %s -> %s' % (parname, popname, origdispvalue, dispvalue))
+            else:
+                print('Note: parameter %10s %10s stayed the same! %s -> %s' % (parname, popname, origdispvalue, dispvalue))
             orig_y_factor = this_par.y_factor[popname]
             if not sc.approx(origdispvalue, 0):
                 y_factor_change = dispvalue/origdispvalue
@@ -1538,38 +1540,14 @@ def get_json_cascade(results,data):
 
 @timeit
 @RPC()  
-def manual_calibration(project_id, cache_id, parsetname=-1, y_factors=None, plot_options=None, plotyear=None, pops=None, tool=None, cascade=None, dosave=True):
-    print('>> DEBUGGING STUFF:')
+def manual_calibration(project_id, cache_id, parsetname=-1, plot_options=None, plotyear=None, pops=None, tool=None, cascade=None, dosave=True):
+    print('Running "manual calibration"...')
     print(plot_options)
-    print('Setting y factors for parset %s...' % parsetname)
-    TEMP_YEAR = 2018 # WARNING, hard-coded!
     proj = load_project(project_id, raise_exception=True)
-    parset = proj.parsets[parsetname]
-    for pardict in y_factors:
-        parname   = pardict['parname']
-        dispvalue = float(pardict['dispvalue'])
-        popname   = pardict['popname']
-        thispar   = parset.get_par(parname)
-        try:    
-            interp_val = thispar.interpolate([TEMP_YEAR],popname)[0]
-            if not np.isfinite(interp_val):
-                interp_val = 1
-            if sc.approx(interp_val, 0):
-                interp_val = 1
-        except: 
-            interp_val = 1
-        y_factor  = dispvalue/interp_val
-        parset.get_par(parname).y_factor[popname] = y_factor
-        # TODO - set thispar.meta_y_factor here
-        if not sc.approx(y_factor, 1):
-            print('Modified: %s (%s)' % (parname, y_factor))
-    
     proj.modified = sc.now()
     result = proj.run_sim(parset=parsetname, store_results=False)
     put_results_cache_entry(cache_id, result)
-
     output = make_plots(proj, result, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, calibration=True)
-
     return output
 
 

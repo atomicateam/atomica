@@ -12,8 +12,8 @@ Last update: 2018-09-12
       <help reflink="create-projects" label="Create projects"></help>
 
       <div class="ControlsRow">
-        <button v-if="$globaltool=='cascade'" class="btn __blue" @click="addDemoProjectModal">Add demo project</button>&nbsp; &nbsp;
-        <button v-if="$globaltool=='tb'"      class="btn __blue" @click="addDemoProject">Add demo project</button>
+        <button v-if="$globaltool=='cascade'" class="btn __blue" @click="addDemoProjectModal">Add demo project</button>
+        <button v-if="$globaltool=='tb'"      class="btn __blue" @click="addDemoProject">Add demo project</button>&nbsp; &nbsp;
         <button class="btn __blue" @click="createNewProjectModal">Create new project</button>&nbsp; &nbsp;
         <button class="btn __blue" @click="uploadProjectFromFile">Upload project from file</button>
       </div>
