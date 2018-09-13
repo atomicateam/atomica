@@ -1,7 +1,7 @@
 <!--
 Optimizations Page
 
-Last update: 2018-09-10
+Last update: 2018-09-12
 -->
 
 <template>
@@ -93,7 +93,7 @@ Last update: 2018-09-10
               <button class="btn btn-icon" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>
               &nbsp;&nbsp;&nbsp;
               <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
-              <button class="btn" @click="exportResults(serverDatastoreId)">Export data</button>
+              <button class="btn" @click="exportResults(displayResultDatastoreId)">Export data</button>
               <button v-if="false" class="btn btn-icon" @click="togglePlotControls()"><i class="ti-settings"></i></button> <!-- When popups are working: v-if="this.$globaltool=='tb'" -->
             </div>
           </div>

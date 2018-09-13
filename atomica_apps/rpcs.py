@@ -1,7 +1,7 @@
 """
 Atomica remote procedure calls (RPCs)
     
-Last update: 2018sep09
+Last update: 2018sep12
 """
 
 ###############################################################
@@ -1958,8 +1958,8 @@ def export_results(cache_id):
     print('Exporting results...')
     
     # Load the result from the cache and check if we got a result.
-    result = fetch_results_cache_entry(cache_id)
-    if result is None:
+    resultset = fetch_results_cache_entry(cache_id)
+    if resultset is None:
         return { 'error': 'Failed to load plot results from cache' }
     
 #    if isinstance(result, ResultPlaceholder):
@@ -1967,8 +1967,8 @@ def export_results(cache_id):
 #        result = result.get()
     
     dirname = sw.globalvars.downloads_dir.dir_path 
-    file_name = '%s.xlsx' % result.name 
+    file_name = 'results.zip'
     full_file_name = os.path.join(dirname, file_name)
-    result.export(full_file_name)
+    au.export_results(resultset, full_file_name)
     print(">> export_results %s" % (full_file_name))
     return full_file_name # Return the filename  
