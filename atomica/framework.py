@@ -66,7 +66,7 @@ class ProjectFramework(object):
             self.sheets[sheet_title] = list()
             for table in tables:
                 # Get a dataframe
-                df = pd.DataFrame.from_records(table).applymap(lambda x: x.value)
+                df = pd.DataFrame.from_records(table).applymap(lambda x: x.value.strip() if sc.isstring(x.value) else x.value)
                 df.dropna(axis=1, how='all', inplace=True) # If a column is completely empty, including the header, ignore it. Helps avoid errors where blank cells are loaded by openpyxl due to extra non-value content
                 if sheet_title == 'cascades':
                     # On the cascades sheet, the user-entered name appears in the header row. We must preserve case for this
@@ -680,7 +680,6 @@ def sanitize_dataframe(df,required_columns,defaults,valid_content):
                 raise InvalidFramework('The column "%s" can only contain the following values: %s' % (col,validation))
 
     # Strip all strings
-    df.applymap(lambda x: x.strip() if sc.isstring(x) else x)
     if df.columns.isnull().any():
         raise InvalidFramework('There cannot be any empty cells in the header row')
     df.columns = [x.strip() for x in df.columns]
