@@ -56,7 +56,7 @@ def timeit(method):
     return timed
 
 
-def to_float(raw):
+def to_float(raw, blank_ok=False, die=False):
     ''' Convert something to a number. WARNING, I'm sure this already exists!! '''
     try:
         if sc.isstring(raw):
@@ -64,21 +64,28 @@ def to_float(raw):
             raw = raw.replace('$','') # Remove dollars, if present
         output = float(raw)
     except Exception as E:
-        print('NUMBER WARNING, number conversion on "%s" failed, returning 0: %s' % (raw, str(E)))
-        output = 0
+        errormsg = 'NUMBER WARNING, number conversion on "%s" failed, returning None: %s' % (raw, str(E))
+        if raw not in [None, ''] and not blank_ok: 
+            if die: raise Exception(errormsg)
+            else:   print(errormsg)
+        output = None
     return output
 
 
-def from_number(raw, sf=3):
+def from_number(raw, sf=3, die=False):
     ''' Convert something to a reasonable FE representation '''
     if not sc.isnumber(raw):
-        print('NUMBER WARNING, cannot convert %s from a number since it is %s' % (raw, type(raw)))
-        return str(raw)
+        output = str(raw)
+        errormsg = 'NUMBER WARNING, cannot convert %s from a number since it is of type %s' % (output, type(raw))
+        if die: raise Exception(errormsg)
+        else:   print(errormsg)
     try:
         output = sc.sigfig(raw, sigfigs=sf, sep=True, keepints=True)
     except Exception as E:
-        print('NUMBER WARNING, number conversion on "%s" failed, returning raw: %s' % (raw, str(E)))
         output = str(raw)
+        errormsg = 'NUMBER WARNING, number conversion on "%s" failed, returning raw: %s' % (output, str(E))
+        if die: raise Exception(errormsg)
+        else:   print(errormsg)
     return output
         
 
@@ -1232,21 +1239,14 @@ def get_supported_plots(project_id, only_keys=False):
 
 
 def savefigs(allfigs, online=True, die=False):
-#    if online: folder = sw.globalvars.downloads_dir.dir_path
-    if online: 
-        # Look for an existing downloads_dir UID.
-        downloads_dir_uid = sw.globalvars.data_store.get_uid('filesavedir', 
-            'Downloads Directory')        
-        folder = sw.globalvars.data_store.retrieve(downloads_dir_uid).dir_path    
-    else:      folder = os.getcwd()
-    filepath = sc.savefigs(allfigs, filetype='singlepdf', filename='figures.pdf', folder=folder)
+    filepath = sc.savefigs(allfigs, filetype='singlepdf', filename='Figures.pdf', folder=sw.globalvars.downloads_dir.dir_path)
     return filepath
 
 
 @RPC(call_type='download')
 def download_graphs():
     dirname = sw.globalvars.downloads_dir.dir_path # Use the downloads directory to put the file in.
-    file_name = 'figures.pdf' # Create a filename containing the framework name followed by a .frw suffix.
+    file_name = 'Figures.pdf' # Create a filename containing the framework name followed by a .frw suffix.
     full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
     return full_file_name
 
@@ -1301,7 +1301,7 @@ def get_atomica_plots(proj, results=None, plot_names=None, plot_options=None, po
     return output, allfigs, alllegends
 
 
-def make_plots(proj, results, tool=None, year=None, pops=None, cascade=None, plot_options=None, dosave=None, calibration=False, online=True, plot_budget=False, outputfigs=False):
+def make_plots(proj, results, tool=None, year=None, pops=None, cascade=None, plot_options=None, dosave=True, calibration=False, online=True, plot_budget=False, outputfigs=False):
     
     # Handle inputs
     if sc.isstring(year): year = float(year)
@@ -1332,8 +1332,8 @@ def make_plots(proj, results, tool=None, year=None, pops=None, cascade=None, plo
             output[key] = cascadeoutput[key] + output[key]
         allfigs = cascadefigs + allfigs
         alllegends = cascadelegends + alllegends
-    if dosave:
-        savefigs(allfigs, online=online)  
+    try:                   savefigs(allfigs) # WARNING, dosave ignored fornow
+    except Exception as E: print('Could not save figures: %s' % str(E))
     if outputfigs: return output, allfigs, alllegends
     else:          return output
 
@@ -1709,7 +1709,7 @@ def js_to_py_optim(js_optim):
     for key in ['start_year', 'end_year', 'budget_factor', 'maxtime']:
         json[key] = to_float(json[key]) # Convert to a number
     for subkey in json['objective_weights'].keys():
-        json['objective_weights'][subkey] = to_float(json['objective_weights'][subkey])
+        json['objective_weights'][subkey] = to_float(json['objective_weights'][subkey], blank_ok=True)
     for subkey in json['prog_spending'].keys():
         this = json['prog_spending'][subkey]
         json['prog_spending'][subkey] = (to_float(this['min']), to_float(this['max']))

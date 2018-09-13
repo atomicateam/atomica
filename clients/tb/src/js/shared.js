@@ -50,10 +50,10 @@ function updateSets(vm) {
     })
 }
 
-function exportGraphs(vm, serverDatastoreId) {
+function exportGraphs(vm) {
   return new Promise((resolve, reject) => {
     console.log('exportGraphs() called')
-    rpcs.download('download_graphs', [serverDatastoreId])
+    rpcs.download('download_graphs', [])
       .then(response => {
         resolve(response)
       })
@@ -66,7 +66,7 @@ function exportGraphs(vm, serverDatastoreId) {
 
 function exportResults(vm, serverDatastoreId) {
   return new Promise((resolve, reject) => {
-    console.log('exportResults() called TEMP FIX')
+    console.log('exportResults()')
     rpcs.download('export_results', [serverDatastoreId])
       .then(response => {
         resolve(response)
