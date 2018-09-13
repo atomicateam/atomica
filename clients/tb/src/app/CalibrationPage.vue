@@ -383,6 +383,12 @@ Last update: 2018-09-06
       }
     },
 
+    watch: {
+      activeParset() {
+        this.loadParTable()
+      }
+    },
+
     methods: {
 
       validateYears()                   { return utils.validateYears(this) },
@@ -404,7 +410,7 @@ Last update: 2018-09-06
 
       loadParTable() {
         return new Promise((resolve, reject) => {
-          console.log('loadParTable() called')
+          console.log('loadParTable() called for ' + this.activeParset)
           // TODO: Get spinners working right for this leg of initialization.
           rpcs.rpc('get_y_factors', [this.$store.state.activeProject.project.id, this.activeParset])
             .then(response => {
@@ -424,10 +430,14 @@ Last update: 2018-09-06
 
       saveParTable() {
         return new Promise((resolve, reject) => {
-          console.log('saveParTable() called')
+          console.log('saveParTable() called for ' + this.activeParset)
           rpcs.rpc('set_y_factors', [this.$store.state.activeProject.project.id, this.activeParset, this.parlist])
             .then(response => {
-              status.succeed(this, 'Parameters updated')
+              this.loadParTable()
+                .then(response2 => {
+                  status.succeed(this, 'Parameters updated')
+                  resolve(response2)
+                })
               resolve(response)
             })
             .catch(error => {

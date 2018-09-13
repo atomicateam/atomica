@@ -979,7 +979,8 @@ def get_y_factors(project_id, parsetname=-1):
     parset = proj.parsets[parsetname]
     count = 0
     for par_type in ["cascade", "comps", "characs"]:
-        for parname in parset.par_ids[par_type].keys():
+        for par in parset.pars[par_type]:
+            parname = par.name
             this_par = parset.get_par(parname)
             this_spec = proj.framework.get_variable(parname)[0]
             if 'calibrate' in this_spec and this_spec['calibrate'] is not None:
@@ -1002,8 +1003,8 @@ def get_y_factors(project_id, parsetname=-1):
                     dispvalue = from_number(interp_val*y_factor)
                     thisdict = {'popcount':p, 'popname':popname, 'dispvalue':dispvalue, 'origdispvalue':dispvalue, 'poplabel':poplabel}
                     y_factors[-1]['pop_y_factors'].append(thisdict)
-    sc.pp(y_factors)
-    print('Returning %s y-factors' % len(y_factors))
+#    sc.pp(y_factors)
+    print('Returning %s y-factors for %s' % (len(y_factors), parsetname))
     return {'parlist':y_factors, 'poplabels':parset.pop_labels}
 
 
@@ -1046,7 +1047,7 @@ def set_y_factors(project_id, parsetname=-1, parlist=None):
                 y_factor = orig_y_factor
             this_par.y_factor[popname] = y_factor
 #    sc.pp(parlist)
-    print('Setting %s y-factors' % len(parlist))
+    print('Setting %s y-factors for %s' % (len(parlist), parsetname))
     print('Saving project...')
     save_project(proj)
     return None
