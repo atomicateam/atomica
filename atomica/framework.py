@@ -553,7 +553,7 @@ class ProjectFramework(object):
 
         ### VALIDATE CASCADES
 
-        if 'cascades' not in self.sheets:
+        if 'cascades' not in self.sheets or not self.cascades:
             # Make the fallback cascade with name 'Default'
             used_fallback_cascade = True
             records = []
@@ -579,11 +579,13 @@ class ProjectFramework(object):
                     raise InvalidFramework('Requested cascade stage name "%s" is a reserved keyword' % stage_name)
 
         # Check that all cascade constituents match a characteristic or compartment
-        for df in self.cascades.values():
+        for cascade_name,df in self.cascades.items():
             for _,spec in df.iterrows():
+                if not spec['constituents']:
+                    raise InvalidFramework('In cascade "%s" stage "%s" - no constituents were provided in the spreadsheet' % (cascade_name, spec.iloc[0]))
                 for component in spec['constituents'].split(','):
                     if not (component.strip() in self.comps.index or component.strip() in self.characs.index):
-                        raise InvalidFramework('In Characteristic "%s", included component "%s" was not recognized as a Compartment or Characteristic' % (spec.name,component))
+                        raise InvalidFramework('In cascade "%s" stage "%s" - included component "%s" was not recognized as a Compartment or Characteristic' % (cascade_name,spec.iloc[:,0],component))
 
         # Check that the cascades are validly nested
         # This will also check the fallback cascade
