@@ -56,7 +56,7 @@ def timeit(method):
     return timed
 
 
-def to_number(raw):
+def to_float(raw):
     ''' Convert something to a number. WARNING, I'm sure this already exists!! '''
     try:
         if sc.isstring(raw):
@@ -64,11 +64,23 @@ def to_number(raw):
             raw = raw.replace('$','') # Remove dollars, if present
         output = float(raw)
     except Exception as E:
-        if raw is None:
-            output = None
-        else:
-            raise E
+        print('NUMBER WARNING, number conversion on "%s" failed, returning 0: %s' % (raw, str(E)))
+        output = 0
     return output
+
+
+def from_number(raw, sf=3):
+    ''' Convert something to a reasonable FE representation '''
+    if not sc.isnumber(raw):
+        print('NUMBER WARNING, cannot convert %s from a number since it is %s' % (raw, type(raw)))
+        return str(raw)
+    try:
+        output = sc.sigfig(raw, sigfigs=sf, sep=True, keepints=True)
+    except Exception as E:
+        print('NUMBER WARNING, number conversion on "%s" failed, returning raw: %s' % (raw, str(E)))
+        output = str(raw)
+    return output
+        
 
 
 def get_path(filename, online=True):
@@ -960,6 +972,7 @@ def create_project_from_prj_file(prj_filename, user_id):
 @RPC()
 def get_y_factors(project_id, parsetname=-1):
     print('Getting y factors for parset %s...' % parsetname)
+    print('Warning, year hard coded!')
     TEMP_YEAR = 2018 # WARNING, hard-coded!
     y_factors = []
     proj = load_project(project_id, raise_exception=True)
@@ -968,7 +981,6 @@ def get_y_factors(project_id, parsetname=-1):
     for par_type in ["cascade", "comps", "characs"]:
         for parname in parset.par_ids[par_type].keys():
             this_par = parset.get_par(parname)
-            # TODO - do something with this_par.meta_y_factor here
             this_spec = proj.framework.get_variable(parname)[0]
             if 'calibrate' in this_spec and this_spec['calibrate'] is not None:
                 count += 1
@@ -980,13 +992,15 @@ def get_y_factors(project_id, parsetname=-1):
                     try:    
                         interp_val = this_par.interpolate([TEMP_YEAR],popname)[0]
                         if not np.isfinite(interp_val):
+                            print('NUMBER WARNING, value for %s %s is not finite' % (parlabel, poplabel))
                             interp_val = 1
                         if sc.approx(interp_val, 0):
                             interp_val = 0.0
-                    except: 
+                    except Exception as E: 
+                        print('NUMBER WARNING, value for %s %s is not convertible: %s' % (parlabel, poplabel, str(E)))
                         interp_val = 1
-                    dispvalue = interp_val*y_factor
-                    thisdict = {'popcount':p, 'popname':popname, 'value':y_factor, 'dispvalue':dispvalue, 'poplabel':poplabel}
+                    dispvalue = from_number(interp_val*y_factor)
+                    thisdict = {'popcount':p, 'popname':popname, 'dispvalue':dispvalue, 'origdispvalue':dispvalue, 'poplabel':poplabel}
                     y_factors[-1]['pop_y_factors'].append(thisdict)
     sc.pp(y_factors)
     print('Returning %s y-factors' % len(y_factors))
@@ -996,24 +1010,42 @@ def get_y_factors(project_id, parsetname=-1):
 @RPC()
 def set_y_factors(project_id, parsetname=-1, parlist=None):
     print('Setting y factors for parset %s...' % parsetname)
+    print('Warning, year hard coded!')
     TEMP_YEAR = 2018 # WARNING, hard-coded!
     proj = load_project(project_id, raise_exception=True)
     parset = proj.parsets[parsetname]
     for newpar in parlist:
-        this_par = parset.get_par(newpar['parname'])
-        this_par.meta_y_factor = float(newpar['meta_y_factor'])
+        parname = newpar['parname']
+        this_par = parset.get_par(parname)
+        this_par.meta_y_factor = to_float(newpar['meta_y_factor'])
         for newpoppar in newpar['pop_y_factors']:
+            popname = newpoppar['popname']
             try:    
                 interp_val = this_par.interpolate([TEMP_YEAR],popname)[0]
                 if not np.isfinite(interp_val):
+                    print('NUMBER WARNING, value for %s %s is not finite' % (parname, popname))
                     interp_val = 1
                 if sc.approx(interp_val, 0):
-                    interp_val = 0
-            except: 
+                    interp_val = 0.0
+            except Exception as E: 
+                print('NUMBER WARNING, value for %s %s is not convertible: %s' % (parname, popname, str(E)))
                 interp_val = 1
-            y_factor = float(newpoppar['dispvalue'])/(1e-6+interp_val)
-            this_par.y_factor[newpoppar['popname']] = y_factor
-    sc.pp(parlist)
+            dispvalue     = to_float(newpoppar['dispvalue'])
+            origdispvalue = to_float(newpoppar['origdispvalue'])
+            changed = (dispvalue != origdispvalue)
+            if changed:
+                print('Note: parameter %s %s updated! %s -> %s' % (parname, popname, origdispvalue, dispvalue))
+            orig_y_factor = this_par.y_factor[popname]
+            if not sc.approx(origdispvalue, 0):
+                y_factor_change = dispvalue/origdispvalue
+                y_factor        = orig_y_factor*y_factor_change
+            elif not sc.approx(interp_val, 0):
+                y_factor = dispvalue/(1e-6+interp_val)
+            else:
+                if changed: print('NUMBER WARNING, everything is 0 for %s %s: %s %s %s %s' % (parname, popname, origdispvalue, dispvalue, interp_val, orig_y_factor))
+                y_factor = orig_y_factor
+            this_par.y_factor[popname] = y_factor
+#    sc.pp(parlist)
     print('Setting %s y-factors' % len(parlist))
     print('Saving project...')
     save_project(proj)
@@ -1607,7 +1639,7 @@ def js_to_py_scen(js_scen):
         budget = item[1]
         if sc.isstring(budget):
             try:
-                budget = to_number(budget)
+                budget = to_float(budget)
             except Exception as E:
                 raise Exception('Could not convert budget to number: %s' % repr(E))
         if sc.isiterable(budget):
@@ -1615,7 +1647,7 @@ def js_to_py_scen(js_scen):
                 raise Exception('Budget should only have a single element in it, not %s' % len(budget))
             else:
                 budget = budget[0] # If it's not a scalar, pull out the first element -- WARNING, KLUDGY
-        py_scen['alloc'][prog_name] = to_number(budget)
+        py_scen['alloc'][prog_name] = to_float(budget)
     return py_scen
     
 
@@ -1696,12 +1728,12 @@ def py_to_js_optim(py_optim, project=None):
 def js_to_py_optim(js_optim):
     json = js_optim
     for key in ['start_year', 'end_year', 'budget_factor', 'maxtime']:
-        json[key] = to_number(json[key]) # Convert to a number
+        json[key] = to_float(json[key]) # Convert to a number
     for subkey in json['objective_weights'].keys():
-        json['objective_weights'][subkey] = to_number(json['objective_weights'][subkey])
+        json['objective_weights'][subkey] = to_float(json['objective_weights'][subkey])
     for subkey in json['prog_spending'].keys():
         this = json['prog_spending'][subkey]
-        json['prog_spending'][subkey] = (to_number(this['min']), to_number(this['max']))
+        json['prog_spending'][subkey] = (to_float(this['min']), to_float(this['max']))
     return json
     
 

@@ -108,12 +108,15 @@ Last update: 2018-09-06
               <td>
                 <input type="text"
                        class="txbox"
-                       v-model="par.meta_y_factor"/>
+                       v-model="par.meta_y_factor"
+                       @keyup.enter="saveParTable(projectID)"/>
               </td>
               <td v-for="poppar in par.pop_y_factors">
                 <input type="text"
                        class="txbox"
-                       v-model="poppar.dispvalue"/>
+                       :disabled="poppar.dispvalue==='0'"
+                       v-model="poppar.dispvalue"
+                       @keyup.enter="saveParTable(projectID)"/>
               </td>
             </tr>
             </tbody>
