@@ -68,6 +68,9 @@ Last update: 2018-09-06
           <button class="btn btn-icon" @click="uploadParset()" data-tooltip="Upload">
             <i class="ti-upload"></i>
           </button>
+          <button class="btn btn-icon" @click="loadParTable()" data-tooltip="Refresh">
+            <i class="ti-reload"></i>
+          </button>
           &nbsp;
           <help reflink="parameter-sets"></help>
         </div>
@@ -109,19 +112,19 @@ Last update: 2018-09-06
                 <input type="text"
                        class="txbox"
                        v-model="par.meta_y_factor"
-                       @keyup.enter="saveParTable(projectID)"/>
+                       @keyup.enter="saveParTable()"/>
               </td>
               <td v-for="poppar in par.pop_y_factors">
                 <input type="text"
                        class="txbox"
                        :disabled="poppar.dispvalue==='0'"
                        v-model="poppar.dispvalue"
-                       @keyup.enter="saveParTable(projectID)"/>
+                       @keyup.enter="saveParTable()"/>
               </td>
             </tr>
             </tbody>
           </table>
-          <button class="btn __green" @click="saveParTable(projectID)">
+          <button class="btn __green" @click="saveParTable()">
             Save
           </button>&nbsp;
         </div>
@@ -383,6 +386,12 @@ Last update: 2018-09-06
       }
     },
 
+    watch: {
+//      activeParset() {
+//        this.loadParTable()
+//      }
+    },
+
     methods: {
 
       validateYears()                   { return utils.validateYears(this) },
@@ -404,11 +413,18 @@ Last update: 2018-09-06
 
       loadParTable() {
         return new Promise((resolve, reject) => {
-          console.log('loadParTable() called')
+          console.log('loadParTable() called for ' + this.activeParset)
           // TODO: Get spinners working right for this leg of initialization.
-          rpcs.rpc('get_y_factors', [this.$store.state.activeProject.project.id, this.activeParset])
+          rpcs.rpc('get_y_factors', [this.projectID, this.activeParset])
             .then(response => {
               this.parlist = response.data.parlist // Get the parameter values
+              var tmpParset = _.cloneDeep(this.activeParset)
+              this.activeParset = null
+              utils.sleep(500).then(response => {
+                this.activeParset = tmpParset
+              })
+              this.parlist.push('Update Vue DOM')
+              this.parlist.pop()
               this.poplabels = response.data.poplabels
               console.log(response)
               console.log(this.poplabels)
@@ -424,10 +440,14 @@ Last update: 2018-09-06
 
       saveParTable() {
         return new Promise((resolve, reject) => {
-          console.log('saveParTable() called')
-          rpcs.rpc('set_y_factors', [this.$store.state.activeProject.project.id, this.activeParset, this.parlist])
+          console.log('saveParTable() called for ' + this.activeParset)
+          rpcs.rpc('set_y_factors', [this.projectID, this.activeParset, this.parlist])
             .then(response => {
-              status.succeed(this, 'Parameters updated')
+              this.loadParTable()
+                .then(response2 => {
+                  status.succeed(this, 'Parameters updated')
+                  resolve(response2)
+                })
               resolve(response)
             })
             .catch(error => {
@@ -518,7 +538,7 @@ Last update: 2018-09-06
         console.log('manualCalibration() called')
         this.validateYears()  // Make sure the start end years are in the right range.
         status.start(this)
-        rpcs.rpc('manual_calibration', [project_id, this.serverDatastoreId], {'parsetname':this.activeParset, 'y_factors':this.parList, 'plot_options':this.plotOptions,
+        rpcs.rpc('manual_calibration', [project_id, this.serverDatastoreId], {'parsetname':this.activeParset, 'plot_options':this.plotOptions,
           'plotyear':this.endYear, 'pops':this.activePop, 'tool':this.$globaltool, 'cascade':null}) // Go to the server to get the results
           .then(response => {
             this.makeGraphs(response.data)
