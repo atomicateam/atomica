@@ -1293,7 +1293,6 @@ def get_atomica_plots(proj, results=None, plot_names=None, plot_options=None, po
                 alllegendjsons.append(customize_fig(fig=legend, output=output, plotdata=plotdata, xlims=xlims, figsize=figsize, is_legend=True))
                 allfigs.append(fig)
                 alllegends.append(legend)
-                pl.close(fig)
             print('Plot %s succeeded' % (output))
         except Exception as E:
             print('WARNING: plot %s failed (%s)' % (output, repr(E)))
@@ -1338,25 +1337,31 @@ def make_plots(proj, results, tool=None, year=None, pops=None, cascade=None, plo
     else:          return output
 
 
-def customize_fig(fig=None, output=None, plotdata=None, xlims=None, figsize=None, is_legend=False):
+def customize_fig(fig=None, output=None, plotdata=None, xlims=None, figsize=None, is_legend=False, is_epi=True):
     if is_legend:
         pass # Put legend customizations here
     else:
-        if figsize is None: figsize = (5,3)
-        fig.set_size_inches(figsize)
         ax = fig.get_axes()[0]
-        ax.set_position([0.25,0.18,0.70,0.72])
         ax.set_facecolor('none')
-        ax.set_title(output.keys()[0]) # This is in a loop over outputs, so there should only be one output present
+        if is_epi: 
+            if figsize is None: figsize = (5,3)
+            fig.set_size_inches(figsize)
+            ax.set_position([0.25,0.18,0.70,0.72])
+            ax.set_title(output.keys()[0]) # This is in a loop over outputs, so there should only be one output present
         y_max = ax.get_ylim()[1]
         labelpad = 7
         if y_max < 1e-3: labelpad = 15
         if y_max > 1e3:  labelpad = 15
-        if y_max > 1e6:  labelpad = 20
-        if y_max > 1e9:  labelpad = 25
-        ylabel = plotdata.series[0].units
-        if ylabel == 'probability': ylabel = 'Probability'
-        if ylabel == '':            ylabel = 'Proportion'
+        if y_max > 1e6:  labelpad = 25
+        if y_max > 1e7:  labelpad = 30
+        if y_max > 1e8:  labelpad = 35
+        if y_max > 1e9:  labelpad = 40
+        if is_epi:
+            ylabel = plotdata.series[0].units
+            if ylabel == 'probability': ylabel = 'Probability'
+            if ylabel == '':            ylabel = 'Proportion'
+        else:
+            ylabel = ax.get_ylabel()
         ax.set_ylabel(ylabel, labelpad=labelpad) # All outputs should have the same units (one output for each pop/result)
         if xlims is not None: ax.set_xlim(xlims)
         try:
@@ -1366,56 +1371,57 @@ def customize_fig(fig=None, output=None, plotdata=None, xlims=None, figsize=None
         except:
             pass
         mpld3.plugins.connect(fig, CursorPosition())
-        for l,line in enumerate(fig.axes[0].lines):
-            mpld3.plugins.connect(fig, LineLabels(line, label=line.get_label()))
-    
+        if is_epi:
+            for l,line in enumerate(fig.axes[0].lines):
+                mpld3.plugins.connect(fig, LineLabels(line, label=line.get_label()))
     graph_dict = sw.mpld3ify(fig, jsonify=False) # Convert to mpld3
+    pl.close(fig)
     return graph_dict
     
 
-def get_program_plots(results,year,budget=True,coverage=True):
-    # Generate program related plots
-    # INPUTS
-    # - proj : Project instance
-    # - results : Result or list of Results
-    # - year : If making a budget bar plot, it will be displayed for this year
-    # - budget : True/False flag for whether to include budget bar plot
-    # - coverage : True/False flag for whether to include program coverage figures
-
-    figs = []
-    if budget:
-        d = au.PlotData.programs(results, quantity='spending')
-        d.interpolate(year)
-        budget_figs = au.plot_bars(d, stack_outputs='all', legend_mode='together', outer='times', show_all_labels=False, orientation='horizontal')
-
-        ax = budget_figs[0].axes[0]
-        ax.set_xlabel('Spending ($/year)')
-
-        # The legend is too big for the figure -- WARNING, think of a better solution
-        #        budget_figs[1].set_figheight(8.9)
-        #        budgetfigs[1].set_figwidth(8.7)
-
-        figs += budget_figs
-        print('Budget plot succeeded')
-
-    if coverage:
-        d = au.PlotData.programs(results,quantity='coverage_fraction')
-        coverage_figs = au.plot_series(d, axis='results')
-        for fig,(output_name,output_label) in zip(coverage_figs,d.outputs.items()):
-            fig.axes[0].set_title(output_label)
-            series = d[d.results.keys()[0],d.pops.keys()[0],output_name]
-            fig.axes[0].set_ylabel(series.units.title())
-        figs += coverage_figs
-        print('Coverage plots succeeded')
-
-    graphs = []
-    for fig in figs:
-        graph_dict = mpld3.fig_to_dict(fig)
-        graph_dict = sc.sanitizejson(graph_dict) # This shouldn't be necessary, but it is...
-        graphs.append(graph_dict)
-        pl.close(fig)
-    output = {'graphs':graphs}
-    return output, figs
+#def get_program_plots(results,year,budget=True,coverage=True):
+#    # Generate program related plots
+#    # INPUTS
+#    # - proj : Project instance
+#    # - results : Result or list of Results
+#    # - year : If making a budget bar plot, it will be displayed for this year
+#    # - budget : True/False flag for whether to include budget bar plot
+#    # - coverage : True/False flag for whether to include program coverage figures
+#
+#    figs = []
+#    if budget:
+#        d = au.PlotData.programs(results, quantity='spending')
+#        d.interpolate(year)
+#        budget_figs = au.plot_bars(d, stack_outputs='all', legend_mode='together', outer='times', show_all_labels=False, orientation='horizontal')
+#
+#        ax = budget_figs[0].axes[0]
+#        ax.set_xlabel('Spending ($/year)')
+#
+#        # The legend is too big for the figure -- WARNING, think of a better solution
+#        #        budget_figs[1].set_figheight(8.9)
+#        #        budgetfigs[1].set_figwidth(8.7)
+#
+#        figs += budget_figs
+#        print('Budget plot succeeded')
+#
+#    if coverage:
+#        d = au.PlotData.programs(results,quantity='coverage_fraction')
+#        coverage_figs = au.plot_series(d, axis='results')
+#        for fig,(output_name,output_label) in zip(coverage_figs,d.outputs.items()):
+#            fig.axes[0].set_title(output_label)
+#            series = d[d.results.keys()[0],d.pops.keys()[0],output_name]
+#            fig.axes[0].set_ylabel(series.units.title())
+#        figs += coverage_figs
+#        print('Coverage plots succeeded')
+#
+#    graphs = []
+#    for fig in figs:
+#        graph_dict = mpld3.fig_to_dict(fig)
+#        graph_dict = sc.sanitizejson(graph_dict) # This shouldn't be necessary, but it is...
+#        graphs.append(graph_dict)
+#        pl.close(fig)
+#    output = {'graphs':graphs}
+#    return output, figs
 
 def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plot_budget=False):
     
@@ -1431,14 +1437,15 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plo
         years[y] = float(years[y]) # Ensure it's a float
 
     fig,table = au.plot_cascade(results, cascade=cascade, pops=pops, year=years, data=proj.data, show_table=False)
+    figjsons.append(customize_fig(fig=fig, output=None, plotdata=None, xlims=None, figsize=None, is_epi=False))
     figs.append(fig)
     legends.append(sc.emptyfig()) # No figure, but still useful to have a plot
     
     if plot_budget:
-        
         d = au.PlotData.programs(results, quantity='spending')
         d.interpolate(year)
         budgetfigs = au.plot_bars(d, stack_outputs='all', legend_mode='together', outer='times', show_all_labels=False, orientation='vertical')
+        figjsons.append(customize_fig(fig=budgetfigs[0], output=None, plotdata=None, xlims=None, figsize=None, is_epi=False))
         budgetlegends = [sc.emptyfig()]
         
         ax = budgetfigs[0].axes[0]
@@ -1447,14 +1454,6 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plo
         figs    += budgetfigs
         legends += budgetlegends
         print('Budget plot succeeded')
-    
-    for fig in figs:
-        ax = fig.get_axes()[0]
-        ax.set_facecolor('none')
-        mpld3.plugins.connect(fig, CursorPosition())
-        graph_dict = sw.mpld3ify(fig, jsonify=False) # These get jsonified later
-        figjsons.append(graph_dict)
-        pl.close(fig)
     
     for fig in legends: # Different enough to warrant its own block, although ugly
         try:
