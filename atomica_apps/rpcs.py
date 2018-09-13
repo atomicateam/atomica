@@ -1239,21 +1239,14 @@ def get_supported_plots(project_id, only_keys=False):
 
 
 def savefigs(allfigs, online=True, die=False):
-#    if online: folder = sw.globalvars.downloads_dir.dir_path
-    if online: 
-        # Look for an existing downloads_dir UID.
-        downloads_dir_uid = sw.globalvars.data_store.get_uid('filesavedir', 
-            'Downloads Directory')        
-        folder = sw.globalvars.data_store.retrieve(downloads_dir_uid).dir_path    
-    else:      folder = os.getcwd()
-    filepath = sc.savefigs(allfigs, filetype='singlepdf', filename='figures.pdf', folder=folder)
+    filepath = sc.savefigs(allfigs, filetype='singlepdf', filename='Figures.pdf', folder=sw.globalvars.downloads_dir.dir_path)
     return filepath
 
 
 @RPC(call_type='download')
 def download_graphs():
     dirname = sw.globalvars.downloads_dir.dir_path # Use the downloads directory to put the file in.
-    file_name = 'figures.pdf' # Create a filename containing the framework name followed by a .frw suffix.
+    file_name = 'Figures.pdf' # Create a filename containing the framework name followed by a .frw suffix.
     full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
     return full_file_name
 
@@ -1308,7 +1301,7 @@ def get_atomica_plots(proj, results=None, plot_names=None, plot_options=None, po
     return output, allfigs, alllegends
 
 
-def make_plots(proj, results, tool=None, year=None, pops=None, cascade=None, plot_options=None, dosave=None, calibration=False, online=True, plot_budget=False, outputfigs=False):
+def make_plots(proj, results, tool=None, year=None, pops=None, cascade=None, plot_options=None, dosave=True, calibration=False, online=True, plot_budget=False, outputfigs=False):
     
     # Handle inputs
     if sc.isstring(year): year = float(year)
@@ -1339,8 +1332,8 @@ def make_plots(proj, results, tool=None, year=None, pops=None, cascade=None, plo
             output[key] = cascadeoutput[key] + output[key]
         allfigs = cascadefigs + allfigs
         alllegends = cascadelegends + alllegends
-    if dosave:
-        savefigs(allfigs, online=online)  
+    try:                   savefigs(allfigs) # WARNING, dosave ignored fornow
+    except Exception as E: print('Could not save figures: %s' % str(E))
     if outputfigs: return output, allfigs, alllegends
     else:          return output
 

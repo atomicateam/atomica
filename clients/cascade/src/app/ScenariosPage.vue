@@ -88,7 +88,7 @@ Last update: 2018-09-09
               <button class="btn btn-icon" @click="scaleFigs(1.0)" data-tooltip="Reset zoom"><i class="ti-zoom-in"></i></button>
               <button class="btn btn-icon" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>
               &nbsp;&nbsp;&nbsp;
-              <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
+              <button class="btn" @click="exportGraphs()">Export graphs</button>
               <button class="btn" @click="exportResults(serverDatastoreId)">Export data</button>
               <button v-if="false" class="btn btn-icon" @click="togglePlotControls()"><i class="ti-settings"></i></button> <!-- When popups are working: v-if="$globaltool=='tb'" -->
             </div>
@@ -365,7 +365,7 @@ Last update: 2018-09-09
 
       validateYears()                   { return utils.validateYears(this) },
       updateSets()                      { return shared.updateSets(this) },
-      exportGraphs(datastoreID)         { return shared.exportGraphs(this, datastoreID) },
+      exportGraphs()                    { return shared.exportGraphs(this) },
       exportResults(datastoreID)        { return shared.exportResults(this, datastoreID) },
       scaleFigs(frac)                   { return graphs.scaleFigs(this, frac)},
       clearGraphs()                     { return graphs.clearGraphs(this) },

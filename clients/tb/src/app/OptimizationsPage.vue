@@ -51,7 +51,7 @@ Last update: 2018-09-12
               <button class="btn __green" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 3600)">Run</button>
               <button class="btn __green" :disabled="!canPlotResults(optimSummary)" @click="{displayResultName = optimSummary.name; displayResultDatastoreId = optimSummary.serverDatastoreId; reloadGraphs(optimSummary.serverDatastoreId, true)}">Plot results</button>
               <button class="btn" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 10)">Test run</button>
-              <button v-if="useCelery" class="btn __red" :disabled="!canCancelTask(optimSummary)" @click="clearTask(optimSummary)">Clear run</button>
+              <button class="btn" v-if="useCelery" :disabled="!canCancelTask(optimSummary)" @click="clearTask(optimSummary)">Clear run</button>
               <button class="btn btn-icon" @click="editOptim(optimSummary)" data-tooltip="Edit optimization"><i class="ti-pencil"></i></button>
               <button class="btn btn-icon" @click="copyOptim(optimSummary)" data-tooltip="Copy optimization"><i class="ti-files"></i></button>
               <button class="btn btn-icon" @click="deleteOptim(optimSummary)" data-tooltip="Delete optimization"><i class="ti-trash"></i></button>
@@ -92,7 +92,7 @@ Last update: 2018-09-12
               <button class="btn btn-icon" @click="scaleFigs(1.0)" data-tooltip="Reset zoom"><i class="ti-zoom-in"></i></button>
               <button class="btn btn-icon" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>
               &nbsp;&nbsp;&nbsp;
-              <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
+              <button class="btn" @click="exportGraphs()">Export graphs</button>
               <button class="btn" @click="exportResults(displayResultDatastoreId)">Export data</button>
               <button v-if="false" class="btn btn-icon" @click="togglePlotControls()"><i class="ti-settings"></i></button> <!-- When popups are working: v-if="this.$globaltool=='tb'" -->
             </div>
@@ -404,7 +404,7 @@ Last update: 2018-09-12
 
       validateYears()                   { return utils.validateYears(this) },
       updateSets()                      { return shared.updateSets(this) },
-      exportGraphs(datastoreID)         { return shared.exportGraphs(this, datastoreID) },
+      exportGraphs()                    { return shared.exportGraphs(this) },
       exportResults(datastoreID)        { return shared.exportResults(this, datastoreID) },
       scaleFigs(frac)                   { return graphs.scaleFigs(this, frac)},
       clearGraphs()                     { return graphs.clearGraphs(this) },

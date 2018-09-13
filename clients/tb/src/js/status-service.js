@@ -45,18 +45,18 @@ function succeed(vm, successMessage) {
 }
 
 function fail(vm, failMessage, error) {
-  console.log(failMessage, error.message)
+  console.log(failMessage + '\n\n' + error.message)
   complete = 100;
   vm.$spinner.stop() // Dispel the spinner.
   vm.$Progress.fail() // Fail the loading bar.
   if (failMessage !== '') {  // Put up a failure notification.
     vm.$notifications.notify({
-      message: failMessage + '<br><br>' + error.message,
+      message: failMessage,
       icon: 'ti-face-sad',
       type: 'warning',
       verticalAlign: 'top',
       horizontalAlign: 'right',
-      timeout: 0
+      timeout: 8000
     })
   }  
 }
