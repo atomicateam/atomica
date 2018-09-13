@@ -56,7 +56,7 @@ def timeit(method):
     return timed
 
 
-def to_float(raw):
+def to_float(raw, blank_ok=False, die=False):
     ''' Convert something to a number. WARNING, I'm sure this already exists!! '''
     try:
         if sc.isstring(raw):
@@ -64,21 +64,28 @@ def to_float(raw):
             raw = raw.replace('$','') # Remove dollars, if present
         output = float(raw)
     except Exception as E:
-        print('NUMBER WARNING, number conversion on "%s" failed, returning 0: %s' % (raw, str(E)))
-        output = 0
+        errormsg = 'NUMBER WARNING, number conversion on "%s" failed, returning None: %s' % (raw, str(E))
+        if raw not in [None, ''] and not blank_ok: 
+            if die: raise Exception(errormsg)
+            else:   print(errormsg)
+        output = None
     return output
 
 
-def from_number(raw, sf=3):
+def from_number(raw, sf=3, die=False):
     ''' Convert something to a reasonable FE representation '''
     if not sc.isnumber(raw):
-        print('NUMBER WARNING, cannot convert %s from a number since it is %s' % (raw, type(raw)))
-        return str(raw)
+        output = str(raw)
+        errormsg = 'NUMBER WARNING, cannot convert %s from a number since it is of type %s' % (output, type(raw))
+        if die: raise Exception(errormsg)
+        else:   print(errormsg)
     try:
         output = sc.sigfig(raw, sigfigs=sf, sep=True, keepints=True)
     except Exception as E:
-        print('NUMBER WARNING, number conversion on "%s" failed, returning raw: %s' % (raw, str(E)))
         output = str(raw)
+        errormsg = 'NUMBER WARNING, number conversion on "%s" failed, returning raw: %s' % (output, str(E))
+        if die: raise Exception(errormsg)
+        else:   print(errormsg)
     return output
         
 
@@ -1709,7 +1716,7 @@ def js_to_py_optim(js_optim):
     for key in ['start_year', 'end_year', 'budget_factor', 'maxtime']:
         json[key] = to_float(json[key]) # Convert to a number
     for subkey in json['objective_weights'].keys():
-        json['objective_weights'][subkey] = to_float(json['objective_weights'][subkey])
+        json['objective_weights'][subkey] = to_float(json['objective_weights'][subkey], blank_ok=True)
     for subkey in json['prog_spending'].keys():
         this = json['prog_spending'][subkey]
         json['prog_spending'][subkey] = (to_float(this['min']), to_float(this['max']))
