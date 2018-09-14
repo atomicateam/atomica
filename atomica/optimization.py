@@ -492,14 +492,15 @@ class OptimInstructions(NamedItem):
         measurables = []
         for mname,mweight in objective_weights.items():
 
-            if tool == 'cascade' and mweight:
-                tokens = mname.split(':')
-                if tokens[0] == 'cascade_stage': # Parse a measurable name like 'cascade_stage:Default:All diagnosed'
-                    measurables.append(MaximizeCascadeStage(cascade_name=tokens[1], t=[end_year], pop_names='all',cascade_stage=tokens[2], weight=mweight))
-                elif tokens[0] == 'conversion': # Parse a measurable name like 'conversions:Default'
-                    measurables.append(MaximizeCascadeConversionRate(cascade_name=tokens[1],t=[end_year],pop_names='all', weight=mweight))
-                else:
-                    raise AtomicaException('Unknown measurable "%s"' % (mname))
+            if tool == 'cascade':
+                if mweight:
+                    tokens = mname.split(':')
+                    if tokens[0] == 'cascade_stage': # Parse a measurable name like 'cascade_stage:Default:All diagnosed'
+                        measurables.append(MaximizeCascadeStage(cascade_name=tokens[1], t=[end_year], pop_names='all',cascade_stage=tokens[2], weight=mweight))
+                    elif tokens[0] == 'conversion': # Parse a measurable name like 'conversions:Default'
+                        measurables.append(MaximizeCascadeConversionRate(cascade_name=tokens[1],t=[end_year],pop_names='all', weight=mweight))
+                    else:
+                        raise AtomicaException('Unknown measurable "%s"' % (mname))
             else:
                 if optim_type == 'money':
                     # For money minimization, use at AtMostMeasurable to meet the target by the end year.
