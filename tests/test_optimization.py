@@ -19,11 +19,11 @@ import matplotlib.pyplot as plt
 
 # Atomica has INFO level logging by default which is set when Atomica is imported, so need to change it after importing
 # logger.setLevel('DEBUG')
-# test='sir'
+test='sir'
 #test='udt'
 #test='hiv'
-test='diabetes'
-#test='hypertension'
+# test='diabetes'
+# test='hypertension'
 #test='usdt'
 
 torun = [
@@ -33,9 +33,9 @@ torun = [
 # "gradual",
 # 'mixed',
 # 'parametric_paired',
-# "money",
+"money",
 # 'cascade_final_stage',
-'cascade_multi_stage',
+# 'cascade_multi_stage',
  #'cascade-conversions'
 ]
 
@@ -258,7 +258,7 @@ if 'money' in torun and test=='sir':
     adjustments.append(au.SpendingAdjustment('Treatment 2', 2020, 'abs', 0., 100.)) # We can adjust Treatment 2
 
     measurables = []
-    measurables.append(au.AtLeastMeasurable('ch_all',2030,728.01)) # Need at least 728.01 people in 2030
+    measurables.append(au.AtLeastMeasurable('ch_all',2030,723.89)) # Need at least 728.01 people in 2030
     measurables.append(au.MinimizeMeasurable('Treatment 1',2020)) # Minimize 2020 spending on Treatment 1
     measurables.append(au.MinimizeMeasurable('Treatment 2',2020)) # Minimize 2020 spending on Treatment 2
 
