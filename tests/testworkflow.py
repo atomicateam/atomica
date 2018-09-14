@@ -12,16 +12,17 @@ from atomica.optimization import optimize
 #test = "sir"
 #test = "tb"
 #test = "hypertension"
-test = "hypertension_dyn"
+#test = "hypertension_dyn"
 #test = "dt"
 #test = "udt"
 #test = "usdt"
+test = "usdt_dyn"
 #test = "hiv"
 #test = "diabetes"
 #test = "service"
 
 torun = [
-#"loadframework",
+"loadframework",
 #"saveframework",
 #"makedatabook",
 #"makeproject",
@@ -32,7 +33,7 @@ torun = [
 #"makeblankprogbook",
 # "writeprogbook",
 #"testprograms",
-"runsim_programs",
+#"runsim_programs",
 #"makeplots",
 #"export",
 # "manualcalibrate",
