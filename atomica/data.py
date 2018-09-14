@@ -516,7 +516,7 @@ class ProjectData(sc.prettyobj):
 
         sheet = self._book.add_worksheet("Transfers")
         sheet.set_tab_color('#808080')
-        sheet.hide()
+        # sheet.hide()
         widths = dict()
         next_row = 0
         for transfer in self.transfers:
