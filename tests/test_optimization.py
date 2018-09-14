@@ -264,7 +264,7 @@ if 'money' in torun and test=='sir':
 
     constraints = None  # No extra constraints aside from individual bounds
 
-    optimization = au.Optimization(name='default', adjustments=adjustments, measurables=measurables,constraints=constraints) # Evaluate from 2020 to end of simulation
+    optimization = au.Optimization(name='default', adjustments=adjustments, measurables=measurables,constraints=constraints,method='pso') # Evaluate from 2020 to end of simulation
 
     (unoptimized_result,optimized_result) = run_optimization(P, optimization, instructions)
 

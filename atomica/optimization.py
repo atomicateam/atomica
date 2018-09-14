@@ -531,7 +531,7 @@ class OptimInstructions(NamedItem):
 class Optimization(NamedItem):
     """ An object that defines an Optimization to perform """
 
-    def __init__(self,  name=None, parsetname=None, progsetname=None, adjustments=None, measurables=None, constraints=None,  maxtime=None, maxiters=None):
+    def __init__(self,  name=None, parsetname=None, progsetname=None, adjustments=None, measurables=None, constraints=None,  maxtime=None, maxiters=None,method='asd'):
 
         # Get the name
         if name is None:
@@ -542,6 +542,7 @@ class Optimization(NamedItem):
         self.progsetname = progsetname
         self.maxiters = maxiters # Not snake_case to match ASD
         self.maxtime = maxtime # Not snake_case to match ASD
+        self.method = method # This gets passed to optimize() to select the algorithm
 
         assert adjustments is not None, 'Must specify some adjustments to carry out an optimization'
         assert measurables is not None, 'Must specify some measurables to carry out an optimization'
@@ -612,7 +613,7 @@ class Optimization(NamedItem):
         return objective
 
 
-def _asd_objective(asd_values, pickled_model=None, optimization=None, hard_constraints=None):
+def _objective_fcn(asd_values, pickled_model=None, optimization=None, hard_constraints=None):
     # Compute the objective in ASD
 
     # Unpickle model
@@ -635,6 +636,11 @@ def _asd_objective(asd_values, pickled_model=None, optimization=None, hard_const
 
 def optimize(project,optimization,parset,progset,instructions,x0=None,xmin=None,xmax=None,hard_constraints=None):
     # The ASD initialization, xmin and xmax values can optionally be
+    # method can be one of
+    # - asd (to use normal ASD)
+    # - pso (to use particle swarm optimization from pyswarm)
+
+    assert optimization.method in ['asd','pso']
 
     model = Model(project.settings, project.framework, parset, progset, instructions)
     pickled_model = pickle.dumps(model)
@@ -647,28 +653,42 @@ def optimize(project,optimization,parset,progset,instructions,x0=None,xmin=None,
     if not hard_constraints:
         hard_constraints = optimization.get_hard_constraints(x0,model.program_instructions) # The optimization passed in here knows how to calculate the hard constraints based on the program instructions
 
+    # Prepare additional arguments for the objective function
     args = {
         'pickled_model': pickled_model,
         'optimization': optimization,
         'hard_constraints': hard_constraints,
     }
 
-    optim_args = {
-        # 'stepsize': proj.settings.autofit_params['stepsize'],
-        'maxiters': optimization.maxiters,
-        'maxtime': optimization.maxtime,
-        # 'sinc': proj.settings.autofit_params['sinc'],
-        # 'sdec': proj.settings.autofit_params['sdec'],
-        'fulloutput': False,
-        'xmin': xmin,
-        'xmax': xmax,
-    }
-
-    initial_objective = _asd_objective(x0, **args)
+    # Check that the initial conditions are OK
+    initial_objective = _objective_fcn(x0, **args)
     if not np.isfinite(initial_objective):
         raise InvalidInitialConditions()
 
-    x_opt = sc.asd(_asd_objective,x0,args,**optim_args)[0]
+
+    if optimization.method == 'asd':
+        optim_args = {
+            # 'stepsize': proj.settings.autofit_params['stepsize'],
+            'maxiters': optimization.maxiters,
+            'maxtime': optimization.maxtime,
+            # 'sinc': proj.settings.autofit_params['sinc'],
+            # 'sdec': proj.settings.autofit_params['sdec'],
+            'fulloutput': False,
+            'xmin': xmin,
+            'xmax': xmax,
+        }
+        x_opt = sc.asd(_objective_fcn, x0, args, **optim_args)[0]
+    elif optimization.method == 'pso':
+        import pyswarm
+        optim_args = {
+            'maxiter':100,
+            'lb':xmin,
+            'ub':xmax,
+            'minstep':1e-3,
+            'debug':True
+        }
+        x_opt, _ = pyswarm.pso(_objective_fcn, kwargs=args, **optim_args)
+
     optimization.update_instructions(x_opt,model.program_instructions)
     optimization.constrain_instructions(model.program_instructions,hard_constraints)
     return model.program_instructions # Return the modified instructions
