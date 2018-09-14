@@ -15,6 +15,13 @@ from .structure import TimeSeries
 import logging
 from .results import Result
 from .cascade import get_cascade_vals
+from .programs import ProgramInstructions
+
+class InvalidInitialConditions(AtomicaException):
+    # This error gets thrown if the initial conditions yield an objective value
+    # that is not finite
+    pass
+
 
 class Adjustable(object):
 
@@ -226,7 +233,10 @@ class AtMostMeasurable(Measurable):
         Measurable.__init__(self,measurable_name,t=t,weight=np.inf,pop_names=pop_names)
         self.weight = 1.0
         self.threshold = threshold
-        self.fcn = lambda x: np.inf if x>threshold else 0.0
+        self.fcn = lambda x: np.inf if x>self.threshold else 0.0
+
+    def __repr__(self):
+        return 'AtMostMeasurable(%s < %f)' % (self.measurable_name,self.threshold)
 
 class AtLeastMeasurable(Measurable):
     # A Measurable that impose a penalty if the quantity is smaller than some threshold
@@ -236,7 +246,10 @@ class AtLeastMeasurable(Measurable):
         Measurable.__init__(self,measurable_name,t=t,weight=np.inf,pop_names=pop_names)
         self.weight = 1.0
         self.threshold = threshold
-        self.fcn = lambda x: np.inf if x<threshold else 0.0
+        self.fcn = lambda x: np.inf if x<self.threshold else 0.0
+
+    def __repr__(self):
+        return 'AtLeastMeasurable(%s > %f)' % (self.measurable_name,self.threshold)
 
 class MaximizeCascadeStage(Measurable):
     # This Measurable will maximize the number of people in a cascade stage, whatever that stage is
@@ -244,7 +257,7 @@ class MaximizeCascadeStage(Measurable):
     # If multiple years are provided, they will be summed over
     # Could add option to weight specific years later on, if desired
 
-    def __init__(self,cascade_name,t,pop_names='all',weight=-1.0,cascade_stage=-1):
+    def __init__(self,cascade_name,t,pop_names='all',weight=1.0,cascade_stage=-1):
         # Instantiate thpop_names can be a single pop name (including all), or a list of pop names
         # aggregations are supported by setting pop_names to a dict e.g.
         # pop_names = {'foo':['0-4','5-14']}
@@ -259,7 +272,7 @@ class MaximizeCascadeStage(Measurable):
         #   - The name of a cascade stage
         #   - A list of integers and/or names to include multiple stages
 
-        Measurable.__init__(self,cascade_name,t=t,weight=weight,pop_names=pop_names)
+        Measurable.__init__(self,cascade_name,t=t,weight=-weight,pop_names=pop_names)
         if not isinstance(cascade_stage,list):
             cascade_stage = [cascade_stage]
         self.cascade_stage = cascade_stage
@@ -277,11 +290,11 @@ class MaximizeCascadeStage(Measurable):
 
 class MaximizeCascadeConversionRate(Measurable):
     # This Measurable will maximize the conversion rate, summed over all cascade stages
-    def __init__(self,cascade_name,t,pop_names='all',weight=-1.0):
+    def __init__(self,cascade_name,t,pop_names='all',weight=1.0):
         # pop_names can be a single pop name (including all), or a list of pop names
         # aggregations are supported by setting pop_names to a dict e.g.
         # pop_names = {'foo':['0-4','5-14']}
-        Measurable.__init__(self,cascade_name,t=t,weight=weight,pop_names=pop_names)
+        Measurable.__init__(self,cascade_name,t=t,weight=-weight,pop_names=pop_names)
         if not isinstance(self.pop_names,list):
             self.pop_names = [self.pop_names]
 
@@ -444,39 +457,74 @@ class OptimInstructions(NamedItem):
         objective_weights = self.json['objective_weights']
         prog_spending     = self.json['prog_spending']
         maxtime           = self.json['maxtime']
-    
+        optim_type        = self.json['optim_type']
+        tool              = self.json['tool']
+
+        if tool == 'cascade' and optim_type == 'money':
+            raise NotImplementedError('Money minimization not yet implemented for Cascades tool')
+
         progset = proj.progsets[progset_name] # Retrieve the progset
     
         # Add a spending adjustment in the program start year for every program in the progset, using the lower/upper bounds
         # passed in as arguments to this function
         adjustments = []
+        progset_instructions = ProgramInstructions(alloc=None, start_year=self.json['start_year'])
+        default_spend = progset.get_alloc(instructions=progset_instructions,tvec=start_year)
         for prog_name in progset.programs:
             limits = prog_spending[prog_name]
             adjustments.append(SpendingAdjustment(prog_name,t=start_year,limit_type='abs',lower=limits[0],upper=limits[1]))
-    
-        # Add a total spending constraint with the given budget scale up
-        constraints = [TotalSpendConstraint(budget_factor=budget_factor)]
-    
+
+            if optim_type == 'money':
+                # Modify default spending to see if more money allows target to be met at all
+                if limits[1] is not None and np.isfinite(limits[1]):
+                    progset_instructions.alloc[prog_name].insert(start_year,limits[1])
+                else:
+                    progset_instructions.alloc[prog_name] = TimeSeries(start_year, 5*default_spend[prog_name])
+
+        if optim_type == 'epi':
+            # Add a total spending constraint with the given budget scale up
+            # For money minimization we do not need to do this
+            constraints = [TotalSpendConstraint(budget_factor=budget_factor)]
+        else:
+            constraints = None
+
         # Add all of the terms in the objective
         measurables = []
-        cascade_to_use = proj.framework.cascades.keys()[0] if proj.framework.cascades else None
         for mname,mweight in objective_weights.items():
 
-            if ':' in mname and mweight:
+            if tool == 'cascade' and mweight:
                 tokens = mname.split(':')
                 if tokens[0] == 'cascade_stage': # Parse a measurable name like 'cascade_stage:Default:All diagnosed'
-                    measurables.append(MaximizeCascadeStage(cascade_name=tokens[1], t=[end_year], pop_names='all',cascade_stage=tokens[2]))
+                    measurables.append(MaximizeCascadeStage(cascade_name=tokens[1], t=[end_year], pop_names='all',cascade_stage=tokens[2], weight=mweight))
                 elif tokens[0] == 'conversion': # Parse a measurable name like 'conversions:Default'
-                    measurables.append(MaximizeCascadeConversionRate(cascade_name=tokens[1],t=[end_year],pop_names='all'))
+                    measurables.append(MaximizeCascadeConversionRate(cascade_name=tokens[1],t=[end_year],pop_names='all', weight=mweight))
                 else:
                     raise AtomicaException('Unknown measurable "%s"' % (mname))
             else:
-                measurables.append(Measurable(mname,t=[start_year,end_year],weight=mweight))
-                
+                if optim_type == 'money':
+                    # For money minimization, use at AtMostMeasurable to meet the target by the end year.
+                    # The weight stores the threshold value
+                    measurables.append(AtMostMeasurable(mname, t=end_year, threshold=mweight))
+                else:
+                    measurables.append(Measurable(mname,t=[start_year,end_year],weight=mweight))
+
+
+        if optim_type == 'money':
+            # Do a prerun to convert the optimization targets into absolute units
+            result = proj.run_sim(proj.parsets[parset_name],progset=progset,progset_instructions=progset_instructions,store_results=False)
+            for measurable in measurables:
+                val = measurable.get_objective_val(result.model) # This is the baseline value for the quantity being thresholded
+                assert measurable.threshold <= 100 and measurable.threshold >= 0
+                measurable.threshold = val*(1-measurable.threshold/100.)
+
+            # Then, add extra measurables for program spending
+            for prog in progset.programs.values():
+                measurables.append(MinimizeMeasurable(prog.name, start_year))  # Minimize 2020 spending on Treatment 1
+
         # Create the Optimization object
         optim = Optimization(name=name, parsetname=parset_name, progsetname=progset_name, adjustments=adjustments, measurables=measurables, constraints=constraints, maxtime=maxtime)
         
-        return optim
+        return optim, progset_instructions
     
     
 
@@ -615,6 +663,10 @@ def optimize(project,optimization,parset,progset,instructions,x0=None,xmin=None,
         'xmin': xmin,
         'xmax': xmax,
     }
+
+    initial_objective = _asd_objective(x0, **args)
+    if not np.isfinite(initial_objective):
+        raise InvalidInitialConditions()
 
     x_opt = sc.asd(_asd_objective,x0,args,**optim_args)[0]
     optimization.update_instructions(x_opt,model.program_instructions)
