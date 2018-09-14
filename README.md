@@ -53,6 +53,34 @@ python testworkflow.py
 * If additional Node.js modules have been added, you will need to rerun `python install_client.py` before building the client. This will usually be the case if and only if the build fails (i.e. `python dev_client.py` gives an error).
 * If the server crashes, the most likely cause is an old project that can't be unpickled. Run `python reset_database.py` to remove broken projects.
 
+### Other FE troubleshooting
+
+
+#### Restarting `redis`
+
+Sometimes it might be necessary to restart the `redis` process. This can be system dependent. On Mac OS, if `redis` was installed using `brew`, first install brew services
+
+```
+brew tap homebrew/services
+```
+
+Then you can do something like 
+
+```
+brew services restart redis
+```
+
+#### Resetting everything
+
+If there are general node errors and you are _not_ doing local FE development, a very simple brute-force solution is to
+
+```
+cd atomica
+rm -rf clients
+git checkout clients
+cd clients
+npm install
+```
 
 # Code structure
 
