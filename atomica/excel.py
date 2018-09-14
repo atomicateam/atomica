@@ -581,7 +581,7 @@ class TimeDependentValuesEntry(object):
         else:
             constant_index = None
 
-        if vals[offset:].index(None):
+        if None in vals[offset:]:
             t_end = offset+vals[offset:].index(None)
         else:
             t_end = len(vals)
