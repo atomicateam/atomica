@@ -523,7 +523,9 @@ class OptimInstructions(NamedItem):
 
         # Create the Optimization object
         optim = Optimization(name=name, parsetname=parset_name, progsetname=progset_name, adjustments=adjustments, measurables=measurables, constraints=constraints, maxtime=maxtime)
-        
+
+        if optim_type == 'money':
+            optim.method = 'pso'
         return optim, progset_instructions
     
     
