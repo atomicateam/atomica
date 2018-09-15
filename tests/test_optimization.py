@@ -28,9 +28,10 @@ test='sir'
 
 torun = [
 # "standard",
-"unresolvable",
+# "unresolvable",
 # "standard_mindeaths",
 # "delayed",
+"multi_year_fixed",
 # "gradual",
 # 'mixed',
 # 'parametric_paired',
@@ -163,6 +164,47 @@ if 'delayed' in torun and test=='sir':
     plt.plot(t,optimized_spending['Treatment 2'],label='Optimized Treatment 2')
     plt.legend()
     plt.title('Fixed spending in 2020, optimized from 2025 onwards')
+
+### MULTI YEAR FIXED
+# In this example (requested by applications) the total spend constraint
+# is explicitly specified in several years, yielding a time-dependent scale-up
+# Note that the total spend constraint necessarily only affects programs which are
+# optimizable (i.e. if a program is excluded from the optimization, then it won't be
+# touched by the total spending constraint). This also applies in the case where the
+# different programs are optimizable in different years. The flip side of this is that
+# typically the Optimization should therefore contain an adjustment in every year that
+# the total spend is specified - which can be done simply by passing the array of times
+# to the SpendingAdjustment constructor, as demonstrated here
+#
+# In this example, the optimal solution is to spend as much as possible on Program 2, subject
+# to constraints. Thus, in 2020 the optimal budget is $5 on program 1 and $95 on program 2,
+# and in 2040 the optimal mudget is $25 on program 1 and $125 on program 2
+if 'multi_year_fixed' in torun and test=='sir':
+    alloc = sc.odict([('Risk avoidance',0.),
+                     ('Harm reduction 1',0.),
+                     ('Harm reduction 2',0.),
+                     ('Treatment 1',au.TimeSeries([2020,2024],[50,50])),
+                     ('Treatment 2', au.TimeSeries([2020,2024],[1,1]))])
+
+    instructions = au.ProgramInstructions(alloc=alloc,start_year=2020) # Instructions for default spending
+    adjustments = []
+    adjustments.append(au.SpendingAdjustment('Treatment 1',[2020,2024],'abs',5.,100.))
+    adjustments.append(au.SpendingAdjustment('Treatment 2',[2020,2024],'abs',5.,125.))
+    measurables = au.MaximizeMeasurable('ch_all',[2020,np.inf])
+    constraints = au.TotalSpendConstraint(t=[2020,2024],total_spend=[100,150]) # Cap total spending in all years
+    # Use PSO because this example seems a bit susceptible to local minima with ASD
+    optimization = au.Optimization(name='default', adjustments=adjustments, measurables=measurables,constraints=constraints,method='pso') # Evaluate from 2020 to end of simulation
+
+    (unoptimized_result,optimized_result) = run_optimization(P, optimization, instructions)
+
+    t = optimized_result.model.t
+    unoptimized_spending = unoptimized_result.model.progset.get_alloc(unoptimized_result.model.program_instructions,t)
+    optimized_spending = optimized_result.model.progset.get_alloc(optimized_result.model.program_instructions,t)
+
+
+    d = au.PlotData.programs(optimized_result)
+    au.plot_series(d,plot_type='stacked')
+    plt.title('Scale up spending to 100 in 2020 and 150 in 2040')
 
 ### GRADUAL OUTCOME OPTIMIZATION
 # This is similar to ramped constraints, except the constraint is time-based rather than

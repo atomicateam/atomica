@@ -351,9 +351,24 @@ class TotalSpendConstraint(Constraint):
         # The budget_factor multiplies the total spend at the time the hard_constraint is assigned
         # Typically this is to scale up the available spending when that spending is being drawn from
         # the instructions/progset (otherwise the budget_factor could already be part of the specified total spend)
-        self.total_spend = total_spend  # Optionally a number, or a list of tuples of time-spending pairs e.g. [(2018,10000),(2020,200000)]
+        #
+        # INPUTS
+        # - t : A time, or list of times, at which to apply the total spending constraint. If None, it will
+        #       automatically be set to all years in which spending adjustments are being made
+        # - total_spend: A list of spending amounts the same size as t (can contain Nones), or None.
+        #                For times in which the total spend is None, it will be automatically set to the sum of
+        #                spending on optimizable programs in the corresponding year
+        # - budget_factor: The budget factor multiplies whatever the total_spend is. This can either be a single value, or
+        #                  a year specific value
+
+        self.total_spend = sc.promotetoarray(total_spend) if t is not None else ()
         self.t = sc.promotetoarray(t) if t is not None else ()
-        self.budget_factor = budget_factor
+        self.budget_factor = sc.promotetoarray(budget_factor)
+
+        if total_spend is not None and t is not None:
+            assert len(self.total_spend) == len(self.t), 'If specifying both the times and values for the total spending constraint, their lengths must be the same'
+        if len(self.budget_factor) > 1:
+            assert len(self.budget_factor)==len(self.t), 'If specifying multiple budget factors, you must also specify the years in which they are used'
 
     def get_hard_constraint(self,optimization, instructions):
         # First, at each time point where a program overwrite exists, we need to store
@@ -364,6 +379,9 @@ class TotalSpendConstraint(Constraint):
         # By convention, an Adjustable affecting a program should store the program's name in the
         # `prog_name` attribute. If a program reaches multiple programs, then `prog_name` will be a list
 
+        # First, we make a dictionary storing the years in which any adjustments are made
+        # as well as the upper and lower bounds in that year. This is only done for spending
+        # adjustments (i.e. those where `adjustment.prog_name` is defined)
         hard_constraints = {}
         hard_constraints['programs'] = defaultdict(set)  # It's a set so that it will work properly if multiple Adjustments reach the same parameter at the same time. However, this would a bad idea and nobody should do this!
         for adjustment in optimization.adjustments:
@@ -374,6 +392,13 @@ class TotalSpendConstraint(Constraint):
                     else:
                         hard_constraints['programs'][t].add(adjustment.prog_name)
 
+        if len(self.t):
+            # Check that every explictly specified time has
+            # corresponding spending adjustments available for use
+            missing_times = set(self.t) - set(hard_constraints['programs'].keys())
+            if missing_times:
+                raise AtomicaException('Total spending constraint was specified in %s but the optimization does not have any adjustments at those times' % (missing_times))
+
         # Now we have a set of times and programs for which we need to get total spend, and
         # also which programs should be included in the total for that year
         #
@@ -381,17 +406,27 @@ class TotalSpendConstraint(Constraint):
         # hard_constraints['total_spend'][2030] = 400
         hard_constraints['total_spend'] = {}
         for t, progs in hard_constraints['programs'].items():
-            if isinstance(self.total_spend, list):
-                for spend in self.total_spend:
-                    if t == spend[0]:
-                        hard_constraints['total_spend'][t] = spend[1]*self.budget_factor
-            elif self.total_spend:
-                hard_constraints['total_spend'][t] = self.total_spend*self.budget_factor
+            # For every time at which programs are optimizable...
+            if len(self.t) and t not in self.t:
+                # If we are not wanting to constrain spending in this year, then
+                # continue
+                continue
             else:
+                idx = np.where(self.t==t)[0][0] # This is the index for the constraint year
+
+            if not len(self.total_spend):
+                # Get the total spend from the allocation in this year
                 total_spend = 0.0
                 for prog in progs:
                     total_spend += instructions.alloc[prog].get(t)
+            else:
+                total_spend = self.total_spend[idx]
+
+            # Lastly, apply the budget factor
+            if len(self.budget_factor) == 1:
                 hard_constraints['total_spend'][t] = total_spend*self.budget_factor
+            else:
+                hard_constraints['total_spend'][t] = total_spend*self.budget_factor[idx]
 
         # Finally, for each adjustable, we need to store its upper and lower bounds
         # _in the year that the adjustment is being made_
@@ -407,6 +442,11 @@ class TotalSpendConstraint(Constraint):
         hard_constraints['bounds'] = dict()
 
         for t, progs in hard_constraints['programs'].items():  # For each time point being constrained, and for each program
+            if t not in hard_constraints['total_spend']:
+                # If the time is not one where the total spending constraint is being applied, then
+                # just skip it
+                continue
+
             hard_constraints['bounds'][t] = dict()
             # If there is an Adjustable that reaches this Program in the appropriate year:
 
@@ -432,7 +472,6 @@ class TotalSpendConstraint(Constraint):
             if maximum_spend < hard_constraints['total_spend'][t]:
                 raise UnresolvableConstraint('The total spend in %.2f is constrained to %.2f but the individual programs have a total maximum spend of %.2f which is impossible to satisfy. Please either lower the total spending, or raise the maximum spend on one or more programs' % (t,hard_constraints['total_spend'][t],maximum_spend))
 
-
         return hard_constraints
 
     def constrain_instructions(self,instructions, hard_constraints):
@@ -440,8 +479,6 @@ class TotalSpendConstraint(Constraint):
         penalty = 0.0
 
         for t, total_spend in hard_constraints['total_spend'].items():
-            if self.t and not t in self.t:
-                continue
 
             x0 = sc.odict()  # Order matters here
             bounds = []
@@ -714,7 +751,7 @@ def optimize(project,optimization,parset,progset,instructions,x0=None,xmin=None,
     elif optimization.method == 'pso':
         import pyswarm
         optim_args = {
-            'maxiter':100,
+            'maxiter':3,
             'lb':xmin,
             'ub':xmax,
             'minstep':1e-3,
