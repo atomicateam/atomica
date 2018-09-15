@@ -757,6 +757,8 @@ def optimize(project,optimization,parset,progset,instructions,x0=None,xmin=None,
             'minstep':1e-3,
             'debug':True
         }
+        if np.any(~np.isfinite(xmin)) or np.any(~np.isfinite(xmax)):
+            raise AtomicaException('PSO optimization requires finite upper and lower bounds to specify the search domain (i.e. every Adjustable needs to have finite bounds)')
         x_opt, _ = pyswarm.pso(_objective_fcn, kwargs=args, **optim_args)
 
     optimization.update_instructions(x_opt,model.program_instructions)
