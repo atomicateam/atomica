@@ -360,12 +360,20 @@ class TotalSpendConstraint(Constraint):
         #                spending on optimizable programs in the corresponding year
         # - budget_factor: The budget factor multiplies whatever the total_spend is. This can either be a single value, or
         #                  a year specific value
-
+        #
+        # Note that if no times are specified, the budget factor should be a scalar but no explicit
+        # spending values can be specified. This is because in the case where different programs are
+        # optimized in different years, an explicit total spending constraint applying to all
+        # times is unlikely to be a sensible choice (so we just ask the user to specify the time as well)
         self.total_spend = sc.promotetoarray(total_spend) if total_spend is not None else ()
         self.t = sc.promotetoarray(t) if t is not None else ()
         self.budget_factor = sc.promotetoarray(budget_factor)
 
-        if total_spend is not None and t is not None:
+        if t is None:
+            assert total_spend is None, 'If no times are specified, no total spend values can be specified either'
+            assert len(self.budget_factor) == 1, 'If no times are specified, the budget factor must be scalar'
+
+        if t is not None and total_spend is not None:
             assert len(self.total_spend) == len(self.t), 'If specifying both the times and values for the total spending constraint, their lengths must be the same'
         if len(self.budget_factor) > 1:
             assert len(self.budget_factor)==len(self.t), 'If specifying multiple budget factors, you must also specify the years in which they are used'
@@ -411,10 +419,12 @@ class TotalSpendConstraint(Constraint):
                 # If we are not wanting to constrain spending in this year, then
                 # continue
                 continue
-            else:
+            elif len(self.t):
                 idx = np.where(self.t==t)[0][0] # This is the index for the constraint year
+            else:
+                idx = None
 
-            if not len(self.total_spend):
+            if not len(self.total_spend) or self.total_spend[idx] is None:
                 # Get the total spend from the allocation in this year
                 total_spend = 0.0
                 for prog in progs:

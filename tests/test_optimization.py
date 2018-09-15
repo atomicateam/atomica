@@ -27,19 +27,19 @@ test='sir'
 #test='usdt'
 
 torun = [
-# "standard",
-# "unresolvable",
-# "standard_mindeaths",
-# "delayed",
-# "multi_year_fixed",
+"standard",
+"unresolvable",
+"standard_mindeaths",
+"delayed",
+"multi_year_fixed",
 "multi_year_relative",
-# "gradual",
-# 'mixed',
-# 'parametric_paired',
-# "money",
-# 'cascade_final_stage',
-# 'cascade_multi_stage',
- #'cascade-conversions'
+"gradual",
+'mixed',
+'parametric_paired',
+"money",
+'cascade_final_stage',
+'cascade_multi_stage',
+ 'cascade-conversions'
 ]
 
 # Load the SIR demo and associated programs
@@ -90,7 +90,7 @@ if 'unresolvable' in torun and test == 'sir':
     adjustments.append(au.SpendingAdjustment('Treatment 1', 2020, 'abs', 10., 100.))
     adjustments.append(au.SpendingAdjustment('Treatment 2', 2020, 'abs', 10., 100.))
     measurables = au.MaximizeMeasurable('ch_all', [2020, np.inf])
-    constraints = au.TotalSpendConstraint(total_spend=201)  # Cap total spending in all years
+    constraints = au.TotalSpendConstraint(t=2020,total_spend=201)  # Cap total spending in all years
     optimization = au.Optimization(name='default', adjustments=adjustments, measurables=measurables,
                                    constraints=constraints)  # Evaluate from 2020 to end of simulation
 
@@ -100,7 +100,7 @@ if 'unresolvable' in torun and test == 'sir':
         print(e)
         print('Correctly raised UnresolvableConstraint error')
 
-    constraints.total_spend = 5
+    constraints.total_spend = sc.promotetoarray(5)
     try:
         (unoptimized_result, optimized_result) = run_optimization(P, optimization, instructions)
     except au.UnresolvableConstraint as e:
@@ -237,7 +237,6 @@ if 'multi_year_relative' in torun and test=='sir':
     t = optimized_result.model.t
     unoptimized_spending = unoptimized_result.model.progset.get_alloc(unoptimized_result.model.program_instructions,t)
     optimized_spending = optimized_result.model.progset.get_alloc(optimized_result.model.program_instructions,t)
-
 
     d = au.PlotData.programs(optimized_result)
     au.plot_series(d,plot_type='stacked')
