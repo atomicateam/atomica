@@ -361,7 +361,7 @@ class TotalSpendConstraint(Constraint):
         # - budget_factor: The budget factor multiplies whatever the total_spend is. This can either be a single value, or
         #                  a year specific value
 
-        self.total_spend = sc.promotetoarray(total_spend) if t is not None else ()
+        self.total_spend = sc.promotetoarray(total_spend) if total_spend is not None else ()
         self.t = sc.promotetoarray(t) if t is not None else ()
         self.budget_factor = sc.promotetoarray(budget_factor)
 

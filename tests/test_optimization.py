@@ -31,7 +31,8 @@ torun = [
 # "unresolvable",
 # "standard_mindeaths",
 # "delayed",
-"multi_year_fixed",
+# "multi_year_fixed",
+"multi_year_relative",
 # "gradual",
 # 'mixed',
 # 'parametric_paired',
@@ -205,6 +206,38 @@ if 'multi_year_fixed' in torun and test=='sir':
     d = au.PlotData.programs(optimized_result)
     au.plot_series(d,plot_type='stacked')
     plt.title('Scale up spending to 100 in 2020 and 150 in 2040')
+
+### MULTI YEAR RELATIVE
+# In this example, we have spending adjustments in 2020 and 2024 but the
+# scale up is specified by multiple budget factors adjusting the
+# initial allocation. Note that the total spending should therefore be
+# constrained to $50 in 2020 and $75 in 2024
+if 'multi_year_relative' in torun and test=='sir':
+    alloc = sc.odict([('Risk avoidance',0.),
+                     ('Harm reduction 1',0.),
+                     ('Harm reduction 2',0.),
+                     ('Treatment 1',au.TimeSeries([2020,2024],[49,49])),
+                     ('Treatment 2', au.TimeSeries([2020,2024],[1,1]))])
+
+    instructions = au.ProgramInstructions(alloc=alloc,start_year=2020) # Instructions for default spending
+    adjustments = []
+    adjustments.append(au.SpendingAdjustment('Treatment 1',[2020,2024],'abs',5.,100.))
+    adjustments.append(au.SpendingAdjustment('Treatment 2',[2020,2024],'abs',5.,125.))
+    measurables = au.MaximizeMeasurable('ch_all',[2020,np.inf])
+    constraints = au.TotalSpendConstraint(t=[2020,2024],budget_factor=[1.,1.5]) # Cap total spending in all years
+    # Use PSO because this example seems a bit susceptible to local minima with ASD
+    optimization = au.Optimization(name='default', adjustments=adjustments, measurables=measurables,constraints=constraints,method='pso') # Evaluate from 2020 to end of simulation
+
+    (unoptimized_result,optimized_result) = run_optimization(P, optimization, instructions)
+
+    t = optimized_result.model.t
+    unoptimized_spending = unoptimized_result.model.progset.get_alloc(unoptimized_result.model.program_instructions,t)
+    optimized_spending = optimized_result.model.progset.get_alloc(optimized_result.model.program_instructions,t)
+
+
+    d = au.PlotData.programs(optimized_result)
+    au.plot_series(d,plot_type='stacked')
+    plt.title('Scale up spending to 1x in 2020 and 1.5x in 2040')
 
 ### GRADUAL OUTCOME OPTIMIZATION
 # This is similar to ramped constraints, except the constraint is time-based rather than
