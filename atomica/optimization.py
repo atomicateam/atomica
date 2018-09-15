@@ -22,6 +22,17 @@ class InvalidInitialConditions(AtomicaException):
     # that is not finite
     pass
 
+class UnresolvableConstraint(AtomicaException):
+    # This error gets thrown if it is _impossible_ to satisfy the constraints. There are
+    # two modes of constraint failure
+    # - The constraint might not be satisfied on this iteration, but could be satisfied by other
+    #   parameter values
+    # - The constraint is impossible to satisfy because it is inconsistent (for example, if the
+    #   total spend is greater than the sum of the upper bounds on all the individual programs)
+    #   in which case the algorithm cannot continue
+    # This error gets raised in the latter case, while the former should result in the iteration
+    # being skipped
+    pass
 
 class Adjustable(object):
 
@@ -398,6 +409,11 @@ class TotalSpendConstraint(Constraint):
         for t, progs in hard_constraints['programs'].items():  # For each time point being constrained, and for each program
             hard_constraints['bounds'][t] = dict()
             # If there is an Adjustable that reaches this Program in the appropriate year:
+
+            # Keep track of the absolute lower and upper bounds on spending permitted by the program constraints
+            minimum_spend = 0.0
+            maximum_spend = 0.0
+
             for adjustment in optimization.adjustments:
                 if hasattr(adjustment, 'prog_name') and adjustment.prog_name in progs and t in adjustment.t:
                     if isinstance(adjustment, SpendingAdjustment):
@@ -406,6 +422,16 @@ class TotalSpendConstraint(Constraint):
                         hard_constraints['bounds'][t][adjustment.prog_name] = adjustable.get_hard_bounds(instructions.alloc[adjustment.prog_name].get(t)) # The instructions should already have the initial spend on this program inserted. This may be inconsistent if multiple Adjustments reach the same program...!
                     else:
                         hard_constraints['bounds'][t][adjustment.prog_name] = (0.0, np.inf) # If the Adjustment reaches spending but is not a SpendingAdjustment then do not constrain the alloc
+
+                    minimum_spend +=  hard_constraints['bounds'][t][adjustment.prog_name][0]
+                    maximum_spend +=  hard_constraints['bounds'][t][adjustment.prog_name][1]
+
+            if minimum_spend > hard_constraints['total_spend'][t]:
+                raise UnresolvableConstraint('The total spend in %.2f is constrained to %.2f but the individual programs have a total minimum spend of %.2f which is impossible to satisfy. Please either raise the total spending, or lower the minimum spend on one or more programs' % (t,hard_constraints['total_spend'][t],minimum_spend))
+
+            if maximum_spend < hard_constraints['total_spend'][t]:
+                raise UnresolvableConstraint('The total spend in %.2f is constrained to %.2f but the individual programs have a total maximum spend of %.2f which is impossible to satisfy. Please either lower the total spending, or raise the maximum spend on one or more programs' % (t,hard_constraints['total_spend'][t],maximum_spend))
+
 
         return hard_constraints
 
@@ -431,12 +457,12 @@ class TotalSpendConstraint(Constraint):
             res = scipy.optimize.minimize(lambda x: np.sqrt(np.sum((x - x0_array_scaled) ** 2)), x0_array_scaled, bounds=bounds,constraints=LinearConstraint,options={'maxiter':500})
 
             if not res['success']:
-                logger.error('TotalSpendConstraint failed - how to handle this is yet to be determined')
-
-            penalty += np.sqrt(np.sum((res['x'] - x0_array)**2)) # Penalty is the distance between the unconstrained budget and the constrained budget
-
-            for name, val in zip(x0.keys(), res['x']):
-                instructions.alloc[name].insert(t,val)
+                logger.error('TotalSpendConstraint failed - rejecting these proposed parameters with an objective value of np.inf')
+                penalty = np.inf
+            else:
+                penalty += np.sqrt(np.sum((res['x'] - x0_array)**2)) # Penalty is the distance between the unconstrained budget and the constrained budget
+                for name, val in zip(x0.keys(), res['x']):
+                    instructions.alloc[name].insert(t,val)
 
         return penalty
     
@@ -625,8 +651,12 @@ def _objective_fcn(asd_values, pickled_model=None, optimization=None, hard_const
     # Inject the ASD vector into the instructions
     optimization.update_instructions(asd_values,model.program_instructions)
 
-    # Constrain the alloc
+    # Constrain the alloc - a penalty of `np.inf` signifies that the constraint could not be satisfied
+    # In which case we can reject the proposed parameters _before_ processing the model
     constraint_penalty = optimization.constrain_instructions(model.program_instructions,hard_constraints)
+    if np.isinf(constraint_penalty):
+        return constraint_penalty
+
     # Use the updated instructions to run the model
     model.process()
 

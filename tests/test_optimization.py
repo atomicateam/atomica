@@ -28,12 +28,13 @@ test='sir'
 
 torun = [
 # "standard",
+"unresolvable",
 # "standard_mindeaths",
 # "delayed",
 # "gradual",
 # 'mixed',
 # 'parametric_paired',
-"money",
+# "money",
 # 'cascade_final_stage',
 # 'cascade_multi_stage',
  #'cascade-conversions'
@@ -76,6 +77,33 @@ if 'standard' in torun and test=='sir':
 
     d = au.PlotData([unoptimized_result, optimized_result], outputs=['ch_all'],project=P)
     au.plot_series(d, axis="results")
+
+### UNRESOLVABLE CONSTRAINTS
+# If the user specifies bounds on individual spending that are inconsistent with the
+# total spending constraint, an informative error should be raised. This test verifies
+# that this is detected correctly
+if 'unresolvable' in torun and test == 'sir':
+    instructions = au.ProgramInstructions(start_year=2020)  # Instructions for default spending
+    adjustments = []
+    adjustments.append(au.SpendingAdjustment('Treatment 1', 2020, 'abs', 10., 100.))
+    adjustments.append(au.SpendingAdjustment('Treatment 2', 2020, 'abs', 10., 100.))
+    measurables = au.MaximizeMeasurable('ch_all', [2020, np.inf])
+    constraints = au.TotalSpendConstraint(total_spend=201)  # Cap total spending in all years
+    optimization = au.Optimization(name='default', adjustments=adjustments, measurables=measurables,
+                                   constraints=constraints)  # Evaluate from 2020 to end of simulation
+
+    try:
+        (unoptimized_result, optimized_result) = run_optimization(P, optimization, instructions)
+    except au.UnresolvableConstraint as e:
+        print(e)
+        print('Correctly raised UnresolvableConstraint error')
+
+    constraints.total_spend = 5
+    try:
+        (unoptimized_result, optimized_result) = run_optimization(P, optimization, instructions)
+    except au.UnresolvableConstraint as e:
+        print(e)
+        print('Correctly raised UnresolvableConstraint error')
 
 ### STANDARD OUTCOME OPTIMIZATION, MINIMIZE DEATHS
 # In this example, Treatment 2 is more effective than Treatment 1. The initial allocation has the budget
