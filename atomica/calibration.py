@@ -20,7 +20,7 @@ def update_parset(parset, y_factors, pars_to_adjust):
         par_name = x[0]
         pop_name = x[1]
 
-        if par_name in parset.par_ids['cascade'] or par_name in parset.par_ids['characs']:
+        if par_name in parset.par_ids['cascade'] or par_name in parset.par_ids['characs'] or par_name in parset.par_ids['comps']:
             if pop_name == 'all':
                 par = parset.get_par(par_name)
                 par.meta_y_factor = y_factors[i]
@@ -191,7 +191,7 @@ def perform_autofit(project, parset, pars_to_adjust, output_quantities, max_time
         par_name = x[0]
         pop_name = x[1]
 
-        if par_name in parset.par_ids['cascade'] or par_name in parset.par_ids['characs']:
+        if par_name in parset.par_ids['cascade'] or par_name in parset.par_ids['characs'] or par_name in parset.par_ids['comps']:
             par = args['parset'].get_par(par_name)
 
             if pop_name is None or pop_name == 'all':
