@@ -218,7 +218,7 @@ class Result(NamedItem):
 
                     df = pd.DataFrame(data, index=new_tvals)
                     df = df.T
-                    df.name = self.framework.pars.loc[par_name]['display name']
+                    df.name = prog_name
                     prog_df.append(df)
 
                 write_df_list(prog_df, 'Programs')

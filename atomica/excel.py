@@ -547,6 +547,8 @@ class TimeDependentValuesEntry(object):
         # First, read the headings
         vals = [x.value for x in rows[0]]
 
+        if vals[0] is None:
+            raise AtomicaException('TDVE table name is missing. This can also happen if extra rows have been added without a "#ignore" entry in the first column')
         name = vals[0].strip()
 
         lowered_headings = [x.lower().strip() if sc.isstring(x) else x for x in vals]
@@ -579,7 +581,11 @@ class TimeDependentValuesEntry(object):
         else:
             constant_index = None
 
-        tvec = np.array(vals[offset:],dtype=float)
+        if None in vals[offset:]:
+            t_end = offset+vals[offset:].index(None)
+        else:
+            t_end = len(vals)
+        tvec = np.array(vals[offset:t_end],dtype=float)
         ts_entries = sc.odict()
 
         # For each TimeSeries that we will instantiate
@@ -613,7 +619,7 @@ class TimeDependentValuesEntry(object):
             if constant_index is not None:
                 assert vals[offset - 1] == 'OR', 'Error with validating row in TDVE table "%s"' % (name)  # Check row is as expected
 
-            data = vals[offset:]
+            data = vals[offset:t_end]
 
             for t,v in zip(tvec,data):
                 if np.isfinite(t) and v is not None: # Ignore any times that are NaN - this happens if the cell was empty and casted to a float
@@ -714,11 +720,13 @@ class TimeDependentValuesEntry(object):
                 update_widths(widths, constant_index+1, 'OR')
 
             # Write the time values
-            content = [None]*len(self.tvec)
+            content = [None]*len(self.tvec) # Initialize an empty entry for every time in the TDVE's tvec
 
             for t,v in zip(row_ts.t,row_ts.vals):
-                idx = np.where(self.tvec == t)[0][0] # If this fails there must be a (forbidden) mismatch between the TimeSeries and the Databook tvec
-                content[idx] = v
+                # If the TimeSeries contains data for that time point, then insert it now
+                idx = np.where(self.tvec == t)[0]
+                if len(idx):
+                    content[idx[0]] = v
 
             for idx,v in enumerate(content):
                 if v is None:
@@ -731,6 +739,5 @@ class TimeDependentValuesEntry(object):
             # Hatched out if the cell will be ignored
             worksheet.conditional_format(xlrc(current_row, 2), {'type': 'formula', 'criteria':'='+fcn_empty_times,'format':formats['ignored']})
             worksheet.conditional_format(xlrc(current_row, 2), {'type': 'formula', 'criteria':'=AND(%s,NOT(ISBLANK(%s)))' % (fcn_empty_times,xlrc(current_row,2)),'format':formats['ignored_warning']})
-
 
         return current_row+2 # Add two so there is a blank line after this table
