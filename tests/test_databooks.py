@@ -46,14 +46,13 @@ P.load_databook(databook_path="./temp/d_blug_renamed.xlsx", make_default_parset=
 d = au.PlotData(P.results["parset_default"], pops='0-3')
 au.plot_series(d, plot_type="stacked") # This should look like the usual Optima-TB result
 
-# Remove some key pops
+# Remove a key pop
 d2 = sc.dcp(data)
-d2.remove_pop('Pris')
-d2.remove_pop('Pris (HIV+)')
+d2.remove_pop('Prisoners')
 d2.save('./temp/d_blug_nopris.xlsx')
 
 # Remove a transfer, add an interaction, add a pop
-d2.remove_transfer('hiv_inf')
+d2.remove_transfer('inc')
 d2.add_interaction('d_ctc','New interpop')
 d2.add_pop('asdf','The ASDF pop')
 d2.save('./temp/d_blug_newpop.xlsx')

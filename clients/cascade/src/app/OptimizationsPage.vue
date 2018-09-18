@@ -235,7 +235,7 @@ Last update: 2018-09-12
             <input type="text"
                    class="txbox"
                    v-model="modalOptim.start_year"/><br>
-            <b>End year</b><br>
+            <b>Objective year</b><br>
             <input type="text"
                    class="txbox"
                    v-model="modalOptim.end_year"/><br>
@@ -266,7 +266,7 @@ Last update: 2018-09-12
             </tr>
             </tbody>
           </table>
-          <b>Relative spending constraints</b><br>
+          <b>Spending constraints</b><br>
           <table class="table table-bordered table-hover table-striped" style="width: 100%">
             <thead>
             <tr>

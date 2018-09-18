@@ -33,8 +33,8 @@ from .parameters import ParameterSet
 
 from .programs import ProgramSet, ProgramInstructions
 from .scenarios import ParameterScenario
-from .optimization import optimize, OptimInstructions
-from .system import logger
+from .optimization import optimize, OptimInstructions, InvalidInitialConditions
+from .system import logger, AtomicaException
 from .scenarios import BudgetScenario
 from .cascade import get_cascade_outputs
 from .utils import NDict
@@ -43,6 +43,7 @@ from .results import evaluate_plot_string
 import sciris as sc
 import numpy as np
 from .excel import AtomicaSpreadsheet
+
 
 class ProjectSettings(object):
     def __init__(self, sim_start=None, sim_end=None, sim_dt=None):
@@ -440,15 +441,21 @@ class Project(object):
     def run_optimization(self, optimname=None, maxtime=None, maxiters=None, store_results=True):
         '''Run an optimization'''
         optim_ins = self.optim(optimname)
-        optim = optim_ins.make(project=self)
+        optim, progset_instructions = optim_ins.make(project=self)
         if maxtime is not None: optim.maxtime = maxtime
         if maxiters is not None: optim.maxiters = maxiters
         parset = self.parset(optim.parsetname)
         progset = self.progset(optim.progsetname)
-        progset_instructions = ProgramInstructions(alloc=None, start_year=optim_ins.json['start_year'])
         original_end = self.settings.sim_end
         self.settings.sim_end = optim_ins.json['end_year']
-        optimized_instructions = optimize(self, optim, parset, progset, progset_instructions)
+        try:
+            optimized_instructions = optimize(self, optim, parset, progset, progset_instructions)
+        except InvalidInitialConditions:
+            if optim_ins.json['optim_type'] == 'money':
+                raise AtomicaException('It was not possible to achieve the optimization target even with an increased budget. Specify or raise upper limits for spending, or decrease the optimization target')
+            else:
+                raise # Just raise it as-is
+
         optimized_result   = self.run_sim(parset=parset,           progset=progset,           progset_instructions=optimized_instructions,                                       result_name="Optimized", store_results=store_results)
         unoptimized_result = self.run_sim(parset=optim.parsetname, progset=optim.progsetname, progset_instructions=ProgramInstructions(start_year=optim_ins.json['start_year']), result_name="Baseline", store_results=store_results)
         self.settings.sim_end = original_end
@@ -498,7 +505,17 @@ class Project(object):
         else:
             return json1
 
-    def demo_optimization(self, dorun=False, tool=None):
+    def demo_optimization(self, dorun=False, tool=None, optim_type='epi'):
+        # INPUTS
+        # - dorun : If True, runs optimization immediately
+        # - tool : Choose optimization objectives based on whether tool is 'cascade' or 'tb'
+        # - optim_type : set to 'epi' or 'money' - use 'money' to minimize money
+        #
+        # Note that if optim_type='money' then the optimization 'weights' entered in the FE are
+        # actually treated as relative scalings for the minimization target. e.g. If ':ddis' has a weight
+        # of 25, this is a objective weight factor for optim_type='epi' but it means 'we need to reduce
+        # deaths by 25%' if optim_type='money' (since there is no weight factor for the minimize money epi targets)
+        assert optim_type in ['epi','money']
         if tool is None: tool = 'cascade'
         json = sc.odict()
         json['name']              = 'Default optimization'
@@ -507,6 +524,9 @@ class Project(object):
         json['start_year']        = 2018
         json['end_year']          = 2035
         json['budget_factor']     = 1.0
+        json['optim_type']        = optim_type
+        json['tool']              = tool
+
         if tool == 'cascade':
             json['objective_weights'] = sc.odict()
             json['objective_labels'] = sc.odict()
@@ -514,33 +534,55 @@ class Project(object):
             for cascade_name in self.framework.cascades:
                 cascade = get_cascade_outputs(self.framework,cascade_name)
 
-                json['objective_weights']['conversion:%s' % (cascade_name)] = 1
+                if optim_type == 'epi':
+                    json['objective_weights']['conversion:%s' % (cascade_name)] = 1.
+                elif optim_type == 'money':
+                    json['objective_weights']['conversion:%s' % (cascade_name)] = 0.
+                else:
+                    raise AtomicaException('Unknown optim_type')
+
                 if cascade_name.lower() == 'cascade':
                     json['objective_labels']['conversion:%s' % (cascade_name)] = 'Maximize the conversion rates along each stage of the cascade'
                 else:
                     json['objective_labels']['conversion:%s' % (cascade_name)] = 'Maximize the conversion rates along each stage of the %s cascade' % (cascade_name)
-
 
                 for stage_name in cascade.keys():
                     # We checked earlier that there are no ':' symbols here, but asserting that this is true, just in case
                     assert ':' not in cascade_name
                     assert ':' not in stage_name
                     objective_name = 'cascade_stage:%s:%s' % (cascade_name,stage_name)
-                    json['objective_weights'][objective_name] = 1
+
+                    if optim_type == 'epi':
+                        json['objective_weights'][objective_name] = 1
+                    elif optim_type == 'money':
+                        json['objective_weights'][objective_name] = 0
+                    else:
+                        raise AtomicaException('Unknown optim_type')
+
                     if cascade_name.lower() == 'cascade':
                         json['objective_labels'][objective_name] = 'Maximize the number of people in cascade stage "%s"' % (stage_name)
                     else:
                         json['objective_labels'][objective_name] = 'Maximize the number of people in stage "%s" of the %s cascade' % (stage_name,cascade_name)
 
         elif tool == 'tb':
-            json['objective_weights'] = {'ddis':1,'acj':1, 'ds_inf':0, 'mdr_inf':0, 'xdr_inf':0} # These are TB-specific: maximize people alive, minimize people dead due to TB
+
+            if optim_type == 'epi':
+                json['objective_weights'] = {'ddis': 1, 'acj': 1, 'ds_inf': 0, 'mdr_inf': 0,'xdr_inf': 0}  # These are TB-specific: maximize people alive, minimize people dead due to TB
+            elif optim_type == 'money':
+                # The weights here default to 0 because it's possible, depending on what programs are selected, that improvement
+                # in one or more of them might be impossible even with infinite money. Also, can't increase money too much because otherwise
+                # run the risk of a local minimum stopping optimization early with the current algorithm (this will change in the future)
+                json['objective_weights'] = {'ddis': 25, 'acj': 25, 'ds_inf': 25, 'mdr_inf': 25,'xdr_inf': 25}  # These are TB-specific: maximize people alive, minimize people dead due to TB
+            else:
+                raise AtomicaException('Unknown optim_type')
+
             json['objective_labels'] = {'ddis':   'Minimize TB-related deaths',
                                         'acj':    'Minimize total new active TB infections', 
                                         'ds_inf': 'Minimize prevalence of active DS-TB', 
                                         'mdr_inf':'Minimize prevalence of active MDR-TB', 
                                         'xdr_inf':'Minimize prevalence of active XDR-TB'}
         else:
-            raise Exception('Tool "%s" not recognized' % tool)
+            raise AtomicaException('Tool "%s" not recognized' % tool)
         json['maxtime']           = 30 # WARNING, default!
         json['prog_spending']     = sc.odict()
         for prog_name in self.progset().programs.keys():
