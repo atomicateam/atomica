@@ -16,21 +16,21 @@ from atomica.optimization import optimize
 #test = "dt"
 #test = "udt"
 #test = "usdt"
-test = "usdt_dyn"
+#test = "cervicalcancer"
 #test = "hiv"
-#test = "diabetes"
+test = "diabetes"
 #test = "service"
 
 torun = [
 "loadframework",
 "saveframework",
-#"makedatabook",
-#"makeproject",
-#"loaddatabook",
-#"makeparset",
-#"runsim",
-#"plotcascade",
-#"makeblankprogbook",
+"makedatabook",
+"makeproject",
+"loaddatabook",
+"makeparset",
+"runsim",
+"plotcascade",
+"makeblankprogbook",
 # "writeprogbook",
 #"testprograms",
 #"runsim_programs",
@@ -82,7 +82,7 @@ if "makedatabook" in torun:
     elif test == "tb": args = {"num_pops":12, "num_transfers":3, "data_end":2018}
     elif test == "diabetes": args = {"num_pops":1, "num_transfers":0, "data_start":2014, "data_end":2017, "data_dt":1.0}
     elif test == "service": args = {"num_pops":1, "num_transfers":0,"data_start":2014, "data_end":2017, "data_dt":1.0}
-    elif test in ["udt","dt"]: args = {"num_pops":1, "num_transfers":0,"data_start":2016, "data_end":2019, "data_dt":1.0}
+    elif test in ["udt","usdt","usdt_dyn","dt"]: args = {"num_pops":1, "num_transfers":0,"data_start":2016, "data_end":2019, "data_dt":1.0}
     elif test == "hiv": args = {"num_pops":2, "num_transfers":0,"data_start":2016, "data_end":2019, "data_dt":1.0}
     elif test in ["hypertension","hypertension_dyn"]: args = {"num_pops":4, "num_transfers":0,"data_start":2016, "data_end":2019, "data_dt":1.0}
     P.create_databook(databook_path=tmpdir + "databook_" + test + "_blank.xlsx", **args)
@@ -114,16 +114,9 @@ if "runsim" in torun:
         P.update_settings(sim_start=2014.0, sim_end=2020, sim_dt=1.)
 
     P.run_sim(parset="default", result_name="default")    
-#    cascade = au.get_cascade_vals(P.results[-1],cascade='main', pops='all', year=2017)
 
 if 'plotcascade' in torun:
-    au.plot_cascade(P.results[-1], cascade='Hypertension care cascade', pops='all', year=[2016,2017], data=P.data)
-#    au.plot_cascade(P.results[-1], cascade='main', pops='all', year=2016)
-#    au.plot_cascade(P.results[-1], cascade='main', pops='m_rural', year=2016)
-#    au.plot_cascade(P.results[-1], cascade='main', pops='f_rural', year=2016)
-#    au.plot_cascade(P.results[-1], cascade='main', pops='m_urban', year=2016)
-#    au.plot_cascade(P.results[-1], cascade='main', pops='f_urban', year=2016)
-#    au.plot_multi_cascade(P.results[-1],'main',year=[2016,2017])
+    au.plot_cascade(P.results[-1], pops='all', year=[2016,2017], data=P.data)
     if forceshow: pl.show()
     
     # Browser test
@@ -145,7 +138,7 @@ if "makeblankprogbook" in torun:
         P.make_progbook(filename, progs=9)
     elif test == "udt":
         P.make_progbook(filename, progs=4)
-    elif test == "usdt":
+    elif test == ["usdt","cervicalcancer"]:
         P.make_progbook(filename, progs=9)
     elif test == "hiv":
         P.make_progbook(filename, progs=8)
