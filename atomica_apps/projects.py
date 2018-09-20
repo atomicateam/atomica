@@ -105,6 +105,8 @@ class ProjectSO(sw.Blob):
                 'n_pops':        n_pops,
                 'sim_start':     self.proj.settings.sim_start,
                 'sim_end':       self.proj.settings.sim_end,
+                'data_start':    self.proj.data.start_year if self.proj.data else None,
+                'data_end':      self.proj.data.end_year if self.proj.data else None,
                 'framework':     framework_name,
                 'pops':          pop_pairs
             }
