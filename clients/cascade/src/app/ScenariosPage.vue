@@ -235,7 +235,7 @@ Last update: 2018-09-09
           <b>Budget year</b><br>
           <input type="text"
                  class="txbox"
-                 v-model="addEditModal.scenSummary.start_year"/><br>
+                 v-model="addEditModal.scenSummary.alloc_year"/><br>
           <table class="table table-bordered table-hover table-striped" style="width: 100%">
             <thead>
             <tr>
