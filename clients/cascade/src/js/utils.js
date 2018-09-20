@@ -121,6 +121,23 @@ function dataYears(vm) {
   }
 }
 
+// projection years are used for scenario and optimization plot year dropdowns
+function projectionYears(vm) {
+  if (vm.$store.state.activeProject.project === undefined) {
+    return []
+  }
+  else {
+    let data_end = vm.$store.state.activeProject.project.data_end
+    let sim_end = vm.$store.state.activeProject.project.sim_end
+    let years = []
+    for (let i = data_end; i <= sim_end; i++) {
+      years.push(i);
+    }
+    console.log('projection years: ' + years)
+    return years;
+  }
+}
+
 function activePops(vm) {
   if (vm.$store.state.activeProject.project === undefined) {
     return ''
@@ -160,6 +177,7 @@ export default {
   dataStart,
   dataEnd,
   dataYears,
+  projectionYears,
   activePops,
   updateSorting,
 }

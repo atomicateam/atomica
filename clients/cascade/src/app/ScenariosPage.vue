@@ -73,7 +73,7 @@ Last update: 2018-09-09
 
               <b>Year: &nbsp;</b>
               <select v-model="endYear" @change="reloadGraphs(true)">
-                <option v-for='year in simYears'>
+                <option v-for='year in projectionYears'>
                   {{ year }}
                 </option>
               </select>
@@ -330,9 +330,9 @@ Last update: 2018-09-09
       projectID()    { return utils.projectID(this) },
       hasData()      { return utils.hasData(this) },
       hasPrograms()  { return utils.hasPrograms(this) },
-      simStart()     { return utils.simStart(this) },
+      simStart()     { return utils.dataEnd(this) },
       simEnd()       { return utils.simEnd(this) },
-      simYears()     { return utils.simYears(this) },
+      projectionYears()     { return utils.projectionYears(this) },
       activePops()   { return utils.activePops(this) },
       placeholders() { return graphs.placeholders(this, 1) },
     },
