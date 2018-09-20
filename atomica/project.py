@@ -192,6 +192,9 @@ class Project(object):
         self.modified = sc.now()
         self.settings.update_time_vector(start=self.data.start_year)  # Align sim start year with data start year.
 
+        if not (self.framework.comps['is source'] == 'y').any():
+            self.settings.update_time_vector(end=self.data.end_year+5.0)  # Project only forecasts 5 years if not dynamic (with births)
+
         if make_default_parset:
             self.make_parset(name="default")
         if do_run:
