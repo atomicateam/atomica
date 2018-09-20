@@ -485,7 +485,7 @@ class Project(object):
         json1['name']        ='Default budget'
         json1['parsetname']  = -1
         json1['progsetname'] = -1
-        json1['start_year']  = 2020
+        json1['start_year']  = self.data.end_year
         json1['alloc']       = self.progset(json1['progsetname']).get_budgets(year=json1['start_year'])
         json1['active']      = True
 
