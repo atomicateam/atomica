@@ -409,6 +409,8 @@ class Project(object):
         """
         if parset is None: parset = -1
         parset = self.parsets[parset]
+        if new_name is None:
+            new_name = parset.name + ' (auto-calibrated)'
         if adjustables is None:
             adjustables = list(self.framework.pars.index[~self.framework.pars['calibrate'].isnull()])
             adjustables += list(self.framework.comps.index[~self.framework.comps['calibrate'].isnull()])
