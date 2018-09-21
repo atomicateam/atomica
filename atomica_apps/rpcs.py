@@ -854,11 +854,11 @@ def load_zip_of_prj_files(project_ids):
 
 
 @RPC()
-def add_demo_project(user_id, project_name='default'):
+def add_demo_project(user_id, project_name='default', tool=None):
     """
     Add a demo project
     """
-    if project_name == 'default':
+    if tool == 'tb':
         new_proj_name = get_unique_name('Demo project', other_names=None) # Get a unique name for the project to be added
         proj = au.demo(which='tb', do_run=False, do_plot=False, sim_dt=0.5)  # Create the project, loading in the desired spreadsheets.
         proj.name = new_proj_name
@@ -885,7 +885,11 @@ def create_new_project(user_id, framework_id, proj_name, num_pops, num_progs, da
         frame = framework_record.frame
     else: # Or get a pre-existing one by the tool name
         frame = au.demo(kind='framework', which=tool)
-    args = {"num_pops":int(num_pops), "data_start":int(data_start), "data_end":int(data_end)}
+
+    if tool == 'tb':
+        args = {"num_pops":int(num_pops), "data_start":int(data_start), "data_end":int(data_end), "num_transfers":1}
+    else:
+        args = {"num_pops":int(num_pops), "data_start":int(data_start), "data_end":int(data_end)}
     new_proj_name = get_unique_name(proj_name, other_names=None) # Get a unique name for the project to be added.
     proj = au.Project(framework=frame, name=new_proj_name, sim_dt=sim_dt) # Create the project, loading in the desired spreadsheets.
     print(">> create_new_project %s" % (proj.name))
@@ -1581,11 +1585,10 @@ def automatic_calibration(project_id, cache_id, parsetname=-1, max_time=20, save
 def py_to_js_scen(py_scen, project=None):
     ''' Convert a Python to JSON representation of a scenario. The Python scenario might be a dictionary or an object. '''
     js_scen = {}
-    attrs = ['name', 'active', 'parsetname', 'progsetname', 'start_year'] 
+    attrs = ['name', 'active', 'parsetname', 'progsetname', 'alloc_year']
     for attr in attrs:
         if isinstance(py_scen, dict):
             js_scen[attr] = py_scen[attr] # Copy the attributes directly
-            
         else:
             js_scen[attr] = getattr(py_scen, attr) # Copy the attributes into a dictionary
             
@@ -1607,10 +1610,11 @@ def py_to_js_scen(py_scen, project=None):
 def js_to_py_scen(js_scen):
     ''' Convert a Python to JSON representation of a scenario '''
     py_scen = sc.odict()
-    attrs = ['name', 'active', 'parsetname', 'progsetname'] 
+    attrs = ['name', 'active', 'parsetname', 'progsetname']
     for attr in attrs:
         py_scen[attr] = js_scen[attr] # Copy the attributes into a dictionary
-    py_scen['start_year'] = float(js_scen['start_year']) # Convert to number
+    py_scen['alloc_year'] = float(js_scen['alloc_year']) # Convert to number
+    py_scen['start_year'] = py_scen['alloc_year'] # Normally, the start year will be set by the set_scen_info() RPC but this is a fallback to ensure the scenario is still usable even if that step is omitted
     py_scen['alloc'] = sc.odict()
     for item in js_scen['alloc']:
         prog_name = item[0]
@@ -1651,6 +1655,7 @@ def set_scen_info(project_id, scenario_summaries, online=True):
     for j,js_scen in enumerate(scenario_summaries):
         print('Setting scenario %s of %s...' % (j+1, len(scenario_summaries)))
         py_scen = js_to_py_scen(js_scen)
+        py_scen['start_year'] = proj.data.end_year # The scenario program start year is the same as the end year
         print('Python scenario info for scenario %s:' % (j+1))
         print(py_scen)
         proj.make_scenario(which='budget', json=py_scen)

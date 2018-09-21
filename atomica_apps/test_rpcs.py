@@ -21,7 +21,7 @@ torun = [
 #'run_scenarios',
 #'run_cascade_optimization',
 'run_tb_optimization',
-# 'export_results',
+# 'minimize_money',
 ]
 
 # Set parameters
@@ -161,6 +161,9 @@ if 'run_tb_optimization' in torun and tool=='tb':
     if browser:
         sw.browser(output['graphs']+output['legends'])
 
+if 'minimize_money' in torun and tool=='tb':
+    browser = False
+    results = proj.demo_optimization(dorun=True,tool=tool,optim_type='money')
 
 sc.toc(T)
 print('Done.')
