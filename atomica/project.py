@@ -192,6 +192,9 @@ class Project(object):
         self.modified = sc.now()
         self.settings.update_time_vector(start=self.data.start_year)  # Align sim start year with data start year.
 
+        if not (self.framework.comps['is source'] == 'y').any():
+            self.settings.update_time_vector(end=self.data.end_year+5.0)  # Project only forecasts 5 years if not dynamic (with births)
+
         if make_default_parset:
             self.make_parset(name="default")
         if do_run:
@@ -409,6 +412,8 @@ class Project(object):
         """
         if parset is None: parset = -1
         parset = self.parsets[parset]
+        if new_name is None:
+            new_name = parset.name + ' (auto-calibrated)'
         if adjustables is None:
             adjustables = list(self.framework.pars.index[~self.framework.pars['calibrate'].isnull()])
             adjustables += list(self.framework.comps.index[~self.framework.comps['calibrate'].isnull()])
@@ -480,8 +485,9 @@ class Project(object):
         json1['name']        ='Default budget'
         json1['parsetname']  = -1
         json1['progsetname'] = -1
-        json1['start_year']  = 2020
-        json1['alloc']       = self.progset(json1['progsetname']).get_budgets(year=json1['start_year'])
+        json1['start_year']  = self.data.end_year # This allows the tests to run on the BE where this default never gets modified e.g. by set_scen_info()
+        json1['alloc_year']  = self.data.end_year
+        json1['alloc']       = self.progset(json1['progsetname']).get_budgets(year=json1['alloc_year'])
         json1['active']      = True
 
         json2 = sc.dcp(json1)

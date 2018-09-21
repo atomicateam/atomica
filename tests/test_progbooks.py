@@ -16,11 +16,10 @@ pset.add_pop('newpop','New Pop')
 pset.save('temp/progbook_test3.xlsx')
 
 # Test removing things
-pset.remove_pop('Miners')
-pset.remove_pop('PLHIV Miners')
+pset.remove_pop('Prisoners')
 pset.remove_comp('Susceptible')
 pset.remove_par('v_rate')
-pset.remove_par('LTBI treatment uptake rate')
+pset.remove_par('LTBI treatment average duration of full course')
 pset.save('temp/progbook_test4.xlsx')
 
 # Test making a new one

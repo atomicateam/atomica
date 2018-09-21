@@ -598,7 +598,7 @@ Last update: 2018-09-12
       addOptimModal() { // Open a model dialog for creating a new project
         console.log('addOptimModal() called');
         this.resetModal()
-        rpcs.rpc('get_default_optim', [this.projectID])
+        rpcs.rpc('get_default_optim', [this.projectID, this.$globaltool])
           .then(response => {
             this.defaultOptim = response.data // Set the optimization to what we received.
             this.addEditDialogMode = 'add'

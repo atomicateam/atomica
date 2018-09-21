@@ -457,7 +457,7 @@ Last update: 2018-09-12
         if (this.$globaltool === 'tb') {
           demoOption = 'default'
         }
-        rpcs.rpc('add_demo_project', [this.$store.state.currentUser.UID, demoOption]) // Have the server create a new project.
+        rpcs.rpc('add_demo_project', [this.$store.state.currentUser.UID, demoOption, this.$globaltool]) // Have the server create a new project.
           .then(response => {
             this.updateProjectSummaries(response.data.projectId) // Update the project summaries so the new project shows up on the list.
             status.succeed(this, '') // Already have notification from project

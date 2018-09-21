@@ -356,9 +356,9 @@ Last update: 2018-09-06
       projectID()    { return utils.projectID(this) },
       hasData()      { return utils.hasData(this) },
       hasPrograms()  { return utils.hasPrograms(this) },
-      simStart()     { return utils.simStart(this) },
-      simEnd()       { return utils.simEnd(this) },
-      simYears()     { return utils.simYears(this) },
+      simStart()     { return utils.dataStart(this) },
+      simEnd()       { return utils.dataEnd(this) },
+      simYears()     { return utils.dataYears(this) },
       activePops()   { return utils.activePops(this) },
       placeholders() { return graphs.placeholders(this, 1) },
     },
@@ -370,7 +370,7 @@ Last update: 2018-09-06
         (this.$store.state.activeProject.project.hasData) ) {
         console.log('created() called')
         this.startYear = this.simStart
-//        this.endYear = this.simEnd // CK: Uncomment to set the end year to 2035 instead of 2018
+        this.endYear = this.simEnd // CK: Uncomment to set the end year to 2035 instead of 2018
         this.popOptions = this.activePops
         this.serverDatastoreId = this.$store.state.activeProject.project.id + ':calibration'
         this.getPlotOptions(this.$store.state.activeProject.project.id)

@@ -646,10 +646,7 @@ class TimeDependentValuesEntry(object):
 
         # First, assemble and write the headings
         headings = []
-        if self.name in references:
-            headings.append(references[self.name])
-        else:
-            headings.append(self.name)
+        headings.append(self.name)
         offset = 1 # This is the column where the time values start
 
         if write_units:
@@ -670,7 +667,10 @@ class TimeDependentValuesEntry(object):
 
         headings += [float(x) for x in self.tvec]
         for i,entry in enumerate(headings):
-            worksheet.write(current_row, i, entry, formats['center_bold'])
+            if entry in references:
+                worksheet.write_formula(current_row, 0, references[entry], formats['center_bold'],value=entry)
+            else:
+                worksheet.write(current_row, i, entry, formats['center_bold'])
             update_widths(widths,i,entry)
 
         # Now, write the TimeSeries objects - self.ts is an odict and whatever pops are present will be written in whatever order they are in
