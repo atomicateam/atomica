@@ -569,6 +569,9 @@ class Population(object):
             if par:
                 links = [l for l in links if l.parameter.name == par]
 
+            if not links:
+                raise NotFoundError("No links matching '{0}' were found.".format(name))
+
             return links
         else:
             raise NotFoundError("Object '{0}' not found.".format(name))
@@ -633,10 +636,13 @@ class Population(object):
             if denominator is not None:
                 charac.add_denom(self.get_variable(denominator)[0]) # nb. framework import strips whitespace from the overall field
 
-        # Parameters first pass, create parameter objects and links
+        # Parameters create parameter objects and links
+        data_pars = set()
         for par_name in list(pars.index):
             par = Parameter(pop=self, name=par_name)
+            self.par_lookup[par.name] = par
             self.pars.append(par)
+
             if framework.transitions[par_name]: # If there are any links associated with this parameter
                 par.units = pars.at[par_name,"format"] # First copy in the units from the Framework - mainly for transition parameters that are functions. Others will get overwritten from databook later
                 for pair in framework.transitions[par_name]:
@@ -649,10 +655,7 @@ class Population(object):
                     else:
                         self.link_lookup[tag].append(new_link)
                     self.links.append(new_link)
-        self.par_lookup = {par.name: par for par in self.pars}
 
-        # Parameters second pass, process f_stacks, deps, and limits
-        for par_name,par in zip(list(pars.index),self.pars):
             min_value = pars.at[par_name,'minimum value']
             max_value = pars.at[par_name,'maximum value']
 
@@ -665,6 +668,17 @@ class Population(object):
 
             fcn_str = pars.at[par_name,'function']
             if fcn_str is not None:
+
+                # Create virtual parameters for any parset dependencies in the function
+                if ':parset' in fcn_str:
+                    # There is at least one data parameter required
+                    _, dep_list = parse_function(fcn_str)
+                    for dep_name in dep_list:
+                        if '___parset' in dep_name:
+                            virtual_par = Parameter(pop=self, name=dep_name.replace('___',':'))
+                            self.par_lookup[virtual_par.name] = virtual_par
+                            self.pars.append(virtual_par)
+
                 par.set_fcn(framework,fcn_str)
 
     def preallocate(self, tvec, dt):
@@ -925,6 +939,16 @@ class Model(object):
                 par.scale_factor = cascade_par.y_factor[pop_name]*cascade_par.meta_y_factor
                 if not par.fcn_str:
                     par.vals = cascade_par.interpolate(tvec=self.t, pop_name=pop_name)*par.scale_factor
+
+        # Add in values for any parset parameters (virtual parameters used only as dependencies)
+        for pop in self.pops:
+            for par in pop.pars:
+                if ':parset' in par.name:
+                    cascade_name = par.name.split(':')[0]
+                    cascade_par = parset.get_par(cascade_name)
+                    par.units = cascade_par.y_format[pop.name]
+                    par.scale_factor = cascade_par.y_factor[pop.name] * cascade_par.meta_y_factor
+                    par.vals = cascade_par.interpolate(tvec=self.t, pop_name=pop.name) * par.scale_factor
 
         # Propagating transfer parameter parset values into Model object.
         # For each population pair, instantiate a Parameter with the values from the databook
