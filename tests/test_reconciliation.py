@@ -1,5 +1,5 @@
 import atomica.ui as au
-P = au.demo(which='tb',do_run=False)
+P = au.demo(which='tb_simple',do_run=False)
 
 # Test single year reconciliation
 program_start_year = 2018.
