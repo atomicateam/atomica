@@ -18,22 +18,23 @@ from atomica.optimization import optimize
 #test = "usdt"
 #test = "cervicalcancer"
 #test = "hiv"
-test = "diabetes"
+test = "hiv_dyn"
+#test = "diabetes"
 #test = "service"
 
 torun = [
-"loadframework",
-"saveframework",
-"makedatabook",
-"makeproject",
-"loaddatabook",
-"makeparset",
-"runsim",
-"plotcascade",
-"makeblankprogbook",
+#"loadframework",
+#"saveframework",
+#"makedatabook",
+#"makeproject",
+#"loaddatabook",
+#"makeparset",
+#"runsim",
+#"plotcascade",
+#"makeblankprogbook",
 # "writeprogbook",
 #"testprograms",
-#"runsim_programs",
+"runsim_programs",
 #"makeplots",
 #"export",
 # "manualcalibrate",
@@ -83,7 +84,7 @@ if "makedatabook" in torun:
     elif test == "diabetes": args = {"num_pops":1, "num_transfers":0, "data_start":2014, "data_end":2017, "data_dt":1.0}
     elif test == "service": args = {"num_pops":1, "num_transfers":0,"data_start":2014, "data_end":2017, "data_dt":1.0}
     elif test in ["udt","usdt","usdt_dyn","dt"]: args = {"num_pops":1, "num_transfers":0,"data_start":2016, "data_end":2019, "data_dt":1.0}
-    elif test == "hiv": args = {"num_pops":2, "num_transfers":0,"data_start":2016, "data_end":2019, "data_dt":1.0}
+    elif test in ["hiv","hiv_dyn"]: args = {"num_pops":2, "num_transfers":0,"data_start":2016, "data_end":2019, "data_dt":1.0}
     elif test in ["hypertension","hypertension_dyn"]: args = {"num_pops":4, "num_transfers":0,"data_start":2016, "data_end":2019, "data_dt":1.0}
     P.create_databook(databook_path=tmpdir + "databook_" + test + "_blank.xlsx", **args)
 
@@ -96,17 +97,14 @@ if "loaddatabook" in torun:
     P.load_databook(databook_path="./databooks/databook_" + test + ".xlsx", make_default_parset=False, do_run=False)
     
 if "makeparset" in torun:
-    if test in ['di2abetes']:
-        print('\n\n\nDatabook not yet filled in for diabetes example.')
-    else:
-        P.make_parset(name="default")
+    P.make_parset(name="default")
     
 if "runsim" in torun:
     if test in ["tb"]:
         P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
     elif test=='diabetes':
         P.update_settings(sim_start=2014.0, sim_end=2020, sim_dt=1.)
-    elif test in ['udt','hiv','usdt','hypertension','hypertension_dyn']:
+    elif test in ['udt','hiv','hiv_dyn','usdt','hypertension','hypertension_dyn']:
         P.update_settings(sim_start=2016.0, sim_end=2018, sim_dt=1.)
     elif test in ['sir']:
         P.update_settings(sim_start=2000.0, sim_end=2018, sim_dt=1.)
@@ -138,9 +136,9 @@ if "makeblankprogbook" in torun:
         P.make_progbook(filename, progs=9)
     elif test == "udt":
         P.make_progbook(filename, progs=4)
-    elif test == ["usdt","cervicalcancer"]:
+    elif test in ["usdt","cervicalcancer"]:
         P.make_progbook(filename, progs=9)
-    elif test == "hiv":
+    elif test in ["hiv","hiv_dyn"]:
         P.make_progbook(filename, progs=8)
     else:
         P.make_progbook(filename, progs=5)
@@ -295,9 +293,9 @@ if "runsim_programs" in torun:
 
         au.plot_multi_cascade([noprogs, baselineresults, scenresults],'Hypertension care cascade',year=[2018])
 
-    elif test == 'hiv':
-        scen1alloc = {'Testing - clinics': 1500000}
-        scen2alloc = {'Testing - outreach': 600000}
+    elif test in ['hiv','hiv_dyn']:
+        scen1alloc = {'Testing - clinics': 4200000}# 1500000
+        scen2alloc = {'Testing - outreach': 1600000}#600000
         scen3alloc = {'Same-day initiation counselling': 6000000}
         scen4alloc = {'Classic initiation counselling': 4500000}
         scen5alloc = {'Client tracing': 60000}
@@ -322,10 +320,10 @@ if "runsim_programs" in torun:
         scen6results = P.run_sim(parset="default", progset='default',progset_instructions=scen6_instructions,result_name="scen6")
         scen7results = P.run_sim(parset="default", progset='default',progset_instructions=scen7_instructions,result_name="scen7")
 
-        au.plot_multi_cascade([baselineresults, scen1results, scen2results, scen3results, scen4results, scen5results, scen6results, scen7results],'main',year=[2017])
+        au.plot_multi_cascade([baselineresults, scen1results, scen2results, scen3results, scen4results, scen5results, scen6results, scen7results],year=[2018])
 
     elif test in ['service']:
-        print('\n\n\nRunning with programs not yet implemented for diabetes or service examples.')
+        print('\n\n\nRunning with programs not yet implemented for service example.')
 
     else:
         print('\n\n\nUnknown test.')

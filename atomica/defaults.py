@@ -30,6 +30,7 @@ def default_framework(which=None, show_options=False):
                     ('hypertension_dyn',  'Hypertension with demography'),
                     ('service',  'Service delivery'),
                     ('hiv',      'HIV care cascade'),  
+                    ('hiv_dyn',  'HIV care cascade with demography'),  
                     ('tb',       'Tuberculosis'),  
                     ])
                              
@@ -66,6 +67,7 @@ def default_project(which=None, do_run=True, addprogs=True, verbose=False, show_
                     ('hypertension', 'Hypertension cascade (4 populations)'),
                     ('hypertension_dyn', 'Hypertension cascade with demography (4 populations)'),
                     ('hiv',          'HIV care cascade (2 populations)'), 
+                    ('hiv_dyn',          'HIV care cascade with demography (2 populations)'), 
                     ('tb',           'Tuberculosis model (10 populations)'), 
                     ])
     
