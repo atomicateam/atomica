@@ -709,12 +709,10 @@ class Population(object):
             # Look up the characteristic value
             par = parset.get_par(c.name)
             b[i] = par.interpolate(tvec=np.array([t_init]), pop_name=self.name)[0]*par.y_factor[self.name]*par.meta_y_factor
-            # Run exception clauses for compartment logic.
             if isinstance(c,Characteristic):
                 if c.denominator is not None:
-                    denom_par = parset.pars['characs'][parset.par_ids['characs'][c.denominator.name]]
+                    denom_par = parset.get_par(c.denominator.name)
                     b[i] *= denom_par.interpolate(tvec=np.array([t_init]), pop_name=self.name)[0]*denom_par.y_factor[self.name]*denom_par.meta_y_factor
-
                 for inc in c.get_included_comps():
                     A[i, comp_indices[inc.name]] = 1.0
             else:
@@ -929,26 +927,19 @@ class Model(object):
                     self.interactions[name][parset.pop_names.index(from_pop), parset.pop_names.index(to_pop), :] = par.interpolate(self.t, to_pop)*par.y_factor[to_pop]*par.meta_y_factor
 
         # Insert values from parset into model objects
-        for cascade_par in parset.pars['cascade']:
-            for pop_name in parset.pop_names:
-                pop = self.get_pop(pop_name)
-                par = pop.get_par(cascade_par.name)  # Find the parameter with the requested name
-                # If parameter has an f-stack then vals will be calculated during/after integration.
-                # This is opposed to values being supplied from databook.
-                par.units = cascade_par.y_format[pop_name]
-                par.scale_factor = cascade_par.y_factor[pop_name]*cascade_par.meta_y_factor
-                if not par.fcn_str:
-                    par.vals = cascade_par.interpolate(tvec=self.t, pop_name=pop_name)*par.scale_factor
-
-        # Add in values for any parset parameters (virtual parameters used only as dependencies)
         for pop in self.pops:
             for par in pop.pars:
-                if ':parset' in par.name:
-                    cascade_name = par.name.split(':')[0]
-                    cascade_par = parset.get_par(cascade_name)
-                    par.units = cascade_par.y_format[pop.name]
-                    par.scale_factor = cascade_par.y_factor[pop.name] * cascade_par.meta_y_factor
-                    par.vals = cascade_par.interpolate(tvec=self.t, pop_name=pop.name) * par.scale_factor
+                if par.name in parset.pars:
+                    cascade_par = parset.get_par(par.name)
+                elif ':parset' in par.name:
+                    cascade_par = parset.get_par(par.name.split(':')[0])
+                else:
+                    continue
+
+                par.units = cascade_par.y_format[pop.name]
+                par.scale_factor = cascade_par.y_factor[pop.name] * cascade_par.meta_y_factor
+                if not par.fcn_str:
+                    par.vals = cascade_par.interpolate(tvec=self.t, pop_name=pop_name)*par.scale_factor
 
         # Propagating transfer parameter parset values into Model object.
         # For each population pair, instantiate a Parameter with the values from the databook
@@ -973,7 +964,6 @@ class Model(object):
                         par.vals = transfer_parameter.interpolate(tvec=self.t, pop_name=pop_target)*par.scale_factor
                         par.units = transfer_parameter.y_format[pop_target]
                         pop.pars.append(par)
-                        # TODO: Reconsider manual lookup hack if Transfers are implemented differently.
                         pop.par_lookup[par_name] = par
 
                         target_pop_obj = self.get_pop(pop_target)
