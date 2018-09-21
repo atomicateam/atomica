@@ -473,6 +473,20 @@ class ProjectFramework(object):
                             message = 'The function for parameter "%s" depends on the flow rate "%s:flow". Flow rates are only associated with transition parameters, but "%s" does not appear in the transition matrix, and there is therefore no flow rate associated with it' % (par.name,dep_name,dep_name)
                             raise InvalidFramework(message)
 
+                    elif dep.endswith('___parset'):
+                        dep_name = dep.replace('___parset','')
+
+                        try:
+                            spec,_ = self.get_variable(dep_name)
+                        except NotFoundError:
+                            message = 'The function for parameter "%s" depends on the parset value "%s:parset". This requires a quantity called "%s" to be defined in the Framework, but no quantity with that name was found' % (par.name,dep_name,dep_name)
+                            raise InvalidFramework(message)
+
+                        if not spec['databook page']:
+                            message = 'The function for parameter "%s" depends on the parset value "%s:parset". This requires that the quantity called "%s" appears in the databook. However, the "databook page" for "%s" was empty' % (par.name,dep_name,dep_name,dep_name)
+                            raise InvalidFramework(message)
+
+
                     elif dep in self.comps.index:
                         continue
                     elif dep in self.characs.index:
