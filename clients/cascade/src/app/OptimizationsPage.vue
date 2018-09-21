@@ -77,7 +77,7 @@ Last update: 2018-09-12
 
               <b>Year: &nbsp;</b>
               <select v-model="endYear" @change="reloadGraphs(displayResultDatastoreId, true)">
-                <option v-for='year in simYears'>
+                <option v-for='year in projectionYears'>
                   {{ year }}
                 </option>
               </select>
@@ -369,7 +369,7 @@ Last update: 2018-09-12
       hasPrograms()  { return utils.hasPrograms(this) },
       simStart()     { return utils.simStart(this) },
       simEnd()       { return utils.simEnd(this) },
-      simYears()     { return utils.simYears(this) },
+      projectionYears()     { return utils.projectionYears(this) },
       activePops()   { return utils.activePops(this) },
       placeholders() { return graphs.placeholders(this, 1) },
     },
@@ -598,7 +598,7 @@ Last update: 2018-09-12
       addOptimModal() { // Open a model dialog for creating a new project
         console.log('addOptimModal() called');
         this.resetModal()
-        rpcs.rpc('get_default_optim', [this.projectID])
+        rpcs.rpc('get_default_optim', [this.projectID, this.$globaltool])
           .then(response => {
             this.defaultOptim = response.data // Set the optimization to what we received.
             this.addEditDialogMode = 'add'

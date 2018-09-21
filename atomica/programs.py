@@ -21,20 +21,34 @@ import numpy as np
 class ProgramInstructions(object):
     def __init__(self,alloc=None,start_year=None,stop_year=None):
         """ Set up a structure that stores instructions for a model on how to use programs. """
+        # Instantiate a new ProgramInstructions instance. ProgramInstructions specify how to use programs
+        # - specifically, which years the programs are applied from, and any funding overwrites from the
+        # allocations specified in the progbook.
+        #
+        # INPUTS
+        # - alloc : The allocation. It can be
+        #           - A dict keyed by program name, containing a scalar spend, or a TimeSeries of spending values. If the spend is
+        #             scalar, it will be assigned to the start year
+        #           - A ProgramSet instance, in which case an allocation will be assigned by interpolating the ProgramSet's
+        #             spending onto the program start year. This is a shortcut to ensure that budget scenarios and optimizations
+        #             where spending is specified in future years ramp correctly from the program start year (and not the last year
+        #             that data was entered for)
+
         self.start_year = start_year if start_year else 2018.
         self.stop_year = stop_year if stop_year else inf
 
         # Alloc should be a dict keyed by program name
         # The entries can either be a scalar number, assumed to be spending in the start year, or
         # a TimeSeries object. The alloc is converted to TimeSeries if provided as a scalar
-        assert alloc is None or isinstance(alloc,dict), 'Allocation must be a dict keyed by program name, or None'
-        self.alloc = dict()
-        if alloc:
+        self.alloc = sc.odict()
+        if isinstance(alloc,ProgramSet):
+            for prog in alloc.programs.values():
+                self.alloc[prog.name] = TimeSeries(t=self.start_year, vals=prog.spend_data.interpolate(self.start_year))
+        elif alloc:
             for prog_name,spending in alloc.items():
                 if isinstance(spending,TimeSeries):
                     self.alloc[prog_name] = sc.dcp(spending)
                 else:
-                    # Assume it is just a single number
                     self.alloc[prog_name] = TimeSeries(t=self.start_year,vals=spending)
 
 #--------------------------------------------------------------------
