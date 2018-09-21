@@ -11,6 +11,7 @@ from atomica.optimization import optimize
 
 #test = "sir"
 #test = "tb"
+test = "tb_simple"
 #test = "hypertension"
 #test = "hypertension_dyn"
 #test = "dt"
@@ -18,7 +19,7 @@ from atomica.optimization import optimize
 #test = "usdt"
 #test = "cervicalcancer"
 #test = "hiv"
-test = "hiv_dyn"
+#test = "hiv_dyn"
 #test = "diabetes"
 #test = "service"
 
@@ -81,6 +82,7 @@ if "makedatabook" in torun:
     P = au.Project(framework=F) # Create a project with an empty data structure.
     if test == "sir": args = {"num_pops":1, "num_transfers":1,"data_start":2000, "data_end":2015, "data_dt":1.0}
     elif test == "tb": args = {"num_pops":12, "num_transfers":3, "data_end":2018}
+    elif test == "tb_simple": args = {"num_pops":1, "num_transfers":0, "data_start":2014, "data_end":2018, "data_dt":1.0}
     elif test == "diabetes": args = {"num_pops":1, "num_transfers":0, "data_start":2014, "data_end":2017, "data_dt":1.0}
     elif test == "service": args = {"num_pops":1, "num_transfers":0,"data_start":2014, "data_end":2017, "data_dt":1.0}
     elif test in ["udt","usdt","usdt_dyn","dt"]: args = {"num_pops":1, "num_transfers":0,"data_start":2016, "data_end":2019, "data_dt":1.0}
@@ -102,7 +104,7 @@ if "makeparset" in torun:
 if "runsim" in torun:
     if test in ["tb"]:
         P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
-    elif test=='diabetes':
+    elif test in ['diabetes','tb_simple']:
         P.update_settings(sim_start=2014.0, sim_end=2020, sim_dt=1.)
     elif test in ['udt','hiv','hiv_dyn','usdt','hypertension','hypertension_dyn']:
         P.update_settings(sim_start=2016.0, sim_end=2018, sim_dt=1.)
@@ -245,6 +247,16 @@ if "runsim_programs" in torun:
         parresults = P.run_sim(parset="default", result_name="default-noprogs")
         progresults = P.run_sim(parset="default", progset='default',progset_instructions=instructions,result_name="default-progs")
         au.plot_multi_cascade([parresults, progresults],'Diabetes care cascade',year=[2017])
+
+    elif test == 'tb_simple':
+        parset = P.parsets[0]
+        original_progset = P.progsets[0]
+        reconciled_progset, progset_comparison, parameter_comparison = au.reconcile(project=P,parset=parset,progset=original_progset,reconciliation_year=2016.,unit_cost_bounds=0.2)
+        instructions = au.ProgramInstructions(start_year=2016.) 
+        newalloc = {'Passive case finding':  2000000 }
+        parresults = P.run_sim(parset="default", result_name="default-noprogs")
+        progresults = P.run_sim(parset="default", progset='default',progset_instructions=instructions,result_name="default-progs")
+        au.plot_multi_cascade([parresults, progresults],'TB care cascade',year=[2017])
 
     elif test == 'tb':
         instructions = au.ProgramInstructions(start_year=2015,stop_year=2030) 
