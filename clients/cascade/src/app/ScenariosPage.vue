@@ -73,7 +73,7 @@ Last update: 2018-09-09
 
               <b>Year: &nbsp;</b>
               <select v-model="endYear" @change="reloadGraphs(true)">
-                <option v-for='year in simYears'>
+                <option v-for='year in projectionYears'>
                   {{ year }}
                 </option>
               </select>
@@ -88,7 +88,7 @@ Last update: 2018-09-09
               <button class="btn btn-icon" @click="scaleFigs(1.0)" data-tooltip="Reset zoom"><i class="ti-zoom-in"></i></button>
               <button class="btn btn-icon" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>
               &nbsp;&nbsp;&nbsp;
-              <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
+              <button class="btn" @click="exportGraphs()">Export graphs</button>
               <button class="btn" @click="exportResults(serverDatastoreId)">Export data</button>
               <button v-if="false" class="btn btn-icon" @click="togglePlotControls()"><i class="ti-settings"></i></button> <!-- When popups are working: v-if="$globaltool=='tb'" -->
             </div>
@@ -102,11 +102,27 @@ Last update: 2018-09-09
             <!-- ### Start: plots ### -->
             <div class="calib-card-body">
               <div class="calib-graphs">
+
+                <div class="other-graphs">
+                  <div v-for="index in placeholders">
+                    <div :id="'figcontainer'+index" style="display:flex; justify-content:flex-start; padding:5px; border:1px solid #ddd" v-show="showGraphDivs[index]">
+                      <div :id="'fig'+index" class="calib-graph">
+                        <!--mpld3 content goes here-->
+                      </div>
+                      <!--<div style="display:inline-block">-->
+                      <!--<button class="btn __bw btn-icon" @click="maximize(index)" data-tooltip="Show legend"><i class="ti-menu-alt"></i></button>-->
+                      <!--</div>-->
+                    </div>
+                  </div>
+                </div>
+
+                <!-- ### Start: Cascade plot ### -->
                 <div class="featured-graphs">
                   <div :id="'fig0'">
                     <!-- mpld3 content goes here, no legend for it -->
                   </div>
                 </div>
+                <!-- ### End: Cascade plot ### -->
 
                 <!-- ### Start: cascade table ### -->
                 <div v-if="$globaltool=='cascade' && table" class="calib-tables">
@@ -128,38 +144,25 @@ Last update: 2018-09-09
                 </div>
                 <!-- ### End: cascade table ### -->
 
-                <div class="other-graphs">
-                  <div v-for="index in placeholders">
-                    <div :id="'figcontainer'+index" style="display:flex; justify-content:flex-start; padding:5px; border:1px solid #ddd" v-show="showGraphDivs[index]">
-                      <div :id="'fig'+index" class="calib-graph">
-                        <!--mpld3 content goes here-->
-                      </div>
-                      <div style="display:inline-block">
-                        <button class="btn __bw btn-icon" @click="maximize(index)" data-tooltip="Show legend"><i class="ti-menu-alt"></i></button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
               </div> <!-- ### End: calib-graphs ### -->
             </div>
             <!-- ### End: plots ### -->
 
             <!-- ### Start: dialogs ### -->
-            <div v-for="index in placeholders">
-              <div class="dialogs" :id="'legendcontainer'+index" style="display:flex" v-show="showLegendDivs[index]">
-                <dialog-drag :id="'DD'+index"
-                             :key="index"
-                             @close="minimize(index)"
-                             :options="{top: openDialogs[index].options.top, left: openDialogs[index].options.left}">
+            <!--<div v-for="index in placeholders">-->
+            <!--<div class="dialogs" :id="'legendcontainer'+index" style="display:flex" v-show="showLegendDivs[index]">-->
+            <!--<dialog-drag :id="'DD'+index"-->
+            <!--:key="index"-->
+            <!--@close="minimize(index)"-->
+            <!--:options="{top: openDialogs[index].options.top, left: openDialogs[index].options.left}">-->
 
-                  <span slot='title' style="color:#fff">Legend</span>
-                  <div :id="'legend'+index">
-                    <!-- Legend content goes here-->
-                  </div>
-                </dialog-drag>
-              </div>
-            </div>
+            <!--<span slot='title' style="color:#fff">Legend</span>-->
+            <!--<div :id="'legend'+index">-->
+            <!--&lt;!&ndash; Legend content goes here&ndash;&gt;-->
+            <!--</div>-->
+            <!--</dialog-drag>-->
+            <!--</div>-->
+            <!--</div>-->
             <!-- ### End: dialogs ### -->
 
 
@@ -232,7 +235,7 @@ Last update: 2018-09-09
           <b>Budget year</b><br>
           <input type="text"
                  class="txbox"
-                 v-model="addEditModal.scenSummary.start_year"/><br>
+                 v-model="addEditModal.scenSummary.alloc_year"/><br>
           <table class="table table-bordered table-hover table-striped" style="width: 100%">
             <thead>
             <tr>
@@ -327,9 +330,9 @@ Last update: 2018-09-09
       projectID()    { return utils.projectID(this) },
       hasData()      { return utils.hasData(this) },
       hasPrograms()  { return utils.hasPrograms(this) },
-      simStart()     { return utils.simStart(this) },
+      simStart()     { return utils.dataEnd(this) },
       simEnd()       { return utils.simEnd(this) },
-      simYears()     { return utils.simYears(this) },
+      projectionYears()     { return utils.projectionYears(this) },
       activePops()   { return utils.activePops(this) },
       placeholders() { return graphs.placeholders(this, 1) },
     },
@@ -362,7 +365,7 @@ Last update: 2018-09-09
 
       validateYears()                   { return utils.validateYears(this) },
       updateSets()                      { return shared.updateSets(this) },
-      exportGraphs(datastoreID)         { return shared.exportGraphs(this, datastoreID) },
+      exportGraphs()                    { return shared.exportGraphs(this) },
       exportResults(datastoreID)        { return shared.exportResults(this, datastoreID) },
       scaleFigs(frac)                   { return graphs.scaleFigs(this, frac)},
       clearGraphs()                     { return graphs.clearGraphs(this) },

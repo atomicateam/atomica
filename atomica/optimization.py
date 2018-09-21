@@ -15,6 +15,24 @@ from .structure import TimeSeries
 import logging
 from .results import Result
 from .cascade import get_cascade_vals
+from .programs import ProgramInstructions
+
+class InvalidInitialConditions(AtomicaException):
+    # This error gets thrown if the initial conditions yield an objective value
+    # that is not finite
+    pass
+
+class UnresolvableConstraint(AtomicaException):
+    # This error gets thrown if it is _impossible_ to satisfy the constraints. There are
+    # two modes of constraint failure
+    # - The constraint might not be satisfied on this iteration, but could be satisfied by other
+    #   parameter values
+    # - The constraint is impossible to satisfy because it is inconsistent (for example, if the
+    #   total spend is greater than the sum of the upper bounds on all the individual programs)
+    #   in which case the algorithm cannot continue
+    # This error gets raised in the latter case, while the former should result in the iteration
+    # being skipped
+    pass
 
 class Adjustable(object):
 
@@ -226,7 +244,10 @@ class AtMostMeasurable(Measurable):
         Measurable.__init__(self,measurable_name,t=t,weight=np.inf,pop_names=pop_names)
         self.weight = 1.0
         self.threshold = threshold
-        self.fcn = lambda x: np.inf if x>threshold else 0.0
+        self.fcn = lambda x: np.inf if x>self.threshold else 0.0
+
+    def __repr__(self):
+        return 'AtMostMeasurable(%s < %f)' % (self.measurable_name,self.threshold)
 
 class AtLeastMeasurable(Measurable):
     # A Measurable that impose a penalty if the quantity is smaller than some threshold
@@ -236,7 +257,10 @@ class AtLeastMeasurable(Measurable):
         Measurable.__init__(self,measurable_name,t=t,weight=np.inf,pop_names=pop_names)
         self.weight = 1.0
         self.threshold = threshold
-        self.fcn = lambda x: np.inf if x<threshold else 0.0
+        self.fcn = lambda x: np.inf if x<self.threshold else 0.0
+
+    def __repr__(self):
+        return 'AtLeastMeasurable(%s > %f)' % (self.measurable_name,self.threshold)
 
 class MaximizeCascadeStage(Measurable):
     # This Measurable will maximize the number of people in a cascade stage, whatever that stage is
@@ -244,7 +268,7 @@ class MaximizeCascadeStage(Measurable):
     # If multiple years are provided, they will be summed over
     # Could add option to weight specific years later on, if desired
 
-    def __init__(self,cascade_name,t,pop_names='all',weight=-1.0,cascade_stage=-1):
+    def __init__(self,cascade_name,t,pop_names='all',weight=1.0,cascade_stage=-1):
         # Instantiate thpop_names can be a single pop name (including all), or a list of pop names
         # aggregations are supported by setting pop_names to a dict e.g.
         # pop_names = {'foo':['0-4','5-14']}
@@ -259,7 +283,7 @@ class MaximizeCascadeStage(Measurable):
         #   - The name of a cascade stage
         #   - A list of integers and/or names to include multiple stages
 
-        Measurable.__init__(self,cascade_name,t=t,weight=weight,pop_names=pop_names)
+        Measurable.__init__(self,cascade_name,t=t,weight=-weight,pop_names=pop_names)
         if not isinstance(cascade_stage,list):
             cascade_stage = [cascade_stage]
         self.cascade_stage = cascade_stage
@@ -277,11 +301,11 @@ class MaximizeCascadeStage(Measurable):
 
 class MaximizeCascadeConversionRate(Measurable):
     # This Measurable will maximize the conversion rate, summed over all cascade stages
-    def __init__(self,cascade_name,t,pop_names='all',weight=-1.0):
+    def __init__(self,cascade_name,t,pop_names='all',weight=1.0):
         # pop_names can be a single pop name (including all), or a list of pop names
         # aggregations are supported by setting pop_names to a dict e.g.
         # pop_names = {'foo':['0-4','5-14']}
-        Measurable.__init__(self,cascade_name,t=t,weight=weight,pop_names=pop_names)
+        Measurable.__init__(self,cascade_name,t=t,weight=-weight,pop_names=pop_names)
         if not isinstance(self.pop_names,list):
             self.pop_names = [self.pop_names]
 
@@ -327,9 +351,32 @@ class TotalSpendConstraint(Constraint):
         # The budget_factor multiplies the total spend at the time the hard_constraint is assigned
         # Typically this is to scale up the available spending when that spending is being drawn from
         # the instructions/progset (otherwise the budget_factor could already be part of the specified total spend)
-        self.total_spend = total_spend  # Optionally a number, or a list of tuples of time-spending pairs e.g. [(2018,10000),(2020,200000)]
+        #
+        # INPUTS
+        # - t : A time, or list of times, at which to apply the total spending constraint. If None, it will
+        #       automatically be set to all years in which spending adjustments are being made
+        # - total_spend: A list of spending amounts the same size as t (can contain Nones), or None.
+        #                For times in which the total spend is None, it will be automatically set to the sum of
+        #                spending on optimizable programs in the corresponding year
+        # - budget_factor: The budget factor multiplies whatever the total_spend is. This can either be a single value, or
+        #                  a year specific value
+        #
+        # Note that if no times are specified, the budget factor should be a scalar but no explicit
+        # spending values can be specified. This is because in the case where different programs are
+        # optimized in different years, an explicit total spending constraint applying to all
+        # times is unlikely to be a sensible choice (so we just ask the user to specify the time as well)
+        self.total_spend = sc.promotetoarray(total_spend) if total_spend is not None else ()
         self.t = sc.promotetoarray(t) if t is not None else ()
-        self.budget_factor = budget_factor
+        self.budget_factor = sc.promotetoarray(budget_factor)
+
+        if t is None:
+            assert total_spend is None, 'If no times are specified, no total spend values can be specified either'
+            assert len(self.budget_factor) == 1, 'If no times are specified, the budget factor must be scalar'
+
+        if t is not None and total_spend is not None:
+            assert len(self.total_spend) == len(self.t), 'If specifying both the times and values for the total spending constraint, their lengths must be the same'
+        if len(self.budget_factor) > 1:
+            assert len(self.budget_factor)==len(self.t), 'If specifying multiple budget factors, you must also specify the years in which they are used'
 
     def get_hard_constraint(self,optimization, instructions):
         # First, at each time point where a program overwrite exists, we need to store
@@ -340,6 +387,9 @@ class TotalSpendConstraint(Constraint):
         # By convention, an Adjustable affecting a program should store the program's name in the
         # `prog_name` attribute. If a program reaches multiple programs, then `prog_name` will be a list
 
+        # First, we make a dictionary storing the years in which any adjustments are made
+        # as well as the upper and lower bounds in that year. This is only done for spending
+        # adjustments (i.e. those where `adjustment.prog_name` is defined)
         hard_constraints = {}
         hard_constraints['programs'] = defaultdict(set)  # It's a set so that it will work properly if multiple Adjustments reach the same parameter at the same time. However, this would a bad idea and nobody should do this!
         for adjustment in optimization.adjustments:
@@ -350,6 +400,13 @@ class TotalSpendConstraint(Constraint):
                     else:
                         hard_constraints['programs'][t].add(adjustment.prog_name)
 
+        if len(self.t):
+            # Check that every explictly specified time has
+            # corresponding spending adjustments available for use
+            missing_times = set(self.t) - set(hard_constraints['programs'].keys())
+            if missing_times:
+                raise AtomicaException('Total spending constraint was specified in %s but the optimization does not have any adjustments at those times' % (missing_times))
+
         # Now we have a set of times and programs for which we need to get total spend, and
         # also which programs should be included in the total for that year
         #
@@ -357,17 +414,29 @@ class TotalSpendConstraint(Constraint):
         # hard_constraints['total_spend'][2030] = 400
         hard_constraints['total_spend'] = {}
         for t, progs in hard_constraints['programs'].items():
-            if isinstance(self.total_spend, list):
-                for spend in self.total_spend:
-                    if t == spend[0]:
-                        hard_constraints['total_spend'][t] = spend[1]*self.budget_factor
-            elif self.total_spend:
-                hard_constraints['total_spend'][t] = self.total_spend*self.budget_factor
+            # For every time at which programs are optimizable...
+            if len(self.t) and t not in self.t:
+                # If we are not wanting to constrain spending in this year, then
+                # continue
+                continue
+            elif len(self.t):
+                idx = np.where(self.t==t)[0][0] # This is the index for the constraint year
             else:
+                idx = None
+
+            if not len(self.total_spend) or self.total_spend[idx] is None:
+                # Get the total spend from the allocation in this year
                 total_spend = 0.0
                 for prog in progs:
                     total_spend += instructions.alloc[prog].get(t)
+            else:
+                total_spend = self.total_spend[idx]
+
+            # Lastly, apply the budget factor
+            if len(self.budget_factor) == 1:
                 hard_constraints['total_spend'][t] = total_spend*self.budget_factor
+            else:
+                hard_constraints['total_spend'][t] = total_spend*self.budget_factor[idx]
 
         # Finally, for each adjustable, we need to store its upper and lower bounds
         # _in the year that the adjustment is being made_
@@ -383,8 +452,18 @@ class TotalSpendConstraint(Constraint):
         hard_constraints['bounds'] = dict()
 
         for t, progs in hard_constraints['programs'].items():  # For each time point being constrained, and for each program
+            if t not in hard_constraints['total_spend']:
+                # If the time is not one where the total spending constraint is being applied, then
+                # just skip it
+                continue
+
             hard_constraints['bounds'][t] = dict()
             # If there is an Adjustable that reaches this Program in the appropriate year:
+
+            # Keep track of the absolute lower and upper bounds on spending permitted by the program constraints
+            minimum_spend = 0.0
+            maximum_spend = 0.0
+
             for adjustment in optimization.adjustments:
                 if hasattr(adjustment, 'prog_name') and adjustment.prog_name in progs and t in adjustment.t:
                     if isinstance(adjustment, SpendingAdjustment):
@@ -394,6 +473,15 @@ class TotalSpendConstraint(Constraint):
                     else:
                         hard_constraints['bounds'][t][adjustment.prog_name] = (0.0, np.inf) # If the Adjustment reaches spending but is not a SpendingAdjustment then do not constrain the alloc
 
+                    minimum_spend +=  hard_constraints['bounds'][t][adjustment.prog_name][0]
+                    maximum_spend +=  hard_constraints['bounds'][t][adjustment.prog_name][1]
+
+            if minimum_spend > hard_constraints['total_spend'][t]:
+                raise UnresolvableConstraint('The total spend in %.2f is constrained to %.2f but the individual programs have a total minimum spend of %.2f which is impossible to satisfy. Please either raise the total spending, or lower the minimum spend on one or more programs' % (t,hard_constraints['total_spend'][t],minimum_spend))
+
+            if maximum_spend < hard_constraints['total_spend'][t]:
+                raise UnresolvableConstraint('The total spend in %.2f is constrained to %.2f but the individual programs have a total maximum spend of %.2f which is impossible to satisfy. Please either lower the total spending, or raise the maximum spend on one or more programs' % (t,hard_constraints['total_spend'][t],maximum_spend))
+
         return hard_constraints
 
     def constrain_instructions(self,instructions, hard_constraints):
@@ -401,8 +489,6 @@ class TotalSpendConstraint(Constraint):
         penalty = 0.0
 
         for t, total_spend in hard_constraints['total_spend'].items():
-            if self.t and not t in self.t:
-                continue
 
             x0 = sc.odict()  # Order matters here
             bounds = []
@@ -418,12 +504,12 @@ class TotalSpendConstraint(Constraint):
             res = scipy.optimize.minimize(lambda x: np.sqrt(np.sum((x - x0_array_scaled) ** 2)), x0_array_scaled, bounds=bounds,constraints=LinearConstraint,options={'maxiter':500})
 
             if not res['success']:
-                logger.error('TotalSpendConstraint failed - how to handle this is yet to be determined')
-
-            penalty += np.sqrt(np.sum((res['x'] - x0_array)**2)) # Penalty is the distance between the unconstrained budget and the constrained budget
-
-            for name, val in zip(x0.keys(), res['x']):
-                instructions.alloc[name].insert(t,val)
+                logger.error('TotalSpendConstraint failed - rejecting these proposed parameters with an objective value of np.inf')
+                penalty = np.inf
+            else:
+                penalty += np.sqrt(np.sum((res['x'] - x0_array)**2)) # Penalty is the distance between the unconstrained budget and the constrained budget
+                for name, val in zip(x0.keys(), res['x']):
+                    instructions.alloc[name].insert(t,val)
 
         return penalty
     
@@ -444,46 +530,86 @@ class OptimInstructions(NamedItem):
         objective_weights = self.json['objective_weights']
         prog_spending     = self.json['prog_spending']
         maxtime           = self.json['maxtime']
-    
+        optim_type        = self.json['optim_type']
+        tool              = self.json['tool']
+
+        if tool == 'cascade' and optim_type == 'money':
+            raise NotImplementedError('Money minimization not yet implemented for Cascades tool')
+
         progset = proj.progsets[progset_name] # Retrieve the progset
     
         # Add a spending adjustment in the program start year for every program in the progset, using the lower/upper bounds
         # passed in as arguments to this function
         adjustments = []
+        progset_instructions = ProgramInstructions(alloc=None, start_year=self.json['start_year'])
+        default_spend = progset.get_alloc(instructions=progset_instructions,tvec=start_year)
         for prog_name in progset.programs:
             limits = prog_spending[prog_name]
             adjustments.append(SpendingAdjustment(prog_name,t=start_year,limit_type='abs',lower=limits[0],upper=limits[1]))
-    
-        # Add a total spending constraint with the given budget scale up
-        constraints = [TotalSpendConstraint(budget_factor=budget_factor)]
-    
+
+            if optim_type == 'money':
+                # Modify default spending to see if more money allows target to be met at all
+                if limits[1] is not None and np.isfinite(limits[1]):
+                    progset_instructions.alloc[prog_name].insert(start_year,limits[1])
+                else:
+                    progset_instructions.alloc[prog_name] = TimeSeries(start_year, 5*default_spend[prog_name])
+
+        if optim_type == 'epi':
+            # Add a total spending constraint with the given budget scale up
+            # For money minimization we do not need to do this
+            constraints = [TotalSpendConstraint(budget_factor=budget_factor)]
+        else:
+            constraints = None
+
         # Add all of the terms in the objective
         measurables = []
-        cascade_to_use = proj.framework.cascades.keys()[0] if proj.framework.cascades else None
         for mname,mweight in objective_weights.items():
 
-            if ':' in mname and mweight:
+            if not mweight:
+                continue
+
+            if tool == 'cascade':
                 tokens = mname.split(':')
                 if tokens[0] == 'cascade_stage': # Parse a measurable name like 'cascade_stage:Default:All diagnosed'
-                    measurables.append(MaximizeCascadeStage(cascade_name=tokens[1], t=[end_year], pop_names='all',cascade_stage=tokens[2]))
+                    measurables.append(MaximizeCascadeStage(cascade_name=tokens[1], t=[end_year], pop_names='all',cascade_stage=tokens[2], weight=mweight))
                 elif tokens[0] == 'conversion': # Parse a measurable name like 'conversions:Default'
-                    measurables.append(MaximizeCascadeConversionRate(cascade_name=tokens[1],t=[end_year],pop_names='all'))
+                    measurables.append(MaximizeCascadeConversionRate(cascade_name=tokens[1],t=[end_year],pop_names='all', weight=mweight))
                 else:
                     raise AtomicaException('Unknown measurable "%s"' % (mname))
             else:
-                measurables.append(Measurable(mname,t=[start_year,end_year],weight=mweight))
-                
+                if optim_type == 'money':
+                    # For money minimization, use at AtMostMeasurable to meet the target by the end year.
+                    # The weight stores the threshold value
+                    measurables.append(AtMostMeasurable(mname, t=end_year, threshold=mweight))
+                else:
+                    measurables.append(Measurable(mname,t=[start_year,end_year],weight=mweight))
+
+
+        if optim_type == 'money':
+            # Do a prerun to convert the optimization targets into absolute units
+            result = proj.run_sim(proj.parsets[parset_name],progset=progset,progset_instructions=progset_instructions,store_results=False)
+            for measurable in measurables:
+                val = measurable.get_objective_val(result.model) # This is the baseline value for the quantity being thresholded
+                assert measurable.threshold <= 100 and measurable.threshold >= 0
+                measurable.threshold = val*(1-measurable.threshold/100.)
+
+            # Then, add extra measurables for program spending
+            for prog in progset.programs.values():
+                measurables.append(MinimizeMeasurable(prog.name, start_year))  # Minimize 2020 spending on Treatment 1
+
         # Create the Optimization object
         optim = Optimization(name=name, parsetname=parset_name, progsetname=progset_name, adjustments=adjustments, measurables=measurables, constraints=constraints, maxtime=maxtime)
-        
-        return optim
+
+        if optim_type == 'money':
+            optim.method = 'pso'
+        return optim, progset_instructions
     
     
 
 class Optimization(NamedItem):
     """ An object that defines an Optimization to perform """
 
-    def __init__(self,  name=None, parsetname=None, progsetname=None, adjustments=None, measurables=None, constraints=None,  maxtime=None, maxiters=None):
+    def __init__(self,  name=None, parsetname=None, progsetname=None, adjustments=None, measurables=None, constraints=None,  maxtime=None, maxiters=None,method='asd'):
 
         # Get the name
         if name is None:
@@ -494,6 +620,7 @@ class Optimization(NamedItem):
         self.progsetname = progsetname
         self.maxiters = maxiters # Not snake_case to match ASD
         self.maxtime = maxtime # Not snake_case to match ASD
+        self.method = method # This gets passed to optimize() to select the algorithm
 
         assert adjustments is not None, 'Must specify some adjustments to carry out an optimization'
         assert measurables is not None, 'Must specify some measurables to carry out an optimization'
@@ -564,7 +691,7 @@ class Optimization(NamedItem):
         return objective
 
 
-def _asd_objective(asd_values, pickled_model=None, optimization=None, hard_constraints=None):
+def _objective_fcn(asd_values, pickled_model=None, optimization=None, hard_constraints=None):
     # Compute the objective in ASD
 
     # Unpickle model
@@ -573,8 +700,12 @@ def _asd_objective(asd_values, pickled_model=None, optimization=None, hard_const
     # Inject the ASD vector into the instructions
     optimization.update_instructions(asd_values,model.program_instructions)
 
-    # Constrain the alloc
+    # Constrain the alloc - a penalty of `np.inf` signifies that the constraint could not be satisfied
+    # In which case we can reject the proposed parameters _before_ processing the model
     constraint_penalty = optimization.constrain_instructions(model.program_instructions,hard_constraints)
+    if np.isinf(constraint_penalty):
+        return constraint_penalty
+
     # Use the updated instructions to run the model
     model.process()
 
@@ -587,6 +718,11 @@ def _asd_objective(asd_values, pickled_model=None, optimization=None, hard_const
 
 def optimize(project,optimization,parset,progset,instructions,x0=None,xmin=None,xmax=None,hard_constraints=None):
     # The ASD initialization, xmin and xmax values can optionally be
+    # method can be one of
+    # - asd (to use normal ASD)
+    # - pso (to use particle swarm optimization from pyswarm)
+
+    assert optimization.method in ['asd','pso']
 
     model = Model(project.settings, project.framework, parset, progset, instructions)
     pickled_model = pickle.dumps(model)
@@ -599,24 +735,44 @@ def optimize(project,optimization,parset,progset,instructions,x0=None,xmin=None,
     if not hard_constraints:
         hard_constraints = optimization.get_hard_constraints(x0,model.program_instructions) # The optimization passed in here knows how to calculate the hard constraints based on the program instructions
 
+    # Prepare additional arguments for the objective function
     args = {
         'pickled_model': pickled_model,
         'optimization': optimization,
         'hard_constraints': hard_constraints,
     }
 
-    optim_args = {
-        # 'stepsize': proj.settings.autofit_params['stepsize'],
-        'maxiters': optimization.maxiters,
-        'maxtime': optimization.maxtime,
-        # 'sinc': proj.settings.autofit_params['sinc'],
-        # 'sdec': proj.settings.autofit_params['sdec'],
-        'fulloutput': False,
-        'xmin': xmin,
-        'xmax': xmax,
-    }
+    # Check that the initial conditions are OK
+    initial_objective = _objective_fcn(x0, **args)
+    if not np.isfinite(initial_objective):
+        raise InvalidInitialConditions()
 
-    x_opt = sc.asd(_asd_objective,x0,args,**optim_args)[0]
+
+    if optimization.method == 'asd':
+        optim_args = {
+            # 'stepsize': proj.settings.autofit_params['stepsize'],
+            'maxiters': optimization.maxiters,
+            'maxtime': optimization.maxtime,
+            # 'sinc': proj.settings.autofit_params['sinc'],
+            # 'sdec': proj.settings.autofit_params['sdec'],
+            'fulloutput': False,
+            'xmin': xmin,
+            'xmax': xmax,
+        }
+        x_opt = sc.asd(_objective_fcn, x0, args, **optim_args)[0]
+    elif optimization.method == 'pso':
+        import pyswarm
+        optim_args = {
+            'maxiter':3,
+            'lb':xmin,
+            'ub':xmax,
+            'minstep':1e-3,
+            'debug':True
+        }
+        if np.any(~np.isfinite(xmin)) or np.any(~np.isfinite(xmax)):
+            raise AtomicaException('PSO optimization requires finite upper and lower bounds to specify the search domain (i.e. every Adjustable needs to have finite bounds)')
+        x_opt, _ = pyswarm.pso(_objective_fcn, kwargs=args, **optim_args)
+
     optimization.update_instructions(x_opt,model.program_instructions)
     optimization.constrain_instructions(model.program_instructions,hard_constraints)
     return model.program_instructions # Return the modified instructions

@@ -86,7 +86,7 @@ class Result(NamedItem):
         # Retrieve a list of variables from a population
         return self.model.get_pop(pops).get_variable(name)
 
-    def export(self,filename,plot_names=None,cascade_names=None, include_target_pars=True, include_programs=True):
+    def export(self,filename=None,plot_names=None,cascade_names=None, include_target_pars=True, include_programs=True):
         # This function writes an XLSX file with the data corresponding to any Cascades or Plots
         # that are present. Note that results are exported for every year by selecting integer years.
         # Flow rates are annualized instantaneously. So for example, the flow will have values from
@@ -104,6 +104,13 @@ class Result(NamedItem):
         #
         # First, make a dataframe for all the plot data, if plots are specified in the cascade
         # Imports here to avoid circular references
+        #
+        # INPUTS
+        # - filename : Write an excel file. If 'None', no file will be written (but dataframes will be returned)
+        # - plot_names : Optional list of plot names to export. If 'None', all plots. If '[]', then no plots
+        # - cascade_names : Names of which cascades to plot. If 'None', all cascades
+        # - include_target_pars : If True, include values for impact parameters
+        # - include_programs : If True, programs sheet will be written if result contains programs
 
         from .plotting import PlotData
         from .cascade import get_cascade_vals
@@ -199,8 +206,9 @@ class Result(NamedItem):
                 write_df_list(par_df, 'Target parameters')
 
         if include_programs:
-            if self.model.progset is not None:
+            if self.model.programs_active:
                 prog_df = []
+                programs_active = (self.model.program_instructions.start_year <= new_tvals) & (new_tvals <= self.model.program_instructions.stop_year)
                 for prog_name in self.model.progset.programs:
                     data = sc.odict()
 
@@ -217,8 +225,10 @@ class Result(NamedItem):
                     data['Proportion covered'] = spending.series[0].vals
 
                     df = pd.DataFrame(data, index=new_tvals)
+                    df[~programs_active] = np.nan
+
                     df = df.T
-                    df.name = self.framework.pars.loc[par_name]['display name']
+                    df.name = prog_name
                     prog_df.append(df)
 
                 write_df_list(prog_df, 'Programs')

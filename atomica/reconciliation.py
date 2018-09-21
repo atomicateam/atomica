@@ -129,10 +129,11 @@ def _prepare_asd_inputs(progset,bounds):
 
 def _objective(x, mapping, progset, eval_years, target_vals, coverage_denominator):
     _update_progset(x,mapping,progset) # Apply the changes to the progset
+    num_covered = progset.get_coverage(year=eval_years)
     prop_covered = progset.get_coverage(year=eval_years, denominator=coverage_denominator)
     obj = 0.0
     for i in range(0,len(eval_years)):
-        outcomes = progset.get_outcomes({prog:cov[i] for prog,cov in prop_covered.items()}) # Program outcomes for this year
+        outcomes = progset.get_outcomes(num_covered={prog:cov[i] for prog,cov in num_covered.items()},prop_covered={prog:cov[i] for prog,cov in prop_covered.items()}) # Program outcomes for this year
         for key in target_vals: # Key is a (par,pop) tuple
             obj += (target_vals[key][i] - outcomes[key]) ** 2  # Add squared difference in parameter value
     return obj
@@ -258,11 +259,13 @@ def reconcile(project,parset,progset,reconciliation_year,max_time=10,unit_cost_b
 
     # Before/after for parameters
     records = []
-    old_coverage = progset.get_coverage(year=eval_years, denominator=coverage_denominator)
-    new_coverage = new_progset.get_coverage(year=eval_years, denominator=coverage_denominator)
+    old_num_coverage = progset.get_coverage(year=eval_years)
+    new_num_coverage = new_progset.get_coverage(year=eval_years)
+    old_prop_coverage = progset.get_coverage(year=eval_years, denominator=coverage_denominator)
+    new_prop_coverage = new_progset.get_coverage(year=eval_years, denominator=coverage_denominator)
     for i,year in enumerate(eval_years):
-        old_outcomes = progset.get_outcomes({prog: cov[i] for prog, cov in old_coverage.items()})  # Program outcomes for this year
-        new_outcomes = new_progset.get_outcomes({prog: cov[i] for prog, cov in new_coverage.items()})  # Program outcomes for this year
+        old_outcomes = progset.get_outcomes(num_covered={prog: cov[i] for prog, cov in old_num_coverage.items()},prop_covered={prog: cov[i] for prog, cov in old_prop_coverage.items()})  # Program outcomes for this year
+        new_outcomes = new_progset.get_outcomes(num_covered={prog: cov[i] for prog, cov in new_num_coverage.items()},prop_covered={prog: cov[i] for prog, cov in new_prop_coverage.items()})  # Program outcomes for this year
         for (par, pop), target in target_vals.items():
             records.append((par,pop,year,target[0],old_outcomes[(par,pop)],new_outcomes[(par,pop)]))
     parameter_comparison = pd.DataFrame.from_records(records,columns=['Parameter','Population','Year','Target','Before reconciliation','After reconciliation'])

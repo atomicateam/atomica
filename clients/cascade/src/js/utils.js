@@ -86,6 +86,58 @@ function simYears(vm) {
   }
 }
 
+function dataStart(vm) {
+  if (vm.$store.state.activeProject.project === undefined) {
+    return ''
+  }
+  else {
+    return vm.$store.state.activeProject.project.data_start
+  }
+}
+
+function dataEnd(vm) {
+  if (vm.$store.state.activeProject.project === undefined) {
+    return ''
+  }
+  else {
+    console.log('dataEnd: ' + vm.$store.state.activeProject.project.data_end)
+    return vm.$store.state.activeProject.project.data_end
+  }
+}
+
+function dataYears(vm) {
+  if (vm.$store.state.activeProject.project === undefined) {
+    return []
+  }
+  else {
+    let data_start = vm.$store.state.activeProject.project.data_start
+    let data_end = vm.$store.state.activeProject.project.data_end
+    let years = []
+    for (let i = data_start; i <= data_end; i++) {
+      years.push(i);
+    }
+    console.log('data years: ' + years)
+    return years;
+  }
+}
+
+// projection years are used for scenario and optimization plot year dropdowns
+function projectionYears(vm) {
+  if (vm.$store.state.activeProject.project === undefined) {
+    return []
+  }
+  else {
+    let data_end = vm.$store.state.activeProject.project.data_end
+    let sim_end = vm.$store.state.activeProject.project.sim_end
+    let years = []
+    for (let i = data_end; i <= sim_end; i++) {
+      years.push(i);
+    }
+    console.log('projection years: ' + years)
+    return years;
+  }
+}
+
 function activePops(vm) {
   if (vm.$store.state.activeProject.project === undefined) {
     return ''
@@ -122,6 +174,10 @@ export default {
   simStart,
   simEnd,
   simYears,
+  dataStart,
+  dataEnd,
+  dataYears,
+  projectionYears,
   activePops,
   updateSorting,
 }

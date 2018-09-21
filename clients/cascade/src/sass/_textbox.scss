@@ -23,6 +23,11 @@
     outline: 0;
   }
 
+  &:disabled {
+    background-color: #ddd;
+    outline: 0;
+  }
+
   // Validation
   // ----------
 

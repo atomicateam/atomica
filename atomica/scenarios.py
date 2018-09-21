@@ -8,6 +8,7 @@ import sciris as sc
 from .system import AtomicaException, logger
 from .utils import NamedItem
 from .programs import ProgramInstructions
+from .structure import TimeSeries
 
 class Scenario(NamedItem):
     def __init__(self, name, active=None):
@@ -150,15 +151,23 @@ class ParameterScenario(Scenario):
 
 class BudgetScenario(Scenario):
 
-    def __init__(self, name=None, parsetname=None, progsetname=None, alloc=None, start_year=None, active=None):
+    def __init__(self, name=None, parsetname=None, progsetname=None, alloc=None, start_year=None, active=None, alloc_year=None, budget_factor=1.0):
+        # A BudgetScenario specifies spending overwrites
+        # The start_year corresponds to the year in which the programs turn on
+        # The alloc can be a dict of scalar spends, that take effect in the program start year, or a TimeSeries of spending values
+        # If it is a TimeSeries of spending values, the BudgetScenario will attempt to unify them with the program data. ProgramInstructions
+        # uses the alloc directly, to provide maximum control of spending. The BudgetScenario is where the fact that the scenario should linearly
+        # ramp spending is defined. As a shortcut, if the alloc_year is specified, then the alloc will be converted to the appropriate form
         super(BudgetScenario, self).__init__(name,active)
         logger.debug('Creating budget scenario with name=%s, parsetname=%s, progsetname=%s, start_year=%s' % (name, progsetname, parsetname, start_year))
         self.parsetname = parsetname
         self.progsetname = progsetname
-        self.alloc = alloc
-        self.start_year = start_year
+        self.alloc_year = alloc_year # If the alloc has scalar values, add them in this year
+        self.alloc = sc.dcp(alloc)
+        self.start_year = start_year # Turn on programs in this year (can be different to when the spending changes are applied)
+        self.budget_factor = budget_factor
         return None
-    
+
     def run(self, project=None, parset=None, progset=None, store_results=True):
         # Run the BudgetScenario
         # If parset and progset are not provided, use the ones set in self.parsetname and self.progsetname
@@ -169,7 +178,30 @@ class BudgetScenario(Scenario):
         if progset is None:
             progset = project.progsets[self.progsetname]
 
-        instructions = ProgramInstructions(alloc=self.alloc, start_year=self.start_year) # Instructions for default spending
+        if self.alloc_year is not None:
+            # If the alloc_year is prior to the program start year, then just use the spending value directly for all times
+            # For more sophisticated behaviour, the alloc should be passed into the BudgetScenario as a TimeSeries
+            alloc = sc.odict()
+            for prog_name, val in self.alloc.items():
+                assert not isinstance(val,TimeSeries) # Value must not be a TimeSeries
+                alloc[prog_name] = TimeSeries(self.alloc_year,val)
+                if self.alloc_year > self.start_year:
+                    # If adding spending in a future year, linearly ramp from the start year
+                    spend_data = progset.programs[prog_name].spend_data
+                    alloc[prog_name].insert(self.start_year,spend_data.interpolate(self.start_year))  # This will result in a linear ramp
+        else:
+            alloc = sc.odict()
+            for prog_name, val in self.alloc.items():
+                if not isinstance(val,TimeSeries):
+                    alloc[prog_name] = TimeSeries(self.start_year,val)
+                else:
+                    alloc[prog_name] = sc.dcp(val)
+
+        print(alloc)
+        for ts in alloc.values():
+            ts.vals = [x*self.budget_factor for x in ts.vals] # TimeSeries uses lists instead of arrays for fast insertion/removal
+
+        instructions = ProgramInstructions(alloc=alloc, start_year=self.start_year) # Instructions for default spending
         result = project.run_sim(parset=parset, progset=progset, progset_instructions=instructions, result_name=self.name, store_results=store_results)
         return result
 

@@ -1,7 +1,7 @@
 """
 Atomica remote procedure calls (RPCs)
     
-Last update: 2018sep09
+Last update: 2018sep12
 """
 
 ###############################################################
@@ -56,7 +56,7 @@ def timeit(method):
     return timed
 
 
-def to_number(raw):
+def to_float(raw, blank_ok=False, die=False):
     ''' Convert something to a number. WARNING, I'm sure this already exists!! '''
     try:
         if sc.isstring(raw):
@@ -64,11 +64,30 @@ def to_number(raw):
             raw = raw.replace('$','') # Remove dollars, if present
         output = float(raw)
     except Exception as E:
-        if raw is None:
-            output = None
-        else:
-            raise E
+        errormsg = 'NUMBER WARNING, number conversion on "%s" failed, returning None: %s' % (raw, str(E))
+        if raw not in [None, ''] and not blank_ok: 
+            if die: raise Exception(errormsg)
+            else:   print(errormsg)
+        output = None
     return output
+
+
+def from_number(raw, sf=3, die=False):
+    ''' Convert something to a reasonable FE representation '''
+    if not sc.isnumber(raw):
+        output = str(raw)
+        errormsg = 'NUMBER WARNING, cannot convert %s from a number since it is of type %s' % (output, type(raw))
+        if die: raise Exception(errormsg)
+        else:   print(errormsg)
+    try:
+        output = sc.sigfig(raw, sigfigs=sf, sep=True, keepints=True)
+    except Exception as E:
+        output = str(raw)
+        errormsg = 'NUMBER WARNING, number conversion on "%s" failed, returning raw: %s' % (output, str(E))
+        if die: raise Exception(errormsg)
+        else:   print(errormsg)
+    return output
+        
 
 
 def get_path(filename, online=True):
@@ -835,11 +854,11 @@ def load_zip_of_prj_files(project_ids):
 
 
 @RPC()
-def add_demo_project(user_id, project_name='default'):
+def add_demo_project(user_id, project_name='default', tool=None):
     """
     Add a demo project
     """
-    if project_name == 'default':
+    if tool == 'tb':
         new_proj_name = get_unique_name('Demo project', other_names=None) # Get a unique name for the project to be added
         proj = au.demo(which='tb', do_run=False, do_plot=False, sim_dt=0.5)  # Create the project, loading in the desired spreadsheets.
         proj.name = new_proj_name
@@ -861,12 +880,16 @@ def create_new_project(user_id, framework_id, proj_name, num_pops, num_progs, da
     """
     if tool == 'tb': sim_dt = 0.5
     else:            sim_dt = None
-    if tool is None: # Optionally select by tool rather than frame
+    if tool is None or tool == 'cascade': # Optionally select by tool rather than frame
         framework_record = load_framework_record(framework_id, raise_exception=True) # Get the Framework object for the framework to be copied.
         frame = framework_record.frame
     else: # Or get a pre-existing one by the tool name
-        frame = au.demo(kind='framework', which=tool, sim_dt=sim_dt)
-    args = {"num_pops":int(num_pops), "data_start":int(data_start), "data_end":int(data_end)}
+        frame = au.demo(kind='framework', which=tool)
+
+    if tool == 'tb':
+        args = {"num_pops":int(num_pops), "data_start":int(data_start), "data_end":int(data_end), "num_transfers":1}
+    else:
+        args = {"num_pops":int(num_pops), "data_start":int(data_start), "data_end":int(data_end)}
     new_proj_name = get_unique_name(proj_name, other_names=None) # Get a unique name for the project to be added.
     proj = au.Project(framework=frame, name=new_proj_name, sim_dt=sim_dt) # Create the project, loading in the desired spreadsheets.
     print(">> create_new_project %s" % (proj.name))
@@ -952,39 +975,95 @@ def create_project_from_prj_file(prj_filename, user_id):
     return { 'projectId': str(proj.uid) } # Return the new project UID in the return message.
 
 
+##################################################################################
+#%% Calibration RPCs
+##################################################################################
+
+
 @RPC()
 def get_y_factors(project_id, parsetname=-1):
     print('Getting y factors for parset %s...' % parsetname)
+    print('Warning, year hard coded!')
     TEMP_YEAR = 2018 # WARNING, hard-coded!
     y_factors = []
     proj = load_project(project_id, raise_exception=True)
     parset = proj.parsets[parsetname]
     count = 0
     for par_type in ["cascade", "comps", "characs"]:
-        for parname in parset.par_ids[par_type].keys():
+        for par in parset.pars[par_type]:
+            parname = par.name
             this_par = parset.get_par(parname)
-            # TODO - do something with this_par.meta_y_factor here
             this_spec = proj.framework.get_variable(parname)[0]
             if 'calibrate' in this_spec and this_spec['calibrate'] is not None:
-                for popname,y_factor in this_par.y_factor.items():
-                    count += 1
-                    parlabel = this_spec['display name']
+                count += 1
+                parlabel = this_spec['display name']
+                y_factors.append({'index':count, 'parname':parname, 'parlabel':parlabel, 'meta_y_factor':this_par.meta_y_factor, 'pop_y_factors':[]}) 
+                for p,popname,y_factor in this_par.y_factor.enumitems():
                     popindex = parset.pop_names.index(popname)
                     poplabel = parset.pop_labels[popindex]
                     try:    
                         interp_val = this_par.interpolate([TEMP_YEAR],popname)[0]
                         if not np.isfinite(interp_val):
+                            print('NUMBER WARNING, value for %s %s is not finite' % (parlabel, poplabel))
                             interp_val = 1
                         if sc.approx(interp_val, 0):
-                            interp_val = 1
-                    except: 
+                            interp_val = 0.0
+                    except Exception as E: 
+                        print('NUMBER WARNING, value for %s %s is not convertible: %s' % (parlabel, poplabel, str(E)))
                         interp_val = 1
-                    dispvalue = interp_val*y_factor
-                    thisdict = {'index':count, 'parname':parname, 'popname':popname, 'value':y_factor, 'dispvalue':dispvalue, 'parlabel':parlabel, 'poplabel':poplabel}
-                    y_factors.append(thisdict)
-                    print(thisdict)
-    print('Returning %s y-factors' % len(y_factors))
-    return y_factors
+                    dispvalue = from_number(interp_val*y_factor)
+                    thisdict = {'popcount':p, 'popname':popname, 'dispvalue':dispvalue, 'origdispvalue':dispvalue, 'poplabel':poplabel}
+                    y_factors[-1]['pop_y_factors'].append(thisdict)
+#    sc.pp(y_factors)
+    print('Returning %s y-factors for %s' % (len(y_factors), parsetname))
+    return {'parlist':y_factors, 'poplabels':parset.pop_labels}
+
+
+@RPC()
+def set_y_factors(project_id, parsetname=-1, parlist=None):
+    print('Setting y factors for parset %s...' % parsetname)
+    print('Warning, year hard coded!')
+    TEMP_YEAR = 2018 # WARNING, hard-coded!
+    proj = load_project(project_id, raise_exception=True)
+    parset = proj.parsets[parsetname]
+    for newpar in parlist:
+        parname = newpar['parname']
+        this_par = parset.get_par(parname)
+        this_par.meta_y_factor = to_float(newpar['meta_y_factor'])
+        for newpoppar in newpar['pop_y_factors']:
+            popname = newpoppar['popname']
+            try:    
+                interp_val = this_par.interpolate([TEMP_YEAR],popname)[0]
+                if not np.isfinite(interp_val):
+                    print('NUMBER WARNING, value for %s %s is not finite' % (parname, popname))
+                    interp_val = 1
+                if sc.approx(interp_val, 0):
+                    interp_val = 0.0
+            except Exception as E: 
+                print('NUMBER WARNING, value for %s %s is not convertible: %s' % (parname, popname, str(E)))
+                interp_val = 1
+            dispvalue     = to_float(newpoppar['dispvalue'])
+            origdispvalue = to_float(newpoppar['origdispvalue'])
+            changed = (dispvalue != origdispvalue)
+            if changed:
+                print('Parameter %10s %10s UPDATED! %s -> %s' % (parname, popname, origdispvalue, dispvalue))
+            else:
+                print('Note: parameter %10s %10s stayed the same! %s -> %s' % (parname, popname, origdispvalue, dispvalue))
+            orig_y_factor = this_par.y_factor[popname]
+            if not sc.approx(origdispvalue, 0):
+                y_factor_change = dispvalue/origdispvalue
+                y_factor        = orig_y_factor*y_factor_change
+            elif not sc.approx(interp_val, 0):
+                y_factor = dispvalue/(1e-6+interp_val)
+            else:
+                if changed: print('NUMBER WARNING, everything is 0 for %s %s: %s %s %s %s' % (parname, popname, origdispvalue, dispvalue, interp_val, orig_y_factor))
+                y_factor = orig_y_factor
+            this_par.y_factor[popname] = y_factor
+#    sc.pp(parlist)
+    print('Setting %s y-factors for %s' % (len(parlist), parsetname))
+    print('Saving project...')
+    save_project(proj)
+    return None
 
 
 ##################################################################################
@@ -1164,21 +1243,14 @@ def get_supported_plots(project_id, only_keys=False):
 
 
 def savefigs(allfigs, online=True, die=False):
-#    if online: folder = sw.globalvars.downloads_dir.dir_path
-    if online: 
-        # Look for an existing downloads_dir UID.
-        downloads_dir_uid = sw.globalvars.data_store.get_uid('filesavedir', 
-            'Downloads Directory')        
-        folder = sw.globalvars.data_store.retrieve(downloads_dir_uid).dir_path    
-    else:      folder = os.getcwd()
-    filepath = sc.savefigs(allfigs, filetype='singlepdf', filename='figures.pdf', folder=folder)
+    filepath = sc.savefigs(allfigs, filetype='singlepdf', filename='Figures.pdf', folder=sw.globalvars.downloads_dir.dir_path)
     return filepath
 
 
 @RPC(call_type='download')
 def download_graphs():
     dirname = sw.globalvars.downloads_dir.dir_path # Use the downloads directory to put the file in.
-    file_name = 'figures.pdf' # Create a filename containing the framework name followed by a .frw suffix.
+    file_name = 'Figures.pdf' # Create a filename containing the framework name followed by a .frw suffix.
     full_file_name = '%s%s%s' % (dirname, os.sep, file_name) # Generate the full file name with path.
     return full_file_name
 
@@ -1203,11 +1275,7 @@ def get_atomica_plots(proj, results=None, plot_names=None, plot_options=None, po
     data = proj.data if do_plot_data is True else None # Plot data unless asked not to
     for output in outputs:
         try:
-            if isinstance(output.values()[0],list):
-                plotdata = au.PlotData(results, outputs=output, project=proj, pops=pops)
-            else:
-                plotdata = au.PlotData(results, outputs=output.values()[0], project=proj, pops=pops) # Pass string in directly so that it is not treated as a function aggregation
-
+            plotdata = au.PlotData(results, outputs=output.values()[0], project=proj, pops=pops)
             nans_replaced = 0
             for series in plotdata.series:
                 if replace_nans and any(np.isnan(series.vals)):
@@ -1229,7 +1297,6 @@ def get_atomica_plots(proj, results=None, plot_names=None, plot_options=None, po
                 alllegendjsons.append(customize_fig(fig=legend, output=output, plotdata=plotdata, xlims=xlims, figsize=figsize, is_legend=True))
                 allfigs.append(fig)
                 alllegends.append(legend)
-                pl.close(fig)
             print('Plot %s succeeded' % (output))
         except Exception as E:
             print('WARNING: plot %s failed (%s)' % (output, repr(E)))
@@ -1237,7 +1304,7 @@ def get_atomica_plots(proj, results=None, plot_names=None, plot_options=None, po
     return output, allfigs, alllegends
 
 
-def make_plots(proj, results, tool=None, year=None, pops=None, cascade=None, plot_options=None, dosave=None, calibration=False, online=True, plot_budget=False, outputfigs=False):
+def make_plots(proj, results, tool=None, year=None, pops=None, cascade=None, plot_options=None, dosave=True, calibration=False, online=True, plot_budget=False, outputfigs=False):
     
     # Handle inputs
     if sc.isstring(year): year = float(year)
@@ -1250,7 +1317,7 @@ def make_plots(proj, results, tool=None, year=None, pops=None, cascade=None, plo
         # But for scenarios and optimizations, 'all' pops means aggregated over all pops
         pops = 'all'  # pops=None means aggregate all pops in get_cascade_plot, and plots all pops _without_ aggregating in calibration
     elif pops.lower() == 'all':
-        pops = 'aggregate' # make sure it's lowercase
+        pops = 'total' # make sure it's lowercase
     else:
         pop_labels = {y:x for x,y in zip(results[0].pop_names,results[0].pop_labels)}
         pops = pop_labels[pops]
@@ -1268,23 +1335,38 @@ def make_plots(proj, results, tool=None, year=None, pops=None, cascade=None, plo
             output[key] = cascadeoutput[key] + output[key]
         allfigs = cascadefigs + allfigs
         alllegends = cascadelegends + alllegends
-    if dosave:
-        savefigs(allfigs, online=online)  
+    try:                   savefigs(allfigs) # WARNING, dosave ignored fornow
+    except Exception as E: print('Could not save figures: %s' % str(E))
     if outputfigs: return output, allfigs, alllegends
     else:          return output
 
 
-def customize_fig(fig=None, output=None, plotdata=None, xlims=None, figsize=None, is_legend=False):
+def customize_fig(fig=None, output=None, plotdata=None, xlims=None, figsize=None, is_legend=False, is_epi=True):
     if is_legend:
         pass # Put legend customizations here
     else:
-        if figsize is None: figsize = (5,3)
-        fig.set_size_inches(figsize)
         ax = fig.get_axes()[0]
-        ax.set_position([0.25,0.15,0.70,0.75])
         ax.set_facecolor('none')
-        ax.set_title(output.keys()[0]) # This is in a loop over outputs, so there should only be one output present
-        ax.set_ylabel(plotdata.series[0].units) # All outputs should have the same units (one output for each pop/result)
+        if is_epi: 
+            if figsize is None: figsize = (5,3)
+            fig.set_size_inches(figsize)
+            ax.set_position([0.25,0.18,0.70,0.72])
+            ax.set_title(output.keys()[0]) # This is in a loop over outputs, so there should only be one output present
+        y_max = ax.get_ylim()[1]
+        labelpad = 7
+        if y_max < 1e-3: labelpad = 15
+        if y_max > 1e3:  labelpad = 15
+        if y_max > 1e6:  labelpad = 25
+        if y_max > 1e7:  labelpad = 30
+        if y_max > 1e8:  labelpad = 35
+        if y_max > 1e9:  labelpad = 40
+        if is_epi:
+            ylabel = plotdata.series[0].units
+            if ylabel == 'probability': ylabel = 'Probability'
+            if ylabel == '':            ylabel = 'Proportion'
+        else:
+            ylabel = ax.get_ylabel()
+        ax.set_ylabel(ylabel, labelpad=labelpad) # All outputs should have the same units (one output for each pop/result)
         if xlims is not None: ax.set_xlim(xlims)
         try:
             legend = fig.findobj(Legend)[0]
@@ -1293,56 +1375,57 @@ def customize_fig(fig=None, output=None, plotdata=None, xlims=None, figsize=None
         except:
             pass
         mpld3.plugins.connect(fig, CursorPosition())
-        for l,line in enumerate(fig.axes[0].lines):
-            mpld3.plugins.connect(fig, LineLabels(line, label=line.get_label()))
-    
+        if is_epi:
+            for l,line in enumerate(fig.axes[0].lines):
+                mpld3.plugins.connect(fig, LineLabels(line, label=line.get_label()))
     graph_dict = sw.mpld3ify(fig, jsonify=False) # Convert to mpld3
+    pl.close(fig)
     return graph_dict
     
 
-def get_program_plots(results,year,budget=True,coverage=True):
-    # Generate program related plots
-    # INPUTS
-    # - proj : Project instance
-    # - results : Result or list of Results
-    # - year : If making a budget bar plot, it will be displayed for this year
-    # - budget : True/False flag for whether to include budget bar plot
-    # - coverage : True/False flag for whether to include program coverage figures
-
-    figs = []
-    if budget:
-        d = au.PlotData.programs(results, quantity='spending')
-        d.interpolate(year)
-        budget_figs = au.plot_bars(d, stack_outputs='all', legend_mode='together', outer='times', show_all_labels=False, orientation='horizontal')
-
-        ax = budget_figs[0].axes[0]
-        ax.set_xlabel('Spending ($/year)')
-
-        # The legend is too big for the figure -- WARNING, think of a better solution
-        #        budget_figs[1].set_figheight(8.9)
-        #        budgetfigs[1].set_figwidth(8.7)
-
-        figs += budget_figs
-        print('Budget plot succeeded')
-
-    if coverage:
-        d = au.PlotData.programs(results,quantity='coverage_fraction')
-        coverage_figs = au.plot_series(d, axis='results')
-        for fig,(output_name,output_label) in zip(coverage_figs,d.outputs.items()):
-            fig.axes[0].set_title(output_label)
-            series = d[d.results.keys()[0],d.pops.keys()[0],output_name]
-            fig.axes[0].set_ylabel(series.units)
-        figs += coverage_figs
-        print('Coverage plots succeeded')
-
-    graphs = []
-    for fig in figs:
-        graph_dict = mpld3.fig_to_dict(fig)
-        graph_dict = sc.sanitizejson(graph_dict) # This shouldn't be necessary, but it is...
-        graphs.append(graph_dict)
-        pl.close(fig)
-    output = {'graphs':graphs}
-    return output, figs
+#def get_program_plots(results,year,budget=True,coverage=True):
+#    # Generate program related plots
+#    # INPUTS
+#    # - proj : Project instance
+#    # - results : Result or list of Results
+#    # - year : If making a budget bar plot, it will be displayed for this year
+#    # - budget : True/False flag for whether to include budget bar plot
+#    # - coverage : True/False flag for whether to include program coverage figures
+#
+#    figs = []
+#    if budget:
+#        d = au.PlotData.programs(results, quantity='spending')
+#        d.interpolate(year)
+#        budget_figs = au.plot_bars(d, stack_outputs='all', legend_mode='together', outer='times', show_all_labels=False, orientation='horizontal')
+#
+#        ax = budget_figs[0].axes[0]
+#        ax.set_xlabel('Spending ($/year)')
+#
+#        # The legend is too big for the figure -- WARNING, think of a better solution
+#        #        budget_figs[1].set_figheight(8.9)
+#        #        budgetfigs[1].set_figwidth(8.7)
+#
+#        figs += budget_figs
+#        print('Budget plot succeeded')
+#
+#    if coverage:
+#        d = au.PlotData.programs(results,quantity='coverage_fraction')
+#        coverage_figs = au.plot_series(d, axis='results')
+#        for fig,(output_name,output_label) in zip(coverage_figs,d.outputs.items()):
+#            fig.axes[0].set_title(output_label)
+#            series = d[d.results.keys()[0],d.pops.keys()[0],output_name]
+#            fig.axes[0].set_ylabel(series.units.title())
+#        figs += coverage_figs
+#        print('Coverage plots succeeded')
+#
+#    graphs = []
+#    for fig in figs:
+#        graph_dict = mpld3.fig_to_dict(fig)
+#        graph_dict = sc.sanitizejson(graph_dict) # This shouldn't be necessary, but it is...
+#        graphs.append(graph_dict)
+#        pl.close(fig)
+#    output = {'graphs':graphs}
+#    return output, figs
 
 def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plot_budget=False):
     
@@ -1358,14 +1441,15 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plo
         years[y] = float(years[y]) # Ensure it's a float
 
     fig,table = au.plot_cascade(results, cascade=cascade, pops=pops, year=years, data=proj.data, show_table=False)
+    figjsons.append(customize_fig(fig=fig, output=None, plotdata=None, xlims=None, figsize=None, is_epi=False))
     figs.append(fig)
     legends.append(sc.emptyfig()) # No figure, but still useful to have a plot
     
     if plot_budget:
-        
         d = au.PlotData.programs(results, quantity='spending')
         d.interpolate(year)
         budgetfigs = au.plot_bars(d, stack_outputs='all', legend_mode='together', outer='times', show_all_labels=False, orientation='vertical')
+        figjsons.append(customize_fig(fig=budgetfigs[0], output=None, plotdata=None, xlims=None, figsize=None, is_epi=False))
         budgetlegends = [sc.emptyfig()]
         
         ax = budgetfigs[0].axes[0]
@@ -1374,14 +1458,6 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plo
         figs    += budgetfigs
         legends += budgetlegends
         print('Budget plot succeeded')
-    
-    for fig in figs:
-        ax = fig.get_axes()[0]
-        ax.set_facecolor('none')
-        mpld3.plugins.connect(fig, CursorPosition())
-        graph_dict = sw.mpld3ify(fig, jsonify=False) # These get jsonified later
-        figjsons.append(graph_dict)
-        pl.close(fig)
     
     for fig in legends: # Different enough to warrant its own block, although ugly
         try:
@@ -1467,38 +1543,14 @@ def get_json_cascade(results,data):
 
 @timeit
 @RPC()  
-def manual_calibration(project_id, cache_id, parsetname=-1, y_factors=None, plot_options=None, plotyear=None, pops=None, tool=None, cascade=None, dosave=True):
-    print('>> DEBUGGING STUFF:')
+def manual_calibration(project_id, cache_id, parsetname=-1, plot_options=None, plotyear=None, pops=None, tool=None, cascade=None, dosave=True):
+    print('Running "manual calibration"...')
     print(plot_options)
-    print('Setting y factors for parset %s...' % parsetname)
-    TEMP_YEAR = 2018 # WARNING, hard-coded!
     proj = load_project(project_id, raise_exception=True)
-    parset = proj.parsets[parsetname]
-    for pardict in y_factors:
-        parname   = pardict['parname']
-        dispvalue = float(pardict['dispvalue'])
-        popname   = pardict['popname']
-        thispar   = parset.get_par(parname)
-        try:    
-            interp_val = thispar.interpolate([TEMP_YEAR],popname)[0]
-            if not np.isfinite(interp_val):
-                interp_val = 1
-            if sc.approx(interp_val, 0):
-                interp_val = 1
-        except: 
-            interp_val = 1
-        y_factor  = dispvalue/interp_val
-        parset.get_par(parname).y_factor[popname] = y_factor
-        # TODO - set thispar.meta_y_factor here
-        if not sc.approx(y_factor, 1):
-            print('Modified: %s (%s)' % (parname, y_factor))
-    
     proj.modified = sc.now()
     result = proj.run_sim(parset=parsetname, store_results=False)
     put_results_cache_entry(cache_id, result)
-
     output = make_plots(proj, result, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, calibration=True)
-
     return output
 
 
@@ -1533,11 +1585,10 @@ def automatic_calibration(project_id, cache_id, parsetname=-1, max_time=20, save
 def py_to_js_scen(py_scen, project=None):
     ''' Convert a Python to JSON representation of a scenario. The Python scenario might be a dictionary or an object. '''
     js_scen = {}
-    attrs = ['name', 'active', 'parsetname', 'progsetname', 'start_year'] 
+    attrs = ['name', 'active', 'parsetname', 'progsetname', 'alloc_year']
     for attr in attrs:
         if isinstance(py_scen, dict):
             js_scen[attr] = py_scen[attr] # Copy the attributes directly
-            
         else:
             js_scen[attr] = getattr(py_scen, attr) # Copy the attributes into a dictionary
             
@@ -1559,17 +1610,18 @@ def py_to_js_scen(py_scen, project=None):
 def js_to_py_scen(js_scen):
     ''' Convert a Python to JSON representation of a scenario '''
     py_scen = sc.odict()
-    attrs = ['name', 'active', 'parsetname', 'progsetname'] 
+    attrs = ['name', 'active', 'parsetname', 'progsetname']
     for attr in attrs:
         py_scen[attr] = js_scen[attr] # Copy the attributes into a dictionary
-    py_scen['start_year'] = float(js_scen['start_year']) # Convert to number
+    py_scen['alloc_year'] = float(js_scen['alloc_year']) # Convert to number
+    py_scen['start_year'] = py_scen['alloc_year'] # Normally, the start year will be set by the set_scen_info() RPC but this is a fallback to ensure the scenario is still usable even if that step is omitted
     py_scen['alloc'] = sc.odict()
     for item in js_scen['alloc']:
         prog_name = item[0]
         budget = item[1]
         if sc.isstring(budget):
             try:
-                budget = to_number(budget)
+                budget = to_float(budget)
             except Exception as E:
                 raise Exception('Could not convert budget to number: %s' % repr(E))
         if sc.isiterable(budget):
@@ -1577,7 +1629,7 @@ def js_to_py_scen(js_scen):
                 raise Exception('Budget should only have a single element in it, not %s' % len(budget))
             else:
                 budget = budget[0] # If it's not a scalar, pull out the first element -- WARNING, KLUDGY
-        py_scen['alloc'][prog_name] = to_number(budget)
+        py_scen['alloc'][prog_name] = to_float(budget)
     return py_scen
     
 
@@ -1603,6 +1655,7 @@ def set_scen_info(project_id, scenario_summaries, online=True):
     for j,js_scen in enumerate(scenario_summaries):
         print('Setting scenario %s of %s...' % (j+1, len(scenario_summaries)))
         py_scen = js_to_py_scen(js_scen)
+        py_scen['start_year'] = proj.data.end_year # The scenario program start year is the same as the end year
         print('Python scenario info for scenario %s:' % (j+1))
         print(py_scen)
         proj.make_scenario(which='budget', json=py_scen)
@@ -1658,12 +1711,12 @@ def py_to_js_optim(py_optim, project=None):
 def js_to_py_optim(js_optim):
     json = js_optim
     for key in ['start_year', 'end_year', 'budget_factor', 'maxtime']:
-        json[key] = to_number(json[key]) # Convert to a number
+        json[key] = to_float(json[key]) # Convert to a number
     for subkey in json['objective_weights'].keys():
-        json['objective_weights'][subkey] = to_number(json['objective_weights'][subkey])
+        json['objective_weights'][subkey] = to_float(json['objective_weights'][subkey], blank_ok=True)
     for subkey in json['prog_spending'].keys():
         this = json['prog_spending'][subkey]
-        json['prog_spending'][subkey] = (to_number(this['min']), to_number(this['max']))
+        json['prog_spending'][subkey] = (to_float(this['min']), to_float(this['max']))
     return json
     
 
@@ -1909,8 +1962,8 @@ def export_results(cache_id):
     print('Exporting results...')
     
     # Load the result from the cache and check if we got a result.
-    result = fetch_results_cache_entry(cache_id)
-    if result is None:
+    resultset = fetch_results_cache_entry(cache_id)
+    if resultset is None:
         return { 'error': 'Failed to load plot results from cache' }
     
 #    if isinstance(result, ResultPlaceholder):
@@ -1918,8 +1971,8 @@ def export_results(cache_id):
 #        result = result.get()
     
     dirname = sw.globalvars.downloads_dir.dir_path 
-    file_name = '%s.xlsx' % result.name 
+    file_name = 'results.zip'
     full_file_name = os.path.join(dirname, file_name)
-    result.export(full_file_name)
+    au.export_results(resultset, full_file_name)
     print(">> export_results %s" % (full_file_name))
     return full_file_name # Return the filename  

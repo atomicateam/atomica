@@ -11,30 +11,33 @@ from atomica.optimization import optimize
 
 #test = "sir"
 #test = "tb"
-# test = "hypertension"
-test = "udt"
+#test = "hypertension"
+#test = "hypertension_dyn"
+#test = "dt"
+#test = "udt"
 #test = "usdt"
+#test = "cervicalcancer"
 #test = "hiv"
-#test = "diabetes"
+test = "diabetes"
 #test = "service"
 
 torun = [
-#"loadframework",
-#"saveframework",
-#"makedatabook",
-#"makeproject",
-#"loaddatabook",
-#"makeparset",
-#"runsim",
-#"plotcascade",
-#"makeblankprogbook",
+"loadframework",
+"saveframework",
+"makedatabook",
+"makeproject",
+"loaddatabook",
+"makeparset",
+"runsim",
+"plotcascade",
+"makeblankprogbook",
 # "writeprogbook",
 #"testprograms",
-"runsim_programs",
+#"runsim_programs",
 #"makeplots",
 #"export",
 # "manualcalibrate",
-# "autocalibrate",
+#"autocalibrate",
 #"parameterscenario",
 #'budgetscenarios',
 #'optimization',
@@ -79,9 +82,9 @@ if "makedatabook" in torun:
     elif test == "tb": args = {"num_pops":12, "num_transfers":3, "data_end":2018}
     elif test == "diabetes": args = {"num_pops":1, "num_transfers":0, "data_start":2014, "data_end":2017, "data_dt":1.0}
     elif test == "service": args = {"num_pops":1, "num_transfers":0,"data_start":2014, "data_end":2017, "data_dt":1.0}
-    elif test == "udt": args = {"num_pops":1, "num_transfers":0,"data_start":2016, "data_end":2019, "data_dt":1.0}
+    elif test in ["udt","usdt","usdt_dyn","dt"]: args = {"num_pops":1, "num_transfers":0,"data_start":2016, "data_end":2019, "data_dt":1.0}
     elif test == "hiv": args = {"num_pops":2, "num_transfers":0,"data_start":2016, "data_end":2019, "data_dt":1.0}
-    elif test == "hypertension": args = {"num_pops":4, "num_transfers":0,"data_start":2016, "data_end":2019, "data_dt":1.0}
+    elif test in ["hypertension","hypertension_dyn"]: args = {"num_pops":4, "num_transfers":0,"data_start":2016, "data_end":2019, "data_dt":1.0}
     P.create_databook(databook_path=tmpdir + "databook_" + test + "_blank.xlsx", **args)
 
 if "makeproject" in torun:
@@ -103,7 +106,7 @@ if "runsim" in torun:
         P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
     elif test=='diabetes':
         P.update_settings(sim_start=2014.0, sim_end=2020, sim_dt=1.)
-    elif test in ['udt','hiv','usdt','hypertension']:
+    elif test in ['udt','hiv','usdt','hypertension','hypertension_dyn']:
         P.update_settings(sim_start=2016.0, sim_end=2018, sim_dt=1.)
     elif test in ['sir']:
         P.update_settings(sim_start=2000.0, sim_end=2018, sim_dt=1.)
@@ -111,16 +114,9 @@ if "runsim" in torun:
         P.update_settings(sim_start=2014.0, sim_end=2020, sim_dt=1.)
 
     P.run_sim(parset="default", result_name="default")    
-#    cascade = au.get_cascade_vals(P.results[-1],cascade='main', pops='all', year=2017)
 
 if 'plotcascade' in torun:
-    au.plot_cascade(P.results[-1], cascade='Diabetes care cascade', pops='all', year=2016, data=P.data)
-#    au.plot_cascade(P.results[-1], cascade='main', pops='all', year=2016)
-#    au.plot_cascade(P.results[-1], cascade='main', pops='m_rural', year=2016)
-#    au.plot_cascade(P.results[-1], cascade='main', pops='f_rural', year=2016)
-#    au.plot_cascade(P.results[-1], cascade='main', pops='m_urban', year=2016)
-#    au.plot_cascade(P.results[-1], cascade='main', pops='f_urban', year=2016)
-#    au.plot_multi_cascade(P.results[-1],'main',year=[2016,2017])
+    au.plot_cascade(P.results[-1], pops='all', year=[2016,2017], data=P.data)
     if forceshow: pl.show()
     
     # Browser test
@@ -133,6 +129,8 @@ if 'plotcascade' in torun:
 if "makeblankprogbook" in torun:
     print('\n\n\nMaking programs spreadsheet ... ')
     P = au.demo(which=test, addprogs=False, do_plot=0, do_run=False)
+    P.run_sim(parset="default", result_name="default")    
+
     filename = "temp/progbook_"+test+"_blank.xlsx"
     if test == "tb":
         P.make_progbook(filename, progs=6)
@@ -140,7 +138,7 @@ if "makeblankprogbook" in torun:
         P.make_progbook(filename, progs=9)
     elif test == "udt":
         P.make_progbook(filename, progs=4)
-    elif test == "usdt":
+    elif test == ["usdt","cervicalcancer"]:
         P.make_progbook(filename, progs=9)
     elif test == "hiv":
         P.make_progbook(filename, progs=8)
@@ -285,16 +283,17 @@ if "runsim_programs" in torun:
 
         au.plot_multi_cascade([baselineresults, scenresults],'main',year=[2017])
 
-    elif test == 'hypertension':
+    elif test in ['hypertension','hypertension_dyn']:
         scenalloc = {'Screening - urban':  30000 }
     
         bl_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018) 
         scen_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scenalloc) 
 
+        noprogs = P.run_sim(parset="default", result_name="default-noprogs")
         baselineresults = P.run_sim(parset="default", progset='default',progset_instructions=bl_instructions,result_name="baseline")
         scenresults = P.run_sim(parset="default", progset='default',progset_instructions=scen_instructions,result_name="scen")
 
-        au.plot_multi_cascade([baselineresults, scenresults],'main',year=[2020])
+        au.plot_multi_cascade([noprogs, baselineresults, scenresults],'Hypertension care cascade',year=[2018])
 
     elif test == 'hiv':
         scen1alloc = {'Testing - clinics': 1500000}
@@ -399,6 +398,7 @@ if "autocalibrate" in torun:
     else:
         P.calibrate(max_time=10, new_name="auto")
     P.run_sim(parset="auto", result_name="auto")
+    au.plot_cascade(P.results[-1], cascade='Cascade', pops='all', year=2017, data=P.data)
     if test == "sir":
         outputs = ["ch_prev"]
     if test == "tb":

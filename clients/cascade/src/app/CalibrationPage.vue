@@ -68,6 +68,9 @@ Last update: 2018-09-06
           <button class="btn btn-icon" @click="uploadParset()" data-tooltip="Upload">
             <i class="ti-upload"></i>
           </button>
+          <button class="btn btn-icon" @click="loadParTable()" data-tooltip="Refresh">
+            <i class="ti-reload"></i>
+          </button>
           &nbsp;
           <help reflink="parameter-sets"></help>
         </div>
@@ -89,42 +92,41 @@ Last update: 2018-09-06
           <table class="table table-bordered table-hover table-striped" style="width: 100%">
             <thead>
             <tr>
-              <th @click="updateSorting('parameter')" class="sortable">
+              <th>
                 Parameter
-                <span v-show="sortColumn == 'parameter' && !sortReverse"><i class="fas fa-caret-down"></i></span>
-                <span v-show="sortColumn == 'parameter' && sortReverse"><i class="fas fa-caret-up"></i></span>
-                <span v-show="sortColumn != 'parameter'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
               </th>
-              <th @click="updateSorting('population')" class="sortable">
-                Population
-                <span v-show="sortColumn == 'population' && !sortReverse"><i class="fas fa-caret-down"></i></span>
-                <span v-show="sortColumn == 'population' && sortReverse"><i class="fas fa-caret-up"></i></span>
-                <span v-show="sortColumn != 'population'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+              <th>
+                Overall scale factor
               </th>
-              <th @click="updateSorting('value')" class="sortable">
-                Value
-                <span v-show="sortColumn == 'value' && !sortReverse"><i class="fas fa-caret-down"></i></span>
-                <span v-show="sortColumn == 'value' && sortReverse"><i class="fas fa-caret-up"></i></span>
-                <span v-show="sortColumn != 'value'"><i class="fas fa-caret-up" style="visibility: hidden"></i></span>
+              <th v-for="popLabel in poplabels">
+                {{ popLabel }}
               </th>
             </tr>
             </thead>
             <tbody>
-            <tr v-for="par in parList">
+            <tr v-for="par in parlist">
               <td>
                 {{par.parlabel}}
               </td>
               <td>
-                {{par.poplabel}}
-              </td>
-              <td>
                 <input type="text"
                        class="txbox"
-                       v-model="par.dispvalue"/>
+                       v-model="par.meta_y_factor"
+                       @keyup.enter="saveParTable()"/>
+              </td>
+              <td v-for="poppar in par.pop_y_factors">
+                <input type="text"
+                       class="txbox"
+                       :disabled="poppar.dispvalue==='0'"
+                       v-model="poppar.dispvalue"
+                       @keyup.enter="saveParTable()"/>
               </td>
             </tr>
             </tbody>
           </table>
+          <button class="btn __green" @click="saveParTable()">
+            Save
+          </button>&nbsp;
         </div>
       </div>
       <!-- ### End: parameters card ### -->
@@ -155,7 +157,7 @@ Last update: 2018-09-06
               <button class="btn btn-icon" @click="scaleFigs(1.0)" data-tooltip="Reset zoom"><i class="ti-zoom-in"></i></button>
               <button class="btn btn-icon" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>
               &nbsp;&nbsp;&nbsp;
-              <button class="btn" @click="exportGraphs(projectID)">Export graphs</button>
+              <button class="btn" @click="exportGraphs()">Export graphs</button>
               <button class="btn" @click="exportResults(serverDatastoreId)">Export data</button>
               <button v-if="false" class="btn btn-icon" @click="togglePlotControls()"><i class="ti-settings"></i></button> <!-- When popups are working: v-if="$globaltool=='tb'" -->
             </div>
@@ -169,11 +171,27 @@ Last update: 2018-09-06
             <!-- ### Start: plots ### -->
             <div class="calib-card-body">
               <div class="calib-graphs">
+
+                <div class="other-graphs">
+                  <div v-for="index in placeholders">
+                    <div :id="'figcontainer'+index" style="display:flex; justify-content:flex-start; padding:5px; border:1px solid #ddd" v-show="showGraphDivs[index]">
+                      <div :id="'fig'+index" class="calib-graph">
+                        <!--mpld3 content goes here-->
+                      </div>
+                      <!--<div style="display:inline-block">-->
+                      <!--<button class="btn __bw btn-icon" @click="maximize(index)" data-tooltip="Show legend"><i class="ti-menu-alt"></i></button>-->
+                      <!--</div>-->
+                    </div>
+                  </div>
+                </div>
+
+                <!-- ### Start: Cascade plot ### -->
                 <div class="featured-graphs">
                   <div :id="'fig0'">
                     <!-- mpld3 content goes here, no legend for it -->
                   </div>
                 </div>
+                <!-- ### End: Cascade plot ### -->
 
                 <!-- ### Start: cascade table ### -->
                 <div v-if="$globaltool=='cascade' && table" class="calib-tables">
@@ -195,38 +213,25 @@ Last update: 2018-09-06
                 </div>
                 <!-- ### End: cascade table ### -->
 
-                <div class="other-graphs">
-                  <div v-for="index in placeholders">
-                    <div :id="'figcontainer'+index" style="display:flex; justify-content:flex-start; padding:5px; border:1px solid #ddd" v-show="showGraphDivs[index]">
-                      <div :id="'fig'+index" class="calib-graph">
-                        <!--mpld3 content goes here-->
-                      </div>
-                      <div style="display:inline-block">
-                        <button class="btn __bw btn-icon" @click="maximize(index)" data-tooltip="Show legend"><i class="ti-menu-alt"></i></button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
               </div> <!-- ### End: calib-graphs ### -->
             </div>
             <!-- ### End: plots ### -->
 
             <!-- ### Start: dialogs ### -->
-            <div v-for="index in placeholders">
-              <div class="dialogs" :id="'legendcontainer'+index" style="display:flex" v-show="showLegendDivs[index]">
-                <dialog-drag :id="'DD'+index"
-                             :key="index"
-                             @close="minimize(index)"
-                             :options="{top: openDialogs[index].options.top, left: openDialogs[index].options.left}">
+            <!--<div v-for="index in placeholders">-->
+            <!--<div class="dialogs" :id="'legendcontainer'+index" style="display:flex" v-show="showLegendDivs[index]">-->
+            <!--<dialog-drag :id="'DD'+index"-->
+            <!--:key="index"-->
+            <!--@close="minimize(index)"-->
+            <!--:options="{top: openDialogs[index].options.top, left: openDialogs[index].options.left}">-->
 
-                  <span slot='title' style="color:#fff">Legend</span>
-                  <div :id="'legend'+index">
-                    <!-- Legend content goes here-->
-                  </div>
-                </dialog-drag>
-              </div>
-            </div>
+            <!--<span slot='title' style="color:#fff">Legend</span>-->
+            <!--<div :id="'legend'+index">-->
+            <!--&lt;!&ndash; Legend content goes here&ndash;&gt;-->
+            <!--</div>-->
+            <!--</dialog-drag>-->
+            <!--</div>-->
+            <!--</div>-->
             <!-- ### End: dialogs ### -->
 
 
@@ -351,9 +356,9 @@ Last update: 2018-09-06
       projectID()    { return utils.projectID(this) },
       hasData()      { return utils.hasData(this) },
       hasPrograms()  { return utils.hasPrograms(this) },
-      simStart()     { return utils.simStart(this) },
-      simEnd()       { return utils.simEnd(this) },
-      simYears()     { return utils.simYears(this) },
+      simStart()     { return utils.dataStart(this) },
+      simEnd()       { return utils.dataEnd(this) },
+      simYears()     { return utils.dataYears(this) },
       activePops()   { return utils.activePops(this) },
       placeholders() { return graphs.placeholders(this, 1) },
     },
@@ -365,7 +370,7 @@ Last update: 2018-09-06
         (this.$store.state.activeProject.project.hasData) ) {
         console.log('created() called')
         this.startYear = this.simStart
-//        this.endYear = this.simEnd // CK: Uncomment to set the end year to 2035 instead of 2018
+        this.endYear = this.simEnd // CK: Uncomment to set the end year to 2035 instead of 2018
         this.popOptions = this.activePops
         this.serverDatastoreId = this.$store.state.activeProject.project.id + ':calibration'
         this.getPlotOptions(this.$store.state.activeProject.project.id)
@@ -381,11 +386,17 @@ Last update: 2018-09-06
       }
     },
 
+    watch: {
+//      activeParset() {
+//        this.loadParTable()
+//      }
+    },
+
     methods: {
 
       validateYears()                   { return utils.validateYears(this) },
       updateSets()                      { return shared.updateSets(this) },
-      exportGraphs(datastoreID)         { return shared.exportGraphs(this, datastoreID) },
+      exportGraphs()                    { return shared.exportGraphs(this) },
       exportResults(datastoreID)        { return shared.exportResults(this, datastoreID) },
       scaleFigs(frac)                   { return graphs.scaleFigs(this, frac)},
       clearGraphs()                     { return graphs.clearGraphs(this) },
@@ -402,15 +413,45 @@ Last update: 2018-09-06
 
       loadParTable() {
         return new Promise((resolve, reject) => {
-          console.log('loadParTable() called')
+          console.log('loadParTable() called for ' + this.activeParset)
           // TODO: Get spinners working right for this leg of initialization.
-          rpcs.rpc('get_y_factors', [this.$store.state.activeProject.project.id, this.activeParset])
+          rpcs.rpc('get_y_factors', [this.projectID, this.activeParset])
             .then(response => {
-              this.parList = response.data // Get the parameter values
+              this.parlist = response.data.parlist // Get the parameter values
+              var tmpParset = _.cloneDeep(this.activeParset)
+              this.activeParset = null
+              utils.sleep(500).then(response => {
+                this.activeParset = tmpParset
+              })
+              this.parlist.push('Update Vue DOM')
+              this.parlist.pop()
+              this.poplabels = response.data.poplabels
+              console.log(response)
+              console.log(this.poplabels)
+              console.log(this.parlist)
               resolve(response)
             })
             .catch(error => {
               status.fail(this, 'Could not load parameters', error)
+              reject(error)
+            })
+        })
+      },
+
+      saveParTable() {
+        return new Promise((resolve, reject) => {
+          console.log('saveParTable() called for ' + this.activeParset)
+          rpcs.rpc('set_y_factors', [this.projectID, this.activeParset, this.parlist])
+            .then(response => {
+              this.loadParTable()
+                .then(response2 => {
+                  status.succeed(this, 'Parameters updated')
+                  resolve(response2)
+                })
+              resolve(response)
+            })
+            .catch(error => {
+              status.fail(this, 'Could not save parameters', error)
               reject(error)
             })
         })
@@ -497,7 +538,7 @@ Last update: 2018-09-06
         console.log('manualCalibration() called')
         this.validateYears()  // Make sure the start end years are in the right range.
         status.start(this)
-        rpcs.rpc('manual_calibration', [project_id, this.serverDatastoreId], {'parsetname':this.activeParset, 'y_factors':this.parList, 'plot_options':this.plotOptions,
+        rpcs.rpc('manual_calibration', [project_id, this.serverDatastoreId], {'parsetname':this.activeParset, 'plot_options':this.plotOptions,
           'plotyear':this.endYear, 'pops':this.activePop, 'tool':this.$globaltool, 'cascade':null}) // Go to the server to get the results
           .then(response => {
             this.makeGraphs(response.data)
@@ -525,6 +566,7 @@ Last update: 2018-09-06
           .then(response => {
             this.table = response.data.table
             this.makeGraphs(response.data.graphs)
+            status.succeed(this, 'Simulation run, graphs now rendering...')
           })
           .catch(error => {
             console.log(error.message)

@@ -66,7 +66,7 @@ class ProjectFramework(object):
             self.sheets[sheet_title] = list()
             for table in tables:
                 # Get a dataframe
-                df = pd.DataFrame.from_records(table).applymap(lambda x: x.value)
+                df = pd.DataFrame.from_records(table).applymap(lambda x: x.value.strip() if sc.isstring(x.value) else x.value)
                 df.dropna(axis=1, how='all', inplace=True) # If a column is completely empty, including the header, ignore it. Helps avoid errors where blank cells are loaded by openpyxl due to extra non-value content
                 if sheet_title == 'cascades':
                     # On the cascades sheet, the user-entered name appears in the header row. We must preserve case for this
@@ -553,7 +553,7 @@ class ProjectFramework(object):
 
         ### VALIDATE CASCADES
 
-        if 'cascades' not in self.sheets:
+        if 'cascades' not in self.sheets or not self.cascades:
             # Make the fallback cascade with name 'Default'
             used_fallback_cascade = True
             records = []
@@ -579,11 +579,13 @@ class ProjectFramework(object):
                     raise InvalidFramework('Requested cascade stage name "%s" is a reserved keyword' % stage_name)
 
         # Check that all cascade constituents match a characteristic or compartment
-        for df in self.cascades.values():
+        for cascade_name,df in self.cascades.items():
             for _,spec in df.iterrows():
+                if not spec['constituents']:
+                    raise InvalidFramework('In cascade "%s" stage "%s" - no constituents were provided in the spreadsheet' % (cascade_name, spec.iloc[0]))
                 for component in spec['constituents'].split(','):
                     if not (component.strip() in self.comps.index or component.strip() in self.characs.index):
-                        raise InvalidFramework('In Characteristic "%s", included component "%s" was not recognized as a Compartment or Characteristic' % (spec.name,component))
+                        raise InvalidFramework('In cascade "%s" stage "%s" - included component "%s" was not recognized as a Compartment or Characteristic' % (cascade_name,spec.iloc[:,0],component))
 
         # Check that the cascades are validly nested
         # This will also check the fallback cascade
@@ -678,7 +680,6 @@ def sanitize_dataframe(df,required_columns,defaults,valid_content):
                 raise InvalidFramework('The column "%s" can only contain the following values: %s' % (col,validation))
 
     # Strip all strings
-    df.applymap(lambda x: x.strip() if sc.isstring(x) else x)
     if df.columns.isnull().any():
         raise InvalidFramework('There cannot be any empty cells in the header row')
     df.columns = [x.strip() for x in df.columns]
