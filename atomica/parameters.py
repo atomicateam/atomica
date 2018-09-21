@@ -149,6 +149,11 @@ class ParameterSet(NamedItem):
         self.pop_labels = []  # List of population labels.
         # Labels are used only for user interface and can be more elaborate than simple names.
         self.pars = sc.odict()
+        self.pars["cascade"] = []
+        self.pars["comps"] = []
+        self.pars["characs"] = []
+        self.par_ids = {"cascade": {}, "comps": {}, "characs": {}}
+
         self.transfers = sc.odict()  # Dictionary of inter-population transitions.
         self.interactions = sc.odict()  # Dictionary of inter-population interactions.
 
@@ -164,50 +169,62 @@ class ParameterSet(NamedItem):
         par = self.get_par(par_name)
         par.y_factor[pop_name] = scale
         return None
-
+    
     def get_scaling_factor(self,par_name,pop_name):
         return self.get_par(par_name).y_factor[pop_name]
 
-    def get_par(self, name):
-        if name in self.pars:
-            return self.pars[name]
+    def __contains__(self,name):
+        if name in self.par_ids['cascade'] or name in self.par_ids['comps'] or name in self.par_ids['characs']:
+            return True
         else:
-            raise AtomicaException("Name '{0}' cannot be found in parameter set '{1}'".format(name, self.name))
+            return False
+
+    def get_par(self, name):
+        for par_type in ["cascade", "comps", "characs"]:
+            if name in self.par_ids[par_type].keys():
+                return self.pars[par_type][self.par_ids[par_type][name]]
+        raise AtomicaException("Name '{0}' cannot be found in parameter set '{1}' as either a cascade parameter, "
+                               "compartment or characteristic.".format(name, self.name))
 
     def make_pars(self, framework, data):
         self.pop_names = data.pops.keys()
         self.pop_labels = [pop["label"] for pop in data.pops.values()]
 
         # Cascade parameter and characteristic extraction.
+        group_remapping = {FS.KEY_PARAMETER:'cascade',FS.KEY_COMPARTMENT:'comps',FS.KEY_CHARACTERISTIC:'characs'}
         for name,tdve in data.tdve.items():
-            par = Parameter(name=name)
-            self.pars[name] = par
+            _,item_type = framework.get_variable(name)
+            item_group = group_remapping[item_type]
+
+            self.par_ids[item_group][name] = len(self.pars[item_group])
+            self.pars[item_group].append(Parameter(name=name))
 
             for pop_name,ts in tdve.ts.items():
                 tvec, yvec = ts.get_arrays()
-                par.t[pop_name] = tvec
-                par.y[pop_name] = yvec
+                self.pars[item_group][-1].t[pop_name] = tvec
+                self.pars[item_group][-1].y[pop_name] = yvec
                 if ts.format is not None and ts.format.upper().strip() != FS.DEFAULT_SYMBOL_INAPPLICABLE:
                     if ts.format.lower().strip() in FS.STANDARD_UNITS:
-                        par.y_format[pop_name] = ts.format.lower().strip()
+                        self.pars[item_group][-1].y_format[pop_name] = ts.format.lower().strip()
                     else:
-                        par.y_format[pop_name] = ts.format.strip() # Preserve the case if it's not a standard unit
+                        self.pars[item_group][-1].y_format[pop_name] = ts.format.strip() # Preserve the case if it's not a standard unit
                 else:
-                    par.y_format[pop_name] = None
-                par.y_factor[pop_name] = 1.0
+                    self.pars[item_group][-1].y_format[pop_name] = None
+                self.pars[item_group][-1].y_factor[pop_name] = 1.0
 
         # We have just created Parameter objects for every parameter in the databook
         # However, we also need Parameter objects for dependent parameters not in the databook
         # This allows them to be used in transitions and also for the user to set y-factors for them
         for _,spec in framework.pars.iterrows():
-            if spec.name not in self.pars:
-                par = Parameter(name=spec.name)
-                self.pars[spec.name] = par
+            if spec.name not in self.par_ids['cascade']:
+                self.par_ids['cascade'][spec.name] = len(self.pars['cascade'])
+                self.pars['cascade'].append(Parameter(name=spec.name))
+
                 for pop_name in self.pop_names:
-                    par.t[pop_name] = None
-                    par.y[pop_name] = None
-                    par.y_format[pop_name] = spec['format'].lower().strip() if spec['format'] is not None else None
-                    par.y_factor[pop_name] = 1.0
+                    self.pars['cascade'][-1].t[pop_name] = None
+                    self.pars['cascade'][-1].y[pop_name] = None
+                    self.pars['cascade'][-1].y_format[pop_name] = spec['format'].lower().strip() if spec['format'] is not None else None
+                    self.pars['cascade'][-1].y_factor[pop_name] = 1.0
 
         # Transfer and interaction extraction.
         for tdc in data.transfers + data.interpops:

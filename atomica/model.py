@@ -924,20 +924,19 @@ class Model(object):
                 for to_pop in par.pops:
                     self.interactions[name][parset.pop_names.index(from_pop), parset.pop_names.index(to_pop), :] = par.interpolate(self.t, to_pop)*par.y_factor[to_pop]*par.meta_y_factor
 
-        # Insert values from parset into model objects
+        # # Insert values from parset into model objects
         for pop in self.pops:
             for par in pop.pars:
-                if par.name in parset.pars:
+                if par.name in parset:
                     cascade_par = parset.get_par(par.name)
                 elif ':parset' in par.name:
                     cascade_par = parset.get_par(par.name.split(':')[0])
                 else:
                     continue
-
                 par.units = cascade_par.y_format[pop.name]
                 par.scale_factor = cascade_par.y_factor[pop.name] * cascade_par.meta_y_factor
-                if not par.fcn_str and cascade_par.has_values(pop.name):
-                    par.vals = cascade_par.interpolate(tvec=self.t, pop_name=pop.name)*par.scale_factor
+                if not par.fcn_str:
+                    par.vals = cascade_par.interpolate(tvec=self.t, pop_name=pop.name) * par.scale_factor
 
         # Propagating transfer parameter parset values into Model object.
         # For each population pair, instantiate a Parameter with the values from the databook

@@ -20,7 +20,7 @@ def update_parset(parset, y_factors, pars_to_adjust):
         par_name = x[0]
         pop_name = x[1]
 
-        if par_name in parset.pars:
+        if par_name in parset.par_ids['cascade'] or par_name in parset.par_ids['characs'] or par_name in parset.par_ids['comps']:
             if pop_name == 'all':
                 par = parset.get_par(par_name)
                 par.meta_y_factor = y_factors[i]
@@ -67,8 +67,8 @@ def calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, pr
 
 def _get_fitscore_func(metric):
     """
-
-
+    
+    
     """
     availfns = globals().copy()
     availfns.update(locals())
@@ -80,7 +80,7 @@ def _get_fitscore_func(metric):
 
 def _calculate_fitscore(y_obs, y_fit, metric="meansquare"):
     """
-
+    
 
     """
     return _get_fitscore_func(metric)(y_obs, y_fit)
@@ -88,9 +88,9 @@ def _calculate_fitscore(y_obs, y_fit, metric="meansquare"):
 
 def _calc_meansquare(y_obs, y_fit):
     """
-    Calcs the RMS error.
-
-    Note: could also use implementation from sklearn in future ...
+    Calcs the RMS error. 
+    
+    Note: could also use implementation from sklearn in future ... 
     """
     return np.sqrt(((y_fit - y_obs) ** 2).mean())
 
@@ -101,7 +101,7 @@ def _calc_fractional(y_obs, y_fit):
 
 def _calc_wape(y_obs, y_fit):
     """
-    Calculates the weighted absolute percentage error
+    Calculates the weighted absolute percentage error 
     """
     return abs(y_fit - y_obs) / (y_obs.mean() + calibration_settings['tolerance'])
 
@@ -149,13 +149,13 @@ def perform_autofit(project, parset, pars_to_adjust, output_quantities, max_time
         'pars_to_adjust': pars_to_adjust,
         'output_quantities': output_quantities,
     }
-
+    
     x0 = []
     xmin = []
     xmax = []
     for i, x in enumerate(pars_to_adjust):
         par_name, pop_name, scale_min, scale_max = x
-        if par_name in parset.pars:
+        if par_name in parset.par_ids['cascade'] or par_name in parset.par_ids['characs'] or par_name in parset.par_ids['comps']:
             par = parset.get_par(par_name)
             if pop_name == 'all':
                 x0.append(par.meta_y_factor)
@@ -191,7 +191,7 @@ def perform_autofit(project, parset, pars_to_adjust, output_quantities, max_time
         par_name = x[0]
         pop_name = x[1]
 
-        if par_name in parset.pars:
+        if par_name in parset.par_ids['cascade'] or par_name in parset.par_ids['characs'] or par_name in parset.par_ids['comps']:
             par = args['parset'].get_par(par_name)
 
             if pop_name is None or pop_name == 'all':
