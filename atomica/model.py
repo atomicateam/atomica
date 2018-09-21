@@ -637,7 +637,6 @@ class Population(object):
                 charac.add_denom(self.get_variable(denominator)[0]) # nb. framework import strips whitespace from the overall field
 
         # Parameters create parameter objects and links
-        data_pars = set()
         for par_name in list(pars.index):
             par = Parameter(pop=self, name=par_name)
             self.par_lookup[par.name] = par
@@ -668,7 +667,6 @@ class Population(object):
 
             fcn_str = pars.at[par_name,'function']
             if fcn_str is not None:
-
                 # Create virtual parameters for any parset dependencies in the function
                 if ':parset' in fcn_str:
                     # There is at least one data parameter required
@@ -938,8 +936,8 @@ class Model(object):
 
                 par.units = cascade_par.y_format[pop.name]
                 par.scale_factor = cascade_par.y_factor[pop.name] * cascade_par.meta_y_factor
-                if not par.fcn_str:
-                    par.vals = cascade_par.interpolate(tvec=self.t, pop_name=pop_name)*par.scale_factor
+                if not par.fcn_str and cascade_par.has_values(pop.name):
+                    par.vals = cascade_par.interpolate(tvec=self.t, pop_name=pop.name)*par.scale_factor
 
         # Propagating transfer parameter parset values into Model object.
         # For each population pair, instantiate a Parameter with the values from the databook
