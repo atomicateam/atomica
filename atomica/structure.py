@@ -6,6 +6,8 @@ import scipy.interpolate
 
 class FrameworkSettings(object):
     # Holds various constants naming things used throughout Atomica
+    import parser_function
+
     KEY_COMPARTMENT = "comp"
     KEY_CHARACTERISTIC = "charac"
     KEY_TRANSITION = "link"
@@ -24,6 +26,8 @@ class FrameworkSettings(object):
     DEFAULT_SYMBOL_INAPPLICABLE = "N.A."
 
     RESERVED_KEYWORDS = ['t','flow','all','dt','total'] # A code_name in the framework cannot be equal to one of these values
+    RESERVED_KEYWORDS += parser_function.supported_functions.keys()
+
     RESERVED_SYMBOLS = set(':,;/+-*\'"') # A code_name in the framework (for characs, comps, pars) cannot contain any of these characters
 
 # def convert_quantity(value, initial_type, final_type, set_size=None, dt=1.0):
