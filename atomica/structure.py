@@ -6,7 +6,7 @@ import scipy.interpolate
 
 class FrameworkSettings(object):
     # Holds various constants naming things used throughout Atomica
-    import parser_function
+    from .parser_function import supported_functions
 
     KEY_COMPARTMENT = "comp"
     KEY_CHARACTERISTIC = "charac"
@@ -26,7 +26,7 @@ class FrameworkSettings(object):
     DEFAULT_SYMBOL_INAPPLICABLE = "N.A."
 
     RESERVED_KEYWORDS = ['t','flow','all','dt','total'] # A code_name in the framework cannot be equal to one of these values
-    RESERVED_KEYWORDS += parser_function.supported_functions.keys()
+    RESERVED_KEYWORDS += supported_functions.keys()
 
     RESERVED_SYMBOLS = set(':,;/+-*\'"') # A code_name in the framework (for characs, comps, pars) cannot contain any of these characters
 
