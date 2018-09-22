@@ -4,7 +4,7 @@ apptasks_cascade.py -- The Celery tasks module for this webapp
 Last update: 2018sep07
 """
 
-
+import sys
 import scirisweb as sw
 from . import projects as prj
 from . import rpcs
@@ -12,6 +12,28 @@ from . import config_cascade as config
 import matplotlib.pyplot as ppl
 ppl.switch_backend(config.MATPLOTLIB_BACKEND)
 
+
+print('')
+print('#########################################')
+print('Starting Cascade Analysis Tools Celery...')
+print('#########################################')
+
+# Process arguments
+for i,arg in enumerate(sys.argv[1:]):
+    try:
+        if arg.find('=')>0:
+            k = arg.split("=")[0]
+            v = arg.split("=")[1]
+            K = k.upper()
+            if hasattr(config, K):
+                setattr(config, K, v)
+                print('Including kwarg: "%s" = %s' % (K,v))
+                del sys.argv[i]
+            else:
+                print('Skipping attribute "%s" = %s, not found' % (K,v))
+    except Exception as E:
+        errormsg = 'Failed to parse argument key="%s", value="%s": %s' % (K, v, str(E))
+        raise Exception(errormsg)
 
 # Globals
 task_func_dict = {} # Dictionary to hold all of the registered task functions in this module.
@@ -29,14 +51,8 @@ def run_cascade_optimization(project_id, cache_id, optim_name=None, plot_options
         proj = rpcs.load_project(project_id, raise_exception=True)
     else: # Otherwise try using it as a project
         proj = project_id
-        
-    # Actually run the optimization and get its results (list of baseline and optimized Result objects).
     results = proj.run_optimization(optim_name, maxtime=float(maxtime), store_results=False)
-    
-    # Put the results into the ResultsCache.
-    rpcs.put_results_cache_entry(cache_id, results, apptasks_call=True)
-
-    # Plot the results.    
+    rpcs.put_results_cache_entry(cache_id, results, apptasks_call=True) # Put the results into the ResultsCache.
     output = rpcs.make_plots(proj, results, tool='cascade', year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, online=online, plot_budget=True)
     return output
 

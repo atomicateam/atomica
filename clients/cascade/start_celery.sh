@@ -1,3 +1,3 @@
 #!/bin/bash
 echo 'Starting celery in shell'
-celery worker -A atomica_apps.apptasks_cascade -l info $@
+celery worker -A atomica_apps.apptasks_cascade --config $@ -l info
