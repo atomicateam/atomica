@@ -31,8 +31,9 @@ def default_framework(which=None, show_options=False):
                     ('service',  'Service delivery'),
                     ('hiv',      'HIV care cascade'),  
                     ('hiv_dyn',  'HIV care cascade with demography'),  
-                    ('tb',       'Tuberculosis with transmission dynamics'),  
                     ('tb_simple',       'Tuberculosis'),  
+                    ('tb_simple_dyn',       'Tuberculosis with demography'),  
+                    ('tb',       'Tuberculosis with transmission dynamics'),  
                     ])
                              
     if which is None:
@@ -70,6 +71,7 @@ def default_project(which=None, do_run=True, addprogs=True, verbose=False, show_
                     ('hiv',          'HIV care cascade (2 populations)'), 
                     ('hiv_dyn',          'HIV care cascade with demography (2 populations)'), 
                     ('tb_simple',       'Tuberculosis (1 population)'),  
+                    ('tb_simple_dyn',       'Tuberculosis with demography (1 population)'),  
                     ('tb',           'Tuberculosis with transmission dynamics (10 populations)'), 
                     ])
     
