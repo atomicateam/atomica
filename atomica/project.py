@@ -473,7 +473,7 @@ class Project(object):
         fullpath = sc.makefilepath(filename=filename, folder=folder, default=[self.filename, self.name], ext='prj', sanitize=True)
         self.filename = fullpath
         sc.saveobj(fullpath, self)
-        return None
+        return fullpath
 
     @staticmethod
     def load(filepath):
