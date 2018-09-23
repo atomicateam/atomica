@@ -39,14 +39,11 @@ def run_tb_optimization(project_id, cache_id, optim_name=None, plot_options=None
     print('Running optimization...')
     sc.printvars(locals(), ['project_id', 'optim_name', 'plot_options', 'maxtime', 'tool', 'plotyear', 'pops', 'cascade', 'dosave'], color='blue')
     datastore = rpcs.find_datastore(config=config)
-    proj = datastore.loadblob(uid=project_id, objtype='project', die=True) # WARNING, rpcs.load_project() cause(d) crash
-    results = proj.run_optimization(optim_name, maxtime=float(maxtime), store_results=False)
+    origproj = rpcs.load_project(project_id)
+    results = origproj.run_optimization(optim_name, maxtime=float(maxtime), store_results=False)
     newproj = datastore.loadblob(uid=project_id, objtype='project', die=True)
-    newproj.results[cache_id] = results
-    newproj = rpcs.cache_results(newproj) # WARNING, causes crash
-    key = datastore.saveblob(uid=project_id, objtype='project', obj=newproj)
-    output = rpcs.make_plots(newproj, results, tool='cascade', year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, plot_budget=True)
-    return output
+    result_key = rpcs.cache_result(newproj, results, cache_id)
+    return result_key
 
 
 # Add the asynchronous task functions in this module to the tasks.py module so run_task() can call them.
