@@ -9,7 +9,7 @@ Last update: 2018sep23
     <div style="display:inline-block; margin:auto; text-align:left" v-model="getVersionInfo">
       <div>
         <p>We are in the process of writing a user guide.</p>
-        <p v-if="$globaltool=='cascade'">For assistance in the mean time, please email <a href="mailto:info@cascade.tools">info@cascade.tools</a>.</p>
+        <p v-if="$globaltool=='cascade'">For assistance in the mean time, please <a href="mailto:robyn@math.ku.dk">contact us</a>.</p>
         <p v-if="$globaltool=='tb'">     For assistance in the mean time, please email <a href="mailto:help@ocds.co">help@ocds.co</a>.</p>
         <p>Please copy and paste the table below into your email, along with any error messages.</p>
       </div>

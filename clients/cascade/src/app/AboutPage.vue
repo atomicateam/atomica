@@ -14,7 +14,7 @@ Last update: 2018sep23
       <br/><br/>
       <p v-if="$globaltool=='cascade'">
         Development of Cascade Analysis Tools is supported through the
-        <a href="http://www.ku.dk">University of Copenhagen</a> under the auspices of the
+        <a href="https://www.ku.dk/english/">University of Copenhagen</a> under the auspices of the
         <a href="http://www.gatesfoundation.org">Bill and Melinda Gates Foundation</a>.
       </p>
       <p v-if="$globaltool=='tb'">
