@@ -382,7 +382,6 @@ Last update: 2018-09-12
         this.startYear = this.simStart
         this.endYear = this.simEnd
         this.popOptions = this.activePops
-        this.serverDatastoreId = this.$store.state.activeProject.project.id + ':optimization'
         this.getPlotOptions(this.$store.state.activeProject.project.id)
           .then(response => {
             this.updateSets()
@@ -594,10 +593,7 @@ Last update: 2018-09-12
               if (newOptim.status !== 'not started') { // Clear the present task.
                 this.clearTask(newOptim)  // Clear the task from the server.
               }
-
-              // Set a new server DataStore ID.
-              newOptim.serverDatastoreId = this.$store.state.activeProject.project.id + ':opt-' + newOptim.name
-
+              newOptim.serverDatastoreId = this.$store.state.activeProject.project.id + ':opt-' + newOptim.name // Set a new server DataStore ID.
               this.getOptimTaskState(newOptim)
             }
           }
