@@ -87,11 +87,10 @@ Last update: 2018-09-12
                 <option v-for='pop in activePops'>
                   {{ pop }}
                 </option>
-              </select>
+              </select>&nbsp;&nbsp;&nbsp;
               <button class="btn btn-icon" @click="scaleFigs(0.9)" data-tooltip="Zoom out">&ndash;</button>
               <button class="btn btn-icon" @click="scaleFigs(1.0)" data-tooltip="Reset zoom"><i class="ti-zoom-in"></i></button>
-              <button class="btn btn-icon" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>
-              &nbsp;&nbsp;&nbsp;
+              <button class="btn btn-icon" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>&nbsp;&nbsp;&nbsp;
               <button class="btn" @click="exportGraphs()">Export graphs</button>
               <button class="btn" @click="exportResults(displayResultDatastoreId)">Export data</button>
               <button v-if="false" class="btn btn-icon" @click="togglePlotControls()"><i class="ti-settings"></i></button> <!-- When popups are working: v-if="this.$globaltool=='tb'" -->
@@ -495,8 +494,9 @@ Last update: 2018-09-12
       },
 
       pollAllTaskStates() {
-        console.log('Do a task poll...');
+        console.log('Polling all tasks...');
         this.optimSummaries.forEach(optimSum => { // For each of the optimization summaries...
+          console.log(optimSum.status)
           if ((optimSum.status !== 'not started') && (optimSum.status !== 'completed')) { // If there is a valid task launched, check it.
             this.getOptimTaskState(optimSum)
           }
@@ -679,7 +679,7 @@ Last update: 2018-09-12
       copyOptim(optimSummary) {
         console.log('copyOptim() called')
         status.start(this)
-        var newOptim = _.cloneDeep(optimSummary)
+        var newOptim = _.cloneDeep(optimSummary);
         var otherNames = []
         this.optimSummaries.forEach(optimSum => {
           otherNames.push(optimSum.name)
@@ -700,7 +700,7 @@ Last update: 2018-09-12
       deleteOptim(optimSummary) {
         console.log('deleteOptim() called')
         status.start(this)
-        if (optimSummary.status != 'not started') {
+        if (optimSummary.status !== 'not started') {
           this.clearTask(optimSummary)  // Clear the task from the server.
         }
         for(var i = 0; i< this.optimSummaries.length; i++) {
@@ -734,8 +734,6 @@ Last update: 2018-09-12
 
             // We are using Celery
             if (this.useCelery) {
-              rpcs.rpc('make_results_cache_entry', [optimSummary.serverDatastoreId])
-                .then(response => {
                   rpcs.rpc('launch_task', [optimSummary.serverDatastoreId, RPCname,
                     [this.projectID, optimSummary.serverDatastoreId, optimSummary.name],
                     {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':this.$globaltool,
@@ -747,9 +745,6 @@ Last update: 2018-09-12
                     .catch(error => {
                       status.fail(this, 'Could not start optimization', error)
                     })
-                })
-                .catch(error => {
-                  status.fail(this, 'Could not start optimization', error)
                 })
             }
 
