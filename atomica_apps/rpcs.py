@@ -584,6 +584,36 @@ def copy_framework(framework_id):
 
 
 
+@RPC(call_type='download')   
+def download_framework(framework_id):
+    ''' Download the framework Excel file from a project '''
+    frame = load_framework(framework_id, die=True) # Load the project with the matching UID.
+    file_name = '%s.xlsx' % frame.name
+    full_file_name = get_path(file_name, username=frame.webapp.username) # Generate the full file name with path.
+    frame.save(full_file_name)
+    print(">> download_framework %s" % (full_file_name)) # Display the call information.
+    return full_file_name # Return the full filename.
+
+
+@RPC(call_type='download')
+def download_frameworks(framework_keys, username):
+    '''
+    Given a list of framework UIDs, make a .zip file containing all of these 
+    frameworks as .frw files, and return the full path to this file.
+    '''
+    basedir = get_path('', username) # Use the downloads directory to put the file in.
+    framework_paths = []
+    for framework_key in framework_keys:
+        frame = load_framework(framework_key)
+        framework_path = frame.save(folder=basedir)
+        framework_paths.append(framework_path)
+    zip_fname = 'Frameworks %s.zip' % sc.getdate() # Make the zip file name and the full server file path version of the same..
+    server_zip_fname = get_path(zip_fname, username)
+    server_zip_fname = sc.savezip(server_zip_fname, framework_paths)
+    print(">> download_frameworks %s" % (server_zip_fname)) # Display the call information.
+    return server_zip_fname # Return the server file name.
+
+
 @RPC(call_type='download')
 def download_new_framework(advanced=False):
     ''' Create a new framework. '''

@@ -12,12 +12,6 @@ from . import config_tb as config
 import matplotlib.pyplot as ppl
 ppl.switch_backend(config.MATPLOTLIB_BACKEND)
 
-
-print('')
-print('##############################')
-print('Starting Optima TB Celery...')
-print('##############################')
-
 # Process arguments
 for i,arg in enumerate(sys.argv[1:]):
     try:
