@@ -2,8 +2,8 @@
  * Graphing functions (shared between calibration, scenarios, and optimization)
  */
 
-import utils from '@/js/utils'
-import rpcs from '@/js/rpc-service'
+import utils  from '@/js/utils'
+import rpcs   from '@/js/rpc-service'
 import status from '@/js/status-service'
 
 function getPlotOptions(vm, project_id) {
@@ -17,7 +17,7 @@ function getPlotOptions(vm, project_id) {
         resolve(response)
       })
       .catch(error => {
-        status.fail(vm, 'Could not get plot options: ' + error.message)
+        status.fail(vm, 'Could not get plot options', error)
         reject(error)
       })
   })
