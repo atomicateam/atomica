@@ -148,13 +148,18 @@ def load_result(result_key, die=None):
 
 def save_project(project, die=None): # NB, only for saving an existing project
     project.modified = sc.now()
-    output = datastore.saveblob(obj=project, objtype='project', die=die)
+    output = datastore.saveblob(obj=project, objtype='project', die=die, forcetype=True)
     return output
 
 def save_framework(framework, die=None): # NB, only for saving an existing project
     framework.modified = sc.now()
-    output = datastore.saveblob(obj=framework, objtype='framework', die=die)
+    output = datastore.saveblob(obj=framework, objtype='framework', die=die, forcetype=True)
     return output
+
+def save_result(result, key=None, die=None):
+    output = datastore.saveblob(obj=result, objtype='result', key=key, die=die, forcetype=True)
+    return output
+
 
 def save_new_project(proj, username=None):
     '''
@@ -215,11 +220,6 @@ def save_new_framework(framework, username=None):
     user.frameworks.append(key)
     datastore.saveuser(user)
     return key,new_framework
-
-
-def save_result(result, key=None, die=None):
-    output = datastore.saveblob(obj=result, objtype='result', key=key, die=die)
-    return output
 
 
 def del_project(project_key, die=None):
@@ -289,7 +289,7 @@ def jsonify_project(project_id, verbose=False):
         pop_pairs = []
     json = {
         'project': {
-                'id':           proj.uid,
+                'id':           str(proj.uid),
                 'name':         proj.name,
                 'username':     proj.webapp.username,
                 'creationTime': sc.getdate(proj.created),
@@ -525,7 +525,7 @@ def jsonify_framework(framework_id, verbose=False):
     frame = load_framework(framework_id) # Load the framework record matching the UID of the framework passed in.
     json = {
         'framework': {
-            'id':           frame.uid,
+            'id':           str(frame.uid),
             'name':         frame.name,
             'username':     frame.webapp.username,
             'creationTime': frame.created,
@@ -1381,39 +1381,36 @@ def js_to_py_optim(js_optim):
     
 
 @RPC()    
-def get_optim_info(project_id):
+def get_optim_info(project_id, verbose=True):
     print('Getting optimization info...')
     proj = load_project(project_id, die=True)
     optim_jsons = []
     for py_optim in proj.optims.values():
         js_optim = py_to_js_optim(py_optim, project=proj)
         optim_jsons.append(js_optim)
-    print('JavaScript optimization info:')
-    print(optim_jsons)
+    if verbose: sc.pp(optim_jsons)
     return optim_jsons
 
 
 @RPC()
-def get_default_optim(project_id, tool=None):
+def get_default_optim(project_id, tool=None, verbose=True):
     print('Getting default optimization...')
     proj = load_project(project_id, die=True)
     py_optim = proj.demo_optimization(tool=tool)
     js_optim = py_to_js_optim(py_optim, project=proj)
-    print('Created default optimization:')
-    print(js_optim)
+    if verbose: sc.pp(js_optim)
     return js_optim
 
 
 @RPC()    
-def set_optim_info(project_id, optim_jsons):
+def set_optim_info(project_id, optim_jsons, verbose=True):
     print('Setting optimization info...')
     proj = load_project(project_id, die=True)
     proj.optims.clear()
     for j,js_optim in enumerate(optim_jsons):
-        print('Setting optimization %s of %s...' % (j+1, len(optim_jsons)))
+        if verbose: print('Setting optimization %s of %s...' % (j+1, len(optim_jsons)))
         json = js_to_py_optim(js_optim)
-        print('Python optimization info for optimization %s:' % (j+1))
-        print(json)
+        if verbose: sc.pp(json)
         proj.make_optimization(json=json)
     print('Saving project...')
     save_project(proj)   
