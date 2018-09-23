@@ -28,7 +28,6 @@ for i,arg in enumerate(sys.argv[1:]):
             if hasattr(config, K):
                 setattr(config, K, v)
                 print('Including kwarg: "%s" = %s' % (K,v))
-                del sys.argv[i]
             else:
                 print('Skipping attribute "%s" = %s, not found' % (K,v))
     except Exception as E:
@@ -45,7 +44,7 @@ celery_instance = sw.make_celery_instance(config=config) # Create the Celery ins
 def run_cascade_optimization(project_id, cache_id, optim_name=None, plot_options=None, maxtime=None, tool=None, plotyear=None, pops=None, cascade=None, dosave=True, online=True):
     print('Running optimization...')
     sc.printvars(locals(), ['project_id', 'optim_name', 'plot_options', 'maxtime', 'tool', 'plotyear', 'pops', 'cascade', 'dosave', 'online'], color='blue')
-    datastore = sw.get_datastore(config=config)
+    datastore = rpcs.find_datastore(config=config)
     proj = datastore.loadblob(uid=project_id, objtype='project', die=True) # WARNING, rpcs.load_project() cause(d) crash
     results = proj.run_optimization(optim_name, maxtime=float(maxtime), store_results=False)
     newproj = datastore.loadblob(uid=project_id, objtype='project', die=True)

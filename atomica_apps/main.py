@@ -21,6 +21,7 @@ def make_app(which=None, **kwargs):
         import apptasks_cascade as apptasks # analysis:ignore
     else:
         raise Exception('"%s" not understood; which must be "tb" or "cascade"' % which)
+    rpcs.find_datastore(config=config) # Set up the datastore
     app = sw.ScirisApp(name=name, filepath=__file__, config=config, RPC_dict=rpcs.RPC_dict, **kwargs) # Create the ScirisApp object.  NOTE: app.config will thereafter contain all of the configuration parameters, including for Flask.
     sw.make_default_users(app)
     print('>> Webapp initialization complete (elapsed time: %0.2f s)' % sc.toc(T, output=True))
