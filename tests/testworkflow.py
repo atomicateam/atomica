@@ -12,13 +12,13 @@ from atomica.optimization import optimize
 #test = "sir"
 #test = "tb"
 #test = "tb_simple_dyn"
-test = "tb_simple"
+#test = "tb_simple"
 #test = "hypertension"
 #test = "hypertension_dyn"
 #test = "dt"
 #test = "udt"
 #test = "usdt"
-#test = "cervicalcancer"
+test = "cervicalcancer"
 #test = "hiv"
 #test = "hiv_dyn"
 #test = "diabetes"
@@ -107,7 +107,7 @@ if "runsim" in torun:
         P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
     elif test in ['diabetes','tb_simple','tb_simple_dyn']:
         P.update_settings(sim_start=2014.0, sim_end=2020, sim_dt=1.)
-    elif test in ['udt','hiv','hiv_dyn','usdt','hypertension','hypertension_dyn']:
+    elif test in ['udt','hiv','cervicalcancer','hiv_dyn','usdt','hypertension','hypertension_dyn']:
         P.update_settings(sim_start=2016.0, sim_end=2018, sim_dt=1.)
     elif test in ['sir']:
         P.update_settings(sim_start=2000.0, sim_end=2018, sim_dt=1.)
@@ -117,7 +117,7 @@ if "runsim" in torun:
     P.run_sim(parset="default", result_name="default")    
 
 if 'plotcascade' in torun:
-    au.plot_cascade(P.results[-1], pops='all', year=[2014,2015,2016,2017,2018], data=P.data)
+    au.plot_cascade(P.results[-1], pops='all', year=[2017], data=P.data)
     if forceshow: pl.show()
     
     # Browser test
@@ -293,6 +293,17 @@ if "runsim_programs" in torun:
         scenresults = P.run_sim(parset="default", progset='default',progset_instructions=scen_instructions,result_name="scen")
 
         au.plot_multi_cascade([baselineresults, scenresults],'main',year=[2017])
+
+    elif test == 'cervicalcancer':
+        scenalloc = {'HPV vaccine':  200000 }
+    
+        bl_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018) 
+        scen_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scenalloc) 
+
+        baselineresults = P.run_sim(parset="default", progset='default',progset_instructions=bl_instructions,result_name="baseline")
+        scenresults = P.run_sim(parset="default", progset='default',progset_instructions=scen_instructions,result_name="scen")
+
+        au.plot_multi_cascade([baselineresults, scenresults],year=[2017])
 
     elif test in ['hypertension','hypertension_dyn']:
         scenalloc = {'Screening - urban':  30000 }
