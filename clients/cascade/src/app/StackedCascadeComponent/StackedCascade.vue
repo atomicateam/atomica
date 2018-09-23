@@ -88,10 +88,10 @@ export default {
     keys(newData) {
       this.setupLegend(newData)
     },
-    result(newValue) {
+    result() {
       this.update()
     },
-    year(newValue) {
+    year() {
       this.update()
     }
   },
