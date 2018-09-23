@@ -33,7 +33,7 @@ USE_DATASTORE = True
 # URL for the Redis database that the web app will use to manage
 # persistence.  Note that the /N/ number at the end should match the
 # database number you want to use.  (N=0 is the default Redis database.)
-REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/7')
+REDIS_URL = os.getenv('REDIS_URL', 'redis://127.0.0.1:6379/7')
 
 # Flag for setting whether we use the users functionality provided by
 # Sciris in the webapp.
