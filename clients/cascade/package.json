@@ -2,7 +2,7 @@
   "name": "cascade-analysis-tools",
   "version": "0.20.0",
   "description": "Cascade Analysis Tools",
-  "author": "University of Copenhagen <info@cascade.tools>",
+  "author": "Robyn Stuart <robyn@math.ku.dk>",
   "private": true,
   "scripts": {
     "dev": "node build/dev-server.js",
