@@ -48,11 +48,8 @@ def run_cascade_optimization(project_id, cache_id, optim_name=None, plot_options
     orig_proj = rpcs.load_project(project_id)
     results = orig_proj.run_optimization(optim_name, maxtime=float(maxtime), store_results=False)
     proj = rpcs.load_project(project_id) # Reload the project in case it's changed in the mean time
-    proj.results[cache_id] = results
-    proj = rpcs.cache_results(proj)
-    key = datastore.saveblob(uid=project_id, objtype='project', obj=proj)
+    rpcs.cache_result(project=proj, result=results, key=cache_id)
     output = rpcs.make_plots(proj, results, tool='cascade', year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, online=online, plot_budget=True)
-    rpcs.save_project(proj)
     return output
 
 

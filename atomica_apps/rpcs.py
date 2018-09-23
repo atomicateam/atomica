@@ -58,7 +58,7 @@ def get_version_info():
       
 
 def get_user(username=None):
-    ''' Ensure it's a valid user '''
+    ''' Ensure it's a valid user -- which for Atomica means has lists for projects and frameworks '''
     user = datastore.loaduser(username)
     dosave = False
     if not hasattr(user, 'projects'):
@@ -73,7 +73,10 @@ def get_user(username=None):
 
 
 def find_datastore(config):
-    ''' Ensure the datastore is loaded '''
+    '''
+    Ensure the datastore is loaded -- note, must be called externally since config 
+    is required as an input argument.
+    '''
     global datastore
     if datastore is None:
         datastore = sw.get_datastore(config=config)
@@ -186,7 +189,7 @@ def save_new_project(proj, username=None):
 
 def save_new_framework(framework, username=None):
     '''
-    If we're creating a new project, we need to do some operations on it to
+    If we're creating a new framework, we need to do some operations on it to
     make sure it's valid for the webapp.
     ''' 
     # Preliminaries
@@ -202,11 +205,10 @@ def save_new_framework(framework, username=None):
     new_framework_name = sc.uniquename(new_framework.name, namelist=current_framework_names)
     new_framework.name = new_framework_name
     
-    # Ensure it's a valid webapp framework
+    # Ensure it's a valid webapp framework -- store username
     if not hasattr(new_framework, 'webapp'):
         new_framework.webapp = sc.prettyobj()
         new_framework.webapp.username = username
-        new_framework.webapp.tasks = []
     
     # Save all the things
     key = save_framework(new_framework)
@@ -215,8 +217,8 @@ def save_new_framework(framework, username=None):
     return key,new_framework
 
 
-def save_result(result, die=None):
-    output = datastore.saveblob(obj=result, objtype='result', die=die)
+def save_result(result, key=None, die=None):
+    output = datastore.saveblob(obj=result, objtype='result', key=key, die=die)
     return output
 
 
@@ -1169,9 +1171,8 @@ def manual_calibration(project_id, cache_id, parsetname=-1, plot_options=None, p
     print(plot_options)
     proj = load_project(project_id, die=True)
     result = proj.run_sim(parset=parsetname, store_results=False)
-    put_results_cache_entry(cache_id, result)
+    cache_result(proj, result, cache_id)
     output = make_plots(proj, result, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, calibration=True)
-    save_project(proj)
     return output
 
 
@@ -1180,15 +1181,9 @@ def automatic_calibration(project_id, cache_id, parsetname=-1, max_time=20, save
     print('Running automatic calibration for parset %s...' % parsetname)
     proj = load_project(project_id, die=True)
     proj.calibrate(parset=parsetname, max_time=float(max_time)) # WARNING, add kwargs!
-    print('Resultsets before run: %s' % len(proj.results))
-    if saveresults:
-        result = proj.run_sim(parset=parsetname, store_results=True)
-    else:
-        result = proj.run_sim(parset=parsetname, store_results=False) 
-    put_results_cache_entry(cache_id, result)    
-    print('Resultsets after run: %s' % len(proj.results))
+    result = proj.run_sim(parset=parsetname, store_results=False)
+    cache_result(proj, result, cache_id)
     output = make_plots(proj, result, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, calibration=True)
-    save_project(proj)
     return output
 
 
@@ -1297,7 +1292,7 @@ def run_scenarios(project_id, cache_id, plot_options, saveresults=True, tool=Non
     results = proj.run_scenarios(store_results=False)
     if len(results) < 1:  # Fail if we have no results (user didn't pick a scenario)
         return {'error': 'No scenario selected'}
-    put_results_cache_entry(cache_id, results)
+    cache_result(proj, results, cache_id)
     output = make_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, calibration=False, plot_budget=True)
     print('Saving project...')
     save_project(proj)
@@ -1384,7 +1379,7 @@ def run_optimization(project_id, cache_id, optim_name=None, plot_options=None, m
         
     # Actually run the optimization and get its results (list of baseline and optimized Result objects).
     results = proj.run_optimization(optim_name, maxtime=float(maxtime), store_results=False)
-    put_results_cache_entry(cache_id, results) # Put the results into the ResultsCache.
+    cache_result(proj, results, cache_id)
     output = make_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, plot_budget=True) # Plot the results.   
     save_project(proj)
     return output
@@ -1394,6 +1389,18 @@ def run_optimization(project_id, cache_id, optim_name=None, plot_options=None, m
 ##################################################################################
 ### Results RPCs
 ##################################################################################
+
+def cache_result(project=None, result=None, key=None, die=False):
+    if not sc.isstring(result):
+        result_key = save_result(result, key=key)
+        if result_key != key:
+            errormsg = 'Warning: supplied database key had to be changed (%s -> %s)' % (key, result_key)
+            if die: raise Exception(errormsg)
+            else:   print(errormsg)
+        project.results[key] = result_key # In most cases, these will match, e.g. project.results['result::4e6efc39-94ef'] = 'result::4e6efc39-94ef'
+        save_project(project)
+    return result_key
+
 
 def cache_results(proj, verbose=True):
     ''' Store the results of the project in Redis '''
