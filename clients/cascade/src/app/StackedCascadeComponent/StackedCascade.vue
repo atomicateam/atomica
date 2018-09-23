@@ -1,5 +1,18 @@
 <template>
   <div class="stacked-cascade">
+    <div class="selections">
+      <select class="select" v-model="result">
+        <option v-for="option in resultsOptions" :key="option" :value="option">
+          {{ option }}
+        </option>
+      </select>
+      <select class="select" v-model="year">
+        <option v-for="option in yearOptions" :key="option" :value="option">
+          {{ option }}
+        </option>
+      </select>
+    </div>
+
     <table class="legend-table table is-narrow" v-if="legendDisplay">
       <tbody>
         <tr v-for="key in legendKeys" :key="key">
@@ -18,17 +31,15 @@
 
 <script>
 import * as d3 from 'd3'
-import dataTransform from '@/modules/data-transform'
+import { transformDataForChartRender, transformCascadeData } from '@/modules/data-transform'
 import cascadeStep from '@/modules/cascade-step'
 
 export default {
   name: 'stacked-cascade',
 
   props: {
-    chartData: Array,
+    cascadeData: Object,
     h: Number,
-    keys: Array,
-    dict: Object,
     yAxisTitle: String,
     colourScheme: Array,
     legendDisplay: Boolean,
@@ -37,6 +48,13 @@ export default {
 
   data() {
     return {
+      keys: [],
+      dict: {},
+      result: null,
+      resultsOptions: [],
+      year: null,
+      yearOptions: [],
+      currentData: {},
       svgWidth: 0,
       svgHeight: this.h || 300,
       colours: d3.schemeDark2,
@@ -64,12 +82,18 @@ export default {
   },
 
   watch: {
-    chartData(newData) {
-      this.update(newData)
+    cascadeData(newData) {
+      this.updateOptions(newData)
     },
     keys(newData) {
       this.setupLegend(newData)
     },
+    result(newValue) {
+      this.update()
+    },
+    year(newValue) {
+      this.update()
+    }
   },
 
   created() {
@@ -87,7 +111,6 @@ export default {
 
     this.setupWidthHeight()
     this.setup()
-    this.update(this.chartData)
   },
 
   beforeDestroy: function () {
@@ -116,7 +139,23 @@ export default {
       this.svg.remove()
       this.setupWidthHeight()
       this.setup()
-      this.update(this.chartData)
+      this.updateOptions(this.cascadeData)
+    },
+
+    updateOptions(data) {
+      const updated = transformCascadeData(data)
+      this.keys = updated.keys
+      this.dict = updated.dict
+
+      this.resultsOptions = updated.results
+      this.result = updated.results[0]
+
+      this.yearOptions = updated.years
+      this.year = updated.years[0]
+
+      this.currentData = updated.data
+
+      this.update()
     },
 
     handleResize() {
@@ -183,8 +222,9 @@ export default {
         .style('text-anchor', 'middle')
     },
 
-    update(chartData) {
-      const data = dataTransform(this.keys, chartData)
+    update() {
+      const data = transformDataForChartRender(this.keys, this.currentData[this.result][this.year])
+
       const keys = this.keys
       const stack = d3.stack()
 
@@ -389,7 +429,7 @@ export default {
 }
 </script>
 
-<style>
+<style lang="scss" scoped>
 .stacked-cascade {
   position: relative;
 }
@@ -417,6 +457,14 @@ export default {
 }
 .legend-table.table td {
   padding: 3px 5px 2px;
+}
+.selections {
+  text-align: center;
+
+  .select {
+    font-size: 1rem;
+    margin-right: 1rem;
+  }
 }
 </style>
 
