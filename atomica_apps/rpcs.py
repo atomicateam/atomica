@@ -43,7 +43,7 @@ def get_path(filename=None, username=None):
 
 @RPC()
 def get_version_info():
-	''' Return the information about the project. '''
+	''' Return the information about the running environment '''
 	gitinfo = sc.gitinfo(__file__)
 	version_info = {
 	       'version':   au.version,
