@@ -193,6 +193,25 @@ Last update: 2018-09-06
                 </div>
                 <!-- ### End: Cascade plot ### -->
 
+                <!-- ### Start: JS Cascade plot ### -->
+                <div style="max-width: 800px; margin: 0 auto;">
+                  <stacked-cascade
+                    :h="400"
+                    :chartData="[
+                      { stage: 'Prevalent', all: 4000 },
+                      { stage: 'Screened', all: 3000 },
+                      { stage: 'Diagnosed', all: 2000 },
+                      { stage: 'Treated', all: 1000 },
+                      { stage: 'Controlled', all: 500 },
+                    ]"
+                    :yAxisTitle="'Number of people'"
+                    :keys="['all']"
+                    :colourScheme="['#3182bd']"
+                    :dict="{ all: 'All Population' }"
+                    :legendDisplay="true" />
+                </div>
+                <!-- ### End: Cascade plot ### -->
+
                 <!-- ### Start: cascade table ### -->
                 <div v-if="$globaltool=='cascade' && table" class="calib-tables">
                   <h4>Cascade stage losses</h4>
@@ -313,9 +332,14 @@ Last update: 2018-09-06
   import shared from '@/js/shared'
   import rpcs   from '@/js/rpc-service'
   import status from '@/js/status-service'
+  import StackedCascade from './StackedCascadeComponent/StackedCascade'
 
   export default {
     name: 'CalibrationPage',
+
+    components: {
+      StackedCascade,
+    },
 
     data() {
       return {
