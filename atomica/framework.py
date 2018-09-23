@@ -14,7 +14,6 @@ from .version import version
 import numpy as np
 from .cascade import validate_cascade
 from .parser_function import parse_function
-from os import sep
 
 class InvalidFramework(AtomicaException):
     pass
@@ -87,12 +86,14 @@ class ProjectFramework(object):
         assert sc.isstring(value)
         self.sheets['about'][0]['name'].iloc[0] = value
 
-    def save(self,fname):
-        # This function saves an Excel file with the original spreadsheet
+    def save(self, filename=None, folder=None):
+        ''' This function saves an Excel file with the original spreadsheet '''
+        fullpath = sc.makefilepath(filename=filename, folder=folder, default=self.name, ext='frw', sanitize=True)
         if self.spreadsheet is None:
             raise AtomicaException('Spreadsheet is not present, cannot save Framework as xlsx')
         else:
-            self.spreadsheet.save(fname)
+            self.spreadsheet.save(fullpath)
+        return fullpath
 
     # The primary data storage in the Framework are DataFrames with the contents of the Excel file
     # The convenience methods below enable easy access of frequency used contents without having
@@ -385,7 +386,7 @@ class ProjectFramework(object):
 
             if row['denominator'] is not None:
                 if not (row['denominator'] in self.comps.index or row['denominator'] in self.characs.index):
-                    raise InvalidFramework('In Characteristic "%s", denominator "%s" was not recognized as a Compartment or Characteristic' % (row.name, component))
+                    raise InvalidFramework('In Characteristic "%s", denominator "%s" was not recognized as a Compartment or Characteristic' % (row.name, row['denominator']))
                 if row['denominator'] in self.characs.index:
                     if not (self.characs.loc[row['denominator']]['denominator'] is None):
                         raise InvalidFramework('Characteristic "%s" uses the characteristic "%s" as a denominator. However, "%s" also has a denominator, which means that it cannot be used as a denominator for "%s"' % (row.name,row['denominator'],row['denominator'],row.name))
