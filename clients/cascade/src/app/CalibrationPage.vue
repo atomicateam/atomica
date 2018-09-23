@@ -196,7 +196,6 @@ Last update: 2018-09-06
                 <!-- ### Start: JS Cascade plot ### -->
                 <div style="max-width: 800px; margin: 0 auto;">
                   <stacked-cascade
-                    :h="400"
                     :chartData="[
                       { stage: 'Prevalent', all: 4000 },
                       { stage: 'Screened', all: 3000 },
@@ -204,10 +203,11 @@ Last update: 2018-09-06
                       { stage: 'Treated', all: 1000 },
                       { stage: 'Controlled', all: 500 },
                     ]"
-                    :yAxisTitle="'Number of people'"
                     :keys="['all']"
-                    :colourScheme="['#3182bd']"
                     :dict="{ all: 'All Population' }"
+                    :yAxisTitle="'Number of people'"
+                    :h="400"
+                    :colourScheme="['#3182bd']"
                     :legendDisplay="true" />
                 </div>
                 <!-- ### End: Cascade plot ### -->
