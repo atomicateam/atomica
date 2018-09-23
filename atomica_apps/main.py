@@ -1,12 +1,12 @@
 """
 main.py -- main module for the webapp.
     
-Last update: 2018jun04
+Last update: 2018sep23
 """
 
 import sciris as sc
 import scirisweb as sw
-from . import frameworks, projects, rpcs
+from . import rpcs
 
 def make_app(which=None, **kwargs):
     T = sc.tic()
@@ -21,11 +21,8 @@ def make_app(which=None, **kwargs):
         import apptasks_cascade as apptasks # analysis:ignore
     else:
         raise Exception('"%s" not understood; which must be "tb" or "cascade"' % which)
-    app = sw.ScirisApp(name=name, filepath=__file__, config=config, **kwargs) # Create the ScirisApp object.  NOTE: app.config will thereafter contain all of the configuration parameters, including for Flask.
-    app.add_RPC_dict(rpcs.RPC_dict) # Register the RPCs in the project.py module.
-    frameworks.init_frameworks(app) # Initialize the frameworks.
-    projects.init_projects(app) # Initialize the projects.
-    rpcs.init_results_cache(app) # Initialize results cache.
+    app = sw.ScirisApp(name=name, filepath=__file__, config=config, RPC_dict=rpcs.RPC_dict, **kwargs) # Create the ScirisApp object.  NOTE: app.config will thereafter contain all of the configuration parameters, including for Flask.
+    sw.make_default_users(app)
     print('>> Webapp initialization complete (elapsed time: %0.2f s)' % sc.toc(T, output=True))
     return app
 

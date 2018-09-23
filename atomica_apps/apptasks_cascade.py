@@ -1,12 +1,12 @@
 """
 apptasks_cascade.py -- The Celery tasks module for this webapp
     
-Last update: 2018sep07
+Last update: 2018sep23
 """
 
 import sys
+import sciris as sc
 import scirisweb as sw
-from . import projects as prj
 from . import rpcs
 from . import config_cascade as config
 import matplotlib.pyplot as ppl
@@ -44,16 +44,15 @@ celery_instance = sw.make_celery_instance(config=config) # Create the Celery ins
 @async_task
 def run_cascade_optimization(project_id, cache_id, optim_name=None, plot_options=None, maxtime=None, tool=None, plotyear=None, pops=None, cascade=None, dosave=True, online=True):
     print('Running optimization...')
-    import sciris as sc
     sc.printvars(locals(), ['project_id', 'optim_name', 'plot_options', 'maxtime', 'tool', 'plotyear', 'pops', 'cascade', 'dosave', 'online'], color='blue')
-    if online: # Assume project_id is actually an ID
-        prj.apptasks_load_projects(config) # Load the projects from the DataStore.
-        proj = rpcs.load_project(project_id, raise_exception=True)
-    else: # Otherwise try using it as a project
-        proj = project_id
+    datastore = sw.get_datastore(config=config)
+    proj = datastore.loadblob(uid=project_id, objtype='project', die=True) # WARNING, rpcs.load_project() cause(d) crash
     results = proj.run_optimization(optim_name, maxtime=float(maxtime), store_results=False)
-    rpcs.put_results_cache_entry(cache_id, results, apptasks_call=True) # Put the results into the ResultsCache.
-    output = rpcs.make_plots(proj, results, tool='cascade', year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, online=online, plot_budget=True)
+    newproj = datastore.loadblob(uid=project_id, objtype='project', die=True)
+    newproj.results[cache_id] = results
+    newproj = rpcs.cache_results(newproj) # WARNING, causes crash
+    key = datastore.saveblob(uid=project_id, objtype='project', obj=newproj)
+    output = rpcs.make_plots(newproj, results, tool='cascade', year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, online=online, plot_budget=True)
     return output
 
 
