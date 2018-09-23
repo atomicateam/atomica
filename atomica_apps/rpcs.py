@@ -22,7 +22,7 @@ pl.rc('font', size=14)
 
 # Globals
 RPC_dict = {} # Dictionary to hold all of the registered RPCs in this module.
-RPC = sw.makeRPCtag(RPC_dict) # RPC registration decorator factory created using call to make_RPC().
+RPC = sw.RPCwrapper(RPC_dict) # RPC registration decorator factory created using call to make_RPC().
 datastore = None # Populated by find_datastore(), which has to be called before any of the other functions
 
 

@@ -36,8 +36,8 @@ for i,arg in enumerate(sys.argv[1:]):
 
 # Globals
 task_func_dict = {} # Dictionary to hold all of the registered task functions in this module.
-async_task = sw.make_async_tag(task_func_dict) # Task function registration decorator created using call to make_async_tag().
-celery_instance = sw.make_celery_instance(config=config) # Create the Celery instance for this module.
+async_task = sw.taskwrapper(task_func_dict) # Task function registration decorator created using call to taskwrapper().
+celery_instance = sw.make_celery(config=config) # Create the Celery instance for this module.
 
 
 @async_task
