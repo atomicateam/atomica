@@ -428,6 +428,7 @@ Last update: 2018-09-12
         if      (is_queued)    {rawValue = optimSummary.pendingTime}
         else if (is_executing) {rawValue = optimSummary.executionTime}
         else                   {return ''}
+
         if (rawValue === '--') {
           return '--'
         } else {
@@ -454,7 +455,7 @@ Last update: 2018-09-12
       getOptimTaskState(optimSummary) {
         console.log('getOptimTaskState() called for with: ' + optimSummary.status)
         let statusStr = '';
-        rpcs.rpc('check_task', [optimSummary.serverDatastoreId])
+        rpcs.rpc('check_task', [optimSummary.serverDatastoreId]) // Check the status of the task.
           .then(result => {
             statusStr = result.data.task.status
             optimSummary.status = statusStr
@@ -491,7 +492,6 @@ Last update: 2018-09-12
         return new Promise((resolve, reject) => {
           let datastoreId = optimSummary.serverDatastoreId  // hack because this gets overwritten soon by caller
           console.log('clearTask() called for '+this.currentOptim)
-
           rpcs.rpc('delete_results_cache_entry', [datastoreId]) // Delete cached result.
             .then(response => {
               rpcs.rpc('delete_task', [datastoreId])
@@ -699,12 +699,15 @@ Last update: 2018-09-12
               { 'plot_options': this.plotOptions, 'maxtime': maxtime, 'tool': this.$globaltool,
                 'plotyear': this.endYear, 'pops': this.activePop, 'cascade': null}])  // should this last be null?
               .then(response => {
-                this.getOptimTaskState(optimSummary)
+                this.getOptimTaskState(optimSummary) // Get the task state for the optimization.
                 status.succeed(this, 'Started optimization')
               })
               .catch(error => {
                 status.fail(this, 'Could not start optimization', error)
               })
+          })
+          .catch(error => {
+            status.fail(this, 'Could not save optimizations', error)
           })
       },
 
