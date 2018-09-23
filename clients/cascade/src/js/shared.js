@@ -67,7 +67,7 @@ function exportGraphs(vm) {
 function exportResults(vm, serverDatastoreId) {
   return new Promise((resolve, reject) => {
     console.log('exportResults()')
-    rpcs.download('export_results', [serverDatastoreId])
+    rpcs.download('export_results', [serverDatastoreId, vm.$store.state.currentUser.username])
       .then(response => {
         resolve(response)
       })

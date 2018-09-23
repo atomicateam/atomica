@@ -337,6 +337,7 @@ Last update: 2018sep23
 
     computed: {
       projectID()    { return utils.projectID(this) },
+      userName()     { return this.$store.state.currentUser.username },
       sortedFilteredProjectSummaries() {
         return this.applyNameFilter(this.applySorting(this.projectSummaries))
       },
@@ -393,7 +394,7 @@ Last update: 2018sep23
         console.log('updateFrameworkSummaries() called')
 
         // Get the current user's framework summaries from the server.
-        rpcs.rpc('jsonify_frameworks', [this.$store.state.currentUser.username])
+        rpcs.rpc('jsonify_frameworks', [this.userName])
           .then(response => {
             // Set the frameworks to what we received.
             this.frameworkSummaries = response.data.frameworks
@@ -415,7 +416,7 @@ Last update: 2018sep23
       updateProjectSummaries(setActiveID) {
         console.log('updateProjectSummaries() called')
         status.start(this)
-        rpcs.rpc('jsonify_projects', [this.$store.state.currentUser.username]) // Get the current user's project summaries from the server.
+        rpcs.rpc('jsonify_projects', [this.userName]) // Get the current user's project summaries from the server.
           .then(response => {
             let lastCreationTime = null
             let lastCreatedID = null
@@ -457,7 +458,7 @@ Last update: 2018sep23
         if (this.$globaltool === 'tb') {
           demoOption = 'default'
         }
-        rpcs.rpc('add_demo_project', [this.$store.state.currentUser.username, demoOption, this.$globaltool]) // Have the server create a new project.
+        rpcs.rpc('add_demo_project', [this.userName, demoOption, this.$globaltool]) // Have the server create a new project.
           .then(response => {
             this.updateProjectSummaries(response.data.projectID) // Update the project summaries so the new project shows up on the list.
             status.succeed(this, '') // Already have notification from project
@@ -501,7 +502,7 @@ Last update: 2018sep23
           frameworkID = null
         }
         rpcs.download('create_new_project',  // Have the server create a new project.
-          [this.$store.state.currentUser.username, frameworkID, this.proj_name, this.num_pops, this.num_progs, this.data_start, this.data_end], {tool: this.$globaltool})
+          [this.userName, frameworkID, this.proj_name, this.num_pops, this.num_progs, this.data_start, this.data_end], {tool: this.$globaltool})
           .then(response => {
             this.updateProjectSummaries(null) // Update the project summaries so the new project shows up on the list. Note: There's no easy way to get the new project UID to tell the project update to choose the new project because the RPC cannot pass it back.
             status.succeed(this, 'New project "' + this.proj_name + '" created') // Indicate success.
@@ -513,7 +514,7 @@ Last update: 2018sep23
 
       uploadProjectFromFile() {
         console.log('uploadProjectFromFile() called')
-        rpcs.upload('upload_project', [this.$store.state.currentUser.username], {}, '.prj') // Have the server upload the project.
+        rpcs.upload('upload_project', [this.userName], {}, '.prj') // Have the server upload the project.
           .then(response => {
             status.start(this)  // This line needs to be here to avoid the spinner being up during the user modal.
             this.updateProjectSummaries(response.data.projectID) // Update the project summaries so the new project shows up on the list.
@@ -757,7 +758,7 @@ Last update: 2018sep23
         console.log('downloadSelectedProjects() called for ', selectProjectsUIDs)
         if (selectProjectsUIDs.length > 0) { // Have the server download the selected projects.
           status.start(this)
-          rpcs.download('download_projects', [selectProjectsUIDs, this.$store.state.currentUser.username])
+          rpcs.download('download_projects', [selectProjectsUIDs, this.userName])
             .then(response => {
               status.succeed(this, '')
             })
