@@ -37,7 +37,7 @@ def get_path(filename=None, username=None):
     user_dir = os.path.join(base_dir, user_id)
     if not os.path.exists(user_dir):
         os.makedirs(user_dir)
-    fullpath = os.path.join(user_dir, filename) # Generate the full file name with path.
+    fullpath = os.path.join(user_dir, sc.sanitizefilename(filename)) # Generate the full file name with path.
     return fullpath
 
 
@@ -442,15 +442,11 @@ def download_projects(project_keys, username):
     for project_key in project_keys:
         proj = load_project(project_key)
         project_path = proj.save(folder=basedir)
-        print('TEMPPPPP')
-        print(project_path)
         project_paths.append(project_path)
     zip_fname = 'Projects %s.zip' % sc.getdate() # Make the zip file name and the full server file path version of the same..
     server_zip_fname = get_path(zip_fname, username)
-    print('TEMP2')
-    print(server_zip_fname)
-    sc.savezip(server_zip_fname, project_paths)
-    print(">> load_zip_of_prj_files %s" % (server_zip_fname)) # Display the call information.
+    server_zip_fname = sc.savezip(server_zip_fname, project_paths)
+    print(">> download_projects %s" % (server_zip_fname)) # Display the call information.
     return server_zip_fname # Return the server file name.
 
 
