@@ -341,7 +341,6 @@ class ProjectFramework(object):
             'components':None,
             'denominator':None,
             'default value':None,
-            'function':None,
             'databook page': None,
             'databook order':None,
         }
@@ -451,7 +450,15 @@ class ProjectFramework(object):
         for i,par in self.pars.iterrows():
             defined.add(par.name)
 
-            if par['function'] is not None:
+            if par['function'] is None:
+                if not par['databook page']:
+                    message = 'Parameter "%s" does not have a function OR a databook page. It must have at least one of these entries.' % (par.name)
+                    raise InvalidFramework(message)
+            else:
+                if not sc.isstring(par['function']):
+                    message = 'The function for parameter "%s" has not been specified as a string. This can happen if the formula consists only of a number. In that case, you need to put a single quote character at the start of the cell in Excel, to convert the number to a string' % (par.name)
+                    raise InvalidFramework(message)
+
                 _, deps = parse_function(par['function']) # Parse the function to get dependencies
                 for dep in deps:
                     if dep in ['t','dt']:

@@ -15,7 +15,7 @@ maxtime   = 10
 txtcolor  = 'blue'
 
 T = sc.tic()
-np.seterr(all='raise') # We don't expect numerical warnings in any of the demos
+# np.seterr(all='raise') # We don't expect numerical warnings in any of the demos - but TB currently has some
 
 #%%
 if to_run == 'quick':
