@@ -1197,14 +1197,19 @@ class Model(object):
 
         if do_program_overwrite:
             # Compute the fraction covered
-            num_covered  = sc.odict([(k,v[ti]) for k,v in self._program_cache['coverage'].iteritems()])
+            num_covered  = sc.odict([(pop.name, sc.odict([(k, v[ti]) for k,v in self._program_cache['coverage'].iteritems()])) for pop in self.pops]) 
             prop_covered = sc.odict.fromkeys(self._program_cache['comps'], 0.0)
             for k,comp_list in self._program_cache['comps'].items():
                 n = 0.0
+                pop_n = sc.odict([(pop.name, 0.) for pop in self.pops])
+                
                 for comp in comp_list:
                     n += comp.vals[ti]
+                    pop_n[comp.pop.name] += comp.vals[ti]
                 if n:
                     prop_covered[k] = np.minimum(self._program_cache['coverage'][k][ti] / n, 1.)
+                    for pop in self.pops:
+                        num_covered[pop.name][k] = prop_covered[k]*pop_n[pop.name]
                 else:
                     prop_covered[k] = 1.
 

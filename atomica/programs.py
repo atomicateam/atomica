@@ -778,7 +778,6 @@ class ProgramSet(NamedItem):
 
         for covkey in prop_covered.keys(): # Ensure coverage level values are arrays
             prop_covered[covkey] = sc.promotetoarray(prop_covered[covkey])
-            num_covered[covkey] = sc.promotetoarray(num_covered[covkey])
             for item in prop_covered[covkey]:
                 if item<0 or item>1:
                     errormsg = 'Expecting coverage to be a proportion, value for entry %s is %s' % (covkey, item)
@@ -787,7 +786,10 @@ class ProgramSet(NamedItem):
         # Initialise output
         outcomes = dict()
         for covout in self.covouts.values():
-            outcomes[(covout.par,covout.pop)] = covout.get_outcome(num_covered=num_covered, prop_covered=prop_covered)
+            pop_num_covered = num_covered[covout.pop]
+            for covkey in prop_covered.keys(): # Ensure coverage level values are arrays
+                pop_num_covered[covkey] = sc.promotetoarray(pop_num_covered[covkey])
+            outcomes[(covout.par,covout.pop)] = covout.get_outcome(num_covered=pop_num_covered, prop_covered=prop_covered)
         return outcomes
 
 #--------------------------------------------------------------------
@@ -988,7 +990,7 @@ class Covout(object):
         output += sc.indent('    Programs: ', ', '.join(['%s: %s' % (key,val) for key,val in self.progs.items()]))
         output += '\n'
         return output
-
+        
     def get_outcome(self, num_covered=None, prop_covered=None):
         # num_covered and prop_covered are dicts with {prog_name:coverage} at least containing all of the
         # programs in self.progs.
@@ -1004,13 +1006,13 @@ class Covout(object):
         num_cov = np.array(num_cov)
         outcome = self.baseline # Accumulate the outcome by adding the deltas onto this
 
+#        # If the parameter is in number format, use number covered as the outcome, implicitly treating as additive
+        if self.is_num_par:   
+            return outcome + sum(num_cov*self.deltas)
+
         # If there's only one program, then just use the outcome directly
         if self.n_progs == 1:
             return outcome + cov[0]*self.deltas[0]
-
-        # If the parameter is in number format, use number covered as the outcome, implicitly treating as additive
-        if self.is_num_par:   
-            return outcome + sum(num_cov)
 
         # ADDITIVE CALCULATION
         if self.cov_interaction == 'additive':
