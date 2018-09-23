@@ -1,11 +1,11 @@
 <!--
 Login page
 
-Last update: 2018sep09
+Last update: 2018sep22
 -->
 
 <template>
-  <div style="background-color:#f8f8f4; position:fixed; min-height:100%; min-width:100%; padding:0 0 0 0" v-model="getVersionInfo"> <!-- Should match _variables.scss:$bg-nude -->
+  <div class="SitePage" style="background-color:#f8f8f4; position:fixed; min-height:100%; min-width:100%; padding:0 0 0 0" v-model="getVersionInfo"> <!-- Should match _variables.scss:$bg-nude -->
     <div style="background-color:#0c2544; position:absolute; height:100%; width:260px">
       <div class="logo">
         <div class="simple-text" style="font-size:20px; color:#fff; font-weight:bold; padding:20px">
@@ -96,7 +96,7 @@ Last update: 2018sep09
       tryLogin () {
         userservice.loginCall(this.loginUserName, this.loginPassword)
         .then(response => {
-          if (response.data == 'success') {
+          if (response.data === 'success') {
             // Set a success result to show.
             this.loginResult = 'Logging in...'
 
@@ -116,7 +116,7 @@ Last update: 2018sep09
             })
           } else {
             // Set a failure result to show.
-            this.loginResult = 'Login failed: username or password incorrect or account not activated.'
+            this.loginResult = response.data
           }
         })
         .catch(error => {
