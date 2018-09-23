@@ -195,19 +195,11 @@ Last update: 2018-09-06
 
                 <!-- ### Start: JS Cascade plot ### -->
                 <div style="max-width: 800px; margin: 0 auto;">
-                  <stacked-cascade
-                    :chartData="[
-                      { stage: 'Prevalent', all: 4000 },
-                      { stage: 'Screened', all: 3000 },
-                      { stage: 'Diagnosed', all: 2000 },
-                      { stage: 'Treated', all: 1000 },
-                      { stage: 'Controlled', all: 500 },
-                    ]"
-                    :keys="['all']"
-                    :dict="{ all: 'All Population' }"
-                    :yAxisTitle="'Number of people'"
+                  <stacked-cascade class="cascade"
                     :h="400"
-                    :colourScheme="['#3182bd']"
+                    :yAxisTitle="'Number of people'"
+                    :cascadeData="jsonData"
+                    :colourScheme="projectColour"
                     :legendDisplay="true" />
                 </div>
                 <!-- ### End: Cascade plot ### -->
