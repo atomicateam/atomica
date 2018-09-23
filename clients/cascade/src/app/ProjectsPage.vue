@@ -1,7 +1,7 @@
 <!--
 Manage projects page
 
-Last update: 2018-09-12
+Last update: 2018sep23
 -->
 
 <template>
@@ -415,7 +415,7 @@ Last update: 2018-09-12
       updateProjectSummaries(setActiveID) {
         console.log('updateProjectSummaries() called')
         status.start(this)
-        rpcs.rpc('load_current_user_project_summaries') // Get the current user's project summaries from the server.
+        rpcs.rpc('jsonify_projects', [this.$store.state.currentUser.username]) // Get the current user's project summaries from the server.
           .then(response => {
             let lastCreationTime = null
             let lastCreatedID = null
@@ -439,7 +439,7 @@ Last update: 2018-09-12
                 this.openProject(setActiveID)
               }
             }
-            status.succeed(this, '')
+            status.succeed(this, '')  // No green popup.
           })
           .catch(error => {
             status.fail(this, 'Could not load projects', error)
@@ -457,9 +457,9 @@ Last update: 2018-09-12
         if (this.$globaltool === 'tb') {
           demoOption = 'default'
         }
-        rpcs.rpc('add_demo_project', [this.$store.state.currentUser.UID, demoOption, this.$globaltool]) // Have the server create a new project.
+        rpcs.rpc('add_demo_project', [this.$store.state.currentUser.username, demoOption, this.$globaltool]) // Have the server create a new project.
           .then(response => {
-            this.updateProjectSummaries(response.data.projectId) // Update the project summaries so the new project shows up on the list.
+            this.updateProjectSummaries(response.data.projectID) // Update the project summaries so the new project shows up on the list.
             status.succeed(this, '') // Already have notification from project
           })
           .catch(error => {
