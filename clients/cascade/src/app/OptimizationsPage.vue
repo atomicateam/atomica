@@ -34,7 +34,7 @@ Last update: 2018-09-12
           <thead>
           <tr>
             <th>Name</th>
-            <th v-if="useCelery">Status</th>
+            <th>Status</th>
             <th>Actions</th>
           </tr>
           </thead>
@@ -43,7 +43,7 @@ Last update: 2018-09-12
             <td>
               <b>{{ optimSummary.name }}</b>
             </td>
-            <td v-if="useCelery">
+            <td>
               {{ statusFormatStr(optimSummary) }}
               {{ timeFormatStr(optimSummary) }}
             </td>
@@ -51,7 +51,7 @@ Last update: 2018-09-12
               <button class="btn __green" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 3600)">Run</button>
               <button class="btn __green" :disabled="!canPlotResults(optimSummary)" @click="{displayResultName = optimSummary.name; displayResultDatastoreId = optimSummary.serverDatastoreId; reloadGraphs(optimSummary.serverDatastoreId, true)}">Plot results</button>
               <button class="btn" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 10)">Test run</button>
-              <button class="btn" v-if="useCelery" :disabled="!canCancelTask(optimSummary)" @click="clearTask(optimSummary)">Clear run</button>
+              <button class="btn" :disabled="!canCancelTask(optimSummary)" @click="clearTask(optimSummary)">Clear run</button>
               <button class="btn btn-icon" @click="editOptim(optimSummary)" data-tooltip="Edit optimization"><i class="ti-pencil"></i></button>
               <button class="btn btn-icon" @click="copyOptim(optimSummary)" data-tooltip="Copy optimization"><i class="ti-files"></i></button>
               <button class="btn btn-icon" @click="deleteOptim(optimSummary)" data-tooltip="Delete optimization"><i class="ti-trash"></i></button>
@@ -351,7 +351,6 @@ Last update: 2018-09-12
         // Page-specific data
         optimSummaries: [],
         optimsLoaded: false,
-        useCelery: true,
         defaultOptim: {},
         modalOptim: {},
         objectiveOptions: [],
@@ -455,42 +454,18 @@ Last update: 2018-09-12
       getOptimTaskState(optimSummary) {
         console.log('getOptimTaskState() called for with: ' + optimSummary.status)
         let statusStr = '';
-
-        if (this.useCelery) {
-          // Check the status of the task.
-          rpcs.rpc('check_task', [optimSummary.serverDatastoreId])
-            .then(result => {
-              statusStr = result.data.task.status
-              optimSummary.status = statusStr
-              optimSummary.pendingTime = result.data.pendingTime
-              optimSummary.executionTime = result.data.executionTime
-            })
-            .catch(error => {
-              optimSummary.status = 'not started'
-              optimSummary.pendingTime = '--'
-              optimSummary.executionTime = '--'
-            })
-        }
-
-        else {
-          // Check whether there is a cached result.
-          rpcs.rpc('check_results_cache_entry', [optimSummary.serverDatastoreId])
-            .then(result => {
-              if (result.data.found) {
-                optimSummary.status = 'completed'
-              }
-              else {
-                optimSummary.status = 'not started'
-              }
-              optimSummary.pendingTime = '--'
-              optimSummary.executionTime = '--'
-            })
-            .catch(error => {
-              optimSummary.status = 'not started'
-              optimSummary.pendingTime = '--'
-              optimSummary.executionTime = '--'
-            })
-        }
+        rpcs.rpc('check_task', [optimSummary.serverDatastoreId])
+          .then(result => {
+            statusStr = result.data.task.status
+            optimSummary.status = statusStr
+            optimSummary.pendingTime = result.data.pendingTime
+            optimSummary.executionTime = result.data.executionTime
+          })
+          .catch(error => {
+            optimSummary.status = 'not started'
+            optimSummary.pendingTime = '--'
+            optimSummary.executionTime = '--'
+          })
       },
 
       pollAllTaskStates() {
@@ -519,20 +494,14 @@ Last update: 2018-09-12
 
           rpcs.rpc('delete_results_cache_entry', [datastoreId]) // Delete cached result.
             .then(response => {
-              if (this.useCelery) {
-                rpcs.rpc('delete_task', [datastoreId])
-                  .then(response => {
-                    this.getOptimTaskState(optimSummary) // Get the task state for the optimization.
-                    resolve(response)
-                  })
-                  .catch(error => {
-                    resolve(error)  // yes, resolve because at least cache entry deletion succeeded
-                  })
-              }
-              else {
-                this.getOptimTaskState(optimSummary) // Get the task state for the optimization.
-                resolve(response)
-              }
+              rpcs.rpc('delete_task', [datastoreId])
+                .then(response => {
+                  this.getOptimTaskState(optimSummary) // Get the task state for the optimization.
+                  resolve(response)
+                })
+                .catch(error => {
+                  resolve(error)  // yes, resolve because at least cache entry deletion succeeded
+                })
             })
             .catch(error => {
               reject(error)
@@ -572,9 +541,7 @@ Last update: 2018-09-12
               // Get the task state for the optimization.
               this.getOptimTaskState(optimSum) // Get the task state for the optimization.
             })
-            if (this.useCelery) {
-              this.pollAllTaskStates() // Start polling of tasks states.
-            }
+            this.pollAllTaskStates() // Start polling of tasks states.
             this.optimsLoaded = true
             status.succeed(this, 'Optimizations loaded')
           })
@@ -723,53 +690,21 @@ Last update: 2018-09-12
         this.validateYears()  // Make sure the end year is sensibly set.
         status.start(this)
         var RPCname = ''
-        if (this.$globaltool === 'cascade') {
-          RPCname = 'run_cascade_optimization'
-        }
-        if (this.$globaltool === 'tb') {
-          RPCname = 'run_tb_optimization'
-        }
+        if (this.$globaltool === 'cascade') {RPCname = 'run_cascade_optimization'}
+        if (this.$globaltool === 'tb')      {RPCname = 'run_tb_optimization'}
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries]) // Make sure they're saved first
           .then(response => {
-
-            // We are using Celery
-            if (this.useCelery) {
-                  rpcs.rpc('launch_task', [optimSummary.serverDatastoreId, RPCname,
-                    [this.projectID, optimSummary.serverDatastoreId, optimSummary.name],
-                    {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':this.$globaltool,
-                      'plotyear':this.endYear, 'pops':this.activePop, 'cascade':null}])  // should this last be null?
-                    .then(response => {
-                      this.getOptimTaskState(optimSummary)
-                      status.succeed(this, 'Started optimization')
-                    })
-                    .catch(error => {
-                      status.fail(this, 'Could not start optimization', error)
-                    })
-                })
-            }
-
-            // We are NOT using Celery
-            else {
-              optimSummary.status = 'started'
-              rpcs.rpc('run_optimization', [this.projectID, optimSummary.serverDatastoreId, optimSummary.name],
-                {'plot_options':this.plotOptions, 'maxtime':maxtime, 'tool':this.$globaltool,
-                  'plotyear':this.endYear, 'pops':this.activePop, 'cascade':null})  // should this last be null?
-                .then(response => {
-                  this.getOptimTaskState(optimSummary)
-                  this.makeGraphs(response.data.graphs)
-                  this.table = response.data.table
-                  this.displayResultName = optimSummary.name
-                  this.displayResultDatastoreId = optimSummary.serverDatastoreId
-                  status.succeed(this, 'Graphs created')
-                })
-                .catch(error => {
-                  status.fail(this, 'Could not make graphs', error) // Indicate failure.
-                })
-            }
-
-          })
-          .catch(error => {
-            status.fail(this, 'Could not start optimization', error)
+            rpcs.rpc('launch_task', [optimSummary.serverDatastoreId, RPCname,
+              [this.projectID, optimSummary.serverDatastoreId, optimSummary.name],
+              { 'plot_options': this.plotOptions, 'maxtime': maxtime, 'tool': this.$globaltool,
+                'plotyear': this.endYear, 'pops': this.activePop, 'cascade': null}])  // should this last be null?
+              .then(response => {
+                this.getOptimTaskState(optimSummary)
+                status.succeed(this, 'Started optimization')
+              })
+              .catch(error => {
+                status.fail(this, 'Could not start optimization', error)
+              })
           })
       },
 
