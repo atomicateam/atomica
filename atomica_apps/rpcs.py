@@ -275,17 +275,37 @@ def delete_frameworks(framework_keys):
 def jsonify_project(project_id, verbose=False):
     ''' Return the project json, given the Project UID. ''' 
     proj = load_project(project_id) # Load the project record matching the UID of the project passed in.
+    try:    
+        framework_name = proj.framework.name
+    except: 
+        print('Could not load framework name for project')
+        framework_name = 'N/A'
+    try:
+        n_pops = len(proj.data.pops)
+        pop_pairs = [[key, val['label']] for key, val in proj.data.pops.items()]  # Pull out population keys and names
+    except: 
+        print('Could not load populations for project')
+        n_pops = 'N/A'
+        pop_pairs = []
     json = {
         'project': {
-            'id':           proj.uid,
-            'name':         proj.name,
-            'username':     proj.webapp.username,
-            'hasData':      len(proj.datasets)>0,
-            'creationTime': proj.created,
-            'updatedTime':  proj.modified,
-            'n_results':    len(proj.results),
-            'n_tasks':      len(proj.webapp.tasks)
-        }
+                'id':           proj.uid,
+                'name':         proj.name,
+                'username':     proj.webapp.username,
+                'creationTime': sc.getdate(proj.created),
+                'updatedTime':  sc.getdate(proj.modified),
+                'hasData':      proj.data is not None,
+                'hasPrograms':  len(proj.progsets)>0,
+                'n_pops':       n_pops,
+                'sim_start':    proj.settings.sim_start,
+                'sim_end':      proj.settings.sim_end,
+                'data_start':   proj.data.start_year if proj.data else None,
+                'data_end':     proj.data.end_year if proj.data else None,
+                'framework':    framework_name,
+                'pops':         pop_pairs,
+                'n_results':    len(proj.results),
+                'n_tasks':      len(proj.webapp.tasks)
+            }
     }
     if verbose: sc.pp(json)
     return json

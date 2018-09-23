@@ -106,6 +106,7 @@ class Project(object):
         self.gitinfo = sc.gitinfo(__file__)
         self.created = sc.now()
         self.modified = sc.now()
+        self.filename = None
 
         self.progbook = None # This will contain an AtomicaSpreadsheet when the user loads one
         self.settings = ProjectSettings(**kwargs) # Global settings
@@ -467,10 +468,11 @@ class Project(object):
         results = [unoptimized_result, optimized_result]
         return results
 
-    def save(self, filepath):
+    def save(self, filename=None, folder=None):
         """ Save the current project to a relevant object file. """
-        filepath = sc.makefilepath(filename=filepath, ext='prj',sanitize=True)  # Enforce file extension.
-        sc.saveobj(filepath, self)
+        fullpath = sc.makefilepath(filename=filename, folder=folder, default=[self.filename, self.name], ext='prj', sanitize=True)
+        self.filename = fullpath
+        sc.saveobj(fullpath, self)
         return None
 
     @staticmethod

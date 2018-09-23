@@ -343,16 +343,16 @@ Last update: 2018sep23
     },
 
     created() {
-      let projectId = null
+      let projectID = null
       if (this.$store.state.currentUser.displayname === undefined) { // If we have no user logged in, automatically redirect to the login page.
         router.push('/login')
       } else {    // Otherwise...
         if (this.$store.state.activeProject.project !== undefined) { // Get the active project ID if there is an active project.
-          projectId = this.$store.state.activeProject.project.id
+          projectID = this.$store.state.activeProject.project.id
         }
         this.getDemoOptions()
         this.updateFrameworkSummaries()        // Load the frameworks so the new project dialog is populated
-        this.updateProjectSummaries(projectId) // Load the project summaries of the current user.
+        this.updateProjectSummaries(projectID) // Load the project summaries of the current user.
       }
     },
 
@@ -393,7 +393,7 @@ Last update: 2018sep23
         console.log('updateFrameworkSummaries() called')
 
         // Get the current user's framework summaries from the server.
-        rpcs.rpc('load_current_user_framework_summaries')
+        rpcs.rpc('jsonify_frameworks', [this.$store.state.currentUser.username])
           .then(response => {
             // Set the frameworks to what we received.
             this.frameworkSummaries = response.data.frameworks
@@ -501,7 +501,7 @@ Last update: 2018sep23
           frameworkID = null
         }
         rpcs.download('create_new_project',  // Have the server create a new project.
-          [this.$store.state.currentUser.UID, frameworkID, this.proj_name, this.num_pops, this.num_progs, this.data_start, this.data_end], {tool: this.$globaltool})
+          [this.$store.state.currentUser.username, frameworkID, this.proj_name, this.num_pops, this.num_progs, this.data_start, this.data_end], {tool: this.$globaltool})
           .then(response => {
             this.updateProjectSummaries(null) // Update the project summaries so the new project shows up on the list. Note: There's no easy way to get the new project UID to tell the project update to choose the new project because the RPC cannot pass it back.
             status.succeed(this, 'New project "' + this.proj_name + '" created') // Indicate success.
@@ -513,10 +513,10 @@ Last update: 2018sep23
 
       uploadProjectFromFile() {
         console.log('uploadProjectFromFile() called')
-        rpcs.upload('create_project_from_prj_file', [this.$store.state.currentUser.UID], {}, '.prj') // Have the server upload the project.
+        rpcs.upload('upload_project', [this.$store.state.currentUser.username], {}, '.prj') // Have the server upload the project.
           .then(response => {
             status.start(this)  // This line needs to be here to avoid the spinner being up during the user modal.
-            this.updateProjectSummaries(response.data.projectId) // Update the project summaries so the new project shows up on the list.
+            this.updateProjectSummaries(response.data.projectID) // Update the project summaries so the new project shows up on the list.
             status.succeed(this, 'New project uploaded')
           })
           .catch(error => {
@@ -578,7 +578,7 @@ Last update: 2018sep23
         status.start(this)
         rpcs.rpc('copy_project', [uid]) // Have the server copy the project, giving it a new name.
           .then(response => {
-            this.updateProjectSummaries(response.data.projectId) // Update the project summaries so the copied program shows up on the list.
+            this.updateProjectSummaries(response.data.projectID) // Update the project summaries so the copied program shows up on the list.
             status.succeed(this, 'Project "'+matchProject.project.name+'" copied')    // Indicate success.
           })
           .catch(error => {
@@ -594,7 +594,7 @@ Last update: 2018sep23
           let newProjectSummary = _.cloneDeep(projectSummary) // Make a deep copy of the projectSummary object by JSON-stringifying the old object, and then parsing the result back into a new object.
           newProjectSummary.project.name = projectSummary.renaming // Rename the project name in the client list from what's in the textbox.
           status.start(this)
-          rpcs.rpc('update_project_from_summary', [newProjectSummary]) // Have the server change the name of the project by passing in the new copy of the summary.
+          rpcs.rpc('rename_project', [newProjectSummary]) // Have the server change the name of the project by passing in the new copy of the summary.
             .then(response => {
               this.updateProjectSummaries(newProjectSummary.project.id) // Update the project summaries so the rename shows up on the list.
               projectSummary.renaming = '' // Turn off the renaming mode.
@@ -664,7 +664,6 @@ Last update: 2018sep23
             status.succeed(this, '')
           })
           .catch(error => {
-
             status.fail(this, 'Could not download program book', error)
           })
       },
@@ -672,8 +671,7 @@ Last update: 2018sep23
       createProgbook() {
         // Find the project that matches the UID passed in.
         let uid = this.activeuid
-        let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
-        console.log('createProgbook() called for ' + matchProject.project.name)
+        console.log('createProgbook() called')
         this.$modal.hide('create-progbook')
         status.start(this, 'Creating program book...')
         rpcs.download('create_progbook', [uid, this.num_progs])
@@ -681,7 +679,6 @@ Last update: 2018sep23
             status.succeed(this, '')
           })
           .catch(error => {
-
             status.fail(this, 'Could not create program book', error)
           })
       },
@@ -701,13 +698,12 @@ Last update: 2018sep23
 
       uploadProgbook(uid) {
         // Find the project that matches the UID passed in.
-        let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
-        console.log('uploadProgbook() called for ' + matchProject.project.name)
+        console.log('uploadProgbook() called')
         rpcs.upload('upload_progbook', [uid], {}, '.xlsx')
           .then(response => {
             status.start(this)
             this.updateProjectSummaries(uid) // Update the project summaries so the copied program shows up on the list.
-            status.succeed(this, 'Programs uploaded to project "'+matchProject.project.name+'"')   // Indicate success.
+            status.succeed(this, 'Programs uploaded')   // Indicate success.
           })
           .catch(error => {
             status.fail(this, 'Could not upload program book', error)
@@ -761,7 +757,7 @@ Last update: 2018sep23
         console.log('downloadSelectedProjects() called for ', selectProjectsUIDs)
         if (selectProjectsUIDs.length > 0) { // Have the server download the selected projects.
           status.start(this)
-          rpcs.download('load_zip_of_prj_files', [selectProjectsUIDs])
+          rpcs.download('download_projects', [selectProjectsUIDs, this.$store.state.currentUser.username])
             .then(response => {
               status.succeed(this, '')
             })
