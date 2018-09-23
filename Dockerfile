@@ -17,11 +17,11 @@ RUN apt-get install -yqq nodejs
 RUN apt-get clean -y
 
 # Install sciris
-RUN git clone https://github.com/optimamodel/sciris.git
-RUN cd sciris && git checkout develop && python setup.py develop && python setup-web.py develop
+RUN git clone https://github.com/sciris/sciris.git
+RUN cd sciris && python setup.py develop && python setup-web.py develop
 
 # Install mpld3
-RUN git clone https://github.com/optimamodel/mpld3.git
+RUN git clone https://github.com/sciris/mpld3.git
 RUN cd mpld3 && python setup.py submodule && python setup.py install
 
 # Install atomica
