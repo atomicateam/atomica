@@ -142,7 +142,7 @@ def load_framework(framework_key, die=None):
     output = datastore.loadblob(framework_key, objtype='framework', die=die)
     return output
 
-def load_result(result_key, die=None):
+def load_result(result_key, die=False):
     output = datastore.loadblob(result_key, objtype='result', die=die)
     return output
 
@@ -1030,7 +1030,7 @@ def make_plots(proj, results, tool=None, year=None, pops=None, cascade=None, plo
             output[key] = cascadeoutput[key] + output[key]
         allfigs = cascadefigs + allfigs
         alllegends = cascadelegends + alllegends
-    try:                   savefigs(allfigs) # WARNING, dosave ignored fornow
+    try:                   savefigs(allfigs, username=proj.webapp.username) # WARNING, dosave ignored fornow
     except Exception as E: print('Could not save figures: %s' % str(E))
     if outputfigs: return output, allfigs, alllegends
     else:          return output
