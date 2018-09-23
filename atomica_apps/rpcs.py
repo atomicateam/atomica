@@ -1,34 +1,123 @@
 """
 Atomica remote procedure calls (RPCs)
     
-Last update: 2018sep12
+Last update: 2018sep23
 """
 
 ###############################################################
 ### Imports
 ##############################################################
 
-import time
 import os
 import re
+import time
+import socket
+import psutil
 import numpy as np
 import pylab as pl
 import mpld3
-from zipfile import ZipFile
-from flask_login import current_user
 import sciris as sc
 import scirisweb as sw
 import atomica.ui as au
 import atomica as at
-from . import projects as prj
-from . import frameworks as frw
+from . import config
 from matplotlib.legend import Legend
 pl.rc('font', size=14)
 
-
-
+# Globals
 RPC_dict = {} # Dictionary to hold all of the registered RPCs in this module.
 RPC = sw.makeRPCtag(RPC_dict) # RPC registration decorator factory created using call to make_RPC().
+datastore = None
+
+
+###############################################################
+### Helper functions
+###############################################################
+
+def get_path(filename=None, username=None):
+    if filename is None: filename = ''
+    base_dir = sw.flaskapp.datastore.tempfolder
+    user_id = str(get_user(username).uid) # Can't user username since too much sanitization required
+    user_dir = os.path.join(base_dir, user_id)
+    if not os.path.exists(user_dir):
+        os.makedirs(user_dir)
+    fullpath = os.path.join(user_dir, filename) # Generate the full file name with path.
+    return fullpath
+
+
+def sanitize(vals, skip=False, forcefloat=False, verbose=False, as_nan=False, die=True):
+    ''' Make sure values are numeric, and either return nans or skip vals that aren't -- WARNING, duplicates lots of other things!'''
+    if verbose: print('Sanitizing vals of %s: %s' % (type(vals), vals))
+    if as_nan: missingval = np.nan
+    else:      missingval = None
+    
+    if not sc.isstring(vals) and sc.isiterable(vals):
+        as_array = False if forcefloat else True
+    else:
+        vals = [vals]
+        as_array = False
+    output = []
+    for val in vals:
+        if val=='':
+            sanival = missingval
+        elif val==None:
+            sanival = missingval
+        else:
+            try:
+                factor = 1.0
+                if sc.isstring(val):
+                    val = val.replace(',','') # Remove commas, if present
+                    val = val.replace('$','') # Remove dollars, if present
+                    # if val.endswith('%'): factor = 0.01 # Scale if percentage has been used -- CK: not used since already converted from percentage
+                sanival = float(val)*factor
+            except Exception as E:
+                errormsg = 'Could not sanitize value "%s": %s' % (val, str(E))
+                if die: raise Exception(errormsg)
+                else:   print(errormsg+'; returning %s' % missingval)
+                sanival = missingval
+        if not skip or (sanival is not None and not np.isnan(sanival)):
+            output.append(sanival)
+    if as_array:
+        return output
+    else:
+        return output[0]
+
+
+@RPC()
+def get_version_info():
+	''' Return the information about the project. '''
+	gitinfo = sc.gitinfo(__file__)
+	version_info = {
+	       'version':   nu.version,
+	       'date':      nu.versiondate,
+	       'gitbranch': gitinfo['branch'],
+	       'githash':   gitinfo['hash'],
+	       'gitdate':   gitinfo['date'],
+            'server':    socket.gethostname(),
+            'cpu':       '%0.1f%%' % psutil.cpu_percent(),
+	}
+	return version_info
+      
+
+def get_user(username=None):
+    ''' Ensure it's a valid Optima Nutrition user '''
+    user = datastore.loaduser(username)
+    dosave = False
+    if not hasattr(user, 'projects'):
+        user.projects = []
+        dosave = True
+    if dosave:
+        datastore.saveuser(user)
+    return user
+
+
+def find_datastore(config):
+    ''' Ensure the datastore is loaded '''
+    global datastore
+    if datastore is None:
+        datastore = sw.get_datastore(config=config)
+    return datastore # So can be used externally
+
 
 
 def CursorPosition():
@@ -89,162 +178,6 @@ def from_number(raw, sf=3, die=False):
     return output
         
 
-
-def get_path(filename, online=True):
-    if online:
-        dirname = sw.globalvars.downloads_dir.dir_path # Use the downloads directory to put the file in.
-        fullpath = '%s%s%s' % (dirname, os.sep, filename) # Generate the full file name with path.
-    else:
-        fullpath = filename
-    return fullpath
-
-###############################################################
-### Results global and classes
-##############################################################
-    
-
-# Global for the results cache.
-results_cache = None
-
-
-class ResultSet(sw.Blob):
-
-    def __init__(self, uid, result_set, set_label):
-        super(ResultSet, self).__init__(uid, type_prefix='resultset', 
-            file_suffix='.rst', instance_label=set_label)
-        self.result_set = result_set  # can be single Result or list of Results
-        
-    def show(self):
-        # Show superclass attributes.
-        super(ResultSet, self).show()  
-        
-        # Show the defined display text for the project.
-        print('---------------------')
-        print('Result set contents: ')
-        print(self.result_set)
-
-
-class ResultsCache(sw.BlobDict):
-
-    def __init__(self, uid):
-        super(ResultsCache, self).__init__(uid, type_prefix='resultscache', 
-            file_suffix='.rca', instance_label='Results Cache', 
-            objs_within_coll=False)
-        
-        # Create the Python dict to hold the hashes from cache_ids to the UIDs.
-        self.cache_id_hashes = {}
-        
-    def load_from_copy(self, other_object):
-        if type(other_object) == type(self):
-            # Do the superclass copying.
-            super(ResultsCache, self).load_from_copy(other_object)
-            
-            self.cache_id_hashes = other_object.cache_id_hashes
-            
-    def retrieve(self, cache_id):
-        print('>> ResultsCache.retrieve() called') 
-        print('>>   cache_id = %s' % cache_id)
-        
-        # Get the UID for the blob corresponding to the cache ID (if any).
-        result_set_blob_uid = self.cache_id_hashes.get(cache_id, None)
-        
-        # If we found no match, return None.
-        if result_set_blob_uid is None:
-            print('>> ERROR: ResultSet %s not in cache_id_hashes' % result_set_blob_uid)
-            return None
-        
-        # Otherwise, return the object found.
-        else:
-            obj = self.get_object_by_uid(result_set_blob_uid)
-            if obj is None:
-                print('>> ERROR: ResultSet %s not in DataStore handle_dict' % result_set_blob_uid)
-                return None
-            else:
-                return self.get_object_by_uid(result_set_blob_uid).result_set
-    
-    def store(self, cache_id, result_set):
-        print('>> ResultsCache.store() called')
-        print('>>   cache_id = %s' % cache_id)
-        print('>>   result_set contents:')
-        print(result_set)
-        
-        # If there already is a cache entry for this, update the object there.
-        if cache_id in self.cache_id_hashes.keys():
-            result_set_blob = ResultSet(self.cache_id_hashes[cache_id], 
-                result_set, cache_id)
-            print('>> Running update_object()')
-            self.update_object(result_set_blob)
-            
-        # Otherwise, update the cache ID hashes and add the new object.
-        else:
-            print('>> Running add_object()')
-            result_set_blob = ResultSet(None, result_set, cache_id)
-            self.cache_id_hashes[cache_id] = result_set_blob.uid
-            self.add_object(result_set_blob)
-    
-    def delete(self, cache_id):
-        print('>> ResultsCache.delete()')
-        print('>>   cache_id = %s' % cache_id)
-        
-        # Get the UID for the blob corresponding to the cache ID (if any).
-        result_set_blob_uid = self.cache_id_hashes.get(cache_id, None)
-        
-        # If we found no match, give an error.
-        if result_set_blob_uid is None:
-            print('>> ERROR: ResultSet not in cache_id_hashes')
-            
-        # Otherwise, delete the object found.
-        else:
-            del self.cache_id_hashes[cache_id] 
-            self.delete_object_by_uid(result_set_blob_uid)
-        
-    def delete_all(self):
-        print('>> ResultsCache.delete_all() called')
-        # Reset the hashes from cache_ids to UIDs.
-        self.cache_id_hashes = {}
-        
-        # Do the rest of the deletion process.
-        self.delete_all_objects()
-        
-    def delete_by_project(self, project_uid):
-        print('>> ResultsCache.delete_by_project() called')
-        print('>>   project_uid = %s' % project_uid)
-        
-        # Build a list of the keys that match the given project.
-        matching_cache_ids = []
-        for cache_id in self.cache_id_hashes.keys():
-            cache_id_project = re.sub(':.*', '', cache_id)
-            if cache_id_project == project_uid:
-                matching_cache_ids.append(cache_id)
-        
-        # For each matching key, delete the entry.
-        for cache_id in matching_cache_ids:
-            self.delete(cache_id)
-            
-    def show(self):
-        super(sw.BlobDict, self).show()   # Show superclass attributes.
-        if self.objs_within_coll: print('Objects stored within dict?: Yes')
-        else:                     print('Objects stored within dict?: No')
-        print('Cache ID dict contents: ')
-        print(self.cache_id_hashes)         
-        print('---------------------')
-        print('Contents')
-        print('---------------------')
-        
-        if self.objs_within_coll: # If we are storing things inside the obj_dict...
-            for key in self.obj_dict: # For each key in the dictionary...
-                obj = self.obj_dict[key] # Get the object pointed to.
-                obj.show() # Show the handle contents.
-        else: # Otherwise, we are using the UUID set.
-            for uid in self.ds_uuid_set: # For each item in the set...
-                obj = sw.globalvars.data_store.retrieve(uid)
-                if obj is None:
-                    print('--------------------------------------------')
-                    print('ERROR: UID %s object failed to retrieve' % uid)
-                else:
-                    obj.show() # Show the object with that UID in the DataStore.
-        print('--------------------------------------------')
- 
 
 ###############################################################
 ### Framework functions
