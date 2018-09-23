@@ -19,15 +19,13 @@ import mpld3
 import sciris as sc
 import scirisweb as sw
 import atomica.ui as au
-import atomica as at
-from . import config
 from matplotlib.legend import Legend
 pl.rc('font', size=14)
 
 # Globals
 RPC_dict = {} # Dictionary to hold all of the registered RPCs in this module.
 RPC = sw.makeRPCtag(RPC_dict) # RPC registration decorator factory created using call to make_RPC().
-datastore = None
+datastore = None # Populated by find_datastore(), which has to be called before any of the other functions
 
 
 ###############################################################
@@ -43,44 +41,6 @@ def get_path(filename=None, username=None):
         os.makedirs(user_dir)
     fullpath = os.path.join(user_dir, filename) # Generate the full file name with path.
     return fullpath
-
-
-def sanitize(vals, skip=False, forcefloat=False, verbose=False, as_nan=False, die=True):
-    ''' Make sure values are numeric, and either return nans or skip vals that aren't -- WARNING, duplicates lots of other things!'''
-    if verbose: print('Sanitizing vals of %s: %s' % (type(vals), vals))
-    if as_nan: missingval = np.nan
-    else:      missingval = None
-    
-    if not sc.isstring(vals) and sc.isiterable(vals):
-        as_array = False if forcefloat else True
-    else:
-        vals = [vals]
-        as_array = False
-    output = []
-    for val in vals:
-        if val=='':
-            sanival = missingval
-        elif val==None:
-            sanival = missingval
-        else:
-            try:
-                factor = 1.0
-                if sc.isstring(val):
-                    val = val.replace(',','') # Remove commas, if present
-                    val = val.replace('$','') # Remove dollars, if present
-                    # if val.endswith('%'): factor = 0.01 # Scale if percentage has been used -- CK: not used since already converted from percentage
-                sanival = float(val)*factor
-            except Exception as E:
-                errormsg = 'Could not sanitize value "%s": %s' % (val, str(E))
-                if die: raise Exception(errormsg)
-                else:   print(errormsg+'; returning %s' % missingval)
-                sanival = missingval
-        if not skip or (sanival is not None and not np.isnan(sanival)):
-            output.append(sanival)
-    if as_array:
-        return output
-    else:
-        return output[0]
 
 
 @RPC()
@@ -380,20 +340,6 @@ def save_project_as_new(proj, user_id, uid=None):
     save_project(proj) # Save the changed Project object to the DataStore.
     return proj.uid
 
-
-# RPC definitions
-@RPC()
-def get_version_info():
-    ''' Return the information about the project. '''
-    gitinfo = sc.gitinfo(__file__)
-    version_info = {
-           'version':   au.version,
-           'date':      au.versiondate,
-           'gitbranch': gitinfo['branch'],
-           'githash':   gitinfo['hash'],
-           'gitdate':   gitinfo['date'],
-    }
-    return version_info
 
 
 ##################################################################################
@@ -1155,7 +1101,7 @@ def supported_plots_func(framework):
         df = framework.sheets['plots'][0]
         plots = sc.odict()
         for name,output in zip(df['name'], df['quantities']):
-            plots[name] = at.results.evaluate_plot_string(output)
+            plots[name] = au.evaluate_plot_string(output)
         return plots
 
 
