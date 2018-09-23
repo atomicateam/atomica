@@ -42,10 +42,8 @@ def run_cascade_optimization(project_id, cache_id, optim_name=None, plot_options
     origproj = rpcs.load_project(project_id)
     results = origproj.run_optimization(optim_name, maxtime=float(maxtime), store_results=False)
     newproj = datastore.loadblob(uid=project_id, objtype='project', die=True)
-#    newproj.results[cache_id] = results
-    newproj = rpcs.cache_result(newproj, results, cache_id)
-    key = datastore.saveblob(uid=project_id, objtype='project', obj=newproj)
-    return key
+    result_key = rpcs.cache_result(newproj, results, cache_id)
+    return result_key
 
 
 # Add the asynchronous task functions in this module to the tasks.py module so run_task() can call them.

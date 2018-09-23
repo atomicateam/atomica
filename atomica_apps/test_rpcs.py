@@ -6,20 +6,20 @@ Version:
 ### Housekeeping
 ###########################################################################
 
-import pylab as pl
 import sciris as sc
 import scirisweb as sw
 import atomica.ui as au
 from atomica_apps import rpcs, apptasks_cascade as atca, apptasks_tb as attb, main
 
 torun = [
+'datastore',
 #'project_io',
 #'get_cascade_plot',
 #'get_cascade_json',
 #'make_plots',
 #'run_scenarios',
 #'run_cascade_optimization',
-'run_tb_optimization',
+#'run_tb_optimization',
 # 'minimize_money',
 ]
 
@@ -52,7 +52,8 @@ def heading(string, style=None):
 T = sc.tic()
 app = main.make_app(which=tool)
 user = sw.make_default_users(app)[0]
-proj_id  = sc.uuid(as_string=True) # These can all be the same
+proj_id  = sc.uuid(as_string=True)
+cache_id = sc.uuid(as_string=True)
 proj = demoproj(proj_id, user.username, which=default_which)
 
 
@@ -64,9 +65,14 @@ string = 'Starting tests for:\n  tool = %s\n  which = %s\n  user = %s\n  proj = 
 heading(string, 'big')
 
 
+if 'datastore' in torun:
+    heading('Running datastore', 'big')
+    ds = rpcs.find_datastore()
+
+
 if 'project_io' in torun:
     heading('Running project_io', 'big')
-    uid = rpcs.save_project_as_new(proj, user_id=user_id)
+    uid = rpcs.save_new_project(proj, username=user.username)
     P = rpcs.load_project_record(uid)
     print(P)
 

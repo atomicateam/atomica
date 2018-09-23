@@ -222,11 +222,14 @@ def save_new_framework(framework, username=None):
     return key,new_framework
 
 
+@RPC() # Not usually called directly
 def del_project(project_key, die=None):
-    key = datastore.getkey(key=project_key, objtype='project')
+    key = datastore.getkey(key=project_key, objtype='project', forcetype=False)
     project = load_project(key)
     user = get_user(project.webapp.username)
     output = datastore.delete(key)
+    if not output:
+        print('Warning: could not delete project %s, not found' % project_key)
     if key in user.projects:
         user.projects.remove(key)
     else:
@@ -235,16 +238,36 @@ def del_project(project_key, die=None):
     return output
 
 
+@RPC() # Not usually called directly
 def del_framework(framework_key, die=None):
-    key = datastore.getkey(key=framework_key, objtype='framework')
+    key = datastore.getkey(key=framework_key, objtype='framework', forcetype=False)
     framework = load_framework(key)
     user = get_user(framework.webapp.username)
     output = datastore.delete(key)
+    if not output:
+        print('Warning: could not delete framework %s, not found' % framework_key)
     if key in user.frameworks:
         user.frameworks.remove(key)
     else:
         print('Warning: deleting framework %s (%s), but not found in user "%s" frameworks' % (framework.name, key, user.username))
     datastore.saveuser(user)
+    return output
+
+@RPC()
+def del_result(result_key, project_key, die=None):
+    key = datastore.getkey(key=result_key, objtype='result', forcetype=False)
+    output = datastore.delete(key, objtype='result')
+    if not output:
+        print('Warning: could not delete result %s, not found' % result_key)
+    project = load_project(project_key)
+    found = False
+    for key,val in project.results.items():
+        if result_key in [key, val]: # Could be either, depending on results caching
+            project.results.pop(key) # Remove it
+            found = True
+    if not found:
+        print('Warning: deleting result %s (%s), but not found in project "%s"' % (result_key, project_key))
+    if found: save_project(project) # Only save if required
     return output
 
 
@@ -1437,7 +1460,8 @@ def run_optimization(project_id, cache_id, optim_name=None, plot_options=None, m
 ### Results RPCs
 ##################################################################################
 
-def cache_result(project=None, result=None, key=None, die=False):
+def cache_result(project=None, result=None, key=None, die=False, verbose=False):
+    if verbose: print('Cache result inputs:\nProject:\n%s\nResult:\n%s\nKey:\n%s' % (project, result, key))
     if not sc.isstring(result):
         result_key = save_result(result, key=key)
         if result_key != key:
