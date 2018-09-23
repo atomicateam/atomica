@@ -39,12 +39,13 @@ def run_cascade_optimization(project_id, cache_id, optim_name=None, plot_options
     print('Running optimization...')
     sc.printvars(locals(), ['project_id', 'optim_name', 'plot_options', 'maxtime', 'tool', 'plotyear', 'pops', 'cascade', 'dosave'], color='blue')
     datastore = rpcs.find_datastore(config=config)
-    orig_proj = rpcs.load_project(project_id)
-    results = orig_proj.run_optimization(optim_name, maxtime=float(maxtime), store_results=False)
-    proj = rpcs.load_project(project_id) # Reload the project in case it's changed in the mean time
-    rpcs.cache_result(project=proj, result=results, key=cache_id)
-    output = rpcs.make_plots(proj, results, tool='cascade', year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, plot_budget=True)
-    return output
+    origproj = rpcs.load_project(project_id)
+    results = origproj.run_optimization(optim_name, maxtime=float(maxtime), store_results=False)
+    newproj = datastore.loadblob(uid=project_id, objtype='project', die=True)
+#    newproj.results[cache_id] = results
+    newproj = rpcs.cache_result(newproj, results, cache_id)
+    key = datastore.saveblob(uid=project_id, objtype='project', obj=newproj)
+    return key
 
 
 # Add the asynchronous task functions in this module to the tasks.py module so run_task() can call them.

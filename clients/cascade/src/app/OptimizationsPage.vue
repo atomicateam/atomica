@@ -49,7 +49,7 @@ Last update: 2018-09-12
             </td>
             <td style="white-space: nowrap">
               <button class="btn __green" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 3600)">Run</button>
-              <button class="btn __green" :disabled="!canPlotResults(optimSummary)" @click="{displayResultName = optimSummary.name; displayResultDatastoreId = optimSummary.serverDatastoreId; reloadGraphs(optimSummary.serverDatastoreId, true)}">Plot results</button>
+              <button class="btn __green" :disabled="!canPlotResults(optimSummary)" @click="plotResults(optimSummary)">Plot results</button>
               <button class="btn" :disabled="!canRunTask(optimSummary)" @click="runOptim(optimSummary, 10)">Test run</button>
               <button class="btn" :disabled="!canCancelTask(optimSummary)" @click="clearTask(optimSummary)">Clear run</button>
               <button class="btn btn-icon" @click="editOptim(optimSummary)" data-tooltip="Edit optimization"><i class="ti-pencil"></i></button>
@@ -709,6 +709,12 @@ Last update: 2018-09-12
           .catch(error => {
             status.fail(this, 'Could not save optimizations', error)
           })
+      },
+
+      plotResults(optimSummary) {
+        this.displayResultName = optimSummary.name;
+        this.displayResultDatastoreId = optimSummary.serverDatastoreId;
+        reloadGraphs(optimSummary.serverDatastoreId, true)
       },
 
     }
