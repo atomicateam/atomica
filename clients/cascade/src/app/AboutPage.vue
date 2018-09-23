@@ -1,7 +1,7 @@
 <!--
 About page
 
-Last update: 2018sep09
+Last update: 2018sep23
 -->
 
 <template>
@@ -24,32 +24,6 @@ Last update: 2018sep09
         <a href="http://www.ocds.co">Optima Consortium for Decision Science</a>.
       </p>
 
-    <p>Technical information:</p>
-
-    <div class="divTable">
-      <div class="divTableBody">
-        <div class="divTableRow">
-          <div class="divRowLabel">Version </div>
-          <div class="divRowContent">{{ version }}</div>
-        </div>
-        <div class="divTableRow">
-          <div class="divRowLabel">Date </div>
-          <div class="divRowContent">{{ date }}</div>
-        </div>
-        <div class="divTableRow">
-          <div class="divRowLabel">Branch </div>
-          <div class="divRowContent">{{ gitbranch }}</div>
-        </div>
-        <div class="divTableRow">
-          <div class="divRowLabel">Hash </div>
-          <div class="divRowContent">{{ githash }}</div>
-        </div>
-        <div class="divTableRow">
-          <div class="divRowLabel">Timestamp </div>
-          <div class="divRowContent">{{ gitdate }}</div>
-        </div>
-      </div>
-    </div>
       <br/>
       <br/>
       <div class="divTable" style="width:100%">
@@ -67,41 +41,3 @@ Last update: 2018sep09
     </div>
   </div>
 </template>
-
-
-<script>
-  import rpcs from '@/js/rpc-service'
-  import router from '@/router'
-
-  export default {
-    name: 'About',
-
-    data () {
-      return {
-        version: '',
-        date: '',
-        gitbranch: '',
-        githash: '',
-        gitdate: '',
-      }
-    },
-
-    computed: {
-      getVersionInfo() {
-        rpcs.rpc('get_version_info')
-          .then(response => {
-            this.version = response.data['version'];
-            this.date = response.data['date'];
-            this.gitbranch = response.data['gitbranch'];
-            this.githash = response.data['githash'];
-            this.gitdate = response.data['gitdate'];
-          })
-      },
-    },
-  }
-</script>
-
-
-<!-- Add "scoped" attribute to limit CSS to this component only -->
-<style scoped>
-</style>
