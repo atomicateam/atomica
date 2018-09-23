@@ -35,9 +35,9 @@ celery_instance = sw.make_celery(config=config) # Create the Celery instance for
 
 
 @async_task
-def run_tb_optimization(project_id, cache_id, optim_name=None, plot_options=None, maxtime=None, tool=None, plotyear=None, pops=None, cascade=None, dosave=True, online=True):
+def run_tb_optimization(project_id, cache_id, optim_name=None, plot_options=None, maxtime=None, tool=None, plotyear=None, pops=None, cascade=None, dosave=True):
     print('Running optimization...')
-    sc.printvars(locals(), ['project_id', 'optim_name', 'plot_options', 'maxtime', 'tool', 'plotyear', 'pops', 'cascade', 'dosave', 'online'], color='blue')
+    sc.printvars(locals(), ['project_id', 'optim_name', 'plot_options', 'maxtime', 'tool', 'plotyear', 'pops', 'cascade', 'dosave'], color='blue')
     datastore = rpcs.find_datastore(config=config)
     proj = datastore.loadblob(uid=project_id, objtype='project', die=True) # WARNING, rpcs.load_project() cause(d) crash
     results = proj.run_optimization(optim_name, maxtime=float(maxtime), store_results=False)
@@ -45,7 +45,7 @@ def run_tb_optimization(project_id, cache_id, optim_name=None, plot_options=None
     newproj.results[cache_id] = results
     newproj = rpcs.cache_results(newproj) # WARNING, causes crash
     key = datastore.saveblob(uid=project_id, objtype='project', obj=newproj)
-    output = rpcs.make_plots(newproj, results, tool='cascade', year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, online=online, plot_budget=True)
+    output = rpcs.make_plots(newproj, results, tool='cascade', year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, plot_budget=True)
     return output
 
 

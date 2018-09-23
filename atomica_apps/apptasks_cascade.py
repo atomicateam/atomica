@@ -35,15 +35,15 @@ celery_instance = sw.make_celery(config=config) # Create the Celery instance for
 
 
 @async_task
-def run_cascade_optimization(project_id, cache_id, optim_name=None, plot_options=None, maxtime=None, tool=None, plotyear=None, pops=None, cascade=None, dosave=True, online=True):
+def run_cascade_optimization(project_id, cache_id, optim_name=None, plot_options=None, maxtime=None, tool=None, plotyear=None, pops=None, cascade=None, dosave=True):
     print('Running optimization...')
-    sc.printvars(locals(), ['project_id', 'optim_name', 'plot_options', 'maxtime', 'tool', 'plotyear', 'pops', 'cascade', 'dosave', 'online'], color='blue')
+    sc.printvars(locals(), ['project_id', 'optim_name', 'plot_options', 'maxtime', 'tool', 'plotyear', 'pops', 'cascade', 'dosave'], color='blue')
     datastore = rpcs.find_datastore(config=config)
     orig_proj = rpcs.load_project(project_id)
     results = orig_proj.run_optimization(optim_name, maxtime=float(maxtime), store_results=False)
     proj = rpcs.load_project(project_id) # Reload the project in case it's changed in the mean time
     rpcs.cache_result(project=proj, result=results, key=cache_id)
-    output = rpcs.make_plots(proj, results, tool='cascade', year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, online=online, plot_budget=True)
+    output = rpcs.make_plots(proj, results, tool='cascade', year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, plot_budget=True)
     return output
 
 
