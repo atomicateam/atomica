@@ -1386,6 +1386,7 @@ def run_optimization(project_id, cache_id, optim_name=None, plot_options=None, m
     results = proj.run_optimization(optim_name, maxtime=float(maxtime), store_results=False)
     put_results_cache_entry(cache_id, results) # Put the results into the ResultsCache.
     output = make_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, plot_budget=True) # Plot the results.   
+    save_project(proj)
     return output
 
 
@@ -1419,28 +1420,21 @@ def retrieve_results(proj, verbose=True):
 def plot_results(project_id, cache_id, plot_options, tool=None, plotyear=None, pops=None, cascade=None, dosave=True, plotbudget=False, calibration=False):
     print('Plotting cached results...')
     proj = load_project(project_id, die=True)
-
-    # Load the results from the cache and check if we got a result.
-    results = fetch_results_cache_entry(cache_id)
+    results = load_result(cache_id) # Load the results from the cache and check if we got a result.
     if results is None:
         return { 'error': 'Failed to load plot results from cache' }
-    
     output = make_plots(proj, results, tool=tool, year=plotyear, pops=pops, cascade=cascade, plot_options=plot_options, dosave=dosave, plot_budget=plotbudget, calibration=calibration)
     return output
     
 
 @RPC(call_type='download')
-def export_results(cache_id):
+def export_results(cache_id, username):
     print('Exporting results...')
-    
-    # Load the result from the cache and check if we got a result.
-    resultset = fetch_results_cache_entry(cache_id)
-    if resultset is None:
+    results = load_result(cache_id) # Load the result from the cache and check if we got a result.
+    if results is None:
         return { 'error': 'Failed to load plot results from cache' }
-
-    dirname = sw.globalvars.downloads_dir.dir_path 
     file_name = 'results.zip'
-    full_file_name = os.path.join(dirname, file_name)
-    au.export_results(resultset, full_file_name)
+    full_file_name = get_path(file_name, username=username)
+    au.export_results(results, full_file_name)
     print(">> export_results %s" % (full_file_name))
     return full_file_name # Return the filename  
