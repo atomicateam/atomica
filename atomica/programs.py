@@ -731,7 +731,8 @@ class ProgramSet(NamedItem):
                 spending = alloc[prog.name]
             else:
                 spending = None
-            num_covered[prog.name] = prog.get_num_covered(year=year, budget=spending, capacity=capacity, unit_cost=unit_cost,sample=sample)
+
+            num_covered[prog.name] = prog.get_num_covered(year=year, budget=spending, unit_cost=unit_cost, capacity=capacity, sample=sample)
 
         return num_covered
 
