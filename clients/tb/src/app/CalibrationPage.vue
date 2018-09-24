@@ -62,9 +62,7 @@ Last update: 2018-09-06
         </div>
 
         <div class="controls-box">
-          <button class="btn" @click="notImplemented()">
-            Reconcile
-          </button>&nbsp;
+          <button class="btn" @click="reconcile()">Reconcile</button>&nbsp;
           <help reflink="reconciliation"></help>
         </div>
       </div>
@@ -544,6 +542,18 @@ Last update: 2018-09-06
           .catch(error => {
             console.log(error.message)
             status.fail(this, 'Could not run automatic calibration', error)
+          })
+      },
+
+      reconcile() {
+        console.log('reconcile() called for ' + this.activeParset)
+        status.start(this)
+        rpcs.download('reconcile', [this.projectID, this.activeParset]) // Have the server copy the project, giving it a new name.
+          .then(response => { // Indicate success.
+            status.succeed(this, '')  // No green popup message.
+          })
+          .catch(error => {
+            status.fail(this, 'Could not reconcile program set', error)
           })
       },
     }
