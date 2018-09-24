@@ -14,6 +14,7 @@ import psutil
 import numpy as np
 import pylab as pl
 import mpld3
+import re
 import sciris as sc
 import scirisweb as sw
 import atomica.ui as au
@@ -1544,8 +1545,71 @@ def get_default_programs():
     for key in default_progset.programs.keys():
         prog_label = default_progset.programs[key].label
         if '[inactive]' in prog_label:
-            progs[prog_label.replace('[inactive]','').strip()] = 0
+            progs[prog_label.replace('[inactive]','').strip()] = False
         else:
-            progs[prog_label.strip()] = 1
+            progs[prog_label.strip()] = True
 
-    return progs
+    return progs, default_progset
+
+def make_default_progbook(proj, program_years=None, active_progs=None):
+    # INPUTS
+    # - proj : a project
+    # - program_years : a two-element range (inclusive) of years for data entry e.g. [2015,2018]
+    # - active_progs : a dict of {program_label:0/1} for whether to include a program or not (obtained via get_default_programs())
+
+    default_active_progs, default_progset = get_default_programs()
+    if default_active_progs is None:
+        active_progs = default_active_progs
+
+    if program_years is None:
+        program_years = [2015,2018]
+
+    progs = sc.odict()
+    for prog in default_progset.programs.values():
+        prog.label = prog.label.replace('[inactive]','').strip()
+        if active_progs[prog.label]:
+            progs[prog.name] = prog.label
+
+    user_progset = au.ProgramSet.new(framework=proj.framework,data=proj.data,progs=progs,tvec=np.arange(program_years[0],program_years[1]+1))
+
+    # Assign a template pop to each user pop
+    # It stops after the first match, so the regex should be ordered in
+    # decreasing specificity in the template progbook
+    # Maybe don't need this?
+    pop_assignment = sc.odict() # Which regex goes with each user pop {user_pop:template:pop}
+    for user_pop in user_progset.pops:
+        for default_pop in default_progset.pops:
+            if re.match(default_pop,user_pop):
+                pop_assignment[user_pop] = default_pop
+                break
+        else:
+            pop_assignment[user_pop] = None
+
+    for prog in user_progset.programs:
+
+        u_prog = user_progset.programs[prog]
+        d_prog = default_progset.programs[prog]
+
+        # Copy target compartments
+        u_prog.target_comps = d_prog.target_comps[:] # Make a copy of the comp list (using [:], faster than dcp)
+
+        # Assign target populations
+        for user_pop in user_progset.pops:
+            if pop_assignment[user_pop] in d_prog.target_pops:
+                u_prog.target_pops.append(user_pop)
+
+        # Copy assumptions from spending data
+        u_prog.baseline_spend.assumption = d_prog.baseline_spend.assumption
+        u_prog.capacity.assumption = d_prog.capacity.assumption
+        u_prog.coverage.assumption = d_prog.coverage.assumption
+        u_prog.unit_cost.assumption = d_prog.unit_cost.assumption
+        u_prog.spend_data.assumption = d_prog.spend_data.assumption
+
+    for user_par in user_progset.pars:
+        for user_pop in user_progset.pops:
+            default_pop = pop_assignment[user_pop]
+            if (user_par,default_pop) in default_progset.covouts:
+                user_progset.covouts[(user_par,user_pop)] = sc.dcp(default_progset.covouts[(user_par,default_pop)])
+                user_progset.covouts[(user_par, user_pop)].pop = user_pop
+
+    return user_progset
