@@ -41,8 +41,8 @@ Last update: 2018sep23
         <div v-if="adv_showConsole">
           <br><br>
           <div class="controls-box">
-            <b>Authentication</b><br>
-            <input type="text"
+            <b>Token</b><br>
+            <input type="password"
                    class="txbox"
                    v-model="adv_authentication"/><br>
             <b>Query</b><br>
