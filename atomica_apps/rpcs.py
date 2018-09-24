@@ -940,12 +940,12 @@ def delete_progset(project_id, progsetname=None):
 @RPC()
 def get_default_programs():
     F = au.demo(kind='framework',which='tb')
-    # TODO - read in the pops from the defaults file instead of hard-coding them here
-    default_pops = sc.odict()
+    default_pops = sc.odict() # TODO - read in the pops from the defaults file instead of hard-coding them here
     for key in ['^0.*', '.*HIV.*', '.*[pP]rison.*', '^[^0](?!HIV)(?![pP]rison).*']:
         default_pops[key] = key
     D = au.ProjectData.new(F, tvec=np.array([0]), pops=default_pops, transfers=0)
-    default_progset = au.ProgramSet.from_spreadsheet(au.atomica_path(['tests', 'databooks']) + "progbook_tb_defaults.xlsx",framework=F,data=D)
+    spreadsheetpath = au.atomica_path(['tests', 'databooks']) + "progbook_tb_defaults.xlsx"
+    default_progset = au.ProgramSet.from_spreadsheet(spreadsheetpath, framework=F, data=D)
 
     progs = sc.odict()
     for key in default_progset.programs.keys():
@@ -958,7 +958,7 @@ def get_default_programs():
     return progs
 
 
-@RPC()
+@RPC(call_type='download')
 def make_default_progbook(proj, program_years=None, active_progs=None):
     # INPUTS
     # - proj : a project
