@@ -65,4 +65,4 @@ BROKER_URL = REDIS_URL
 CELERY_RESULT_BACKEND = REDIS_URL
 
 # Slack logging configuration
-SLACK = {'to':'webapp-logs', 'from':'tb-bot', 'token':'~/.slackurl'}
+SLACK = {'to':'webapp-logs', 'from':'tb-bot'}
