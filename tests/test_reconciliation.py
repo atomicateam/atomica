@@ -1,6 +1,6 @@
 import atomica.ui as au
 
-which = ['tb','tb_simple'][1]
+which = ['tb','tb_simple'][0]
 if which == 'tb':
     par_name = 'v_rate'
     pop_name = '0-4'
@@ -8,7 +8,7 @@ elif which == 'tb_simple':
     par_name = 'vac_rate'
     pop_name = 'adults'
 
-P = au.demo(which='tb_simple',do_run=False)
+P = au.demo(which=which, do_run=False)
 
 # Test single year reconciliation
 program_start_year = 2018.

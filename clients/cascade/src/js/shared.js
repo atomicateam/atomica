@@ -53,12 +53,12 @@ function updateSets(vm) {
 function exportGraphs(vm) {
   return new Promise((resolve, reject) => {
     console.log('exportGraphs() called')
-    rpcs.download('download_graphs', [])
+    rpcs.download('download_graphs', [vm.$store.state.currentUser.username])
       .then(response => {
         resolve(response)
       })
       .catch(error => {
-        status.failurePopup(vm, 'Could not download graphs: ' + error.message)
+        status.fail(vm, 'Could not download graphs', error)
         reject(error)
       })
   })
@@ -67,12 +67,12 @@ function exportGraphs(vm) {
 function exportResults(vm, serverDatastoreId) {
   return new Promise((resolve, reject) => {
     console.log('exportResults()')
-    rpcs.download('export_results', [serverDatastoreId])
+    rpcs.download('export_results', [serverDatastoreId, vm.$store.state.currentUser.username])
       .then(response => {
         resolve(response)
       })
       .catch(error => {
-        status.failurePopup(vm, 'Could not export results: ' + error.message)
+        status.fail(vm, 'Could not export results', error)
         reject(error)
       })
   })

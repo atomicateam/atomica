@@ -21,7 +21,7 @@ Methods for structure lists:
     3. copy -- copy a structure in the odict
     4. rename -- rename a structure in the odict
 
-Version: 2018jul29
+Version: 2018sep24
 """
 
 from .version import version
@@ -32,14 +32,14 @@ from .model import run_model
 from .parameters import ParameterSet
 
 from .programs import ProgramSet, ProgramInstructions
-from .scenarios import ParameterScenario
-from .optimization import optimize, OptimInstructions, InvalidInitialConditions
+from .scenarios import Scenario, ParameterScenario
+from .optimization import Optimization, optimize, OptimInstructions, InvalidInitialConditions
 from .system import logger, AtomicaException
 from .scenarios import BudgetScenario
 from .cascade import get_cascade_outputs
 from .utils import NDict
 from .plotting import PlotData, plot_series
-from .results import evaluate_plot_string
+from .results import Result, evaluate_plot_string
 import sciris as sc
 import numpy as np
 from .excel import AtomicaSpreadsheet
@@ -106,6 +106,7 @@ class Project(object):
         self.gitinfo = sc.gitinfo(__file__)
         self.created = sc.now()
         self.modified = sc.now()
+        self.filename = None
 
         self.progbook = None # This will contain an AtomicaSpreadsheet when the user loads one
         self.settings = ProjectSettings(**kwargs) # Global settings
@@ -264,41 +265,72 @@ class Project(object):
 #    #######################################################################################################
 #    ### Utilities
 #    #######################################################################################################
-#
-#    def restorelinks(self):
-#        ''' Loop over all objects that have links back to the project and restore them '''
-#        for item in self.parsets.values()+self.progsets.values()+self.scens.values()+self.optims.values()+self.results.values():
-#            if hasattr(item, 'projectref'):
-#                item.projectref = Link(self)
-#        return None
-#
 
     def parset(self, key=None, verbose=2):
-        ''' Shortcut for getting the latest parset '''
+        ''' Shortcut for getting a parset '''
         if key is None: key = -1
-        try:    return self.parsets[key]
-        except: return sc.printv('Warning, parset "%s" not found!' %key, 1, verbose) # Returns None
+        if isinstance(key, ParameterSet):
+            return key # It's already a parameter set, do nothing
+        else:
+            try:    
+                return self.parsets[key]
+            except: 
+                sc.printv('Warning, parset "%s" not found!' % key, 1, verbose)
+                return None
+
 
     def progset(self, key=None, verbose=2):
-        ''' Shortcut for getting the latest progset '''
+        ''' Shortcut for getting a progset '''
         if key is None: key = -1
-        try:    return self.progsets[key]
-        except: return sc.printv('Warning, progset "%s" not found!' %key, 1, verbose) # Returns None
+        if isinstance(key, ProgramSet):
+            return key # It's already a program set, do nothing
+        else:
+            try:    
+                return self.progsets[key]
+            except: 
+                sc.printv('Warning, progset "%s" not found!' % key, 1, verbose)
+                return None
+
 
     def scen(self, key=None, verbose=2):
-        ''' Shortcut for getting the latest scenario '''
+        ''' Shortcut for getting a scenario '''
         if key is None: key = -1
-        try:    return self.scens[key]
-        except: return sc.printv('Warning, scenario "%s" not found!' %key, 1, verbose) # Returns None
+        if isinstance(key, Scenario):
+            return key # It's already a scenario, do nothing
+        else:
+            try:    
+                return self.scens[key]
+            except: 
+                sc.printv('Warning, scenario "%s" not found!' % key, 1, verbose)
+                return None
 
     def optim(self, key=None, verbose=2):
-        ''' Shortcut for getting the latest optim '''
+        ''' Shortcut for getting an optimization '''
         if key is None: key = -1
-        try:    return self.optims[key]
-        except: return sc.printv('Warning, optim "%s" not found!' %key, 1, verbose) # Returns None
+        if isinstance(key, Optimization):
+            return key # It's already an optimization, do nothing
+        else:
+            try:    
+                return self.optims[key]
+            except: 
+                sc.printv('Warning, scenario "%s" not found!' % key, 1, verbose)
+                return None
+
 
     def result(self, key=None, verbose=2):
-        ''' Shortcut for getting the latest result '''
+        ''' Shortcut for getting an result -- a little special since they don't have a fixed type '''
+        if key is None: key = -1
+        if not sc.isstring(key) and not sc.isnumber(key) and not isinstance(key, tuple):
+            if not isinstance(key, [Result, list, sc.odict]):
+                print('Warning: result "%s" is of unexpected type: "%s"' % (key, type(key)))
+            return key # It's not something that looks like a key
+        else:
+            try:    
+                return self.scens[key]
+            except: 
+                sc.printv('Warning, scenario "%s" not found!' % key, 1, verbose)
+                return None
+        
         if key is None: key = -1
         try:    return self.results[key]
         except: return sc.printv('Warning, results "%s" not found!' %key, 1, verbose) # Returns None
@@ -348,7 +380,7 @@ class Project(object):
         An optional program set and use instructions can be passed in to simulate budget-based interventions.
         """
 
-        parset = parset if isinstance(parset,ParameterSet) else self.parset(parset)
+        parset = self.parset(parset)
         if progset is not None:     # Do not grab a default program set in case one does not exist.
             progset = progset if isinstance(progset, ProgramSet) else self.progset(progset)
 
@@ -446,32 +478,33 @@ class Project(object):
     def run_optimization(self, optimname=None, maxtime=None, maxiters=None, store_results=True):
         '''Run an optimization'''
         optim_ins = self.optim(optimname)
-        optim, progset_instructions = optim_ins.make(project=self)
+        optim, unoptimized_instructions = optim_ins.make(project=self)
         if maxtime is not None: optim.maxtime = maxtime
         if maxiters is not None: optim.maxiters = maxiters
         parset = self.parset(optim.parsetname)
         progset = self.progset(optim.progsetname)
         original_end = self.settings.sim_end
-        self.settings.sim_end = optim_ins.json['end_year']
+        self.settings.sim_end = optim_ins.json['end_year'] # Simulation should be run up to the user's end year
         try:
-            optimized_instructions = optimize(self, optim, parset, progset, progset_instructions)
+            optimized_instructions = optimize(self, optim, parset, progset, unoptimized_instructions)
         except InvalidInitialConditions:
             if optim_ins.json['optim_type'] == 'money':
                 raise AtomicaException('It was not possible to achieve the optimization target even with an increased budget. Specify or raise upper limits for spending, or decrease the optimization target')
             else:
                 raise # Just raise it as-is
 
-        optimized_result   = self.run_sim(parset=parset,           progset=progset,           progset_instructions=optimized_instructions,                                       result_name="Optimized", store_results=store_results)
-        unoptimized_result = self.run_sim(parset=optim.parsetname, progset=optim.progsetname, progset_instructions=ProgramInstructions(start_year=optim_ins.json['start_year']), result_name="Baseline", store_results=store_results)
-        self.settings.sim_end = original_end
+        optimized_result   = self.run_sim(parset=parset, progset=progset, progset_instructions=  optimized_instructions, result_name="Optimized", store_results=store_results)
+        unoptimized_result = self.run_sim(parset=parset, progset=progset, progset_instructions=unoptimized_instructions, result_name="Baseline" , store_results=store_results)
+        self.settings.sim_end = original_end # Note that if the end year is after the original simulation year, the result won't be visible (although it will have been optimized for)
         results = [unoptimized_result, optimized_result]
         return results
 
-    def save(self, filepath):
+    def save(self, filename=None, folder=None):
         """ Save the current project to a relevant object file. """
-        filepath = sc.makefilepath(filename=filepath, ext='prj',sanitize=True)  # Enforce file extension.
-        sc.saveobj(filepath, self)
-        return None
+        fullpath = sc.makefilepath(filename=filename, folder=folder, default=[self.filename, self.name], ext='prj', sanitize=True)
+        self.filename = fullpath
+        sc.saveobj(fullpath, self)
+        return fullpath
 
     @staticmethod
     def load(filepath):
@@ -511,27 +544,30 @@ class Project(object):
         else:
             return json1
 
-    def demo_optimization(self, dorun=False, tool=None, optim_type='epi'):
+    def demo_optimization(self, dorun=False, tool=None, optim_type=None):
         # INPUTS
         # - dorun : If True, runs optimization immediately
         # - tool : Choose optimization objectives based on whether tool is 'cascade' or 'tb'
-        # - optim_type : set to 'epi' or 'money' - use 'money' to minimize money
+        # - optim_type : set to 'outcome' or 'money' - use 'money' to minimize money
         #
         # Note that if optim_type='money' then the optimization 'weights' entered in the FE are
         # actually treated as relative scalings for the minimization target. e.g. If ':ddis' has a weight
-        # of 25, this is a objective weight factor for optim_type='epi' but it means 'we need to reduce
+        # of 25, this is a objective weight factor for optim_type='outcome' but it means 'we need to reduce
         # deaths by 25%' if optim_type='money' (since there is no weight factor for the minimize money epi targets)
-        assert optim_type in ['epi','money']
+        if optim_type is None: optim_type = 'outcome'
+        assert optim_type in ['outcome','money']
         if tool is None: tool = 'cascade'
         json = sc.odict()
-        json['name']              = 'Default optimization'
+        if   optim_type == 'outcome': json['name'] = 'Default outcome optimization'
+        elif optim_type == 'money':   json['name'] = 'Default money optimization'
         json['parset_name']       = -1
         json['progset_name']      = -1
-        json['start_year']        = 2018
-        json['end_year']          = 2035
+        json['start_year']        = self.data.end_year
+        json['end_year']          = self.settings.sim_end
         json['budget_factor']     = 1.0
         json['optim_type']        = optim_type
         json['tool']              = tool
+        json['method']            = 'asd' # Note: may want to change this if PSO is improved
 
         if tool == 'cascade':
             json['objective_weights'] = sc.odict()
@@ -540,7 +576,7 @@ class Project(object):
             for cascade_name in self.framework.cascades:
                 cascade = get_cascade_outputs(self.framework,cascade_name)
 
-                if optim_type == 'epi':
+                if optim_type == 'outcome':
                     json['objective_weights']['conversion:%s' % (cascade_name)] = 1.
                 elif optim_type == 'money':
                     json['objective_weights']['conversion:%s' % (cascade_name)] = 0.
@@ -558,7 +594,7 @@ class Project(object):
                     assert ':' not in stage_name
                     objective_name = 'cascade_stage:%s:%s' % (cascade_name,stage_name)
 
-                    if optim_type == 'epi':
+                    if optim_type == 'outcome':
                         json['objective_weights'][objective_name] = 1
                     elif optim_type == 'money':
                         json['objective_weights'][objective_name] = 0
@@ -572,21 +608,29 @@ class Project(object):
 
         elif tool == 'tb':
 
-            if optim_type == 'epi':
+            if optim_type == 'outcome':
                 json['objective_weights'] = {'ddis': 1, 'acj': 1, 'ds_inf': 0, 'mdr_inf': 0,'xdr_inf': 0}  # These are TB-specific: maximize people alive, minimize people dead due to TB
+                json['objective_labels'] = {'ddis':   'Minimize TB-related deaths',
+                                'acj':    'Minimize total new active TB infections', 
+                                'ds_inf': 'Minimize prevalence of active DS-TB', 
+                                'mdr_inf':'Minimize prevalence of active MDR-TB', 
+                                'xdr_inf':'Minimize prevalence of active XDR-TB'}
+            
             elif optim_type == 'money':
                 # The weights here default to 0 because it's possible, depending on what programs are selected, that improvement
                 # in one or more of them might be impossible even with infinite money. Also, can't increase money too much because otherwise
                 # run the risk of a local minimum stopping optimization early with the current algorithm (this will change in the future)
                 json['objective_weights'] = {'ddis': 25, 'acj': 25, 'ds_inf': 25, 'mdr_inf': 25,'xdr_inf': 25}  # These are TB-specific: maximize people alive, minimize people dead due to TB
+                json['objective_labels'] = {'ddis':   'Minimize TB-related deaths',
+                                'acj':    'Total new active TB infections', 
+                                'ds_inf': 'Prevalence of active DS-TB', 
+                                'mdr_inf':'Prevalence of active MDR-TB', 
+                                'xdr_inf':'Prevalence of active XDR-TB'}
+            
             else:
                 raise AtomicaException('Unknown optim_type')
 
-            json['objective_labels'] = {'ddis':   'Minimize TB-related deaths',
-                                        'acj':    'Minimize total new active TB infections', 
-                                        'ds_inf': 'Minimize prevalence of active DS-TB', 
-                                        'mdr_inf':'Minimize prevalence of active MDR-TB', 
-                                        'xdr_inf':'Minimize prevalence of active XDR-TB'}
+
         else:
             raise AtomicaException('Tool "%s" not recognized' % tool)
         json['maxtime']           = 30 # WARNING, default!

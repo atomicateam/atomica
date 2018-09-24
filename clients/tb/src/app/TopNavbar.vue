@@ -1,7 +1,7 @@
 <!--
 Definition of top navigation bar
 
-Last update: 2018-08-30
+Last update: 2018sep23
 -->
 
 <template>
@@ -76,8 +76,10 @@ Last update: 2018-08-30
     </div>
   </nav>
 </template>
+
+
 <script>
-  import userService from '@/js/user-service'
+  import userservice from '@/js/user-service'
   import router from '@/router'
 
   export default {
@@ -93,7 +95,7 @@ Last update: 2018-08-30
     computed: {
       // Health prior function
       currentUser(){
-        return userService.currentUser()
+        return userservice.currentUser()
       },
 
       activeProjectName() {
@@ -106,8 +108,8 @@ Last update: 2018-08-30
 
       activeUserName() {
         // Get the active user name -- the display name if defined; else the user name
-        var username = userService.currentUser().username;
-        var dispname = userService.currentUser().displayname;
+        var username = userservice.currentUser().username;
+        var dispname = userservice.currentUser().displayname;
         var userlabel = '';
         if (dispname === undefined || dispname === '') {
           userlabel = username;
@@ -126,7 +128,7 @@ Last update: 2018-08-30
 
     // Health prior function
     created() {
-      userService.getUserInfo()
+      userservice.getUserInfo()
     },
 
     // Theme function
@@ -138,15 +140,15 @@ Last update: 2018-08-30
     methods: {
       // Health prior functions
       checkLoggedIn() {
-        userService.checkLoggedIn
+        userservice.checkLoggedIn
       },
 
       checkAdminLoggedIn() {
-        userService.checkAdminLoggedIn
+        userservice.checkAdminLoggedIn
       },
 
       logOut() {
-        userService.logOut()
+        userservice.logOut()
       },
 
       // Theme functions

@@ -109,7 +109,6 @@
     > li > a:not(.btn):focus {
       background: $main-color;
       color: white;
-      border: 1px solid $main-color;
       @include opacity(1);
     }
 
