@@ -229,7 +229,7 @@ def reconcile(project, parset, progset, reconciliation_year, max_time=10, unit_c
 
     # Do a prerun to get the baseline values and coverage denominator
     parset_results = project.run_sim(parset=parset, store_results=False)
-    ti = np.where((parset_results.model.t >= eval_range[0]) & (parset_results.model.t <= eval_range[1]))[0]
+    ti = np.where((parset_results.model.t >= eval_range[0]) & (parset_results.model.t < eval_range[1]))[0]
     eval_years = parset_results.t[ti]
     target_vals, coverage_denominator, par_covered = _extract_targets(parset_results,progset,ti,eval_pars)
 
