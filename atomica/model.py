@@ -1197,24 +1197,25 @@ class Model(object):
 
         if do_program_overwrite:
             # Compute the fraction covered
-            num_covered  = sc.odict([(pop.name, sc.odict([(k, v[ti]) for k,v in self._program_cache['coverage'].iteritems()])) for pop in self.pops]) 
+            num_covered  = sc.odict([(k,v[ti]) for k,v in self._program_cache['coverage'].iteritems()])
             prop_covered = sc.odict.fromkeys(self._program_cache['comps'], 0.0)
             for k,comp_list in self._program_cache['comps'].items():
                 n = 0.0
-                pop_n = sc.odict([(pop.name, 0.) for pop in self.pops])
-                
                 for comp in comp_list:
                     n += comp.vals[ti]
-                    pop_n[comp.pop.name] += comp.vals[ti]
                 if n:
                     prop_covered[k] = np.minimum(self._program_cache['coverage'][k][ti] / n, 1.)
-                    for pop in self.pops:
-                        num_covered[pop.name][k] = prop_covered[k]*pop_n[pop.name]
                 else:
                     prop_covered[k] = 1.
 
+            par_covered = dict()
+            for par_name in self.progset.pars:
+                for pop in self.pops:
+                    par = pop.get_par(par_name)
+                    par_covered[(par_name,pop.name)] = par.source_popsize(ti)
+
             # Compute the updated program values
-            prog_vals = self.progset.get_outcomes(num_covered=num_covered, prop_covered=prop_covered)
+            prog_vals = self.progset.get_outcomes(num_covered=num_covered, prop_covered=prop_covered, par_covered=par_covered)
 
         for par_name in self._par_list:
             # All of the parameters with this name, across populations.

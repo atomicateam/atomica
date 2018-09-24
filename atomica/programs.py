@@ -768,7 +768,7 @@ class ProgramSet(NamedItem):
         else:
             return self.get_num_covered(year=year, unit_cost=unit_cost, capacity=capacity, alloc=alloc, sample=sample)
 
-    def get_outcomes(self, num_covered=None, prop_covered=None):
+    def get_outcomes(self,num_covered=None, prop_covered=None, par_covered=None):
         ''' Get a dictionary of parameter values associated with coverage levels'''
         # TODO - add sampling back in once we've decided how to do it
         # INPUTS
@@ -783,13 +783,28 @@ class ProgramSet(NamedItem):
                     errormsg = 'Expecting coverage to be a proportion, value for entry %s is %s' % (covkey, item)
                     raise AtomicaException(errormsg)
 
+        # The covout is specific to a par-pop combination
+        # The program coverage needs to be rescaled in the same proportion as the source popsizes
+        # i.e. suppose a program targets pars A and B in pops 1 and 2
+        # If the program has coverage of 100, and par A reaches (200,300) and par B reaches (400,500) then we would allocate:
+        # 100* (200/1400, 300/1400, 400/1400, 500/1400)
+        # So - the denominator is at the _program_ level
+        prog_denominator = dict()
+
+
+        for k,v in par_covered:
+            if k[]
+        for prog in self.programs:
+            num_covered[prog][0]
+
+
         # Initialise output
         outcomes = dict()
         for covout in self.covouts.values():
             pop_num_covered = num_covered[covout.pop]
             for covkey in prop_covered.keys(): # Ensure coverage level values are arrays
                 pop_num_covered[covkey] = sc.promotetoarray(pop_num_covered[covkey])
-            outcomes[(covout.par,covout.pop)] = covout.get_outcome(num_covered=pop_num_covered, prop_covered=prop_covered)
+            outcomes[(covout.par,covout.pop)] = covout.get_outcome(num_covered=covout_num_covered, prop_covered=prop_covered)
         return outcomes
 
 #--------------------------------------------------------------------
