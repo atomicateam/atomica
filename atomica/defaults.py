@@ -30,7 +30,10 @@ def default_framework(which=None, show_options=False):
                     ('hypertension_dyn',  'Hypertension with demography'),
                     ('service',  'Service delivery'),
                     ('hiv',      'HIV care cascade'),  
-                    ('tb',       'Tuberculosis'),  
+                    ('hiv_dyn',  'HIV care cascade with demography'),  
+                    ('tb_simple',       'Tuberculosis'),  
+                    ('tb_simple_dyn',       'Tuberculosis with demography'),  
+                    ('tb',       'Tuberculosis with transmission dynamics'),  
                     ])
                              
     if which is None:
@@ -57,8 +60,9 @@ def default_project(which=None, do_run=True, addprogs=True, verbose=False, show_
     """
     
     options = sc.odict([
-                    ('udt',          'Undiagnosed-diagnosed-treated cascade (1 population)'),
-                    ('usdt',         'Undiagnosed-screened-diagnosed-treated cascade (1 population)'),
+                    ('udt','Undiagnosed-diagnosed-treated cascade (1 population)'),
+                    ('udt_dyn', 'Undiagnosed-diagnosed-treated cascade with demography (1 population)'),
+                    ('usdt','Undiagnosed-screened-diagnosed-treated cascade (1 population)'),
                     ('cervicalcancer','Cervical cancer cascade (1 population)'),
                     ('sir',          'SIR model (1 population)'),       
                     ('diabetes',     'Diabetes cascade (1 population)'),        
@@ -66,7 +70,10 @@ def default_project(which=None, do_run=True, addprogs=True, verbose=False, show_
                     ('hypertension', 'Hypertension cascade (4 populations)'),
                     ('hypertension_dyn', 'Hypertension cascade with demography (4 populations)'),
                     ('hiv',          'HIV care cascade (2 populations)'), 
-                    ('tb',           'Tuberculosis model (10 populations)'), 
+                    ('hiv_dyn',          'HIV care cascade with demography (2 populations)'), 
+                    ('tb_simple',       'Tuberculosis (1 population)'),  
+                    ('tb_simple_dyn',       'Tuberculosis with demography (1 population)'),  
+                    ('tb',           'Tuberculosis with transmission dynamics (10 populations)'), 
                     ])
     
     dtdict = sc.odict.fromkeys(options.keys(),1.)
