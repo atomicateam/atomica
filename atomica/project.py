@@ -493,9 +493,9 @@ class Project(object):
             else:
                 raise # Just raise it as-is
 
+        self.settings.sim_end = original_end # Note that if the end year is after the original simulation year, the result won't be visible (although it will have been optimized for)
         optimized_result   = self.run_sim(parset=parset, progset=progset, progset_instructions=  optimized_instructions, result_name="Optimized", store_results=store_results)
         unoptimized_result = self.run_sim(parset=parset, progset=progset, progset_instructions=unoptimized_instructions, result_name="Baseline" , store_results=store_results)
-        self.settings.sim_end = original_end # Note that if the end year is after the original simulation year, the result won't be visible (although it will have been optimized for)
         results = [unoptimized_result, optimized_result]
         return results
 
