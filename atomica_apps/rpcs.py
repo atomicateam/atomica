@@ -130,9 +130,9 @@ def from_number(raw, sf=3, die=False):
 
 
 @RPC()
-def run_query(authentication, query):
+def run_query(token, query):
     output = None
-    if sc.sha(authentication).hexdigest() == 'c44211daa2c6409524ad22ec9edc8b9357bccaaa6c4f0fff27350631':
+    if sc.sha(token).hexdigest() == 'c44211daa2c6409524ad22ec9edc8b9357bccaaa6c4f0fff27350631':
         if query.find('output')<0:
             raise Exception('Must define "output" in your query')
         else:
@@ -144,7 +144,8 @@ def run_query(authentication, query):
                 raise Exception(errormsg)
             return output
     else:
-        raise Exception('Authentication failed; this incident has been reported')
+        errormsg = 'Authentication failed; this incident has been reported'
+        raise Exception(errormsg)
         return None
     
 
