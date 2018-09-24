@@ -61,7 +61,8 @@ Last update: 2018-09-12
         </table>
 
         <div>
-          <button class="btn" @click="addOptimModal()">Add optimization</button>
+          <button class="btn" @click="addOptimModal('outcome')">Add outcome optimization</button>&nbsp;&nbsp;
+          <button v-if="$globaltool=='tb'" class="btn" @click="addOptimModal('money')">Add money optimization</button>
         </div>
       </div>
       <!-- ### End: optimizations card ### -->
@@ -238,18 +239,21 @@ Last update: 2018-09-12
             <input type="text"
                    class="txbox"
                    v-model="modalOptim.end_year"/><br>
-            <b>Budget factor</b><br>
-            <input type="text"
-                   class="txbox"
-                   v-model="modalOptim.budget_factor"/><br>
+            <span v-if="modalOptim.optim_type!=='money'">
+              <b>Budget factor</b><br>
+              <input type="text"
+                     class="txbox"
+                     v-model="modalOptim.budget_factor"/><br>
+            </span>
           </div>
           <br>
-          <b>Objective weights</b><br>
+          <b>Objectives</b><br>
           <table class="table table-bordered table-hover table-striped" style="width: 100%">
             <thead>
             <tr>
               <th>Objective</th>
-              <th>Weight</th>
+              <th v-if="modalOptim.optim_type=='outcome'">Weight</th>
+              <th v-if="modalOptim.optim_type=='money'">Reduction target (%)</th>
             </tr>
             </thead>
             <tbody>
@@ -390,7 +394,7 @@ Last update: 2018-09-12
                   .then(response3 => {
                     // Order doesn't matter for these.
                     this.getOptimSummaries()
-                    this.resetModal()
+                    this.resetModal(this.defaultOptim)
                   })
               })
           })
@@ -562,12 +566,12 @@ Last update: 2018-09-12
           })
       },
 
-      addOptimModal() { // Open a model dialog for creating a new project
-        console.log('addOptimModal() called');
-        this.resetModal()
-        rpcs.rpc('get_default_optim', [this.projectID, this.$globaltool])
+      addOptimModal(optim_type) { // Open a model dialog for creating a new project
+        console.log('addOptimModal() called for ' + optim_type);
+        rpcs.rpc('get_default_optim', [this.projectID, this.$globaltool, optim_type])
           .then(response => {
             this.defaultOptim = response.data // Set the optimization to what we received.
+            this.resetModal(response.data)
             this.addEditDialogMode = 'add'
             this.addEditDialogOldName = this.modalOptim.name
             this.$modal.show('add-optim');
@@ -612,7 +616,7 @@ Last update: 2018-09-12
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
           .then( response => {
             status.succeed(this, 'Optimization added')
-            this.resetModal()
+            this.resetModal(this.defaultOptim)
           })
           .catch(error => {
             status.fail(this, 'Could not add optimization', error)
@@ -621,12 +625,12 @@ Last update: 2018-09-12
 
       cancelOptim() {
         this.$modal.hide('add-optim')
-        this.resetModal()
+        this.resetModal(this.defaultOptim)
       },
 
-      resetModal() {
+      resetModal(optimData) {
         console.log('resetModal() called')
-        this.modalOptim = _.cloneDeep(this.defaultOptim)
+        this.modalOptim = _.cloneDeep(optimData)
         console.log(this.modalOptim)
       },
 
