@@ -1,6 +1,12 @@
 import ast
 import numpy as np
 
+def to_timestep(p,dt):
+    return 1.-(1.-p)**dt
+
+def to_annual(p,dt):
+    return 1-(1-p)**(1./dt)
+
 # Only calls to functions in the dict below will be permitted
 supported_functions = {
     'max':max,
@@ -11,6 +17,8 @@ supported_functions = {
     'pi':np.pi,
     'cos':np.cos,
     'sin':np.sin,
+    'to_timestep':to_timestep,
+    'to_annual':to_annual,
     }
 
 
