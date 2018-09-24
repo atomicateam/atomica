@@ -212,7 +212,7 @@ def reconcile(project,parset,progset,reconciliation_year,max_time=10,unit_cost_b
     assert len(reconciliation_year) == 1, 'Reconciliation year must be a scalar'
 
     if eval_range is None:
-        eval_range = [reconciliation_year[0],reconciliation_year[0]]
+        eval_range = [reconciliation_year[0],reconciliation_year[0]+project.settings.sim_dt]
 
     # Do a prerun to get the baseline values and coverage denominator
     parset_results = project.run_sim(parset=parset,store_results=False)
