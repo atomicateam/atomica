@@ -783,6 +783,8 @@ class ProgramSet(NamedItem):
                     errormsg = 'Expecting coverage to be a proportion, value for entry %s is %s' % (covkey, item)
                     raise AtomicaException(errormsg)
 
+        # TODO - Here is the par/pop disaggregation based on parameter coverage for the parameters actually reached
+        # Note that this does still ignore the compartment targeting
         # The covout is specific to a par-pop combination
         # The program coverage needs to be rescaled in the same proportion as the source popsizes
         # i.e. suppose a program targets pars A and B in pops 1 and 2
@@ -790,20 +792,23 @@ class ProgramSet(NamedItem):
         # 100* (200/1400, 300/1400, 400/1400, 500/1400)
         # So - the denominator is at the _program_ level
         prog_denominator = dict()
-
-
-        for k,v in par_covered:
-            if k[]
         for prog in self.programs:
-            num_covered[prog][0]
-
+            for covout in self.covouts.values():
+                if prog in covout.progs:
+                    if prog not in prog_denominator:
+                        prog_denominator[prog] = par_covered[(covout.par,covout.pop)]
+                    else:
+                        prog_denominator[prog] += par_covered[(covout.par,covout.pop)]
 
         # Initialise output
         outcomes = dict()
         for covout in self.covouts.values():
-            pop_num_covered = num_covered[covout.pop]
-            for covkey in prop_covered.keys(): # Ensure coverage level values are arrays
-                pop_num_covered[covkey] = sc.promotetoarray(pop_num_covered[covkey])
+            covout_num_covered = dict()
+            for prog in covout.progs:
+                if not prog_denominator[prog]:
+                    covout_num_covered[prog] = sc.promotetoarray(0.0)
+                else:
+                    covout_num_covered[prog] = sc.promotetoarray(num_covered[prog] * par_covered[(covout.par,covout.pop)]/prog_denominator[prog])
             outcomes[(covout.par,covout.pop)] = covout.get_outcome(num_covered=covout_num_covered, prop_covered=prop_covered)
         return outcomes
 
