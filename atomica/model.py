@@ -1208,8 +1208,14 @@ class Model(object):
                 else:
                     prop_covered[k] = 1.
 
+            par_covered = dict()
+            for par_name in self.progset.pars:
+                for pop in self.pops:
+                    par = pop.get_par(par_name)
+                    par_covered[(par_name,pop.name)] = par.source_popsize(ti)
+
             # Compute the updated program values
-            prog_vals = self.progset.get_outcomes(num_covered=num_covered, prop_covered=prop_covered)
+            prog_vals = self.progset.get_outcomes(num_covered=num_covered, prop_covered=prop_covered, par_covered=par_covered)
 
         for par_name in self._par_list:
             # All of the parameters with this name, across populations.

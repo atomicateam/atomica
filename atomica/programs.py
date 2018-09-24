@@ -768,7 +768,7 @@ class ProgramSet(NamedItem):
         else:
             return self.get_num_covered(year=year, unit_cost=unit_cost, capacity=capacity, alloc=alloc, sample=sample)
 
-    def get_outcomes(self, num_covered=None, prop_covered=None):
+    def get_outcomes(self,num_covered=None, prop_covered=None, par_covered=None):
         ''' Get a dictionary of parameter values associated with coverage levels'''
         # TODO - add sampling back in once we've decided how to do it
         # INPUTS
@@ -778,16 +778,38 @@ class ProgramSet(NamedItem):
 
         for covkey in prop_covered.keys(): # Ensure coverage level values are arrays
             prop_covered[covkey] = sc.promotetoarray(prop_covered[covkey])
-            num_covered[covkey] = sc.promotetoarray(num_covered[covkey])
             for item in prop_covered[covkey]:
                 if item<0 or item>1:
                     errormsg = 'Expecting coverage to be a proportion, value for entry %s is %s' % (covkey, item)
                     raise AtomicaException(errormsg)
 
+        # TODO - Here is the par/pop disaggregation based on parameter coverage for the parameters actually reached
+        # Note that this does still ignore the compartment targeting
+        # The covout is specific to a par-pop combination
+        # The program coverage needs to be rescaled in the same proportion as the source popsizes
+        # i.e. suppose a program targets pars A and B in pops 1 and 2
+        # If the program has coverage of 100, and par A reaches (200,300) and par B reaches (400,500) then we would allocate:
+        # 100* (200/1400, 300/1400, 400/1400, 500/1400)
+        # So - the denominator is at the _program_ level
+        prog_denominator = dict()
+        for prog in self.programs:
+            for covout in self.covouts.values():
+                if prog in covout.progs:
+                    if prog not in prog_denominator:
+                        prog_denominator[prog] = par_covered[(covout.par,covout.pop)]
+                    else:
+                        prog_denominator[prog] += par_covered[(covout.par,covout.pop)]
+
         # Initialise output
         outcomes = dict()
         for covout in self.covouts.values():
-            outcomes[(covout.par,covout.pop)] = covout.get_outcome(num_covered=num_covered, prop_covered=prop_covered)
+            covout_num_covered = dict()
+            for prog in covout.progs:
+                if not prog_denominator[prog]:
+                    covout_num_covered[prog] = sc.promotetoarray(0.0)
+                else:
+                    covout_num_covered[prog] = sc.promotetoarray(num_covered[prog] * par_covered[(covout.par,covout.pop)]/prog_denominator[prog])
+            outcomes[(covout.par,covout.pop)] = covout.get_outcome(num_covered=covout_num_covered, prop_covered=prop_covered)
         return outcomes
 
 #--------------------------------------------------------------------
@@ -988,7 +1010,7 @@ class Covout(object):
         output += sc.indent('    Programs: ', ', '.join(['%s: %s' % (key,val) for key,val in self.progs.items()]))
         output += '\n'
         return output
-
+        
     def get_outcome(self, num_covered=None, prop_covered=None):
         # num_covered and prop_covered are dicts with {prog_name:coverage} at least containing all of the
         # programs in self.progs.
@@ -1004,13 +1026,13 @@ class Covout(object):
         num_cov = np.array(num_cov)
         outcome = self.baseline # Accumulate the outcome by adding the deltas onto this
 
+#        # If the parameter is in number format, use number covered as the outcome, implicitly treating as additive
+        if self.is_num_par:   
+            return outcome + sum(num_cov*self.deltas)
+
         # If there's only one program, then just use the outcome directly
         if self.n_progs == 1:
             return outcome + cov[0]*self.deltas[0]
-
-        # If the parameter is in number format, use number covered as the outcome, implicitly treating as additive
-        if self.is_num_par:   
-            return outcome + sum(num_cov)
 
         # ADDITIVE CALCULATION
         if self.cov_interaction == 'additive':

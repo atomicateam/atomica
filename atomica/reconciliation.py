@@ -32,7 +32,15 @@ def _extract_targets(result, progset, ti, eval_pars=None):
                 else:
                     coverage_denominator[prog.name] += result.get_variable(pop_name, comp_name)[0].vals[ti]
 
-    return target_vals, coverage_denominator
+    # TODO - this probably doesn't work for multiple time indexes?
+    # Need to refactor properly
+    par_covered = dict()
+    for par_name in result.model.progset.pars:
+        for pop in result.model.pops:
+            par = pop.get_par(par_name)
+            par_covered[(par_name, pop.name)] = par.source_popsize(ti)
+
+    return target_vals, coverage_denominator, par_covered
 
 def _update_progset(asd_vals,mapping,progset):
     # Updates progset in place, inserting values
@@ -211,6 +219,8 @@ def reconcile(project, parset, progset, reconciliation_year, max_time=10, unit_c
     parset  = project.parset(parset)
     progset = project.progset(progset)
 
+    logger.warning('Reconcilation when parameter is in number units not fully tested')
+
     reconciliation_year = sc.promotetoarray(reconciliation_year)
     assert len(reconciliation_year) == 1, 'Reconciliation year must be a scalar'
 
@@ -221,7 +231,7 @@ def reconcile(project, parset, progset, reconciliation_year, max_time=10, unit_c
     parset_results = project.run_sim(parset=parset, store_results=False)
     ti = np.where((parset_results.model.t >= eval_range[0]) & (parset_results.model.t <= eval_range[1]))[0]
     eval_years = parset_results.t[ti]
-    target_vals, coverage_denominator = _extract_targets(parset_results,progset,ti,eval_pars)
+    target_vals, coverage_denominator, par_covered = _extract_targets(parset_results,progset,ti,eval_pars)
 
     # Prepare ASD inputs
     new_progset = _convert_to_single_year(progset,reconciliation_year[0])
@@ -236,6 +246,7 @@ def reconcile(project, parset, progset, reconciliation_year, max_time=10, unit_c
         'eval_years': eval_years,
         'target_vals': target_vals,
         'coverage_denominator': coverage_denominator,
+        'par_covered':par_covered,
     }
 
     optim_args = {
@@ -267,8 +278,8 @@ def reconcile(project, parset, progset, reconciliation_year, max_time=10, unit_c
     old_prop_coverage = progset.get_coverage(year=eval_years, denominator=coverage_denominator)
     new_prop_coverage = new_progset.get_coverage(year=eval_years, denominator=coverage_denominator)
     for i,year in enumerate(eval_years):
-        old_outcomes = progset.get_outcomes(num_covered={prog: cov[i] for prog, cov in old_num_coverage.items()},prop_covered={prog: cov[i] for prog, cov in old_prop_coverage.items()})  # Program outcomes for this year
-        new_outcomes = new_progset.get_outcomes(num_covered={prog: cov[i] for prog, cov in new_num_coverage.items()},prop_covered={prog: cov[i] for prog, cov in new_prop_coverage.items()})  # Program outcomes for this year
+        old_outcomes = progset.get_outcomes(num_covered={prog: cov[i] for prog, cov in old_num_coverage.items()},prop_covered={prog: cov[i] for prog, cov in old_prop_coverage.items()}, par_covered=par_covered)  # Program outcomes for this year
+        new_outcomes = new_progset.get_outcomes(num_covered={prog: cov[i] for prog, cov in new_num_coverage.items()},prop_covered={prog: cov[i] for prog, cov in new_prop_coverage.items()}, par_covered=par_covered)  # Program outcomes for this year
         for (par, pop), target in target_vals.items():
             records.append((par,pop,year,target[0],old_outcomes[(par,pop)],new_outcomes[(par,pop)]))
     parameter_comparison = pd.DataFrame.from_records(records,columns=['Parameter','Population','Year','Target','Before reconciliation','After reconciliation'])

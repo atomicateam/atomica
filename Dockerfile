@@ -25,7 +25,7 @@ RUN git clone https://github.com/sciris/mpld3.git
 RUN cd mpld3 && python setup.py submodule && python setup.py install
 
 # Install atomica
-RUN python setup.py develop
+RUN python setup.py develop && python setup-apps.py develop
 
 # Install clients common
 WORKDIR clients
