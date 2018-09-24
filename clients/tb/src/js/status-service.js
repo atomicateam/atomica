@@ -45,18 +45,20 @@ function succeed(vm, successMessage) {
 }
 
 function fail(vm, failMessage, error) {
-  console.log(failMessage + '\n\n' + error.message)
+  console.log(failMessage)
+  var msgsplit = error.message.split('Traceback information:') // WARNING, must match sc_app.py
+  console.log(error.message)
   complete = 100;
   vm.$spinner.stop() // Dispel the spinner.
   vm.$Progress.fail() // Fail the loading bar.
   if (failMessage !== '') {  // Put up a failure notification.
     vm.$notifications.notify({
-      message: failMessage,
+      message: '<b>' + failMessage + '</b>' + '<br><br>' + msgsplit[0],
       icon: 'ti-face-sad',
       type: 'warning',
       verticalAlign: 'top',
       horizontalAlign: 'right',
-      timeout: 8000
+      timeout: 0
     })
   }  
 }

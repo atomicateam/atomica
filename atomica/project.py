@@ -555,9 +555,10 @@ class Project(object):
         # of 25, this is a objective weight factor for optim_type='outcome' but it means 'we need to reduce
         # deaths by 25%' if optim_type='money' (since there is no weight factor for the minimize money epi targets)
         if optim_type is None: optim_type = 'outcome'
-        assert optim_type in ['outcome','money']
+        assert tool       in ['cascade', 'tb']
+        assert optim_type in ['outcome', 'money']
         json = sc.odict()
-        if   optim_type == 'outcome': json['name'] = 'Default outcome optimization FOR %s ok' % tool
+        if   optim_type == 'outcome': json['name'] = 'Default outcome optimization'
         elif optim_type == 'money':   json['name'] = 'Default money optimization'
         json['parset_name']       = -1
         json['progset_name']      = -1
