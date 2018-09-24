@@ -266,7 +266,7 @@ def del_result(result_key, project_key, die=None):
             project.results.pop(key) # Remove it
             found = True
     if not found:
-        print('Warning: deleting result %s (%s), but not found in project "%s"' % (result_key, project_key))
+        print('Warning: deleting result %s (%s), but not found in project "%s"' % (result_key, key, project_key))
     if found: save_project(project) # Only save if required
     return output
 
