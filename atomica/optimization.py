@@ -520,39 +520,42 @@ class OptimInstructions(NamedItem):
         self.json = json
     
     def make(self, project=None):
-        proj = project
+        proj              = project
         name              = self.json['name']
         parset_name       = self.json['parset_name'] # WARNING, shouldn't be unused
         progset_name      = self.json['progset_name']
-        start_year        = self.json['start_year']
-        end_year          = self.json['end_year']
+        adjustment_year   = self.json['start_year'] # The year when adjustments get made
+        end_year          = self.json['end_year'] # For cascades, this is the evaluation year. For other measurables, it is optimized from the adjustment year to the end year
         budget_factor     = self.json['budget_factor']
         objective_weights = self.json['objective_weights']
         prog_spending     = self.json['prog_spending']
         maxtime           = self.json['maxtime']
         optim_type        = self.json['optim_type']
         tool              = self.json['tool']
+        start_year        = project.data.end_year # The year when programs turn on
 
         if tool == 'cascade' and optim_type == 'money':
             raise NotImplementedError('Money minimization not yet implemented for Cascades tool')
 
         progset = proj.progsets[progset_name] # Retrieve the progset
-    
-        # Add a spending adjustment in the program start year for every program in the progset, using the lower/upper bounds
+
+        # Set up the initial allocation and program instructions
+        progset_instructions = ProgramInstructions(alloc=progset, start_year=start_year) # passing in the progset means we fix the spending in the start year
+
+        # Add a spending adjustment in the start/optimization year for every program in the progset, using the lower/upper bounds
         # passed in as arguments to this function
         adjustments = []
-        progset_instructions = ProgramInstructions(alloc=None, start_year=self.json['start_year'])
-        default_spend = progset.get_alloc(instructions=progset_instructions,tvec=start_year)
+        default_spend = progset.get_alloc(instructions=progset_instructions,tvec=adjustment_year) # Record the default spend for scale-up in money minimization
         for prog_name in progset.programs:
             limits = prog_spending[prog_name]
-            adjustments.append(SpendingAdjustment(prog_name,t=start_year,limit_type='abs',lower=limits[0],upper=limits[1]))
+            adjustments.append(SpendingAdjustment(prog_name,t=adjustment_year,limit_type='abs',lower=limits[0],upper=limits[1]))
 
             if optim_type == 'money':
                 # Modify default spending to see if more money allows target to be met at all
                 if limits[1] is not None and np.isfinite(limits[1]):
-                    progset_instructions.alloc[prog_name].insert(start_year,limits[1])
+                    progset_instructions.alloc[prog_name].insert(adjustment_year,limits[1])
                 else:
-                    progset_instructions.alloc[prog_name] = TimeSeries(start_year, 5*default_spend[prog_name])
+                    progset_instructions.alloc[prog_name] = TimeSeries(adjustment_year, 5*default_spend[prog_name])
 
         if optim_type == 'epi':
             # Add a total spending constraint with the given budget scale up
@@ -582,7 +585,7 @@ class OptimInstructions(NamedItem):
                     # The weight stores the threshold value
                     measurables.append(AtMostMeasurable(mname, t=end_year, threshold=mweight))
                 else:
-                    measurables.append(Measurable(mname,t=[start_year,end_year],weight=mweight))
+                    measurables.append(Measurable(mname,t=[adjustment_year,end_year],weight=mweight))
 
 
         if optim_type == 'money':
@@ -595,7 +598,7 @@ class OptimInstructions(NamedItem):
 
             # Then, add extra measurables for program spending
             for prog in progset.programs.values():
-                measurables.append(MinimizeMeasurable(prog.name, start_year))  # Minimize 2020 spending on Treatment 1
+                measurables.append(MinimizeMeasurable(prog.name, adjustment_year))  # Minimize 2020 spending on Treatment 1
 
         # Create the Optimization object
         optim = Optimization(name=name, parsetname=parset_name, progsetname=progset_name, adjustments=adjustments, measurables=measurables, constraints=constraints, maxtime=maxtime)
