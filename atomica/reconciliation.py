@@ -35,7 +35,7 @@ def _extract_targets(result, progset, ti, eval_pars=None):
     # TODO - this probably doesn't work for multiple time indexes?
     # Need to refactor properly
     par_covered = dict()
-    for par_name in result.model.progset.pars:
+    for par_name in progset.pars:
         for pop in result.model.pops:
             par = pop.get_par(par_name)
             par_covered[(par_name, pop.name)] = par.source_popsize(ti)
@@ -135,13 +135,13 @@ def _prepare_asd_inputs(progset,bounds):
 
     return x0, xmin, xmax, mapping
 
-def _objective(x, mapping, progset, eval_years, target_vals, coverage_denominator):
+def _objective(x, mapping, progset, eval_years, target_vals, coverage_denominator, par_covered):
     _update_progset(x,mapping,progset) # Apply the changes to the progset
     num_covered = progset.get_coverage(year=eval_years)
     prop_covered = progset.get_coverage(year=eval_years, denominator=coverage_denominator)
     obj = 0.0
     for i in range(0,len(eval_years)):
-        outcomes = progset.get_outcomes(num_covered={prog:cov[i] for prog,cov in num_covered.items()},prop_covered={prog:cov[i] for prog,cov in prop_covered.items()}) # Program outcomes for this year
+        outcomes = progset.get_outcomes(num_covered={prog:cov[i] for prog,cov in num_covered.items()},par_covered=par_covered,prop_covered={prog:cov[i] for prog,cov in prop_covered.items()}) # Program outcomes for this year
         for key in target_vals: # Key is a (par,pop) tuple
             obj += (target_vals[key][i] - outcomes[key]) ** 2  # Add squared difference in parameter value
     return obj
@@ -229,7 +229,7 @@ def reconcile(project, parset, progset, reconciliation_year, max_time=10, unit_c
 
     # Do a prerun to get the baseline values and coverage denominator
     parset_results = project.run_sim(parset=parset, store_results=False)
-    ti = np.where((parset_results.model.t >= eval_range[0]) & (parset_results.model.t <= eval_range[1]))[0]
+    ti = np.where((parset_results.model.t >= eval_range[0]) & (parset_results.model.t < eval_range[1]))[0]
     eval_years = parset_results.t[ti]
     target_vals, coverage_denominator, par_covered = _extract_targets(parset_results,progset,ti,eval_pars)
 
