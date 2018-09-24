@@ -937,6 +937,93 @@ def delete_progset(project_id, progsetname=None):
     return None
 
 
+@RPC()
+def get_default_programs():
+    F = au.demo(kind='framework',which='tb')
+    # TODO - read in the pops from the defaults file instead of hard-coding them here
+    default_pops = sc.odict()
+    for key in ['^0.*', '.*HIV.*', '.*[pP]rison.*', '^[^0](?!HIV)(?![pP]rison).*']:
+        default_pops[key] = key
+    D = au.ProjectData.new(F, tvec=np.array([0]), pops=default_pops, transfers=0)
+    default_progset = au.ProgramSet.from_spreadsheet(au.atomica_path(['tests', 'databooks']) + "progbook_tb_defaults.xlsx",framework=F,data=D)
+
+    progs = sc.odict()
+    for key in default_progset.programs.keys():
+        prog_label = default_progset.programs[key].label
+        if '[inactive]' in prog_label:
+            progs[prog_label.replace('[inactive]','').strip()] = False
+        else:
+            progs[prog_label.strip()] = True
+
+    return progs
+
+
+@RPC()
+def make_default_progbook(proj, program_years=None, active_progs=None):
+    # INPUTS
+    # - proj : a project
+    # - program_years : a two-element range (inclusive) of years for data entry e.g. [2015,2018]
+    # - active_progs : a dict of {program_label:0/1} for whether to include a program or not (obtained via get_default_programs())
+
+    default_active_progs, default_progset = get_default_programs()
+    if default_active_progs is None:
+        active_progs = default_active_progs
+
+    if program_years is None:
+        program_years = [2015,2018]
+
+    progs = sc.odict()
+    for prog in default_progset.programs.values():
+        prog.label = prog.label.replace('[inactive]','').strip()
+        if active_progs[prog.label]:
+            progs[prog.name] = prog.label
+
+    user_progset = au.ProgramSet.new(framework=proj.framework,data=proj.data,progs=progs,tvec=np.arange(program_years[0],program_years[1]+1))
+
+    # Assign a template pop to each user pop
+    # It stops after the first match, so the regex should be ordered in
+    # decreasing specificity in the template progbook
+    # Maybe don't need this?
+    pop_assignment = sc.odict() # Which regex goes with each user pop {user_pop:template:pop}
+    for user_pop in user_progset.pops:
+        for default_pop in default_progset.pops:
+            if re.match(default_pop,user_pop):
+                pop_assignment[user_pop] = default_pop
+                break
+        else:
+            pop_assignment[user_pop] = None
+
+    for prog in user_progset.programs:
+
+        u_prog = user_progset.programs[prog]
+        d_prog = default_progset.programs[prog]
+
+        # Copy target compartments
+        u_prog.target_comps = d_prog.target_comps[:] # Make a copy of the comp list (using [:], faster than dcp)
+
+        # Assign target populations
+        for user_pop in user_progset.pops:
+            if pop_assignment[user_pop] in d_prog.target_pops:
+                u_prog.target_pops.append(user_pop)
+
+        # Copy assumptions from spending data
+        u_prog.baseline_spend.assumption = d_prog.baseline_spend.assumption
+        u_prog.capacity.assumption = d_prog.capacity.assumption
+        u_prog.coverage.assumption = d_prog.coverage.assumption
+        u_prog.unit_cost.assumption = d_prog.unit_cost.assumption
+        u_prog.spend_data.assumption = d_prog.spend_data.assumption
+
+    for user_par in user_progset.pars:
+        for user_pop in user_progset.pops:
+            default_pop = pop_assignment[user_pop]
+            if (user_par,default_pop) in default_progset.covouts:
+                user_progset.covouts[(user_par,user_pop)] = sc.dcp(default_progset.covouts[(user_par,default_pop)])
+                user_progset.covouts[(user_par, user_pop)].pop = user_pop
+
+    return user_progset
+
+
+
 ##################################################################################
 ### Plotting RPCs
 ##################################################################################
@@ -1303,7 +1390,7 @@ def automatic_calibration(project_id, cache_id, parsetname=-1, max_time=20, save
 
 def py_to_js_scen(py_scen, project=None):
     ''' Convert a Python to JSON representation of a scenario. The Python scenario might be a dictionary or an object. '''
-    js_scen = {}
+    js_scen = sc.odict()
     attrs = ['name', 'active', 'parsetname', 'progsetname', 'alloc_year']
     for attr in attrs:
         if isinstance(py_scen, dict):
@@ -1416,11 +1503,12 @@ def run_scenarios(project_id, cache_id, plot_options, saveresults=True, tool=Non
 ### Optimization RPCs
 ##################################################################################
 
-
 def py_to_js_optim(py_optim, project=None):
     js_optim = sc.sanitizejson(py_optim.json)
     if 'objective_labels' not in js_optim:
-        js_optim['objective_labels'] = {key:key for key in js_optim['objective_weights'].keys()} # Copy keys if labels not available
+        js_optim['objective_labels'] = sc.odict()
+        for key in js_optim['objective_weights'].keys():
+            js_optim['objective_labels'][key] = key # Copy keys if labels not available
     for prog_name in js_optim['prog_spending']:
         prog_label = project.progset().programs[prog_name].label
         this_prog = js_optim['prog_spending'][prog_name]
@@ -1554,87 +1642,3 @@ def export_results(cache_id, username):
     au.export_results(results, full_file_name)
     print(">> export_results %s" % (full_file_name))
     return full_file_name # Return the filename
-
-def get_default_programs():
-    F = au.demo(kind='framework',which='tb')
-    # TODO - read in the pops from the defaults file instead of hard-coding them here
-    default_pops = sc.odict()
-    default_pops['^0.*'] = '^0.*'
-    default_pops['.*HIV.*'] = '.*HIV.*'
-    default_pops['.*[pP]rison.*'] = '.*[pP]rison.*'
-    default_pops['^[^0](?!HIV)(?![pP]rison).*'] = '^[^0](?!HIV)(?![pP]rison).*'
-    D = au.ProjectData.new(F, tvec=np.array([0]), pops=default_pops, transfers=0)
-    default_progset = au.ProgramSet.from_spreadsheet(au.atomica_path(['tests', 'databooks']) + "progbook_tb_defaults.xlsx",framework=F,data=D)
-
-    progs = sc.odict()
-    for key in default_progset.programs.keys():
-        prog_label = default_progset.programs[key].label
-        if '[inactive]' in prog_label:
-            progs[prog_label.replace('[inactive]','').strip()] = False
-        else:
-            progs[prog_label.strip()] = True
-
-    return progs, default_progset
-
-def make_default_progbook(proj, program_years=None, active_progs=None):
-    # INPUTS
-    # - proj : a project
-    # - program_years : a two-element range (inclusive) of years for data entry e.g. [2015,2018]
-    # - active_progs : a dict of {program_label:0/1} for whether to include a program or not (obtained via get_default_programs())
-
-    default_active_progs, default_progset = get_default_programs()
-    if default_active_progs is None:
-        active_progs = default_active_progs
-
-    if program_years is None:
-        program_years = [2015,2018]
-
-    progs = sc.odict()
-    for prog in default_progset.programs.values():
-        prog.label = prog.label.replace('[inactive]','').strip()
-        if active_progs[prog.label]:
-            progs[prog.name] = prog.label
-
-    user_progset = au.ProgramSet.new(framework=proj.framework,data=proj.data,progs=progs,tvec=np.arange(program_years[0],program_years[1]+1))
-
-    # Assign a template pop to each user pop
-    # It stops after the first match, so the regex should be ordered in
-    # decreasing specificity in the template progbook
-    # Maybe don't need this?
-    pop_assignment = sc.odict() # Which regex goes with each user pop {user_pop:template:pop}
-    for user_pop in user_progset.pops:
-        for default_pop in default_progset.pops:
-            if re.match(default_pop,user_pop):
-                pop_assignment[user_pop] = default_pop
-                break
-        else:
-            pop_assignment[user_pop] = None
-
-    for prog in user_progset.programs:
-
-        u_prog = user_progset.programs[prog]
-        d_prog = default_progset.programs[prog]
-
-        # Copy target compartments
-        u_prog.target_comps = d_prog.target_comps[:] # Make a copy of the comp list (using [:], faster than dcp)
-
-        # Assign target populations
-        for user_pop in user_progset.pops:
-            if pop_assignment[user_pop] in d_prog.target_pops:
-                u_prog.target_pops.append(user_pop)
-
-        # Copy assumptions from spending data
-        u_prog.baseline_spend.assumption = d_prog.baseline_spend.assumption
-        u_prog.capacity.assumption = d_prog.capacity.assumption
-        u_prog.coverage.assumption = d_prog.coverage.assumption
-        u_prog.unit_cost.assumption = d_prog.unit_cost.assumption
-        u_prog.spend_data.assumption = d_prog.spend_data.assumption
-
-    for user_par in user_progset.pars:
-        for user_pop in user_progset.pops:
-            default_pop = pop_assignment[user_pop]
-            if (user_par,default_pop) in default_progset.covouts:
-                user_progset.covouts[(user_par,user_pop)] = sc.dcp(default_progset.covouts[(user_par,default_pop)])
-                user_progset.covouts[(user_par, user_pop)].pop = user_pop
-
-    return user_progset
