@@ -12,7 +12,7 @@ import atomica.ui as au
 from atomica_apps import rpcs, apptasks_cascade as atca, apptasks_tb as attb, main
 
 torun = [
-'datastore',
+# 'datastore',
 #'project_io',
 #'get_cascade_plot',
 #'get_cascade_json',
@@ -21,6 +21,7 @@ torun = [
 #'run_cascade_optimization',
 #'run_tb_optimization',
 # 'minimize_money',
+'get_default_programs',
 ]
 
 # Set defaults
@@ -169,6 +170,9 @@ if 'run_tb_optimization' in torun and tool=='tb':
 if 'minimize_money' in torun and tool=='tb':
     browser = False
     results = proj.demo_optimization(dorun=True,tool=tool,optim_type='money')
+
+if 'get_default_programs' in torun:
+    print(rpcs.get_default_programs())
 
 sc.toc(T)
 print('Done.')

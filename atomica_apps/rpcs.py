@@ -1527,4 +1527,22 @@ def export_results(cache_id, username):
     full_file_name = get_path(file_name, username=username)
     au.export_results(results, full_file_name)
     print(">> export_results %s" % (full_file_name))
-    return full_file_name # Return the filename  
+    return full_file_name # Return the filename
+
+def get_default_programs():
+    # F = au.ProjectFramework("./frameworks/framework_tb.xlsx")
+    # default_pops = sc.odict()
+    # default_pops['^0.*'] = '^0.*'
+    # default_pops['.*HIV.*'] = '.*HIV.*'
+    # default_pops['.*[pP]rison.*'] = '.*[pP]rison.*'
+    # default_pops['^[^0](?!HIV)(?![pP]rison).*'] = '^[^0](?!HIV)(?![pP]rison).*'
+
+    F = au.demo(kind='framework',which='tb')
+    # if kind == 'framework': output = default_framework(which='tb', **kwargs)
+
+    # Use these comments to make the blank template for *us* to fill out
+    # Normally this is just a one-off process
+    D = au.ProjectData.new(F, tvec=np.array([0]), pops=1, transfers=0)
+    default_progset = au.ProgramSet.from_spreadsheet('./databooks/progbook_tb_defaults.xlsx', framework=F, data=D)
+
+    return sc.odict([(key, default_progset.programs[key].label) for key in default_progset.programs.keys()])
