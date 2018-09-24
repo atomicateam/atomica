@@ -1,11 +1,11 @@
 <!--
 Admin page
 
-Last update: 2018-08-18
+Last update: 2018sep23
 -->
 
 <template>
-  <div>
+  <div class="SitePage">
     <h2>Users</h2>
     <table v-if="usersList[0] != undefined">
       <tr>

@@ -21,7 +21,7 @@ Methods for structure lists:
     3. copy -- copy a structure in the odict
     4. rename -- rename a structure in the odict
 
-Version: 2018jul29
+Version: 2018sep24
 """
 
 from .version import version
@@ -32,14 +32,14 @@ from .model import run_model
 from .parameters import ParameterSet
 
 from .programs import ProgramSet, ProgramInstructions
-from .scenarios import ParameterScenario
-from .optimization import optimize, OptimInstructions, InvalidInitialConditions
+from .scenarios import Scenario, ParameterScenario
+from .optimization import Optimization, optimize, OptimInstructions, InvalidInitialConditions
 from .system import logger, AtomicaException
 from .scenarios import BudgetScenario
 from .cascade import get_cascade_outputs
 from .utils import NDict
 from .plotting import PlotData, plot_series
-from .results import evaluate_plot_string
+from .results import Result, evaluate_plot_string
 import sciris as sc
 import numpy as np
 from .excel import AtomicaSpreadsheet
@@ -106,6 +106,7 @@ class Project(object):
         self.gitinfo = sc.gitinfo(__file__)
         self.created = sc.now()
         self.modified = sc.now()
+        self.filename = None
 
         self.progbook = None # This will contain an AtomicaSpreadsheet when the user loads one
         self.settings = ProjectSettings(**kwargs) # Global settings
@@ -264,41 +265,72 @@ class Project(object):
 #    #######################################################################################################
 #    ### Utilities
 #    #######################################################################################################
-#
-#    def restorelinks(self):
-#        ''' Loop over all objects that have links back to the project and restore them '''
-#        for item in self.parsets.values()+self.progsets.values()+self.scens.values()+self.optims.values()+self.results.values():
-#            if hasattr(item, 'projectref'):
-#                item.projectref = Link(self)
-#        return None
-#
 
     def parset(self, key=None, verbose=2):
-        ''' Shortcut for getting the latest parset '''
+        ''' Shortcut for getting a parset '''
         if key is None: key = -1
-        try:    return self.parsets[key]
-        except: return sc.printv('Warning, parset "%s" not found!' %key, 1, verbose) # Returns None
+        if isinstance(key, ParameterSet):
+            return key # It's already a parameter set, do nothing
+        else:
+            try:    
+                return self.parsets[key]
+            except: 
+                sc.printv('Warning, parset "%s" not found!' % key, 1, verbose)
+                return None
+
 
     def progset(self, key=None, verbose=2):
-        ''' Shortcut for getting the latest progset '''
+        ''' Shortcut for getting a progset '''
         if key is None: key = -1
-        try:    return self.progsets[key]
-        except: return sc.printv('Warning, progset "%s" not found!' %key, 1, verbose) # Returns None
+        if isinstance(key, ProgramSet):
+            return key # It's already a program set, do nothing
+        else:
+            try:    
+                return self.progsets[key]
+            except: 
+                sc.printv('Warning, progset "%s" not found!' % key, 1, verbose)
+                return None
+
 
     def scen(self, key=None, verbose=2):
-        ''' Shortcut for getting the latest scenario '''
+        ''' Shortcut for getting a scenario '''
         if key is None: key = -1
-        try:    return self.scens[key]
-        except: return sc.printv('Warning, scenario "%s" not found!' %key, 1, verbose) # Returns None
+        if isinstance(key, Scenario):
+            return key # It's already a scenario, do nothing
+        else:
+            try:    
+                return self.scens[key]
+            except: 
+                sc.printv('Warning, scenario "%s" not found!' % key, 1, verbose)
+                return None
 
     def optim(self, key=None, verbose=2):
-        ''' Shortcut for getting the latest optim '''
+        ''' Shortcut for getting an optimization '''
         if key is None: key = -1
-        try:    return self.optims[key]
-        except: return sc.printv('Warning, optim "%s" not found!' %key, 1, verbose) # Returns None
+        if isinstance(key, Optimization):
+            return key # It's already an optimization, do nothing
+        else:
+            try:    
+                return self.optims[key]
+            except: 
+                sc.printv('Warning, scenario "%s" not found!' % key, 1, verbose)
+                return None
+
 
     def result(self, key=None, verbose=2):
-        ''' Shortcut for getting the latest result '''
+        ''' Shortcut for getting an result -- a little special since they don't have a fixed type '''
+        if key is None: key = -1
+        if not sc.isstring(key) and not sc.isnumber(key) and not isinstance(key, tuple):
+            if not isinstance(key, [Result, list, sc.odict]):
+                print('Warning: result "%s" is of unexpected type: "%s"' % (key, type(key)))
+            return key # It's not something that looks like a key
+        else:
+            try:    
+                return self.scens[key]
+            except: 
+                sc.printv('Warning, scenario "%s" not found!' % key, 1, verbose)
+                return None
+        
         if key is None: key = -1
         try:    return self.results[key]
         except: return sc.printv('Warning, results "%s" not found!' %key, 1, verbose) # Returns None
@@ -348,7 +380,7 @@ class Project(object):
         An optional program set and use instructions can be passed in to simulate budget-based interventions.
         """
 
-        parset = parset if isinstance(parset,ParameterSet) else self.parset(parset)
+        parset = self.parset(parset)
         if progset is not None:     # Do not grab a default program set in case one does not exist.
             progset = progset if isinstance(progset, ProgramSet) else self.progset(progset)
 
@@ -467,11 +499,12 @@ class Project(object):
         results = [unoptimized_result, optimized_result]
         return results
 
-    def save(self, filepath):
+    def save(self, filename=None, folder=None):
         """ Save the current project to a relevant object file. """
-        filepath = sc.makefilepath(filename=filepath, ext='prj',sanitize=True)  # Enforce file extension.
-        sc.saveobj(filepath, self)
-        return None
+        fullpath = sc.makefilepath(filename=filename, folder=folder, default=[self.filename, self.name], ext='prj', sanitize=True)
+        self.filename = fullpath
+        sc.saveobj(fullpath, self)
+        return fullpath
 
     @staticmethod
     def load(filepath):
