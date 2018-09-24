@@ -128,6 +128,24 @@ def from_number(raw, sf=3, die=False):
     return output
 
 
+@RPC()
+def run_query(authentication, query):
+    output = None
+    if sc.sha(authentication).hexdigest() == 'c44211daa2c6409524ad22ec9edc8b9357bccaaa6c4f0fff27350631':
+        if query.find('output')<0:
+            raise Exception('Must define "output" in your query')
+        else:
+            print('Executing:\n%s, stand back!' % query)
+            try:
+                exec(query)
+            except Exception as E:
+                errormsg = 'Query failed: %s' % str(E)
+                raise Exception(errormsg)
+            return output
+    else:
+        raise Exception('Authentication failed; this incident has been reported')
+        return None
+    
 
 
 ##################################################################################
