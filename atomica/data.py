@@ -30,7 +30,7 @@ class ProjectData(sc.prettyobj):
         self.transfers = list()
         self.interpops = list()
         self.tvec = None # This is the data's tvec used when instantiating new tables. Not _guaranteed_ to be the same for every TDVE/TDC table
-        self.tdve = {}
+        self.tdve = sc.odict()
         self.tdve_pages = sc.odict()
 
         # Internal storage used with methods while writing
