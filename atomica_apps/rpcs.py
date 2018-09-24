@@ -959,7 +959,7 @@ def get_default_programs():
 
 
 @RPC(call_type='download')
-def make_default_progbook(proj, program_years=None, active_progs=None):
+def create_default_progbook(proj, program_years=None, active_progs=None):
     # INPUTS
     # - proj : a project
     # - program_years : a two-element range (inclusive) of years for data entry e.g. [2015,2018]
@@ -1020,7 +1020,11 @@ def make_default_progbook(proj, program_years=None, active_progs=None):
                 user_progset.covouts[(user_par,user_pop)] = sc.dcp(default_progset.covouts[(user_par,default_pop)])
                 user_progset.covouts[(user_par, user_pop)].pop = user_pop
 
-    return user_progset
+    file_name = '%s_default_program_book.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
+    full_file_name = get_path(file_name, username=proj.webapp.username) # Generate the full file name with path.
+    user_progset.save(filename=full_file_name)
+    print(">> download_default_progbook %s" % (full_file_name)) # Display the call information.
+    return full_file_name
 
 
 
