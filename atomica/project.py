@@ -609,19 +609,27 @@ class Project(object):
 
             if optim_type == 'outcome':
                 json['objective_weights'] = {'ddis': 1, 'acj': 1, 'ds_inf': 0, 'mdr_inf': 0,'xdr_inf': 0}  # These are TB-specific: maximize people alive, minimize people dead due to TB
+                json['objective_labels'] = {'ddis':   'Minimize TB-related deaths',
+                                'acj':    'Minimize total new active TB infections', 
+                                'ds_inf': 'Minimize prevalence of active DS-TB', 
+                                'mdr_inf':'Minimize prevalence of active MDR-TB', 
+                                'xdr_inf':'Minimize prevalence of active XDR-TB'}
+            
             elif optim_type == 'money':
                 # The weights here default to 0 because it's possible, depending on what programs are selected, that improvement
                 # in one or more of them might be impossible even with infinite money. Also, can't increase money too much because otherwise
                 # run the risk of a local minimum stopping optimization early with the current algorithm (this will change in the future)
                 json['objective_weights'] = {'ddis': 25, 'acj': 25, 'ds_inf': 25, 'mdr_inf': 25,'xdr_inf': 25}  # These are TB-specific: maximize people alive, minimize people dead due to TB
+                json['objective_labels'] = {'ddis':   'Minimize TB-related deaths',
+                                'acj':    'Total new active TB infections', 
+                                'ds_inf': 'Prevalence of active DS-TB', 
+                                'mdr_inf':'Prevalence of active MDR-TB', 
+                                'xdr_inf':'Prevalence of active XDR-TB'}
+            
             else:
                 raise AtomicaException('Unknown optim_type')
 
-            json['objective_labels'] = {'ddis':   'Minimize TB-related deaths',
-                                        'acj':    'Minimize total new active TB infections', 
-                                        'ds_inf': 'Minimize prevalence of active DS-TB', 
-                                        'mdr_inf':'Minimize prevalence of active MDR-TB', 
-                                        'xdr_inf':'Minimize prevalence of active XDR-TB'}
+
         else:
             raise AtomicaException('Tool "%s" not recognized' % tool)
         json['maxtime']           = 30 # WARNING, default!

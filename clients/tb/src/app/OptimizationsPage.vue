@@ -247,12 +247,13 @@ Last update: 2018-09-12
             </span>
           </div>
           <br>
-          <b>Objective weights</b><br>
+          <b>Objectives</b><br>
           <table class="table table-bordered table-hover table-striped" style="width: 100%">
             <thead>
             <tr>
               <th>Objective</th>
-              <th>Weight</th>
+              <th v-if="modalOptim.optim_type=='outcome'">Weight</th>
+              <th v-if="modalOptim.optim_type=='money'">Reduction target (%)</th>
             </tr>
             </thead>
             <tbody>
