@@ -52,10 +52,6 @@ Object.defineProperty(Vue.prototype, '$Chartist', {
   }
 })
 
-// CK: if we decide we want to do global imputs in future, so we can use e.g. this.$utils.sleep() in the components instead of import utils and then utils.sleep()
-// import utils from '@/js/utils'
-// Vue.prototype.$utils = utils
-
 Vue.prototype.$globaltool = 'cascade' // CASCADE-TB DIFFERENCE, duh :)
 
 new Vue({
