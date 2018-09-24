@@ -446,24 +446,24 @@ class Project(object):
     def run_optimization(self, optimname=None, maxtime=None, maxiters=None, store_results=True):
         '''Run an optimization'''
         optim_ins = self.optim(optimname)
-        optim, progset_instructions = optim_ins.make(project=self)
+        optim, unoptimized_instructions = optim_ins.make(project=self)
         if maxtime is not None: optim.maxtime = maxtime
         if maxiters is not None: optim.maxiters = maxiters
         parset = self.parset(optim.parsetname)
         progset = self.progset(optim.progsetname)
         original_end = self.settings.sim_end
-        self.settings.sim_end = optim_ins.json['end_year']
+        self.settings.sim_end = optim_ins.json['end_year'] # Simulation should be run up to the user's end year
         try:
-            optimized_instructions = optimize(self, optim, parset, progset, progset_instructions)
+            optimized_instructions = optimize(self, optim, parset, progset, unoptimized_instructions)
         except InvalidInitialConditions:
             if optim_ins.json['optim_type'] == 'money':
                 raise AtomicaException('It was not possible to achieve the optimization target even with an increased budget. Specify or raise upper limits for spending, or decrease the optimization target')
             else:
                 raise # Just raise it as-is
 
-        optimized_result   = self.run_sim(parset=parset,           progset=progset,           progset_instructions=optimized_instructions,                                       result_name="Optimized", store_results=store_results)
-        unoptimized_result = self.run_sim(parset=optim.parsetname, progset=optim.progsetname, progset_instructions=ProgramInstructions(start_year=optim_ins.json['start_year']), result_name="Baseline", store_results=store_results)
-        self.settings.sim_end = original_end
+        optimized_result   = self.run_sim(parset=parset, progset=progset, progset_instructions=  optimized_instructions, result_name="Optimized", store_results=store_results)
+        unoptimized_result = self.run_sim(parset=parset, progset=progset, progset_instructions=unoptimized_instructions, result_name="Baseline" , store_results=store_results)
+        self.settings.sim_end = original_end # Note that if the end year is after the original simulation year, the result won't be visible (although it will have been optimized for)
         results = [unoptimized_result, optimized_result]
         return results
 
@@ -527,8 +527,8 @@ class Project(object):
         json['name']              = 'Default optimization'
         json['parset_name']       = -1
         json['progset_name']      = -1
-        json['start_year']        = 2018
-        json['end_year']          = 2035
+        json['start_year']        = self.data.end_year
+        json['end_year']          = self.settings.sim_end
         json['budget_factor']     = 1.0
         json['optim_type']        = optim_type
         json['tool']              = tool
