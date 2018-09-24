@@ -378,7 +378,7 @@ class ProjectFramework(object):
 
             if row['denominator'] is not None:
                 if not (row['denominator'] in self.comps.index or row['denominator'] in self.characs.index):
-                    raise InvalidFramework('In Characteristic "%s", denominator "%s" was not recognized as a Compartment or Characteristic' % (row.name, component))
+                    raise InvalidFramework('In Characteristic "%s", denominator "%s" was not recognized as a Compartment or Characteristic' % (row.name, row['denominator']))
                 if row['denominator'] in self.characs.index:
                     if not (self.characs.loc[row['denominator']]['denominator'] is None):
                         raise InvalidFramework('Characteristic "%s" uses the characteristic "%s" as a denominator. However, "%s" also has a denominator, which means that it cannot be used as a denominator for "%s"' % (row.name,row['denominator'],row['denominator'],row.name))
