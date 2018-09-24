@@ -554,7 +554,7 @@ class OptimInstructions(NamedItem):
                 else:
                     progset_instructions.alloc[prog_name] = TimeSeries(start_year, 5*default_spend[prog_name])
 
-        if optim_type == 'epi':
+        if optim_type == 'outcome':
             # Add a total spending constraint with the given budget scale up
             # For money minimization we do not need to do this
             constraints = [TotalSpendConstraint(budget_factor=budget_factor)]

@@ -544,20 +544,22 @@ class Project(object):
         else:
             return json1
 
-    def demo_optimization(self, dorun=False, tool=None, optim_type='epi'):
+    def demo_optimization(self, dorun=False, tool=None, optim_type=None):
         # INPUTS
         # - dorun : If True, runs optimization immediately
         # - tool : Choose optimization objectives based on whether tool is 'cascade' or 'tb'
-        # - optim_type : set to 'epi' or 'money' - use 'money' to minimize money
+        # - optim_type : set to 'outcome' or 'money' - use 'money' to minimize money
         #
         # Note that if optim_type='money' then the optimization 'weights' entered in the FE are
         # actually treated as relative scalings for the minimization target. e.g. If ':ddis' has a weight
-        # of 25, this is a objective weight factor for optim_type='epi' but it means 'we need to reduce
+        # of 25, this is a objective weight factor for optim_type='outcome' but it means 'we need to reduce
         # deaths by 25%' if optim_type='money' (since there is no weight factor for the minimize money epi targets)
-        assert optim_type in ['epi','money']
+        if optim_type is None: optim_type = 'outcome'
+        assert optim_type in ['outcome','money']
         if tool is None: tool = 'cascade'
         json = sc.odict()
-        json['name']              = 'Default optimization'
+        if   optim_type == 'outcome': json['name'] = 'Default outcome optimization'
+        elif optim_type == 'money':   json['name'] = 'Default money optimization'
         json['parset_name']       = -1
         json['progset_name']      = -1
         json['start_year']        = 2018
@@ -573,7 +575,7 @@ class Project(object):
             for cascade_name in self.framework.cascades:
                 cascade = get_cascade_outputs(self.framework,cascade_name)
 
-                if optim_type == 'epi':
+                if optim_type == 'outcome':
                     json['objective_weights']['conversion:%s' % (cascade_name)] = 1.
                 elif optim_type == 'money':
                     json['objective_weights']['conversion:%s' % (cascade_name)] = 0.
@@ -591,7 +593,7 @@ class Project(object):
                     assert ':' not in stage_name
                     objective_name = 'cascade_stage:%s:%s' % (cascade_name,stage_name)
 
-                    if optim_type == 'epi':
+                    if optim_type == 'outcome':
                         json['objective_weights'][objective_name] = 1
                     elif optim_type == 'money':
                         json['objective_weights'][objective_name] = 0
@@ -605,7 +607,7 @@ class Project(object):
 
         elif tool == 'tb':
 
-            if optim_type == 'epi':
+            if optim_type == 'outcome':
                 json['objective_weights'] = {'ddis': 1, 'acj': 1, 'ds_inf': 0, 'mdr_inf': 0,'xdr_inf': 0}  # These are TB-specific: maximize people alive, minimize people dead due to TB
             elif optim_type == 'money':
                 # The weights here default to 0 because it's possible, depending on what programs are selected, that improvement

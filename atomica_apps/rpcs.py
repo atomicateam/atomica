@@ -1329,21 +1329,22 @@ def js_to_py_scen(js_scen):
     
 
 @RPC()
-def get_scen_info(project_id):
+def get_scen_info(project_id, verbose=True):
     print('Getting scenario info...')
     proj = load_project(project_id, die=True)
     scenario_jsons = []
     for py_scen in proj.scens.values():
         js_scen = py_to_js_scen(py_scen, project=proj)
         scenario_jsons.append(js_scen)
-    print('JavaScript scenario info:')
-    sc.pp(scenario_jsons)
+    if verbose:
+        print('JavaScript scenario info:')
+        sc.pp(scenario_jsons)
 
     return scenario_jsons
 
 
 @RPC()
-def set_scen_info(project_id, scenario_jsons):
+def set_scen_info(project_id, scenario_jsons, verbose=True):
     print('Setting scenario info...')
     proj = load_project(project_id, die=True)
     proj.scens.clear()
@@ -1351,8 +1352,9 @@ def set_scen_info(project_id, scenario_jsons):
         print('Setting scenario %s of %s...' % (j+1, len(scenario_jsons)))
         py_scen = js_to_py_scen(js_scen)
         py_scen['start_year'] = proj.data.end_year # The scenario program start year is the same as the end year
-        print('Python scenario info for scenario %s:' % (j+1))
-        print(py_scen)
+        if verbose: 
+            print('Python scenario info for scenario %s:' % (j+1))
+            sc.pp(py_scen)
         proj.make_scenario(which='budget', json=py_scen)
     print('Saving project...')
     save_project(proj)
@@ -1428,10 +1430,10 @@ def get_optim_info(project_id, verbose=True):
 
 
 @RPC()
-def get_default_optim(project_id, tool=None, verbose=True):
+def get_default_optim(project_id, tool=None, optim_type=None, verbose=True):
     print('Getting default optimization...')
     proj = load_project(project_id, die=True)
-    py_optim = proj.demo_optimization(tool=tool)
+    py_optim = proj.demo_optimization(tool=tool, optim_type=optim_type)
     js_optim = py_to_js_optim(py_optim, project=proj)
     if verbose: sc.pp(js_optim)
     return js_optim
