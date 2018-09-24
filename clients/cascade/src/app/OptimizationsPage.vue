@@ -62,7 +62,7 @@ Last update: 2018-09-12
 
         <div>
           <button class="btn" @click="addOptimModal('outcome')">Add outcome optimization</button>&nbsp;&nbsp;
-          <button class="btn" @click="addOptimModal('money')">Add money optimization</button>
+          <button v-if="$globaltool=='tb'" class="btn" @click="addOptimModal('money')">Add money optimization</button>
         </div>
       </div>
       <!-- ### End: optimizations card ### -->
