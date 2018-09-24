@@ -230,11 +230,11 @@ Last update: 2018-09-12
                 {{ parset }}
               </option>
             </select><br><br>
-            <b>Start year</b><br>
+            <b>Use optimal allocation of funds beginning in year</b><br>
             <input type="text"
                    class="txbox"
                    v-model="modalOptim.start_year"/><br>
-            <b>Objective year</b><br>
+            <b>Target year for optimizing outcomes</b><br>
             <input type="text"
                    class="txbox"
                    v-model="modalOptim.end_year"/><br>
