@@ -179,7 +179,7 @@ def _convert_to_single_year(progset,reconciliation_year):
     return new_progset
 
 # ASD takes in a list of values. So we need to map all of the things we are optimizing onto
-def reconcile(project,parset,progset,reconciliation_year,max_time=10,unit_cost_bounds=0.0, baseline_bounds=0.0, capacity_bounds=0.0, outcome_bounds=0.0, eval_pars=None, eval_range=None):
+def reconcile(project, parset, progset, reconciliation_year, max_time=10, unit_cost_bounds=0.0, baseline_bounds=0.0, capacity_bounds=0.0, outcome_bounds=0.0, eval_pars=None, eval_range=None):
     # INTERIM
     #
     # unit_cost_bounds = 0.2 means +/- 20%
@@ -207,15 +207,18 @@ def reconcile(project,parset,progset,reconciliation_year,max_time=10,unit_cost_b
         outcome                 String denoting original and reconciled parset/progset impact comparison
 
     """
+    # Sanitize inputs
+    parset  = project.parset(parset)
+    progset = project.progset(progset)
 
     reconciliation_year = sc.promotetoarray(reconciliation_year)
     assert len(reconciliation_year) == 1, 'Reconciliation year must be a scalar'
 
     if eval_range is None:
-        eval_range = [reconciliation_year[0],reconciliation_year[0]]
+        eval_range = [reconciliation_year[0],reconciliation_year[0]+project.settings.sim_dt]
 
     # Do a prerun to get the baseline values and coverage denominator
-    parset_results = project.run_sim(parset=parset,store_results=False)
+    parset_results = project.run_sim(parset=parset, store_results=False)
     ti = np.where((parset_results.model.t >= eval_range[0]) & (parset_results.model.t <= eval_range[1]))[0]
     eval_years = parset_results.t[ti]
     target_vals, coverage_denominator = _extract_targets(parset_results,progset,ti,eval_pars)

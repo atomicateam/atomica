@@ -717,7 +717,7 @@ class ProgramSet(NamedItem):
 
         return default_budget
 
-    def get_num_covered(self, year=None, alloc=None):
+    def get_num_covered(self, year=None, alloc=None, unit_cost=None, capacity=None,sample='best'):
         ''' Extract the number of people covered by a program, optionally specifying an overwrite for the alloc '''
 
         num_covered = sc.odict() # Initialise outputs
@@ -732,7 +732,7 @@ class ProgramSet(NamedItem):
             else:
                 spending = None
 
-            num_covered[prog.name] = prog.get_num_covered(year=year, budget=spending)
+            num_covered[prog.name] = prog.get_num_covered(year=year, budget=spending, unit_cost=unit_cost, capacity=capacity, sample=sample)
 
         return num_covered
 

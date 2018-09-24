@@ -768,6 +768,18 @@ def set_y_factors(project_id, parsetname=-1, parlist=None, verbose=False):
     return None
 
 
+@RPC(call_type='download')   
+def reconcile(project_id, parsetname=None, progsetname=-1, year=2018, unit_cost_bounds=0.2, outcome_bounds=0.2):
+    ''' Reconcile parameter set and program set '''
+    proj = load_project(project_id, die=True) # Load the project with the matching UID.
+    reconciled_progset, progset_comparison, parameter_comparison = au.reconcile(project=proj, parset=parsetname, progset=progsetname, reconciliation_year=year,unit_cost_bounds=unit_cost_bounds, outcome_bounds=outcome_bounds)
+    file_name = '%s_reconciled_program_book.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
+    full_file_name = get_path(file_name, username=proj.webapp.username) # Generate the full file name with path.
+    reconciled_progset.save(full_file_name)
+    print(">> download_progbook %s" % (full_file_name)) # Display the call information.
+    return full_file_name # Return the full filename.
+
+
 ##################################################################################
 ### Parameter set RPCs
 ##################################################################################
