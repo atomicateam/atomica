@@ -878,8 +878,12 @@ def create_new_project(user_id, framework_id, proj_name, num_pops, num_progs, da
     """
     Create a new project.
     """
-    if tool == 'tb': sim_dt = 0.5
-    else:            sim_dt = None
+    if tool == 'tb':
+        sim_dt = 0.5
+    elif tool == 'cascade':
+        sim_dt = 1.0
+    else:
+        sim_dt = None
     if tool is None or tool == 'cascade': # Optionally select by tool rather than frame
         framework_record = load_framework_record(framework_id, raise_exception=True) # Get the Framework object for the framework to be copied.
         frame = framework_record.frame
