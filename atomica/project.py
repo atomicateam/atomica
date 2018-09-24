@@ -556,9 +556,8 @@ class Project(object):
         # deaths by 25%' if optim_type='money' (since there is no weight factor for the minimize money epi targets)
         if optim_type is None: optim_type = 'outcome'
         assert optim_type in ['outcome','money']
-        if tool is None: tool = 'cascade'
         json = sc.odict()
-        if   optim_type == 'outcome': json['name'] = 'Default outcome optimization'
+        if   optim_type == 'outcome': json['name'] = 'Default outcome optimization FOR %s ok' % tool
         elif optim_type == 'money':   json['name'] = 'Default money optimization'
         json['parset_name']       = -1
         json['progset_name']      = -1
@@ -576,17 +575,13 @@ class Project(object):
             for cascade_name in self.framework.cascades:
                 cascade = get_cascade_outputs(self.framework,cascade_name)
 
-                if optim_type == 'outcome':
-                    json['objective_weights']['conversion:%s' % (cascade_name)] = 1.
-                elif optim_type == 'money':
-                    json['objective_weights']['conversion:%s' % (cascade_name)] = 0.
+                if optim_type == 'outcome': json['objective_weights']['conversion:%s' % (cascade_name)] = 1.
+                elif optim_type == 'money': json['objective_weights']['conversion:%s' % (cascade_name)] = 0.
                 else:
                     raise AtomicaException('Unknown optim_type')
 
-                if cascade_name.lower() == 'cascade':
-                    json['objective_labels']['conversion:%s' % (cascade_name)] = 'Maximize the conversion rates along each stage of the cascade'
-                else:
-                    json['objective_labels']['conversion:%s' % (cascade_name)] = 'Maximize the conversion rates along each stage of the %s cascade' % (cascade_name)
+                if cascade_name.lower() == 'cascade': json['objective_labels']['conversion:%s' % (cascade_name)] = 'Maximize the conversion rates along each stage of the cascade'
+                else:                                 json['objective_labels']['conversion:%s' % (cascade_name)] = 'Maximize the conversion rates along each stage of the %s cascade' % (cascade_name)
 
                 for stage_name in cascade.keys():
                     # We checked earlier that there are no ':' symbols here, but asserting that this is true, just in case
@@ -594,20 +589,15 @@ class Project(object):
                     assert ':' not in stage_name
                     objective_name = 'cascade_stage:%s:%s' % (cascade_name,stage_name)
 
-                    if optim_type == 'outcome':
-                        json['objective_weights'][objective_name] = 1
-                    elif optim_type == 'money':
-                        json['objective_weights'][objective_name] = 0
+                    if optim_type == 'outcome': json['objective_weights'][objective_name] = 1
+                    elif optim_type == 'money': json['objective_weights'][objective_name] = 0
                     else:
                         raise AtomicaException('Unknown optim_type')
 
-                    if cascade_name.lower() == 'cascade':
-                        json['objective_labels'][objective_name] = 'Maximize the number of people in cascade stage "%s"' % (stage_name)
-                    else:
-                        json['objective_labels'][objective_name] = 'Maximize the number of people in stage "%s" of the %s cascade' % (stage_name,cascade_name)
+                    if cascade_name.lower() == 'cascade': json['objective_labels'][objective_name] = 'Maximize the number of people in cascade stage "%s"' % (stage_name)
+                    else:                                 json['objective_labels'][objective_name] = 'Maximize the number of people in stage "%s" of the %s cascade' % (stage_name,cascade_name)
 
         elif tool == 'tb':
-
             if optim_type == 'outcome':
                 json['objective_weights'] = {'ddis': 1, 'acj': 1, 'ds_inf': 0, 'mdr_inf': 0,'xdr_inf': 0}  # These are TB-specific: maximize people alive, minimize people dead due to TB
                 json['objective_labels'] = {'ddis':   'Minimize TB-related deaths',
@@ -615,7 +605,6 @@ class Project(object):
                                 'ds_inf': 'Minimize prevalence of active DS-TB', 
                                 'mdr_inf':'Minimize prevalence of active MDR-TB', 
                                 'xdr_inf':'Minimize prevalence of active XDR-TB'}
-            
             elif optim_type == 'money':
                 # The weights here default to 0 because it's possible, depending on what programs are selected, that improvement
                 # in one or more of them might be impossible even with infinite money. Also, can't increase money too much because otherwise
@@ -629,7 +618,6 @@ class Project(object):
             
             else:
                 raise AtomicaException('Unknown optim_type')
-
 
         else:
             raise AtomicaException('Tool "%s" not recognized' % tool)
