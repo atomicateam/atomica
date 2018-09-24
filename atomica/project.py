@@ -567,6 +567,7 @@ class Project(object):
         json['budget_factor']     = 1.0
         json['optim_type']        = optim_type
         json['tool']              = tool
+        json['method']            = 'asd' # Note: may want to change this if PSO is improved
 
         if tool == 'cascade':
             json['objective_weights'] = sc.odict()

@@ -370,7 +370,7 @@ def add_demo_project(username, project_name=None, tool=None):
     Add a demo project
     '''
     if tool == 'tb':
-        if project_name is None: project_name = 'Demo project'
+        project_name = 'Demo project'
         proj = au.demo(which='tb', do_run=False, do_plot=False, sim_dt=0.5)  # Create the project, loading in the desired spreadsheets.
     else:
         if project_name is None: project_name = 'default'

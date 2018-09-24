@@ -532,6 +532,7 @@ class OptimInstructions(NamedItem):
         maxtime           = self.json['maxtime']
         optim_type        = self.json['optim_type']
         tool              = self.json['tool']
+        method            = self.json.get('method', None)
         start_year        = project.data.end_year # The year when programs turn on
 
         if tool == 'cascade' and optim_type == 'money':
@@ -603,8 +604,12 @@ class OptimInstructions(NamedItem):
         # Create the Optimization object
         optim = Optimization(name=name, parsetname=parset_name, progsetname=progset_name, adjustments=adjustments, measurables=measurables, constraints=constraints, maxtime=maxtime)
 
-        if optim_type == 'money':
+        # Set the method used for optimization
+        if method is not None:
+            optim.method = method
+        elif optim_type == 'money':
             optim.method = 'pso'
+        
         return optim, progset_instructions
     
     
@@ -719,7 +724,7 @@ def _objective_fcn(asd_values, pickled_model=None, optimization=None, hard_const
 
     return obj_val
 
-def optimize(project,optimization,parset,progset,instructions,x0=None,xmin=None,xmax=None,hard_constraints=None):
+def optimize(project, optimization, parset, progset, instructions, x0=None, xmin=None, xmax=None, hard_constraints=None):
     # The ASD initialization, xmin and xmax values can optionally be
     # method can be one of
     # - asd (to use normal ASD)
@@ -749,7 +754,13 @@ def optimize(project,optimization,parset,progset,instructions,x0=None,xmin=None,
     initial_objective = _objective_fcn(x0, **args)
     if not np.isfinite(initial_objective):
         raise InvalidInitialConditions()
-
+    
+    if optimization.method == 'pso':
+        try:
+            import pyswarm
+        except Exception as E:
+            print('Could not import pyswarm, defaulting to ASD: %s' % str(E))
+            optimization.method = 'asd'
 
     if optimization.method == 'asd':
         optim_args = {
@@ -764,7 +775,6 @@ def optimize(project,optimization,parset,progset,instructions,x0=None,xmin=None,
         }
         x_opt = sc.asd(_objective_fcn, x0, args, **optim_args)[0]
     elif optimization.method == 'pso':
-        import pyswarm
         optim_args = {
             'maxiter':3,
             'lb':xmin,
@@ -773,7 +783,10 @@ def optimize(project,optimization,parset,progset,instructions,x0=None,xmin=None,
             'debug':True
         }
         if np.any(~np.isfinite(xmin)) or np.any(~np.isfinite(xmax)):
-            raise AtomicaException('PSO optimization requires finite upper and lower bounds to specify the search domain (i.e. every Adjustable needs to have finite bounds)')
+            errormsg = 'PSO optimization requires finite upper and lower bounds to specify the search domain (i.e. every Adjustable needs to have finite bounds)'
+            logger.warning(errormsg)
+            xmin[~np.isfinite(xmin)] = 0.0
+            xmax[~np.isfinite(xmax)] = 1e9
         x_opt, _ = pyswarm.pso(_objective_fcn, kwargs=args, **optim_args)
 
     optimization.update_instructions(x_opt,model.program_instructions)
