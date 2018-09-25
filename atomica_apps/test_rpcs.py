@@ -6,18 +6,12 @@ Version:
 ### Housekeeping
 ###########################################################################
 
-import sciris as sc
-import scirisweb as sw
-import atomica.ui as au
-from atomica_apps import rpcs, apptasks_cascade as atca, apptasks_tb as attb, main
-
 torun = [
-# 'datastore',
 #'project_io',
 #'get_cascade_plot',
 #'get_cascade_json',
-#'make_plots',
-'get_y_factors',
+'make_plots',
+#'get_y_factors',
 #'autocalibration',
 #'run_scenarios',
 #'run_cascade_optimization',
@@ -29,6 +23,14 @@ torun = [
 # Set defaults
 tool = ['tb','cascade'][0] # Change this to change between TB and Cascade
 default_which = {'tb':'tb', 'cascade':'hypertension'}[tool]
+
+# Imports
+import sciris as sc
+import scirisweb as sw
+import atomica.ui as au
+from atomica_apps import rpcs, main
+if tool == 'cascade': from atomica_apps import config_cascade as config, apptasks_cascade as appt
+elif tool == 'tb':    from atomica_apps import config_tb      as config, apptasks_tb      as appt
 
 
 ###########################################################################
@@ -42,7 +44,8 @@ def demoproj(proj_id, username, which=None):
     P.uid = sc.uuid(proj_id)
     P = rpcs.cache_results(P)
     rpcs.save_new_project(P, username, uid=P.uid) # Force a matching uid
-    return P
+    proj = rpcs.load_project(P.uid) # Since some operations get performed on it while it's being saved
+    return proj
 
 def heading(string, style=None):
     divider = '='*60
@@ -58,6 +61,7 @@ user = sw.make_default_users(app)[0]
 proj_id  = sc.uuid(as_string=True)
 cache_id = sc.uuid(as_string=True)
 proj = demoproj(proj_id, user.username, which=default_which)
+datastore = rpcs.find_datastore(config=config)
 
 
 ###########################################################################
@@ -66,11 +70,6 @@ proj = demoproj(proj_id, user.username, which=default_which)
 
 string = 'Starting tests for:\n  tool = %s\n  which = %s\n  user = %s\n  proj = %s' % (tool, default_which, user.username, proj_id)
 heading(string, 'big')
-
-
-if 'datastore' in torun:
-    heading('Running datastore', 'big')
-    ds = rpcs.find_datastore()
 
 
 if 'project_io' in torun:
@@ -115,18 +114,18 @@ if 'make_plots' in torun:
     heading('Running make_plots', 'big')
 
     # Settings
-    browser     = True
+    browser     = False
     calibration = True
-    show_BE     = False
+    verbose     = False
 
     # Run
     results = proj.run_sim()
-    if show_BE: output = proj.plot(results) # WARNING, doesn't work
     output, figs, legends = rpcs.make_plots(proj, results=results, calibration=calibration, outputfigs=True)
 
     # Output
     print('Output:')
-    sc.pp(output)
+    if verbose:
+        sc.pp(output)
     if browser:
         sw.browser(output['graphs']+output['legends'])
 
@@ -161,7 +160,7 @@ if 'run_cascade_optimization' in torun and tool=='cascade':
     maxtime = 5
     optim_summaries = rpcs.get_optim_info(proj_id)
     rpcs.set_optim_info(proj_id, optim_summaries)
-    output = atca.run_cascade_optimization(proj_id, cache_id, maxtime=maxtime, online=True)
+    output = appt.run_cascade_optimization(proj_id, cache_id, maxtime=maxtime, online=True)
     print('Output:')
     sc.pp(output)
     if browser:
@@ -174,7 +173,7 @@ if 'run_tb_optimization' in torun and tool=='tb':
     maxtime = 10
     optim_summaries = rpcs.get_optim_info(proj_id)
     rpcs.set_optim_info(proj_id, optim_summaries)
-    output = attb.run_tb_optimization(proj_id, cache_id, pops='All', tool='tb', maxtime=maxtime, online=True)
+    output = appt.run_tb_optimization(proj_id, cache_id, pops='All', tool='tb', maxtime=maxtime, online=True)
     print('Output:')
     sc.pp(output)
     if browser:

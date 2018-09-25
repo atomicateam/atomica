@@ -209,7 +209,7 @@ def save_new_project(proj, username=None, uid=None, verbose=True):
         new_project.webapp.tasks = []
     
     # Save all the things
-    key = save_project(new_project)
+    key = save_project(new_project, verbose=verbose)
     user.projects.append(key)
     datastore.saveuser(user)
     return key,new_project
@@ -1119,14 +1119,21 @@ def get_supported_plots(project_id, only_keys=False):
 
 
 def savefigs(allfigs, username, die=False):
+    ''' Save all figures, first to disk, and then to the database '''
     filepath = sc.savefigs(allfigs, filetype='singlepdf', filename='Figures.pdf', folder=get_path('', username=username))
+    figblob = sc.Blobject(filename=filepath)
+    figkey = 'figures::'+username
+    datastore.saveblob(key=figkey, obj=figblob)
     return filepath
 
 
 @RPC(call_type='download')
 def download_graphs(username):
+    ''' Download figures, first loading from database and then saving '''
     file_name = 'Figures.pdf' # Create a filename containing the framework name followed by a .frw suffix.
     full_file_name = get_path(file_name, username=username) # Generate the full file name with path.
+    figblob = datastore.loadblob(key='figures::'+username)
+    figblob.save(full_file_name)
     return full_file_name
 
 
@@ -1210,8 +1217,7 @@ def make_plots(proj, results, tool=None, year=None, pops=None, cascade=None, plo
             output[key] = cascadeoutput[key] + output[key]
         allfigs = cascadefigs + allfigs
         alllegends = cascadelegends + alllegends
-    try:                   savefigs(allfigs, username=proj.webapp.username) # WARNING, dosave ignored fornow
-    except Exception as E: print('Could not save figures: %s' % str(E))
+    savefigs(allfigs, username=proj.webapp.username) # WARNING, dosave ignored fornow
     if outputfigs: return output, allfigs, alllegends
     else:          return output
 
