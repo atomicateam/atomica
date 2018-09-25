@@ -320,10 +320,20 @@ class ProgramSet(NamedItem):
 
             for i in range(pop_start_idx, comp_start_idx):
                 if row[i].value and sc.isstring(row[i].value) and row[i].value.lower().strip() == 'y':
+                    if pop_idx[i] not in pop_codenames:
+                        message = 'There was a mismatch between the populations in the databook and the populations in the program book'
+                        message += '\nThe program book contains population "%s", while the databook contains: %s' % (pop_idx[i],[str(x) for x in pop_codenames.keys()])
+                        raise AtomicaException(message)
+
                     target_pops.append(pop_codenames[pop_idx[i]]) # Append the pop's codename
 
             for i in range(comp_start_idx, len(headers)):
                 if row[i].value and sc.isstring(row[i].value) and row[i].value.lower().strip() == 'y':
+                    if comp_idx[i] not in comp_codenames:
+                        message = 'There was a mismatch between the compartments in the databook and the compartments in the Framework file'
+                        message += '\nThe program book contains compartment "%s", while the Framework contains: %s' % (comp_idx[i],[str(x) for x in comp_codenames.keys()])
+                        raise AtomicaException(message)
+
                     target_comps.append(comp_codenames[comp_idx[i]])  # Append the pop's codename
 
             short_name = row[0].value.strip()
