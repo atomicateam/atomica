@@ -17,7 +17,8 @@ torun = [
 #'get_cascade_plot',
 #'get_cascade_json',
 #'make_plots',
-'autocalibration',
+'get_y_factors',
+#'autocalibration',
 #'run_scenarios',
 #'run_cascade_optimization',
 #'run_tb_optimization',
@@ -128,6 +129,10 @@ if 'make_plots' in torun:
     sc.pp(output)
     if browser:
         sw.browser(output['graphs']+output['legends'])
+
+
+if 'get_y_factors' in torun:
+    output = rpcs.get_y_factors(proj_id)
 
 
 if 'autocalibration' in torun:

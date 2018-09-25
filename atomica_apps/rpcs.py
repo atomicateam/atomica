@@ -726,7 +726,8 @@ def get_y_factors(project_id, parsetname=-1, verbose=False):
             if 'calibrate' in this_spec and this_spec['calibrate'] is not None:
                 count += 1
                 parlabel = this_spec['display name']
-                y_factors.append({'index':count, 'parname':parname, 'parlabel':parlabel, 'meta_y_factor':this_par.meta_y_factor, 'pop_y_factors':[]}) 
+                parcategory = this_spec['calibrate']
+                y_factors.append({'index':count, 'parname':parname, 'parlabel':parlabel, 'parcategory':parcategory, 'meta_y_factor':this_par.meta_y_factor, 'pop_y_factors':[]}) 
                 for p,popname,y_factor in this_par.y_factor.enumitems():
                     popindex = parset.pop_names.index(popname)
                     poplabel = parset.pop_labels[popindex]

@@ -76,6 +76,7 @@ Last update: 2018-09-06
           <table class="table table-bordered table-hover table-striped" style="width: 100%">
             <thead>
             <tr>
+              <th v-if="$globaltool=='tb'">Category</th>
               <th>Parameter</th>
               <th>Overall scale factor</th>
               <th v-for="popLabel in poplabels">{{ popLabel }}</th>
@@ -83,6 +84,7 @@ Last update: 2018-09-06
             </thead>
             <tbody>
             <tr v-for="par in parlist">
+              <td v-if="$globaltool=='tb'">{{par.parcategory}}</td>
               <td>{{par.parlabel}}</td>
               <td>
                 <input type="text"
