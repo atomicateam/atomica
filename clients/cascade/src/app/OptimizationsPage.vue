@@ -452,7 +452,6 @@ Last update: 2018-09-12
 
       getOptimTaskState(optimSummary) {
         console.log('getOptimTaskState() called for with: ' + optimSummary.status)
-        console.log('TEMP: ' + optimSummary.serverDatastoreId)
         let statusStr = '';
         rpcs.rpc('check_task', [optimSummary.serverDatastoreId]) // Check the status of the task.
           .then(result => {
