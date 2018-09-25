@@ -7,10 +7,11 @@ Version:
 ###########################################################################
 
 torun = [
+'slack',
 #'project_io',
 #'get_cascade_plot',
 #'get_cascade_json',
-'make_plots',
+#'make_plots',
 #'get_y_factors',
 #'autocalibration',
 #'run_scenarios',
@@ -70,6 +71,10 @@ datastore = rpcs.find_datastore(config=config)
 
 string = 'Starting tests for:\n  tool = %s\n  which = %s\n  user = %s\n  proj = %s' % (tool, default_which, user.username, proj_id)
 heading(string, 'big')
+
+
+if 'slack' in torun:
+    app.slacknotification('Test Slack notification from test_rpcs.py')
 
 
 if 'project_io' in torun:
