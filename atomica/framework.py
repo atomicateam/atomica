@@ -88,7 +88,7 @@ class ProjectFramework(object):
 
     def save(self, filename=None, folder=None):
         ''' This function saves an Excel file with the original spreadsheet '''
-        fullpath = sc.makefilepath(filename=filename, folder=folder, default=self.name, ext='frw', sanitize=True)
+        fullpath = sc.makefilepath(filename=filename, folder=folder, default=self.name, ext='xlsx', sanitize=True)
         if self.spreadsheet is None:
             raise AtomicaException('Spreadsheet is not present, cannot save Framework as xlsx')
         else:

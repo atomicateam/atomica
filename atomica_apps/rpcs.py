@@ -638,9 +638,9 @@ def download_framework(framework_id):
     frame = load_framework(framework_id, die=True) # Load the project with the matching UID.
     file_name = '%s.xlsx' % frame.name
     full_file_name = get_path(file_name, username=frame.webapp.username) # Generate the full file name with path.
-    frame.save(full_file_name)
-    print(">> download_framework %s" % (full_file_name)) # Display the call information.
-    return full_file_name # Return the full filename.
+    filepath = frame.save(full_file_name)
+    print(">> download_framework %s" % (filepath)) # Display the call information.
+    return filepath # Return the full filename.
 
 
 @RPC(call_type='download')
