@@ -122,7 +122,7 @@ Last update: 2018sep23
           }
           this.$Simplert.open(obj)
         } else {
-          this.adv_toggleConsole()
+          this.adv_showConsole = false
         }
       },
 
