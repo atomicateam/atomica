@@ -9,7 +9,8 @@ Last update: 2018sep23
     <div style="text-align:center">
       <div style="display:inline-block; margin:auto; text-align:left" v-model="getVersionInfo">
         <div>
-          <p>We are in the process of writing a user guide.</p>
+          <p v-if="$globaltool=='cascade'">For instructions on how to use the Cascade Analysis Tool, please see the user guide: <a href="https://cascade.tools/user-guide" target="_blank">https://cascade.tools/user-guide</a>.</p>
+          <p v-if="$globaltool=='tb'">      For instructions on how to use Optima TB,                 please see the user guide: <a href="http://ocds.co/tb-user-guide" target="_blank">ocds.co/tb-user-guide</a>.</p>
           <p v-if="$globaltool=='cascade'">For assistance in the mean time, please <a href="mailto:robyn@math.ku.dk">contact us</a>.</p>
           <p v-if="$globaltool=='tb'">     For assistance in the mean time, please email <a href="mailto:help@ocds.co">help@ocds.co</a>.</p>
           <p>Please copy and paste the table below into your email, along with any error messages.</p>
