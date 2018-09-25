@@ -21,7 +21,7 @@ Methods for structure lists:
     3. copy -- copy a structure in the odict
     4. rename -- rename a structure in the odict
 
-Version: 2018sep24
+Version: 2018sep25
 """
 
 from .version import version
@@ -31,7 +31,7 @@ from .framework import ProjectFramework
 from .model import run_model
 from .parameters import ParameterSet
 
-from .programs import ProgramSet, ProgramInstructions
+from .programs import ProgramSet
 from .scenarios import Scenario, ParameterScenario
 from .optimization import Optimization, optimize, OptimInstructions, InvalidInitialConditions
 from .system import logger, AtomicaException
@@ -442,6 +442,9 @@ class Project(object):
         Current fitting metrics are: "fractional", "meansquare", "wape"
         Note that scaling limits are absolute, not relative.
         """
+        print('TEMPPPPP')
+        print(max_time)
+        print(type(max_time))
         if parset is None: parset = -1
         parset = self.parsets[parset]
         if new_name is None:

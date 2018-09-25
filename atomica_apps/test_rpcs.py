@@ -17,15 +17,16 @@ torun = [
 #'get_cascade_plot',
 #'get_cascade_json',
 #'make_plots',
+'autocalibration',
 #'run_scenarios',
 #'run_cascade_optimization',
 #'run_tb_optimization',
 # 'minimize_money',
-'default_programs',
+#'default_programs',
 ]
 
 # Set defaults
-tool = ['tb','cascade'][1] # Change this to change between TB and Cascade
+tool = ['tb','cascade'][0] # Change this to change between TB and Cascade
 default_which = {'tb':'tb', 'cascade':'hypertension'}[tool]
 
 
@@ -128,11 +129,18 @@ if 'make_plots' in torun:
     if browser:
         sw.browser(output['graphs']+output['legends'])
 
+
+if 'autocalibration' in torun:
+    max_time = '30'
+    output = rpcs.automatic_calibration(proj_id, cache_id, parsetname=-1, max_time=max_time, saveresults=True, plot_options=None, tool=tool, plotyear=None, pops=None,cascade=None, dosave=True)
+
+
 if 'export_results' in torun:
     # This test validates exporting Excel files from Result objects
     proj = demoproj('tb')
     results = proj.demo_scenarios(dorun=True)
     au.export_results(results,'test_rpcs_export_results.zip')
+
 
 if 'run_scenarios' in torun:
     browser = True

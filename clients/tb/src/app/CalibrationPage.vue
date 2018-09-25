@@ -25,7 +25,7 @@ Last update: 2018-09-06
       <div class="card">
         <div><help reflink="bl-overview" label="Calibration and reconciliation"></help></div>
         <div class="controls-box">
-          <button class="btn __green" @click="manualCalibration(projectID)">Save & run</button>
+          <button class="btn __green" @click="manualCalibration(projectID)">Run</button>
           <button class="btn" @click="toggleParams()">
             <span v-if="showParameters">Hide</span>
             <span v-else>Show</span>
@@ -100,7 +100,7 @@ Last update: 2018-09-06
             </tr>
             </tbody>
           </table>
-          <button class="btn __green" @click="saveParTable()">Save</button>&nbsp;
+          <button class="btn __green" @click="saveParTable()">Save & run</button>&nbsp;
         </div>
       </div>
       <!-- ### End: parameters card ### -->
@@ -417,6 +417,7 @@ Last update: 2018-09-06
               this.loadParTable()
                 .then(response2 => {
                   status.succeed(this, 'Parameters updated')
+                  this.manualCalibration(this.projectID)
                   resolve(response2)
                 })
               resolve(response)
