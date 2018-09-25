@@ -18,7 +18,7 @@ Last update: 2018sep22
             </a>
           </span>
           <br/><br/>
-          <div style="font-size:14px; font-weight:normal">
+          <div v-if="version" style="font-size:14px; font-weight:normal">
             Version {{ version }} ({{ date }})
           </div>
         </div>

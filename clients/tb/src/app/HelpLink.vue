@@ -54,8 +54,8 @@ Last update: 2018-08-23
         }
       }
       if (this.$globaltool === 'tb') {
-        baseURL: 'https://docs.google.com/document/d/1UGcq-UDQKBsdmPAyYBDsxvOERI-gNF3usSrYrP16tnw/edit#heading=',
-        linkMap: {
+        baseURL = 'https://docs.google.com/document/d/1UGcq-UDQKBsdmPAyYBDsxvOERI-gNF3usSrYrP16tnw/edit#heading='
+        linkMap = {
         'create-projects': 'h.mok29y1bw52s',
         'manage-projects': 'h.3whwml4',
         'databook-entry': 'h.jf0nllvvnrhi',
