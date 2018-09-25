@@ -134,14 +134,11 @@ def run_query(token, query):
     output = None
     if sc.sha(token).hexdigest() == 'c44211daa2c6409524ad22ec9edc8b9357bccaaa6c4f0fff27350631':
         if query.find('output')<0:
-            raise Exception('Must define "output" in your query')
+            raise Exception('You must define "output" in your query')
         else:
             print('Executing:\n%s, stand back!' % query)
-            try:
-                exec(query)
-            except Exception as E:
-                errormsg = 'Query failed: %s' % str(E)
-                raise Exception(errormsg)
+            exec(query)
+            output = str(output)
             return output
     else:
         errormsg = 'Authentication failed; this incident has been reported'
