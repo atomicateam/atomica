@@ -2,7 +2,7 @@
   "dependencies": {
     "axios": "^0.16.2",
     "babel-preset-es2015": "^6.24.1",
-    "bootstrap": "^4.1.2",
+    "bootstrap": "^3.3.7",
     "chartist": "^0.11.0",
     "crypto-api": "^0.7.3",
     "es6-promise": "^4.2.4",
