@@ -73,6 +73,13 @@ Last update: 2018-09-06
       <div class="PageSection" v-show="showParameters">
         <div class="card">
           <help reflink="parameters" label="Parameters"></help>
+
+          <input type="text"
+                 class="txbox"
+                 style="margin-left:0px; margin-bottom:10px; display:inline-block; width:100%"
+                 :placeholder="filterPlaceholder"
+                 v-model="filterText"/>
+
           <table class="table table-bordered table-hover table-striped" style="width: 100%">
             <thead>
             <tr>
@@ -83,7 +90,7 @@ Last update: 2018-09-06
             </tr>
             </thead>
             <tbody>
-            <tr v-for="par in parlist">
+            <tr v-for="par in filteredParlist">
               <td v-if="$globaltool=='tb'">{{par.parcategory}}</td>
               <td>{{par.parlabel}}</td>
               <td>
@@ -322,6 +329,8 @@ Last update: 2018-09-06
         showParameters: false,
         calibTime: '30 seconds',
         calibTimes: ['30 seconds', 'Unlimited'],
+        filterPlaceholder: 'Type here to filter parameters', // Placeholder text for second table filter box
+        filterText: '', // Text in the first table filter box
       }
     },
 
@@ -334,6 +343,10 @@ Last update: 2018-09-06
       simYears()     { return utils.simYears(this) },
       activePops()   { return utils.activePops(this) },
       placeholders() { return graphs.placeholders(this, 1) },
+
+      filteredParlist() {
+        return this.applyParametersFilter(this.parlist)
+      }
     },
 
     created() {
@@ -429,6 +442,11 @@ Last update: 2018-09-06
               reject(error)
             })
         })
+      },
+
+      applyParametersFilter(parlist) {
+        return parlist.filter(par => ((par.parcategory.toLowerCase().indexOf(this.filterText.toLowerCase()) !== -1)
+                                      || (par.parlabel.toLowerCase().indexOf(this.filterText.toLowerCase()) !== -1)))
       },
 
       renameParsetModal() {
