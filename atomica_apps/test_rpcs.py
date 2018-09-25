@@ -59,8 +59,8 @@ def heading(string, style=None):
 T = sc.tic()
 app = main.make_app(which=tool)
 user = sw.make_default_users(app)[0]
-proj_id  = sc.uuid(as_string=True)
-cache_id = sc.uuid(as_string=True)
+proj_id  = sc.uuid(tostring=True)
+cache_id = sc.uuid(tostring=True)
 proj = demoproj(proj_id, user.username, which=default_which)
 datastore = rpcs.find_datastore(config=config)
 
