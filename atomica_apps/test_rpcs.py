@@ -171,14 +171,17 @@ if 'minimize_money' in torun and tool=='tb':
     browser = False
     results = proj.demo_optimization(dorun=True,tool=tool,optim_type='money')
 
+
 if 'default_programs' in torun:
+    progyears = [2015,2017]
     active_progs = rpcs.get_default_programs()[0]
     print(active_progs)
     active_progs['BCG vaccination'] = True
     active_progs['ART Treatment'] = False
     P = au.demo(which='tb')
-    user_default_progset = rpcs.make_default_progbook(P,[2015,2018],active_progs=active_progs)
+    user_default_progset = rpcs.create_default_progbook(P,progyears,active_progs=active_progs)
     user_default_progset.save('user_default_progset.xlsx')
+
 
 sc.toc(T)
 print('Done.')
