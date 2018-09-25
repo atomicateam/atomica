@@ -225,8 +225,8 @@ Last update: 2018sep23
         </div>
         <!-- ### End: Cascade demo project modal ### -->
 
-      </div>        
-        
+      </div>
+
       <!-- ### Start: TB demo project modal ### -->
       <div v-if="$globaltool=='tb'" class="dialog-content">
         <div class="dialog-c-title">
@@ -280,24 +280,53 @@ Last update: 2018sep23
         <div class="dialog-c-title">
           Create program book
         </div>
-        <div class="dialog-c-text">
-          Number of programs:<br>
-          <input type="text"
-                 class="txbox"
-                 v-model="num_progs"/><br>
-        </div>
-        <div style="text-align:justify">
-          <button @click="createProgbook()" class='btn __green' style="display:inline-block">
-            Create
-          </button>
 
-          <button @click="$modal.hide('create-progbook')" class='btn __red' style="display:inline-block">
-            Cancel
-          </button>
+        <div v-if="$globaltool=='cascade'">
+          <div class="dialog-c-text">
+            Number of programs:<br>
+            <input type="text"
+                   class="txbox"
+                   v-model="num_progs"/><br>
+          </div>
+          <div style="text-align:justify">
+            <button @click="createProgbook()" class='btn __green' style="display:inline-block">Create</button>
+            <button @click="$modal.hide('create-progbook')" class='btn __red' style="display:inline-block">Cancel</button>
+          </div>
         </div>
+
+        <div v-if="$globaltool=='tb'">
+          <div class="scrolltable" style="max-height: 70vh;">
+            <table class="table table-bordered table-striped table-hover">
+              <thead>
+              <tr>
+                <th>Program name</th>
+                <th style="text-align: center">Include?</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr v-for="defaultProgram in defaultPrograms">
+                <td>
+                  {{ defaultProgram.name }}
+                </td>
+                <td style="text-align: center">
+                  <input type="checkbox" v-model="defaultProgram.included"/>
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+          <div style="text-align:justify">
+            <button @click="createDefaultProgbook()" class='btn __green' style="display:inline-block">Create</button>
+            <button @click="$modal.hide('create-progbook')" class='btn __red' style="display:inline-block">Cancel</button>
+          </div>
+        </div>
+
       </div>
     </modal>
     <!-- ### End: New progbook modal ### -->
+
+
+
 
   </div>
 
@@ -332,6 +361,7 @@ Last update: 2018sep23
         currentFramework: '',
         demoOptions: [],
         demoOption: '',
+        defaultPrograms: [],
       }
     },
 
@@ -354,6 +384,7 @@ Last update: 2018sep23
         this.getDemoOptions()
         this.updateFrameworkSummaries()        // Load the frameworks so the new project dialog is populated
         this.updateProjectSummaries(projectID) // Load the project summaries of the current user.
+        this.getDefaultPrograms()
       }
     },
 
@@ -387,6 +418,19 @@ Last update: 2018sep23
           })
           .catch(error => {
             status.fail(this, 'Could not load demo project options', error)
+          })
+      },
+
+      getDefaultPrograms() {
+        console.log('getDefaultPrograms() called')
+        rpcs.rpc('get_default_programs') // Get the current user's framework summaries from the server.
+          .then(response => {
+            this.defaultPrograms = response.data // Set the frameworks to what we received.
+            console.log('Loaded default programs:')
+            console.log(this.defaultPrograms)
+          })
+          .catch(error => {
+            status.fail(this, 'Could not load default programs', error)
           })
       },
 

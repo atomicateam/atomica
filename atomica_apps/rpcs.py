@@ -1,7 +1,7 @@
 '''
 Atomica remote procedure calls (RPCs)
     
-Last update: 2018sep23
+Last update: 2018sep25
 '''
 
 ###############################################################
@@ -939,6 +939,7 @@ def delete_progset(project_id, progsetname=None):
 
 @RPC()
 def get_default_programs():
+    # Get programs
     F = au.demo(kind='framework',which='tb')
     default_pops = sc.odict() # TODO - read in the pops from the defaults file instead of hard-coding them here
     for key in ['^0.*', '.*HIV.*', '.*[pP]rison.*', '^[^0](?!HIV)(?![pP]rison).*']:
@@ -947,15 +948,21 @@ def get_default_programs():
     spreadsheetpath = au.atomica_path(['tests', 'databooks']) + "progbook_tb_defaults.xlsx"
     default_progset = au.ProgramSet.from_spreadsheet(spreadsheetpath, framework=F, data=D)
 
+    # Assemble dictionary
     progs = sc.odict()
     for key in default_progset.programs.keys():
         prog_label = default_progset.programs[key].label
-        if '[inactive]' in prog_label:
-            progs[prog_label.replace('[inactive]','').strip()] = False
+        if '[Inactive]' in prog_label:
+            progs[prog_label.replace('[Inactive]','').strip()] = False
         else:
-            progs[prog_label.strip()] = True
+            progs[prog_label.replace('[Active]','').strip()] = True
+    
+    # Frontendify
+    output = []
+    for key,val in progs.items():
+        output.append({'name':key, 'included':val})
 
-    return progs
+    return output
 
 
 @RPC(call_type='download')
