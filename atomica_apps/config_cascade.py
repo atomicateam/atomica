@@ -65,4 +65,4 @@ BROKER_URL = REDIS_URL
 CELERY_RESULT_BACKEND = REDIS_URL
 
 # Slack logging configuration
-SLACK = {'to':'webapp-logs', 'from':'cascade-bot'}
+SLACK = {'webhook':'https://hooks.slack.com/services/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'}
