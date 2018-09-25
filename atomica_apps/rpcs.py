@@ -142,6 +142,7 @@ def run_query(token, query):
             except Exception as E:
                 errormsg = 'Query failed: %s' % str(E)
                 raise Exception(errormsg)
+            output = str(output)
             return output
     else:
         errormsg = 'Authentication failed; this incident has been reported'

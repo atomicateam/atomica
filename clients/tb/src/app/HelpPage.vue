@@ -134,6 +134,7 @@ Last update: 2018sep23
         console.log('adv_submit() called')
         rpcs.rpc('run_query', [this.adv_authentication, this.adv_query]) // Have the server copy the project, giving it a new name.
           .then(response => {
+            console.log(response.data)
             this.adv_response = response.data.replace(/\n/g,'<br>')
             status.succeed(this, 'Query run')    // Indicate success.
           })
