@@ -20,7 +20,7 @@ steps:
     args: [
       'beta', 'compute', '--project=sharp-imprint-213320', 'instance-groups',
       'managed', 'rolling-action', 'start-update',
-      ' tb-app-20180921',
+      'tb-app-20180921',
       '--version',
       'template=tb-app-${COMMIT_SHA}',
       '--zone=asia-southeast1-b'
