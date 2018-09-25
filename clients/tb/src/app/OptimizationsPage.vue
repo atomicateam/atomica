@@ -231,11 +231,11 @@ Last update: 2018-09-12
                 {{ parset }}
               </option>
             </select><br><br>
-            <b>Start year</b><br>
+            <b>Use optimal allocation of funds beginning in year</b><br>
             <input type="text"
                    class="txbox"
                    v-model="modalOptim.start_year"/><br>
-            <b>Objective year</b><br>
+            <b>Target year for optimizing outcomes</b><br>
             <input type="text"
                    class="txbox"
                    v-model="modalOptim.end_year"/><br>
@@ -390,12 +390,7 @@ Last update: 2018-09-12
           .then(response => {
             this.updateSets()
               .then(response2 => {
-                this.getDefaultOptim()
-                  .then(response3 => {
-                    // Order doesn't matter for these.
-                    this.getOptimSummaries()
-                    this.resetModal(this.defaultOptim)
-                  })
+                this.getOptimSummaries()
               })
           })
       }
@@ -508,23 +503,6 @@ Last update: 2018-09-12
                 })
             })
             .catch(error => {
-              reject(error)
-            })
-        })
-      },
-
-      getDefaultOptim() {
-        return new Promise((resolve, reject) => {
-          console.log('getDefaultOptim() called')
-          rpcs.rpc('get_default_optim', [this.projectID, this.$globaltool])
-            .then(response => {
-              this.defaultOptim = response.data // Set the optimization to what we received.
-              console.log('This is the default:')
-              console.log(this.defaultOptim)
-              resolve(response)
-            })
-            .catch(error => {
-              status.fail(this, 'Could not get default optimization', error)
               reject(error)
             })
         })

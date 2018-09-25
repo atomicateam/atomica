@@ -12,7 +12,7 @@ import atomica.ui as au
 from atomica_apps import rpcs, apptasks_cascade as atca, apptasks_tb as attb, main
 
 torun = [
-'datastore',
+# 'datastore',
 #'project_io',
 #'get_cascade_plot',
 #'get_cascade_json',
@@ -21,6 +21,7 @@ torun = [
 #'run_cascade_optimization',
 #'run_tb_optimization',
 # 'minimize_money',
+'default_programs',
 ]
 
 # Set defaults
@@ -36,9 +37,9 @@ def demoproj(proj_id, username, which=None):
     if which is None: which = default_which
     P = au.demo(which=which)
     P.name = 'RPCs test %s' % proj_id[:6]
-    P.uid = proj_id
+    P.uid = sc.uuid(proj_id)
     P = rpcs.cache_results(P)
-    rpcs.save_new_project(P, username)
+    rpcs.save_new_project(P, username, uid=P.uid) # Force a matching uid
     return P
 
 def heading(string, style=None):
@@ -169,6 +170,14 @@ if 'run_tb_optimization' in torun and tool=='tb':
 if 'minimize_money' in torun and tool=='tb':
     browser = False
     results = proj.demo_optimization(dorun=True,tool=tool,optim_type='money')
+
+
+if 'default_programs' in torun:
+    progyears = [2015,2017]
+    active_progs = rpcs.get_default_programs()
+    rpcs.create_default_progbook(proj_id, progyears, active_progs=active_progs)
+    print(active_progs)
+
 
 sc.toc(T)
 print('Done.')

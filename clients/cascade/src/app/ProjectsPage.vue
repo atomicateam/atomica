@@ -225,8 +225,8 @@ Last update: 2018sep23
         </div>
         <!-- ### End: Cascade demo project modal ### -->
 
-      </div>        
-        
+      </div>
+
       <!-- ### Start: TB demo project modal ### -->
       <div v-if="$globaltool=='tb'" class="dialog-content">
         <div class="dialog-c-title">
@@ -280,21 +280,62 @@ Last update: 2018sep23
         <div class="dialog-c-title">
           Create program book
         </div>
-        <div class="dialog-c-text">
-          Number of programs:<br>
-          <input type="text"
-                 class="txbox"
-                 v-model="num_progs"/><br>
-        </div>
-        <div style="text-align:justify">
-          <button @click="createProgbook()" class='btn __green' style="display:inline-block">
-            Create
-          </button>
 
-          <button @click="$modal.hide('create-progbook')" class='btn __red' style="display:inline-block">
-            Cancel
-          </button>
+        <div v-if="$globaltool=='cascade'">
+          <div class="dialog-c-text">
+            Number of programs:<br>
+            <input type="text"
+                   class="txbox"
+                   v-model="num_progs"/><br>
+          </div>
+          <div style="text-align:justify">
+            <button @click="createProgbook()" class='btn __green' style="display:inline-block">Create</button>&nbsp;&nbsp;&nbsp;
+            <button @click="$modal.hide('create-progbook')" class='btn __red' style="display:inline-block">Cancel</button>
+          </div>
         </div>
+
+        <div v-if="$globaltool=='tb'">
+
+          <div class="divTable">
+            <div class="divTableBody">
+              <div class="divTableRow">
+                <div class="divRowContent" style="padding-bottom:10px"><b>Start year: &nbsp;</b></div>
+                <div class="divRowContent" style="padding-bottom:10px"><select v-model="progStartYear"><option v-for='year in simYears'>{{ year }}</option></select></div>
+              </div>
+              <div class="divTableRow">
+                <div class="divRowContent" style="padding-bottom:10px"><b>End year: &nbsp;</b></div>
+                <div class="divRowContent" style="padding-bottom:10px"><select v-model="progEndYear"><option v-for='year in simYears'>{{ year }}</option></select></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="scrolltable" style="max-height: 70vh;">
+            <table class="table table-bordered table-striped table-hover">
+              <thead>
+              <tr>
+                <th>Program name</th>
+                <th style="text-align: center">Include?</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr v-for="defaultProgram in defaultPrograms">
+                <td>
+                  {{ defaultProgram.name }}
+                </td>
+                <td style="text-align: center">
+                  <input type="checkbox" v-model="defaultProgram.included"/>
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+          <div style="text-align:justify">
+            <br>
+            <button @click="createDefaultProgbook()" class='btn __green' style="display:inline-block">Create</button>&nbsp;&nbsp;&nbsp;
+            <button @click="$modal.hide('create-progbook')" class='btn __red' style="display:inline-block">Cancel</button>
+          </div>
+        </div>
+
       </div>
     </modal>
     <!-- ### End: New progbook modal ### -->
@@ -332,12 +373,16 @@ Last update: 2018sep23
         currentFramework: '',
         demoOptions: [],
         demoOption: '',
+        defaultPrograms: [],
+        progStartYear: 2015,
+        progEndYear: 2017,
       }
     },
 
     computed: {
       projectID()    { return utils.projectID(this) },
       userName()     { return this.$store.state.currentUser.username },
+      simYears()     { return utils.dataYears(this) },
       sortedFilteredProjectSummaries() {
         return this.applyNameFilter(this.applySorting(this.projectSummaries))
       },
@@ -351,6 +396,7 @@ Last update: 2018sep23
         if (this.$store.state.activeProject.project !== undefined) { // Get the active project ID if there is an active project.
           projectID = this.$store.state.activeProject.project.id
         }
+        this.getDefaultPrograms()
         this.getDemoOptions()
         this.updateFrameworkSummaries()        // Load the frameworks so the new project dialog is populated
         this.updateProjectSummaries(projectID) // Load the project summaries of the current user.
@@ -387,6 +433,19 @@ Last update: 2018sep23
           })
           .catch(error => {
             status.fail(this, 'Could not load demo project options', error)
+          })
+      },
+
+      getDefaultPrograms() {
+        console.log('getDefaultPrograms() called')
+        rpcs.rpc('get_default_programs') // Get the current user's framework summaries from the server.
+          .then(response => {
+            this.defaultPrograms = response.data // Set the frameworks to what we received.
+            console.log('Loaded default programs:')
+            console.log(this.defaultPrograms)
+          })
+          .catch(error => {
+            status.fail(this, 'Could not load default programs', error)
           })
       },
 
@@ -676,6 +735,21 @@ Last update: 2018sep23
         this.$modal.hide('create-progbook')
         status.start(this, 'Creating program book...')
         rpcs.download('create_progbook', [uid, this.num_progs])
+          .then(response => {
+            status.succeed(this, '')
+          })
+          .catch(error => {
+            status.fail(this, 'Could not create program book', error)
+          })
+      },
+
+      createDefaultProgbook() {
+        // Find the project that matches the UID passed in.
+        let uid = this.activeuid
+        console.log('createDefaultProgbook() called')
+        this.$modal.hide('create-progbook')
+        status.start(this, 'Creating default program book...')
+        rpcs.download('create_default_progbook', [uid, null, this.defaultPrograms]) // TODO: set years
           .then(response => {
             status.succeed(this, '')
           })

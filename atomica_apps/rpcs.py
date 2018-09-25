@@ -1,7 +1,7 @@
 '''
 Atomica remote procedure calls (RPCs)
     
-Last update: 2018sep23
+Last update: 2018sep25
 '''
 
 ###############################################################
@@ -14,6 +14,7 @@ import psutil
 import numpy as np
 import pylab as pl
 import mpld3
+import re
 import sciris as sc
 import scirisweb as sw
 import atomica.ui as au
@@ -129,9 +130,9 @@ def from_number(raw, sf=3, die=False):
 
 
 @RPC()
-def run_query(authentication, query):
+def run_query(token, query):
     output = None
-    if sc.sha(authentication).hexdigest() == 'c44211daa2c6409524ad22ec9edc8b9357bccaaa6c4f0fff27350631':
+    if sc.sha(token).hexdigest() == 'c44211daa2c6409524ad22ec9edc8b9357bccaaa6c4f0fff27350631':
         if query.find('output')<0:
             raise Exception('Must define "output" in your query')
         else:
@@ -143,7 +144,8 @@ def run_query(authentication, query):
                 raise Exception(errormsg)
             return output
     else:
-        raise Exception('Authentication failed; this incident has been reported')
+        errormsg = 'Authentication failed; this incident has been reported'
+        raise Exception(errormsg)
         return None
     
 
@@ -164,7 +166,8 @@ def load_result(result_key, die=False):
     output = datastore.loadblob(result_key, objtype='result', die=die)
     return output
 
-def save_project(project, die=None): # NB, only for saving an existing project
+def save_project(project, die=None, verbose=True): # NB, only for saving an existing project
+    if verbose: print('Saving project %s...' % project.uid)
     project.modified = sc.now()
     output = datastore.saveblob(obj=project, objtype='project', die=die, forcetype=True)
     return output
@@ -179,14 +182,15 @@ def save_result(result, key=None, die=None):
     return output
 
 
-def save_new_project(proj, username=None):
+def save_new_project(proj, username=None, uid=None, verbose=True):
     '''
     If we're creating a new project, we need to do some operations on it to
     make sure it's valid for the webapp.
-    ''' 
+    '''
     # Preliminaries
-    new_project = sc.dcp(proj) # Copy the project, only save what we want...
-    new_project.uid = sc.uuid()
+    if verbose: print('Saving project %s as new...' % proj.uid)
+    new_project = sc.dcp(proj) # Copy the project..
+    new_project.uid = sc.uuid(uid) # Optionally allow the project to be saved with an explicit UID
     
     # Get unique name
     user = get_user(username)
@@ -199,6 +203,7 @@ def save_new_project(proj, username=None):
     
     # Ensure it's a valid webapp project
     if not hasattr(new_project, 'webapp'):
+        if verbose: print('Adding webapp attribute for username %s' % username)
         new_project.webapp = sc.prettyobj()
         new_project.webapp.username = username
         new_project.webapp.tasks = []
@@ -935,6 +940,146 @@ def delete_progset(project_id, progsetname=None):
     return None
 
 
+@RPC()
+def get_default_programs(freshrun=False, verbose=False, fulloutput=False):
+    
+    if freshrun or fulloutput: # This is because creating the framework is very slow (>3 s)
+        # Get programs
+        F = au.demo(kind='framework', which='tb')
+        default_pops = sc.odict() # TODO - read in the pops from the defaults file instead of hard-coding them here
+        for key in ['^0.*', '.*HIV.*', '.*[pP]rison.*', '^[^0](?!HIV)(?![pP]rison).*']:
+            default_pops[key] = key
+        D = au.ProjectData.new(F, tvec=np.array([0]), pops=default_pops, transfers=0)
+        spreadsheetpath = au.atomica_path(['tests', 'databooks']) + "progbook_tb_defaults.xlsx"
+        default_progset = au.ProgramSet.from_spreadsheet(spreadsheetpath, framework=F, data=D)
+    
+        # Assemble dictionary
+        progs = sc.odict()
+        for key in default_progset.programs.keys():
+            prog_label = default_progset.programs[key].label
+            if '[Inactive]' in prog_label:
+                progs[prog_label.replace('[Inactive]','').strip()] = False
+            else:
+                progs[prog_label.replace('[Active]','').strip()] = True
+        
+        # Frontendify
+        output = []
+        for key,val in progs.items():
+            output.append({'name':key, 'included':val})
+    
+    else: # ...so just hard-code it for now
+        output = [{'included': True,  'name': 'BCG vaccination'},
+                  {'included': False, 'name': 'ART Treatment'},
+                  {'included': True,  'name': 'Preventive treatment (contacts of active TB)'},
+                  {'included': False, 'name': 'Latent testing and treatment'},
+                  {'included': False, 'name': 'Passive case finding  (smear test only)'},
+                  {'included': False, 'name': 'Active case finding (contact tracing, smear test only)'},
+                  {'included': False, 'name': 'Passive case finding (with X-ray testing)'},
+                  {'included': False, 'name': 'Active case finding (contact tracing with X-ray testing)'},
+                  {'included': False, 'name': 'Active case finding (outreach with X-ray testing)'},
+                  {'included': False, 'name': 'Active case finding (prisons with X-ray testing)'},
+                  {'included': True,  'name': 'Passive case finding (with geneXpert)'},
+                  {'included': True,  'name': 'Active case finding (contact tracing with geneXpert)'},
+                  {'included': False, 'name': 'Active case finding (outreach with geneXpert)'},
+                  {'included': False, 'name': 'Active case finding (prisons with geneXpert)'},
+                  {'included': True,  'name': 'Hospitalized DS treatment'},
+                  {'included': True,  'name': 'Ambulatory DS treatment'},
+                  {'included': False, 'name': 'Prisoner DS treatment'},
+                  {'included': True,  'name': 'Hospitalized MDR treatment (long course)'},
+                  {'included': True,  'name': 'Ambulatory MDR treatment (long course)'},
+                  {'included': False, 'name': 'Hospitalized MDR treatment (short course)'},
+                  {'included': False, 'name': 'Ambulatory MDR treatment (short course)'},
+                  {'included': False, 'name': 'Hospitalized MDR treatment (new drugs)'},
+                  {'included': True,  'name': 'Hospitalized XDR treament'},
+                  {'included': False, 'name': 'Ambulatory XDR treatment'},
+                  {'included': True,  'name': 'Hospitalized XDR treatment (new drugs)'},
+                  {'included': False, 'name': 'Prisoner DR treatment'},
+                  {'included': False, 'name': 'Other (user defined)'}]
+    
+    if verbose: sc.pp(output)
+
+    if fulloutput: return output, default_progset
+    else:          return output
+
+
+@RPC(call_type='download')
+def create_default_progbook(project_id, program_years=None, active_progs=None):
+    # INPUTS
+    # - proj : a project
+    # - program_years : a two-element range (inclusive) of years for data entry e.g. [2015,2018]
+    # - active_progs : a dict of {program_label:0/1} for whether to include a program or not (obtained via get_default_programs())
+
+    proj = load_project(project_id, die=True)
+    
+    default_active_progs, default_progset = get_default_programs(fulloutput=True)
+    if default_active_progs is None:
+        active_progs = default_active_progs
+    
+    if program_years is None:
+        program_years = [2015,2018]
+
+    # Convert from list back to odict
+    active_progs_dict = sc.odict()
+    for prog in active_progs:
+        active_progs_dict[prog['name']] = prog['included']
+    
+    progs = sc.odict()
+    for prog in default_progset.programs.values():
+        prog.label = prog.label.replace('[Active]','').strip()
+        prog.label = prog.label.replace('[Inactive]','').strip()
+        if active_progs_dict[prog.label]:
+            progs[prog.name] = prog.label
+
+    user_progset = au.ProgramSet.new(framework=proj.framework,data=proj.data,progs=progs,tvec=np.arange(program_years[0],program_years[1]+1))
+
+    # Assign a template pop to each user pop
+    # It stops after the first match, so the regex should be ordered in
+    # decreasing specificity in the template progbook
+    # Maybe don't need this?
+    pop_assignment = sc.odict() # Which regex goes with each user pop {user_pop:template:pop}
+    for user_pop in user_progset.pops:
+        for default_pop in default_progset.pops:
+            if re.match(default_pop,user_pop):
+                pop_assignment[user_pop] = default_pop
+                break
+        else:
+            pop_assignment[user_pop] = None
+
+    for prog in user_progset.programs:
+
+        u_prog = user_progset.programs[prog]
+        d_prog = default_progset.programs[prog]
+
+        # Copy target compartments
+        u_prog.target_comps = d_prog.target_comps[:] # Make a copy of the comp list (using [:], faster than dcp)
+
+        # Assign target populations
+        for user_pop in user_progset.pops:
+            if pop_assignment[user_pop] in d_prog.target_pops:
+                u_prog.target_pops.append(user_pop)
+
+        # Copy assumptions from spending data
+        u_prog.baseline_spend.assumption = d_prog.baseline_spend.assumption
+        u_prog.capacity.assumption = d_prog.capacity.assumption
+        u_prog.coverage.assumption = d_prog.coverage.assumption
+        u_prog.unit_cost.assumption = d_prog.unit_cost.assumption
+        u_prog.spend_data.assumption = d_prog.spend_data.assumption
+
+    for user_par in user_progset.pars:
+        for user_pop in user_progset.pops:
+            default_pop = pop_assignment[user_pop]
+            if (user_par,default_pop) in default_progset.covouts:
+                user_progset.covouts[(user_par,user_pop)] = sc.dcp(default_progset.covouts[(user_par,default_pop)])
+                user_progset.covouts[(user_par, user_pop)].pop = user_pop
+
+    file_name = '%s_default_program_book.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
+    full_file_name = get_path(file_name, username=proj.webapp.username) # Generate the full file name with path.
+    user_progset.save(filename=full_file_name)
+    print(">> download_default_progbook %s" % (full_file_name)) # Display the call information.
+    return full_file_name
+
+
+
 ##################################################################################
 ### Plotting RPCs
 ##################################################################################
@@ -1301,7 +1446,7 @@ def automatic_calibration(project_id, cache_id, parsetname=-1, max_time=20, save
 
 def py_to_js_scen(py_scen, project=None):
     ''' Convert a Python to JSON representation of a scenario. The Python scenario might be a dictionary or an object. '''
-    js_scen = {}
+    js_scen = sc.odict()
     attrs = ['name', 'active', 'parsetname', 'progsetname', 'alloc_year']
     for attr in attrs:
         if isinstance(py_scen, dict):
@@ -1414,11 +1559,12 @@ def run_scenarios(project_id, cache_id, plot_options, saveresults=True, tool=Non
 ### Optimization RPCs
 ##################################################################################
 
-
 def py_to_js_optim(py_optim, project=None):
     js_optim = sc.sanitizejson(py_optim.json)
     if 'objective_labels' not in js_optim:
-        js_optim['objective_labels'] = {key:key for key in js_optim['objective_weights'].keys()} # Copy keys if labels not available
+        js_optim['objective_labels'] = sc.odict()
+        for key in js_optim['objective_weights'].keys():
+            js_optim['objective_labels'][key] = key # Copy keys if labels not available
     for prog_name in js_optim['prog_spending']:
         prog_label = project.progset().programs[prog_name].label
         this_prog = js_optim['prog_spending'][prog_name]
@@ -1551,4 +1697,4 @@ def export_results(cache_id, username):
     full_file_name = get_path(file_name, username=username)
     au.export_results(results, full_file_name)
     print(">> export_results %s" % (full_file_name))
-    return full_file_name # Return the filename  
+    return full_file_name # Return the filename

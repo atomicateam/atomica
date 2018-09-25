@@ -9,7 +9,7 @@ Version: 2018jul30
 import sciris as sc
 from .system import AtomicaException, logger, AtomicaInputError
 from .utils import NamedItem
-from numpy import array, exp, ones, prod, minimum, inf
+from numpy import array, exp, minimum, inf
 from .structure import TimeSeries
 from .excel import standard_formats, AtomicaSpreadsheet, apply_widths, update_widths, read_tables, TimeDependentValuesEntry
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
@@ -277,10 +277,12 @@ class ProgramSet(NamedItem):
         # Return the spreadsheet
         return spreadsheet
 
-    def save(self,fname):
+    def save(self, filename=None, folder=None):
         # Shortcut for saving to disk - FE RPC will probably use `to_spreadsheet()` but BE users will probably use `save()`
+        full_path = sc.makefilepath(filename=filename, folder=folder, default='Programs', ext='xlsx')
         ss = self.to_spreadsheet()
-        ss.save(fname)
+        ss.save(full_path)
+        return full_path
 
     def _read_targeting(self,sheet):
         # This function reads a targeting sheet and instantiates all of the programs with appropriate targets, putting them
