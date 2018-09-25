@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-Optima Core graphical user interface (GUI) script.
+Atomica graphical user interface (GUI) script.
 Launches the GUI.
 """
 
-from atomica.gui import runGUI
+from atomica.gui import run_gui
 
-runGUI()
+run_gui()

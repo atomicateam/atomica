@@ -1,0 +1,77 @@
+.calib-controls {
+  text-align: center;
+  display: flex;
+  margin-bottom: 3rem;
+}
+.calib-controls .control-group {
+  //display: inline-block;
+  //display: flex;
+  //flex-wrap: wrap;
+  //& > div {
+  //  flex: 0 0 400px;
+  //}
+}
+.calib-controls button, .calib-controls .control-group {
+  //margin-right: 1rem;
+}
+.full-width-card {
+  width: 100%;
+}
+.calib-title {
+  display: flex;
+  justify-content: space-between;
+}
+.calib-main {
+  display: flex;
+  margin-top: 4rem;
+}
+.calib-card-body {
+  display: flex;
+}
+.calib-params {
+  flex: 0 0 30%;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+.calib-tables {
+  display:inline-block;
+  padding: 0px 0px 30px 10px;
+}
+.calib-graphs {
+  border: 2px solid #ddd;
+  flex-grow: 1;
+  max-height: 80vh;
+  overflow-y: auto;
+  .featured-graphs {
+
+  }
+  .other-graphs {
+    display: flex;
+    flex: 1;
+    flex-wrap: wrap;
+    .calib-graph {
+      //flex: 0 0 200px; // CK: Not sure why this was here, but it messes things up
+    }
+  }
+}
+.plotopts-main {
+  flex: 0 0 30%;
+  display: flex;
+  max-height:80vh;
+  overflow-y: auto;
+}
+.plotopts-main--full {
+  display: block;
+}
+.plotopts-params {
+  flex: 1 0 10%;
+}
+.controls-box {
+  border: 2px solid #ddd;
+  padding: 7px;
+  display: inline-block;
+}
+.small-button {
+  background: inherit;
+  padding: 0 0 0 0;
+}

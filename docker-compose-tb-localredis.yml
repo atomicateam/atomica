@@ -1,0 +1,18 @@
+version: '2'
+services:
+  app:
+    build:
+      context: .
+      args:
+        WHICH: tb
+        PORT: '80'
+        REDIS_URL: 'redis://localhost:6379/7'
+    command: /etc/init.d/redis-server start && supervisord
+    environment:
+      - REDIS_URL=redis://localhost:6379/7
+    ports:
+     - '8080:8080'
+     - '8093:8093'
+     - '80:80'
+    volumes:
+     - .:/code

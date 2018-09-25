@@ -1,0 +1,43 @@
+/*!
+
+ =========================================================
+ * Paper Dashboard - v1.1.2
+ =========================================================
+
+ * Product Page: http://www.creative-tim.com/product/paper-dashboard
+ * Copyright 2017 Creative Tim (http://www.creative-tim.com)
+ * Licensed under MIT (https://github.com/creativetimofficial/paper-dashboard/blob/master/LICENSE.md)
+
+ =========================================================
+
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+ */
+
+
+@import "tool-customization";
+@import "variables";
+@import "mixins";
+@import 'functions';
+@import "typography";
+
+// Core CSS
+@import "misc";
+@import "sidebar-and-main-panel";
+@import "buttons";
+@import "graphs";
+@import "inputs";
+@import "alerts";
+@import "tables";
+@import "checkbox-radio";
+@import "navbars";
+@import "footers";
+@import "modal";
+
+// Fancy Stuff
+@import "dropdown";
+@import "cards";
+@import "chartist";
+@import "responsive";
+@import "textbox";
+@import "tooltips";
