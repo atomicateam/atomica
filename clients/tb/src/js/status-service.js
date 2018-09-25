@@ -53,7 +53,7 @@ function fail(vm, failMessage, error) {
   vm.$Progress.fail() // Fail the loading bar.
   if (failMessage !== '') {  // Put up a failure notification.
     vm.$notifications.notify({
-      message: '<b>' + failMessage + '</b>' + '<br><br>' + msgsplit[0],
+      message: '<b>' + failMessage + '</b>' + '<br><br>' + msgsplit[0].replace('\n','<br>'),
       icon: 'ti-face-sad',
       type: 'warning',
       verticalAlign: 'top',
