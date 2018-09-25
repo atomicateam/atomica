@@ -363,7 +363,8 @@ def jsonify_projects(username, verbose=False):
     output = {'projects':[]}
     user = get_user(username)
     for project_key in user.projects:
-        json = jsonify_project(project_key)
+        try:                   json = jsonify_project(project_key)
+        except Exception as E: json = {'project': {'name':'Project load failed: %s' % str(E)}}
         output['projects'].append(json)
     if verbose: sc.pp(output)
     return output
