@@ -25,7 +25,7 @@ Last update: 2018-09-06
       <div class="card">
         <div><help reflink="bl-overview" label="Calibration and reconciliation"></help></div>
         <div class="controls-box">
-          <button class="btn __green" @click="manualCalibration(projectID)">Save & run</button>
+          <button class="btn __green" @click="manualCalibration(projectID)">Run</button>
           <button class="btn" @click="toggleParams()">
             <span v-if="showParameters">Hide</span>
             <span v-else>Show</span>
@@ -73,16 +73,25 @@ Last update: 2018-09-06
       <div class="PageSection" v-show="showParameters">
         <div class="card">
           <help reflink="parameters" label="Parameters"></help>
+
+          <input type="text"
+                 class="txbox"
+                 style="margin-left:0px; margin-bottom:10px; display:inline-block; width:100%"
+                 :placeholder="filterPlaceholder"
+                 v-model="filterText"/>
+
           <table class="table table-bordered table-hover table-striped" style="width: 100%">
             <thead>
             <tr>
+              <th v-if="$globaltool=='tb'">Category</th>
               <th>Parameter</th>
               <th>Overall scale factor</th>
               <th v-for="popLabel in poplabels">{{ popLabel }}</th>
             </tr>
             </thead>
             <tbody>
-            <tr v-for="par in parlist">
+            <tr v-for="par in filteredParlist">
+              <td v-if="$globaltool=='tb'">{{par.parcategory}}</td>
               <td>{{par.parlabel}}</td>
               <td>
                 <input type="text"
@@ -100,7 +109,7 @@ Last update: 2018-09-06
             </tr>
             </tbody>
           </table>
-          <button class="btn __green" @click="saveParTable()">Save</button>&nbsp;
+          <button class="btn __green" @click="saveParTable()">Save & run</button>&nbsp;
         </div>
       </div>
       <!-- ### End: parameters card ### -->
@@ -320,6 +329,8 @@ Last update: 2018-09-06
         showParameters: false,
         calibTime: '30 seconds',
         calibTimes: ['30 seconds', 'Unlimited'],
+        filterPlaceholder: 'Type here to filter parameters', // Placeholder text for second table filter box
+        filterText: '', // Text in the first table filter box
       }
     },
 
@@ -332,6 +343,10 @@ Last update: 2018-09-06
       simYears()     { return utils.simYears(this) },
       activePops()   { return utils.activePops(this) },
       placeholders() { return graphs.placeholders(this, 1) },
+
+      filteredParlist() {
+        return this.applyParametersFilter(this.parlist)
+      }
     },
 
     created() {
@@ -417,6 +432,7 @@ Last update: 2018-09-06
               this.loadParTable()
                 .then(response2 => {
                   status.succeed(this, 'Parameters updated')
+                  this.manualCalibration(this.projectID)
                   resolve(response2)
                 })
               resolve(response)
@@ -426,6 +442,11 @@ Last update: 2018-09-06
               reject(error)
             })
         })
+      },
+
+      applyParametersFilter(parlist) {
+        return parlist.filter(par => ((par.parcategory.toLowerCase().indexOf(this.filterText.toLowerCase()) !== -1)
+                                      || (par.parlabel.toLowerCase().indexOf(this.filterText.toLowerCase()) !== -1)))
       },
 
       renameParsetModal() {

@@ -49,7 +49,7 @@ Last update: 2018sep23
             <textarea rows="10" cols="100" v-model="adv_query"/><br>
             <button @click="adv_submit">Submit</button><br><br><br>
             <b>Output</b><br>
-            {{ adv_response }}
+            <span v-html="adv_response"></span>
           </div>
         </div>
       </div>
@@ -133,7 +133,7 @@ Last update: 2018sep23
         console.log('adv_submit() called')
         rpcs.rpc('run_query', [this.adv_authentication, this.adv_query]) // Have the server copy the project, giving it a new name.
           .then(response => {
-            this.adv_response = response.data
+            this.adv_response = response.data.replace(/\n/g,'<br>')
             status.succeed(this, 'Query run')    // Indicate success.
           })
           .catch(error => {
