@@ -16,7 +16,7 @@ you use a relative path, it is interpreted as being with respect to the
 "webapp directory," that is, the directory containing this config file and the
 main webapp script that imports it.
 
-Last update: 2018sep23
+Last update: 2018sep25
 """
 import os
 
