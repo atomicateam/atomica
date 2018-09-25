@@ -166,7 +166,8 @@ def load_result(result_key, die=False):
     output = datastore.loadblob(result_key, objtype='result', die=die)
     return output
 
-def save_project(project, die=None): # NB, only for saving an existing project
+def save_project(project, die=None, verbose=True): # NB, only for saving an existing project
+    if verbose: print('Saving project %s...' % project.uid)
     project.modified = sc.now()
     output = datastore.saveblob(obj=project, objtype='project', die=die, forcetype=True)
     return output
@@ -181,14 +182,15 @@ def save_result(result, key=None, die=None):
     return output
 
 
-def save_new_project(proj, username=None):
+def save_new_project(proj, username=None, uid=None, verbose=True):
     '''
     If we're creating a new project, we need to do some operations on it to
     make sure it's valid for the webapp.
-    ''' 
+    '''
     # Preliminaries
-    new_project = sc.dcp(proj) # Copy the project, only save what we want...
-    new_project.uid = sc.uuid()
+    if verbose: print('Saving project %s as new...' % proj.uid)
+    new_project = sc.dcp(proj) # Copy the project..
+    new_project.uid = sc.uuid(uid) # Optionally allow the project to be saved with an explicit UID
     
     # Get unique name
     user = get_user(username)
@@ -201,6 +203,7 @@ def save_new_project(proj, username=None):
     
     # Ensure it's a valid webapp project
     if not hasattr(new_project, 'webapp'):
+        if verbose: print('Adding webapp attribute for username %s' % username)
         new_project.webapp = sc.prettyobj()
         new_project.webapp.username = username
         new_project.webapp.tasks = []
@@ -938,7 +941,7 @@ def delete_progset(project_id, progsetname=None):
 
 
 @RPC()
-def get_default_programs(freshrun=False, verbose=True, fulloutput=False):
+def get_default_programs(freshrun=False, verbose=False, fulloutput=False):
     
     if freshrun or fulloutput: # This is because creating the framework is very slow (>3 s)
         # Get programs

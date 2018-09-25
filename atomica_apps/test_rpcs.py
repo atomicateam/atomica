@@ -37,9 +37,9 @@ def demoproj(proj_id, username, which=None):
     if which is None: which = default_which
     P = au.demo(which=which)
     P.name = 'RPCs test %s' % proj_id[:6]
-    P.uid = proj_id
+    P.uid = sc.uuid(proj_id)
     P = rpcs.cache_results(P)
-    rpcs.save_new_project(P, username)
+    rpcs.save_new_project(P, username, uid=P.uid) # Force a matching uid
     return P
 
 def heading(string, style=None):
@@ -174,13 +174,9 @@ if 'minimize_money' in torun and tool=='tb':
 
 if 'default_programs' in torun:
     progyears = [2015,2017]
-    active_progs = rpcs.get_default_programs()[0]
+    active_progs = rpcs.get_default_programs()
+    rpcs.create_default_progbook(proj_id, progyears, active_progs=active_progs)
     print(active_progs)
-    active_progs['BCG vaccination'] = True
-    active_progs['ART Treatment'] = False
-    P = au.demo(which='tb')
-    user_default_progset = rpcs.create_default_progbook(P,progyears,active_progs=active_progs)
-    user_default_progset.save('user_default_progset.xlsx')
 
 
 sc.toc(T)
