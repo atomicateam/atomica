@@ -4,5 +4,5 @@ Atomica version file.
 Standard location for module version number and date.
 """
 
-version = "0.20.4"
+version = "1.0.0"
 versiondate = "2018-09-25"
