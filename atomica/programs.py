@@ -217,22 +217,36 @@ class ProgramSet(NamedItem):
             if is_impact == 'y' and y_format == 'number':
                 self.num_pars[name] = label
 
+    @staticmethod
+    def validate_inputs(framework, data, project):
+        # To load a spreadsheet or make a new ProgramSet, people can pass in
+        # framework, data, and/or a project. If the framework and data are not explicitly specified,
+        # they get drawn from the project
+        if (framework is None and project is None) or (data is None and project is None):
+            errormsg = 'To read in a ProgramSet, please supply one of the following sets of inputs: (a) a Framework and a ProjectData, (b) a Project.'
+            raise AtomicaException(errormsg)
+
+        if framework is None:
+            if project.framework is None:
+                errormsg = 'A Framework was not provided, and the Project has not been initialized with a Framework'
+                raise AtomicaException(errormsg)
+            else:
+                framework = project.framework
+
+        if data is None:
+            if project.data is None:
+                errormsg = 'Project data has not been loaded yet'
+                raise AtomicaException(errormsg)
+            else:
+                data = project.data
+
+        return framework, data
 
     @staticmethod
     def from_spreadsheet(spreadsheet=None, framework=None, data=None, project=None):
         '''Make a program set by loading in a spreadsheet.'''
 
-        # Check framework/data requirements - people can EITHER provide:
-        #  - a data and framework
-        #  - a project containing data and a framework
-        # Try to get them from the data/framework
-        if data is None or framework is None:
-            if project is None:
-                errormsg = 'To read in a ProgramSet, please supply one of the following sets of inputs: (a) a Framework and a ProjectData, (b) a Project.'
-                raise AtomicaException(errormsg)
-            else:
-                data = project.data
-                framework = project.framework
+        framework, data = ProgramSet.validate_inputs(framework,data,project)
 
         # Populate the available pops, comps, and pars based on the framework and data provided at this step
         self = ProgramSet()
@@ -611,24 +625,7 @@ class ProgramSet(NamedItem):
             errormsg = 'Please just supply a number of programs, not "%s"' % (type(progs))
             raise AtomicaException(errormsg)
 
-        # First, assign the data and framework
-        if framework is None and project:
-            if project.framework is None:
-                message = 'A Framework was not provided, and the Project did not contain a Framework'
-                raise AtomicaException(message)
-            framework = project.framework
-        else:
-            message = 'Neither a Framework nor a Project was provided - at least one is required'
-            raise AtomicaException(message)
-
-        if data is None and project:
-            if project.data is None:
-                message = 'Project data has not been loaded yet'
-                raise AtomicaException(message)
-            data = project.data
-        else:
-            message = 'Neither ProjectData nor a Project was provided - at least one is required'
-            raise AtomicaException(message)
+        framework, data = ProgramSet.validate_inputs(framework,data,project)
 
         # Assign the pops
         if pops is None:
