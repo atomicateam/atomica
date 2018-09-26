@@ -215,6 +215,9 @@ class Project(object):
     def make_progbook(self, progbook_path=None, progs=None, data_start=None, data_end=None, blh_effects=False):
         ''' Make a blank program databook'''
         ## Get filepath
+        if self.data is None:
+            errormsg = 'Please upload a databook before creating a program book. The databook defines which populations will appear in the program book.'
+            raise AtomicaException(errormsg)
         full_path = sc.makefilepath(filename=progbook_path, default=self.name, ext='xlsx')
         if data_start is None:  data_start = self.data.tvec[0]
         if data_end is None:    data_end= self.data.tvec[-1]
@@ -226,6 +229,10 @@ class Project(object):
         ''' Load a programs databook'''
         if verbose: print('Making ProgramSet')
         if verbose: print('Uploading program data')
+        if self.data is None:
+            errormsg = 'Please upload a databook before uploading a program book. The databook contains the population definitions required to read the program book.'
+            raise AtomicaException(errormsg)
+
         if sc.isstring(progbook_path):
             full_path = sc.makefilepath(filename=progbook_path, default=self.name, ext='xlsx')
             progbook_spreadsheet = AtomicaSpreadsheet(full_path)
