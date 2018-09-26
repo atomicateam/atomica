@@ -613,9 +613,22 @@ class ProgramSet(NamedItem):
 
         # First, assign the data and framework
         if framework is None and project:
+            if project.framework is None:
+                message = 'A Framework was not provided, and the Project did not contain a Framework'
+                raise AtomicaException(message)
             framework = project.framework
+        else:
+            message = 'Neither a Framework nor a Project was provided - at least one is required'
+            raise AtomicaException(message)
+
         if data is None and project:
+            if project.data is None:
+                message = 'Project data has not been loaded yet'
+                raise AtomicaException(message)
             data = project.data
+        else:
+            message = 'Neither ProjectData nor a Project was provided - at least one is required'
+            raise AtomicaException(message)
 
         # Assign the pops
         if pops is None:
