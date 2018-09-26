@@ -515,7 +515,11 @@ def download_databook(project_id):
     proj = load_project(project_id, die=True) # Load the project with the matching UID.
     file_name = '%s_databook.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
     full_file_name = get_path(file_name, username=proj.webapp.username) # Generate the full file name with path.
-    proj.databook.save(full_file_name)
+    try:
+        proj.databook.save(full_file_name)
+    except Exception as E:
+        errormsg = 'Databook has not been uploaded or is invalid: %s' % str(E)
+        raise Exception(errormsg)
     print(">> download_databook %s" % (full_file_name)) # Display the call information.
     return full_file_name # Return the full filename.
 
@@ -526,14 +530,18 @@ def download_progbook(project_id):
     proj = load_project(project_id, die=True) # Load the project with the matching UID.
     file_name = '%s_program_book.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
     full_file_name = get_path(file_name, username=proj.webapp.username) # Generate the full file name with path.
-    proj.progbook.save(full_file_name)
+    try:
+        proj.progbook.save(full_file_name)
+    except Exception as E:
+        errormsg = 'Program book has not been uploaded or is invalid: %s' % str(E)
+        raise Exception(errormsg)
     print(">> download_progbook %s" % (full_file_name)) # Display the call information.
     return full_file_name # Return the full filename.
   
     
 @RPC(call_type='download')   
 def create_progbook(project_id, num_progs):
-    ''' Create program book '''
+    ''' Create program book -- only used for Cascades '''
     proj = load_project(project_id, die=True) # Load the project with the matching UID.
     file_name = '%s_program_book.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
     full_file_name = get_path(file_name, username=proj.webapp.username) # Generate the full file name with path.
@@ -941,6 +949,7 @@ def delete_progset(project_id, progsetname=None):
 
 @RPC()
 def get_default_programs(freshrun=False, verbose=False, fulloutput=False):
+    ''' Only used for TB '''
     
     if freshrun or fulloutput: # This is because creating the framework is very slow (>3 s)
         # Get programs
@@ -1003,6 +1012,7 @@ def get_default_programs(freshrun=False, verbose=False, fulloutput=False):
 
 @RPC(call_type='download')
 def create_default_progbook(project_id, program_years=None, active_progs=None):
+    ''' Only used for TB '''
     # INPUTS
     # - proj : a project
     # - program_years : a two-element range (inclusive) of years for data entry e.g. [2015,2018]
