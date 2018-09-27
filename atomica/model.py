@@ -296,9 +296,6 @@ class Parameter(Variable):
             function_args = temp_list.rstrip(")").split(',')
             function_args = [x.strip() for x in function_args]
 
-            if len(function_args) == 2: # If weighting variable not provided
-                function_args.append(None)
-
             # Convert average variable to object reference
             v1 = self.pop.get_variable(function_args[0])[0]
             if isinstance(v1, Link):
