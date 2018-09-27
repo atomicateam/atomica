@@ -338,9 +338,9 @@ Last update: 2018-09-06
       projectID()    { return utils.projectID(this) },
       hasData()      { return utils.hasData(this) },
       hasPrograms()  { return utils.hasPrograms(this) },
-      simStart()     { return utils.dataStart(this) },
-      simEnd()       { return utils.dataEnd(this) },
-      simYears()     { return utils.dataYears(this) },
+      simStart()     { return utils.simStart(this) },
+      simEnd()       { return utils.simEnd(this) },
+      simYears()     { return utils.simYears(this) },
       activePops()   { return utils.activePops(this) },
       placeholders() { return graphs.placeholders(this, 1) },
 
