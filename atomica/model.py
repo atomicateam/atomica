@@ -737,12 +737,12 @@ class Population(object):
                                                  "Target value = N/A (0.0)".format(charac.name))
 
             n_indent += 1
-            for inc in charac.includes:
-                if isinstance(inc, Characteristic):
-                    report_characteristic(inc, n_indent)
-                else:
-                    logger.warning(
-                        n_indent * '\t' + 'Compartment %s: Computed value = %f' % (inc.name, x[comp_indices[inc.name]]))
+            if isinstance(charac,Characteristic):
+                for inc in charac.includes:
+                    if isinstance(inc, Characteristic):
+                        report_characteristic(inc, n_indent)
+                    else:
+                        logger.warning(n_indent * '\t' + 'Compartment %s: Computed value = %f' % (inc.name, x[comp_indices[inc.name]]))
 
         for i in range(0, len(comps)):
             if x[i] < -model_settings['tolerance']:
