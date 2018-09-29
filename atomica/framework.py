@@ -64,9 +64,10 @@ class ProjectFramework(object):
                 # Get a dataframe
                 df = pd.DataFrame.from_records(table).applymap(lambda x: x.value.strip() if sc.isstring(x.value) else x.value)
                 df.dropna(axis=1, how='all', inplace=True) # If a column is completely empty, including the header, ignore it. Helps avoid errors where blank cells are loaded by openpyxl due to extra non-value content
-                if sheet_title == 'cascades':
+                if sheet_title == 'cascades' or sheet_title == 'transitions':
                     # On the cascades sheet, the user-entered name appears in the header row. We must preserve case for this
-                    # name so that things like 'TB cascade' don't become 'tb cascade'
+                    # name so that things like 'TB cascade' don't become 'tb cascade'. Same for compartment names so that
+                    # any capitals in the compartment name are preserved
                     df.columns = [df.iloc[0, 0]] + list(df.iloc[0,1:].str.lower())
                 else:
                     df.columns = df.iloc[0].str.lower()
