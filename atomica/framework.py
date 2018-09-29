@@ -553,6 +553,9 @@ class ProjectFramework(object):
         tmp = set()
         for name in code_names:
 
+            if len(name) == 1:
+                raise InvalidFramework('Code name "%s" is not valid: code names must be at least two characters long' % (name))
+
             if FS.RESERVED_SYMBOLS.intersection(name):
                 raise InvalidFramework('Code name "%s" is not valid: it cannot contain any of these reserved symbols %s' % (name,FS.RESERVED_SYMBOLS))
 
@@ -603,10 +606,10 @@ class ProjectFramework(object):
         for cascade_name,df in self.cascades.items():
             for _,spec in df.iterrows():
                 if not spec['constituents']:
-                    raise InvalidFramework('In cascade "%s" stage "%s" - no constituents were provided in the spreadsheet' % (cascade_name, spec.iloc[0]))
+                    raise InvalidFramework('In cascade "%s", stage "%s" - no constituents were provided in the spreadsheet' % (cascade_name, spec.iloc[0]))
                 for component in spec['constituents'].split(','):
                     if not (component.strip() in self.comps.index or component.strip() in self.characs.index):
-                        raise InvalidFramework('In cascade "%s" stage "%s" - included component "%s" was not recognized as a Compartment or Characteristic' % (cascade_name,spec.iloc[:,0],component))
+                        raise InvalidFramework('In cascade "%s", stage "%s" - the included component "%s" was not recognized as a Compartment or Characteristic' % (cascade_name,spec.iloc[0],component))
 
         # Check that the cascades are validly nested
         # This will also check the fallback cascade
