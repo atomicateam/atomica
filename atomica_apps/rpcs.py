@@ -245,21 +245,31 @@ def save_new_framework(framework, username=None):
 
 
 @RPC() # Not usually called as an RPC
-def del_project(project_key, die=None):
+def del_project(project_key, username=None, die=None):
     key = datastore.getkey(key=project_key, objtype='project')
     try:
         project = load_project(key)
-    except Exception:
-        print('Warning: cannot delete project %s, not found' % key)
+    except Exception as E:
+        print('Warning: cannot delete project %s, not found (%s)' % (key, str(E)))
         return None
     output = datastore.delete(key)
     try:
-        user = get_user(project.webapp.username)
+        if username is None: username = project.webapp.username
+        user = get_user(username)
         user.projects.remove(key)
         datastore.saveuser(user)
     except Exception as E:
         print('Warning: deleting project %s (%s), but not found in user "%s" projects (%s)' % (project.name, key,project.webapp.username, str(E)))
     return output
+
+
+@RPC()
+def delete_projects(project_keys, username=None):
+    ''' Delete one or more projects '''
+    project_keys = sc.promotetolist(project_keys)
+    for project_key in project_keys:
+        del_project(project_key, username=username)
+    return None
 
 
 @RPC() # Not usually called directly
@@ -277,6 +287,7 @@ def del_framework(framework_key, die=None):
     datastore.saveuser(user)
     return output
 
+
 @RPC()
 def del_result(result_key, project_key, die=None):
     key = datastore.getkey(key=result_key, objtype='result', forcetype=False)
@@ -293,15 +304,6 @@ def del_result(result_key, project_key, die=None):
         print('Warning: deleting result %s (%s), but not found in project "%s"' % (result_key, key, project_key))
     if found: save_project(project) # Only save if required
     return output
-
-
-@RPC()
-def delete_projects(project_keys):
-    ''' Delete one or more projects '''
-    project_keys = sc.promotetolist(project_keys)
-    for project_key in project_keys:
-        del_project(project_key)
-    return None
 
 
 @RPC()
