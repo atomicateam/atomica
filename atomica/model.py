@@ -1057,7 +1057,7 @@ class Model(object):
                         else:
                             par.links[0].vals[ti] = converted_amt
                     elif quantity_type not in [FS.QUANTITY_TYPE_PROPORTION]:
-                        raise AtomicaException("Encountered unknown quantity type %s for Parameter %s (%s)" % (quantity_type,par.name,pop.name))
+                        raise AtomicaException("Encountered unknown units '%s' for Parameter '%s' (%s) in Population %s" % (quantity_type,par.name,self.framework.get_label(par.name),pop.name))
 
             # Then, adjust outflows to prevent negative popsizes.
             for comp_source in pop.comps:
@@ -1148,7 +1148,7 @@ class Model(object):
                         # Outflows are scaled to the entire compartment size.
                         denom_val = sum(link.parameter.vals[ti] for link in junc.outlinks)
                         if denom_val == 0:
-                            raise AtomicaException("Total junction outflow for junction %s was zero - all junctions must have a nonzero outflow" % (junc.name))
+                            raise AtomicaException("Total junction outflow for junction '%s' was zero - all junctions must have a nonzero outflow" % (self.framework.get_label(junc.name)))
 
                         for link in junc.outlinks:
                             flow = current_size * link.parameter.vals[ti] / denom_val

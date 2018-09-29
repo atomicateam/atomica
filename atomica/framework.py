@@ -206,6 +206,12 @@ class ProjectFramework(object):
 
         raise NotFoundError('Variable "%s" not found in Framework' % (name))
 
+    def get_label(self,name):
+        # Wrapper function to get the label (display name) from a variable. Accepts either
+        # a code name or a full name - same as get_variable(). Note that all items that can be
+        # returned by get_variable() have a 'display name'
+        return self.get_variable(name)['display name']
+
     def __contains__(self,item):
         # An item is contained in this Framework if `get_variable` would return something
         for df in [self.comps,self.characs,self.pars,self.interactions]:
