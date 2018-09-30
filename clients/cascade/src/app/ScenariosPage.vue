@@ -56,8 +56,10 @@ Last update: 2018-09-09
         </table>
 
         <div>
-          <button class="btn __green" :disabled="!scenariosLoaded" @click="runScens()">Run scenarios</button>
-          <button class="btn __blue" :disabled="!scenariosLoaded" @click="addBudgetScenModal()">Add scenario</button>
+          <button class="btn __green" :disabled="!scenariosLoaded" @click="runScens()">Run scenarios</button>&nbsp;&nbsp;
+          <button class="btn __blue" :disabled="!scenariosLoaded" @click="addParScenModal()">Add parameter scenario</button>&nbsp;&nbsp;
+          <button class="btn __blue" :disabled="!scenariosLoaded" @click="addProgScenModal('coverage')">Add coverage scenario</button>&nbsp;&nbsp;
+          <button class="btn __blue" :disabled="!scenariosLoaded" @click="addProgScenModal('budget')">Add budget scenario</button>
         </div>
       </div>
       <!-- ### End: scenarios card ### -->
@@ -259,7 +261,7 @@ Last update: 2018-09-09
           </table>
         </div>
         <div style="text-align:justify">
-          <button @click="addBudgetScen()" class='btn __green' style="display:inline-block">
+          <button @click="addProgScen()" class='btn __green' style="display:inline-block">
             Save scenario
           </button>
           <button @click="$modal.hide('add-budget-scen')" class='btn __red' style="display:inline-block">
@@ -315,7 +317,7 @@ Last update: 2018-09-09
 
         // Page-specific data
         scenSummaries: [],
-        defaultBudgetScen: {},
+        defaultProgScen: {},
         scenariosLoaded: false,
         addEditModal: {
           scenSummary: {},
@@ -353,7 +355,6 @@ Last update: 2018-09-09
               .then(response2 => {
                 // The order of execution / completion of these doesn't matter.
                 this.getScenSummaries()
-                this.getDefaultBudgetScen()
                 this.reloadGraphs(false)
               })
           })
@@ -416,26 +417,26 @@ Last update: 2018-09-09
           })
       },
 
-      addBudgetScenModal() {
+      addProgScenModal(scen_type) {
         // Open a model dialog for creating a new project
-        console.log('addBudgetScenModal() called');
-        rpcs.rpc('get_default_budget_scen', [this.projectID])
+        console.log('addProgScenModal() called');
+        rpcs.rpc('get_default_prog_scen', [this.projectID, scen_type])
           .then(response => {
-            this.defaultBudgetScen = response.data // Set the scenario to what we received.
-            this.addEditModal.scenSummary = _.cloneDeep(this.defaultBudgetScen)
+            this.defaultProgScen = response.data // Set the scenario to what we received.
+            this.addEditModal.scenSummary = _.cloneDeep(this.defaultProgScen)
             this.addEditModal.origName = this.addEditModal.scenSummary.name
             this.addEditModal.mode = 'add'
-            this.$modal.show('add-budget-scen');
-            console.log(this.defaultBudgetScen)
+            this.$modal.show('add-prog-scen');
+            console.log(this.defaultProgScen)
           })
           .catch(error => {
             status.fail(this, 'Could not open add scenario modal', error)
           })
       },
 
-      addBudgetScen() {
-        console.log('addBudgetScen() called')
-        this.$modal.hide('add-budget-scen')
+      addProgScen() {
+        console.log('addProgScen() called')
+        this.$modal.hide('add-prog-scen')
         status.start(this)
         let newScen = _.cloneDeep(this.addEditModal.scenSummary) // Get the new scenario summary from the modal.
         let scenNames = [] // Get the list of all of the current scenario names.
@@ -470,12 +471,11 @@ Last update: 2018-09-09
       editScen(scenSummary) {
         // Open a model dialog for creating a new project
         console.log('editScen() called');
-        this.defaultBudgetScen = scenSummary
-        console.log('defaultBudgetScen')
-        console.log(this.defaultBudgetScen)
-        this.addEditModal.scenSummary = _.cloneDeep(this.defaultBudgetScen)
+        console.log(scenSummary)
+        this.addEditModal.scenSummary = _.cloneDeep(scenSummary)
         this.addEditModal.origName = this.addEditModal.scenSummary.name
         this.addEditModal.mode = 'edit'
+        if (scenSummmary.scen_type === 'coverage')
         this.$modal.show('add-budget-scen');
       },
 

@@ -198,8 +198,6 @@ if 'default_programs' in torun:
 
 
 if 'parameter_scenario' in torun:
-    proj = demoproj('tb')
-
     # These populate the FE
     parsetname='default'
     start_year = 2018 # Populate this from the dropdown
