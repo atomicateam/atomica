@@ -363,10 +363,12 @@ class ProjectData(sc.prettyobj):
 
     def add_pop(self,code_name,full_name):
         # Add a population with the given name and label (full name)
+        code_name = code_name.strip()
+        assert len(code_name) > 1, 'Population code name (abbreviation) "%s" is not valid - it must be at least two characters long' % (code_name)
         assert code_name not in self.pops, 'Population with name "%s" already exists' % (code_name)
 
-        if code_name.strip().lower() in FS.RESERVED_KEYWORDS:
-            raise AtomicaException('Population name "%s" is a reserved keyword' % (code_name.strip().lower()))
+        if code_name.lower() in FS.RESERVED_KEYWORDS:
+            raise AtomicaException('Population name "%s" is a reserved keyword' % (code_name.lower()))
 
         self.pops[code_name] = {'label':full_name}
         for interaction in self.transfers+self.interpops:
@@ -377,11 +379,15 @@ class ProjectData(sc.prettyobj):
 
     def rename_pop(self,existing_code_name,new_code_name,new_full_name):
         # Rename an existing pop
+        existing_code_name = existing_code_name.strip()
+        new_code_name = new_code_name.strip()
+        assert len(new_code_name) > 1, 'New population code name (abbreviation) "%s" is not valid - it must be at least two characters long' % (new_code_name)
+
         assert existing_code_name in self.pops, 'A population with code name "%s" is not present' % (existing_code_name)
         assert new_code_name not in self.pops, 'Population with name "%s" already exists' % (new_code_name)
 
-        if new_code_name.strip().lower() in FS.RESERVED_KEYWORDS:
-            raise AtomicaException('Population name "%s" is a reserved keyword' % (new_code_name.strip().lower()))
+        if new_code_name.lower() in FS.RESERVED_KEYWORDS:
+            raise AtomicaException('Population name "%s" is a reserved keyword' % (new_code_name.lower()))
 
         # First change the name of the key
         self.pops.rename(existing_code_name,new_code_name)
@@ -472,9 +478,12 @@ class ProjectData(sc.prettyobj):
         assert tables[0][0][1].value.strip().lower() == 'full name'
 
         for row in tables[0][1:]:
-            if row[0].value.strip().lower() in FS.RESERVED_KEYWORDS:
-                raise AtomicaException('Population name "%s" is a reserved keyword' % (row[0].value.strip().lower()))
-            self.pops[row[0].value.strip()] = {'label':row[1].value.strip()}
+            pop_name = row[0].value.strip()
+            assert len(pop_name) > 1, 'Population code name (abbreviation) "%s" is not valid - it must be at least two characters long' % (pop_name)
+
+            if pop_name.lower() in FS.RESERVED_KEYWORDS:
+                raise AtomicaException('Population name "%s" is a reserved keyword' % (pop_name.lower()))
+            self.pops[pop_name] = {'label':row[1].value.strip()}
 
     def _write_pops(self):
         # Writes the 'Population Definitions' sheet

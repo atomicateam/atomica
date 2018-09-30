@@ -199,7 +199,7 @@ def read_tables(worksheet):
     for i,row in enumerate(worksheet.rows):
 
         # Skip any rows starting with '#ignore'
-        if row[0].value and row[0].value.startswith('#ignore'):
+        if row[0].value and sc.isstring(row[0].value) and row[0].value.startswith('#ignore'):
             continue  # Move on to the next row if row skipping is marked True
 
         # Find out whether we need to add the row to the buffer
@@ -548,7 +548,9 @@ class TimeDependentValuesEntry(object):
         vals = [x.value for x in rows[0]]
 
         if vals[0] is None:
-            raise AtomicaException('TDVE table name is missing. This can also happen if extra rows have been added without a "#ignore" entry in the first column')
+            raise AtomicaException('In cell %s of the spreadsheet, the name of the table is missing. This can also happen if extra rows have been added without a "#ignore" entry in the first column' % (rows[0][0].coordinate))
+        elif not sc.isstring(vals[0]):
+            raise AtomicaException('In cell %s of the spreadsheet, the name of the quantity assigned to this table needs to be a string' % rows[0][0].coordinate)
         name = vals[0].strip()
 
         lowered_headings = [x.lower().strip() if sc.isstring(x) else x for x in vals]
@@ -591,9 +593,12 @@ class TimeDependentValuesEntry(object):
         # For each TimeSeries that we will instantiate
         for row in rows[1:]:
             vals = [x.value for x in row]
-            series_name = vals[0]
+            if not sc.isstring(vals[0]):
+                raise AtomicaException('In cell %s of the spreadsheet, the name of the entry was expected to be a string, but it was not. The left-most column is expected to be a name. If you are certain the value is correct, add an single quote character at the start of the cell to ensure it remains as text' % row[0].coordinate)
+            series_name = vals[0].strip()
 
             if units_index is not None:
+                assert sc.isstring(vals[units_index]), "The 'units' quantity needs to be specified as text e.g. 'probability'"
                 units = vals[units_index].lower().strip() if vals[units_index] else None
                 format = units
             else:
@@ -617,7 +622,7 @@ class TimeDependentValuesEntry(object):
                 ts.assumption = None
 
             if constant_index is not None:
-                assert vals[offset - 1] == 'OR', 'Error with validating row in TDVE table "%s"' % (name)  # Check row is as expected
+                assert vals[offset - 1].strip() == 'OR', 'Error with validating row in TDVE table "%s" (did not find the text "OR" in the expected place)' % (name)  # Check row is as expected
 
             data = vals[offset:t_end]
 
