@@ -981,9 +981,16 @@ class Covout(object):
            )
     '''
 
-    def __init__(self, par, pop, progs, cov_interaction='additive', imp_interaction='best', uncertainty=0.0, baseline=0.0, is_num_par=False):
-        assert cov_interaction in ['additive','random','nested']
-        assert imp_interaction in ['best','synergistic']
+    def __init__(self, par, pop, progs, cov_interaction=None, imp_interaction=None, uncertainty=0.0, baseline=0.0, is_num_par=False):
+        if cov_interaction is None:
+            cov_interaction = 'additive'
+        else:
+            assert cov_interaction in ['additive','random','nested'], 'Coverage interaction must be set to "additive", "random", or "nested"'
+
+        if imp_interaction is None:
+            imp_interaction = 'best'
+        else:
+            assert imp_interaction in ['best','synergistic'], 'Impact interaction must be "best" or "synergistic"'
 
         self.par = par
         self.pop = pop
