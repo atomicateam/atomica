@@ -483,13 +483,13 @@ if "coveragescenario" in torun:
     coverage = {
         'Risk avoidance':0.5,
          'Harm reduction 1':0.5,
-         'Harm reduction 2':0.5,
+         'Harm reduction 2':au.TimeSeries([2018,2020],[0.7,0.2]),
     }
     scen = au.CoverageScenario('Reduced coverage','default','default',coverage=coverage,start_year=2018)
     scen_result = scen.run(project=P)
 
     # Plot coverages
-    d = au.PlotData.programs([baseline,scen_result],quantity='coverage_fraction',outputs='Risk avoidance')
+    d = au.PlotData.programs([baseline,scen_result],quantity='coverage_fraction',outputs='Harm reduction 2')
     au.plot_series(d, axis="results")
 
     # Plot results
@@ -504,7 +504,7 @@ if "coveragescenario" in torun:
     scen_result.export('temp/covscen_reduced.xlsx')
     # Confirm that
     # - FOI-related values (e.g. transmission probability) in decreasing order are noprogs, reduced, baselilne
-    # - Coverage values are 1.0 in baseline and 0.5 in scen result for applicable programs
+    # - Coverage values are 1.0 in baseline and 0.5 (or time varying) in scen result for applicable programs
 
 def supported_plots_func():
     ''' TEMP '''
