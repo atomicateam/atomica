@@ -746,3 +746,9 @@ class TimeDependentValuesEntry(object):
             worksheet.conditional_format(xlrc(current_row, 2), {'type': 'formula', 'criteria':'=AND(%s,NOT(ISBLANK(%s)))' % (fcn_empty_times,xlrc(current_row,2)),'format':formats['ignored_warning']})
 
         return current_row+2 # Add two so there is a blank line after this table
+
+def cell_require_string(cell):
+    # Take in an openpyxl Cell instance, if it doesn't contain a string, then throw a helpful error
+    if not sc.isstring(cell.value):
+        raise AtomicaException('Cell %s needs to contain a string (i.e. not a number, date, or other cell type)' % cell.coordinate)
+

@@ -8,7 +8,7 @@ from .structure import TimeSeries
 import sciris as sc
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 import openpyxl
-from .excel import standard_formats, AtomicaSpreadsheet, read_tables, TimeDependentValuesEntry, TimeDependentConnections, apply_widths, update_widths
+from .excel import cell_require_string, standard_formats, AtomicaSpreadsheet, read_tables, TimeDependentValuesEntry, TimeDependentConnections, apply_widths, update_widths
 import xlsxwriter as xw
 import io
 import numpy as np
@@ -220,11 +220,23 @@ class ProjectData(sc.prettyobj):
                 continue
 
             if sheet.title == 'Population Definitions':
-                self._read_pops(sheet)
+                try:
+                    self._read_pops(sheet)
+                except Exception as e:
+                    message = 'An error was detected on the "Population Definitions" sheet -> '
+                    reraise_modify(e, message)
             elif sheet.title == 'Transfers':
-                self._read_transfers(sheet)
+                try:
+                    self._read_transfers(sheet)
+                except Exception as e:
+                    message = 'An error was detected on the "Transfers" sheet -> '
+                    reraise_modify(e, message)
             elif sheet.title == 'Interactions':
-                self._read_interpops(sheet)
+                try:
+                    self._read_interpops(sheet)
+                except Exception as e:
+                    message = 'An error was detected on the "Interactions" sheet -> '
+                    reraise_modify(e, message)
             elif sheet.title == 'Metadata':
                 continue
             else:
@@ -474,10 +486,14 @@ class ProjectData(sc.prettyobj):
         assert len(tables) == 1, 'Population Definitions page should only contain one table'
 
         self.pops = sc.odict()
+        cell_require_string(tables[0][0][0])
+        cell_require_string(tables[0][0][1])
         assert tables[0][0][0].value.strip().lower() == 'abbreviation'
         assert tables[0][0][1].value.strip().lower() == 'full name'
 
         for row in tables[0][1:]:
+            cell_require_string(row[0])
+            cell_require_string(row[1])
             pop_name = row[0].value.strip()
             assert len(pop_name) > 1, 'Population code name (abbreviation) "%s" is not valid - it must be at least two characters long' % (pop_name)
 

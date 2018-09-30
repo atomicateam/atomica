@@ -714,5 +714,3 @@ def sanitize_dataframe(df,required_columns,defaults,valid_content):
 
     return df
 
-
-
