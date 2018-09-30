@@ -7,7 +7,7 @@ Version:
 ###########################################################################
 
 torun = [
-'slack',
+#'slack',
 #'project_io',
 #'get_cascade_plot',
 #'get_cascade_json',
@@ -19,6 +19,7 @@ torun = [
 #'run_tb_optimization',
 # 'minimize_money',
 #'default_programs',
+'parameter_scenario',
 ]
 
 # Set defaults
@@ -195,6 +196,39 @@ if 'default_programs' in torun:
     rpcs.create_default_progbook(proj_id, progyears, active_progs=active_progs)
     print(active_progs)
 
+
+if 'parameter_scenario' in torun:
+    proj = demoproj('tb')
+
+    # These populate the FE
+    parsetname='default'
+    start_year = 2018 # Populate this from the dropdown
+    scen_pars = rpcs.get_parscen_params(proj,parsetname,start_year)
+
+    # These are supplied by the user in the FE
+    end_year = 2025
+    fe_scen_pars = sc.odict()
+    for k,v in scen_pars.items():
+        fe_scen_pars[k] = [v,None]
+    baseline_scen = sc.dcp(fe_scen_pars)
+    fe_scen_pars[('Early latency departure rate','Children 0-4')][1] = fe_scen_pars[('Early latency departure rate','Children 0-4')][0]*0.5
+
+    # Make and add the scenarios
+    rpcs.make_par_scen(proj,'Baseline',parsetname,start_year, end_year, baseline_scen)
+    rpcs.make_par_scen(proj,'Scenario',parsetname,start_year, end_year, fe_scen_pars)
+
+    # Run and plot results
+    for scen in proj.scens.values():
+        if isinstance(scen,au.ParameterScenario):
+            scen.active = True
+        else:
+            scen.active = False
+    results = proj.run_scenarios() # Run all the scenarios marked 'active' - for running parameter scenarios, can set 'active' based on the type
+    # rpcs.make_plots(proj,results,tool='tb') # Differences depends on what the changes made above are, maybe make some more drastic changes
+
+    d = au.PlotData(results,outputs='e_dep',pops='0-4')
+    figs = au.plot_series(d,axis='results')
+    au.save_figs(figs)
 
 sc.toc(T)
 print('Done.')
