@@ -19,7 +19,7 @@ import io
 import numpy as np
 
 class ProgramInstructions(object):
-    def __init__(self,alloc=None,start_year=None,stop_year=None):
+    def __init__(self,alloc=None,start_year=None,stop_year=None, coverage=None):
         """ Set up a structure that stores instructions for a model on how to use programs. """
         # Instantiate a new ProgramInstructions instance. ProgramInstructions specify how to use programs
         # - specifically, which years the programs are applied from, and any funding overwrites from the
@@ -33,6 +33,9 @@ class ProgramInstructions(object):
         #             spending onto the program start year. This is a shortcut to ensure that budget scenarios and optimizations
         #             where spending is specified in future years ramp correctly from the program start year (and not the last year
         #             that data was entered for)
+        # - coverage : Overwrites to proportion coverage. It can be
+        #           - A dict keyed by program name, containing a scalar coverage or a TimeSeries of coverage values
+        #   Note that coverage overwrites have no effect
 
         self.start_year = start_year if start_year else 2018.
         self.stop_year = stop_year if stop_year else inf
@@ -50,6 +53,14 @@ class ProgramInstructions(object):
                     self.alloc[prog_name] = sc.dcp(spending)
                 else:
                     self.alloc[prog_name] = TimeSeries(t=self.start_year,vals=spending)
+
+        self.coverage = sc.odict() # Dict keyed by program name that stores a time series of coverages
+        if coverage:
+            for prog_name,cov_values in coverage.items():
+                if isinstance(cov_values,TimeSeries):
+                    self.coverage[prog_name] = sc.dcp(cov_values)
+                else:
+                    self.coverage[prog_name] = TimeSeries(t=self.start_year,vals=cov_values)
 
 #--------------------------------------------------------------------
 # ProgramSet class

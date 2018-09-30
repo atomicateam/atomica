@@ -197,7 +197,6 @@ class BudgetScenario(Scenario):
                 else:
                     alloc[prog_name] = sc.dcp(val)
 
-        print(alloc)
         for ts in alloc.values():
             ts.vals = [x*self.budget_factor for x in ts.vals] # TimeSeries uses lists instead of arrays for fast insertion/removal
 
@@ -206,14 +205,40 @@ class BudgetScenario(Scenario):
         return result
 
 
-#
-#
-# class CoverageScenario(BudgetScenario):
-#
-#     def __init__(self, name, scenario_values=None, **kwargs):
-#         super(CoverageScenario, self).__init__(name, scenario_values=scenario_values)
-#
-#     def get_progset(self, progset, settings, options):
-#         progset, options = super(CoverageScenario, self).get_progset(progset, options)
-#         options['alloc_is_coverage'] = True
-#         return progset, options
+class CoverageScenario(Scenario):
+
+    def __init__(self, name=None, parsetname=None, progsetname=None, coverage=None, start_year=None, active=None):
+        # A BudgetScenario specifies spending overwrites
+        # The start_year corresponds to the year in which the programs turn on
+        # The alloc can be a dict of scalar spends, that take effect in the program start year, or a TimeSeries of spending values
+        # If it is a TimeSeries of spending values, the BudgetScenario will attempt to unify them with the program data. ProgramInstructions
+        # uses the alloc directly, to provide maximum control of spending. The BudgetScenario is where the fact that the scenario should linearly
+        # ramp spending is defined. As a shortcut, if the alloc_year is specified, then the alloc will be converted to the appropriate form
+        super(CoverageScenario, self).__init__(name,active)
+        logger.debug('Creating coverage scenario with name=%s, parsetname=%s, progsetname=%s, start_year=%s' % (name, progsetname, parsetname, start_year))
+        self.parsetname = parsetname
+        self.progsetname = progsetname
+        self.coverage = sc.dcp(coverage)
+        self.start_year = start_year # Turn on programs in this year (can be different to when the spending changes are applied)
+        return None
+
+    def run(self, project=None, parset=None, progset=None, store_results=True):
+        # Run the BudgetScenario
+        # If parset and progset are not provided, use the ones set in self.parsetname and self.progsetname
+
+        if parset is None:
+            parset = project.parsets[self.parsetname]
+
+        if progset is None:
+            progset = project.progsets[self.progsetname]
+
+        coverage = sc.odict()
+        for prog_name, val in self.coverage.items():
+            if not isinstance(val,TimeSeries):
+                coverage[prog_name] = TimeSeries(self.start_year,val)
+            else:
+                coverage[prog_name] = sc.dcp(val)
+
+        instructions = ProgramInstructions(coverage=coverage, start_year=self.start_year) # Instructions for default spending
+        result = project.run_sim(parset=parset, progset=progset, progset_instructions=instructions, result_name=self.name, store_results=store_results)
+        return result

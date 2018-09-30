@@ -851,7 +851,11 @@ class Model(object):
                 self._program_cache['pars'][target_par['param']][target_par['pop']] = self.get_pop(target_par['pop']).get_par(target_par['param'])
 
             self._program_cache['alloc'] = self.progset.get_alloc(self.program_instructions, self.t)
-            self._program_cache['coverage'] = self.progset.get_num_covered(year=self.t, alloc=self._program_cache['alloc'])
+            self._program_cache['num_coverage'] = self.progset.get_num_covered(year=self.t, alloc=self._program_cache['alloc'])
+
+            self._program_cache['prop_coverage'] = dict()
+            for prog_name, coverage_ts in self.program_instructions.coverage.items():
+                self._program_cache['prop_coverage'][prog_name] = coverage_ts.interpolate(self.t)
 
             self.progset.prepare_cache()
         else:
@@ -1197,17 +1201,27 @@ class Model(object):
 
         if do_program_overwrite:
             # Compute the fraction covered
-            num_covered  = sc.odict([(k,v[ti]) for k,v in self._program_cache['coverage'].iteritems()])
+            num_covered  = sc.odict([(k,v[ti]) for k,v in self._program_cache['num_coverage'].iteritems()])
             prop_covered = sc.odict.fromkeys(self._program_cache['comps'], 0.0)
             for k,comp_list in self._program_cache['comps'].items():
-                n = 0.0
-                for comp in comp_list:
-                    n += comp.vals[ti]
-                if n:
-                    prop_covered[k] = np.minimum(self._program_cache['coverage'][k][ti] / n, 1.)
+                if k in self._program_cache['prop_coverage']:
+                    prop_covered[k] = self._program_cache['prop_coverage'][k][ti]
                 else:
-                    prop_covered[k] = 1.
+                    n = 0.0
+                    for comp in comp_list:
+                        n += comp.vals[ti]
+                    if n:
+                        prop_covered[k] = np.minimum(self._program_cache['num_coverage'][k][ti] / n, 1.)
+                    else:
+                        prop_covered[k] = 1.
 
+            # TODO - Note that if a program has a coverage overwrite (in proportion units) but then targets
+            # a number parameter, the coverage overwrite will have no effect. This is kind of fitting in the
+            # sense that for number parameters, at the moment
+            # - the proportion coverage is ignored
+            # - the targeting sheet is ignored
+            # so it is consistent to have (fraction) coverage overwrites also be ignored. This may change if the
+            # design of number coverage programs is modified
             par_covered = dict()
             for par_name in self.progset.pars:
                 for pop in self.pops:
