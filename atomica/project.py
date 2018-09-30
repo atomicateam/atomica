@@ -32,10 +32,9 @@ from .model import run_model
 from .parameters import ParameterSet
 
 from .programs import ProgramSet
-from .scenarios import Scenario, ParameterScenario
+from .scenarios import Scenario, ParameterScenario, BudgetScenario, CoverageScenario
 from .optimization import Optimization, optimize, OptimInstructions, InvalidInitialConditions
 from .system import logger, AtomicaException
-from .scenarios import BudgetScenario
 from .cascade import get_cascade_outputs
 from .utils import NDict
 from .plotting import PlotData, plot_series
@@ -252,6 +251,8 @@ class Project(object):
         if json is not None:
             if which=='budget':
                 scenario = BudgetScenario(**json)
+            elif which == 'coverage':
+                scenario = CoverageScenario(**json)
             else:
                 raise Exception('Parameter scenarios from JSON not implemented')
         else:
