@@ -560,13 +560,13 @@ class ProgramSet(NamedItem):
                 if covout and covout.cov_interaction is not None:
                     sheet.write(current_row, 2, covout.cov_interaction,self._formats['not_required'])
                 else:
-                    sheet.write(current_row, 2, None, self._formats['unlocked'])
+                    sheet.write(current_row, 2, 'Additive', self._formats['unlocked'])
                 sheet.data_validation(xlrc(current_row, 2), {"validate": "list", "source": ["Random","Additive","Nested"]})
 
                 if covout and covout.imp_interaction is not None:
                     sheet.write(current_row, 3, covout.imp_interaction,self._formats['not_required'])
                 else:
-                    sheet.write(current_row, 3, None, self._formats['unlocked'])
+                    sheet.write(current_row, 3, 'Best', self._formats['unlocked'])
                 sheet.data_validation(xlrc(current_row, 3), {"validate": "list", "source": ["Synergistic","Best"]})
 
                 if covout and covout.sigma is not None:
