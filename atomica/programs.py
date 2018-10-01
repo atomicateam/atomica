@@ -19,7 +19,7 @@ import io
 import numpy as np
 
 class ProgramInstructions(object):
-    def __init__(self,alloc=None,start_year=None,stop_year=None):
+    def __init__(self, alloc=None, start_year=None, stop_year=None):
         """ Set up a structure that stores instructions for a model on how to use programs. """
         # Instantiate a new ProgramInstructions instance. ProgramInstructions specify how to use programs
         # - specifically, which years the programs are applied from, and any funding overwrites from the

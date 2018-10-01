@@ -58,8 +58,8 @@ Last update: 2018-09-09
         <div>
           <button class="btn __green" :disabled="!scenariosLoaded" @click="runScens()">Run scenarios</button>&nbsp;&nbsp;
           <button class="btn __blue" :disabled="!scenariosLoaded" @click="addParScenModal()">Add parameter scenario</button>&nbsp;&nbsp;
-          <button class="btn __blue" :disabled="!scenariosLoaded" @click="addProgScenModal('coverage')">Add coverage scenario</button>&nbsp;&nbsp;
-          <button class="btn __blue" :disabled="!scenariosLoaded" @click="addProgScenModal('budget')">Add budget scenario</button>
+          <button class="btn __blue" :disabled="!scenariosLoaded" @click="addCovScenModal()">Add coverage scenario</button>&nbsp;&nbsp;
+          <button class="btn __blue" :disabled="!scenariosLoaded" @click="addBudScenModal()">Add budget scenario</button>
         </div>
       </div>
       <!-- ### End: scenarios card ### -->
@@ -198,79 +198,235 @@ Last update: 2018-09-09
     </div> <!-- ### End: v-else project (results) ### -->
 
 
-    <!-- ### Start: add scenarios modal ### -->
-    <modal name="add-budget-scen"
-           height="auto"
-           :scrollable="true"
-           :width="500"
-           :classes="['v--modal', 'vue-dialog']"
-           :pivot-y="0.3"
-           :adaptive="true"
-           :clickToClose="clickToClose"
-           :transition="transition">
+    <!-- ### Start: scenarios modals ### -->
+    <div id="scenario-modals">
 
-      <div class="dialog-content">
-        <div class="dialog-c-title" v-if="addEditModal.mode=='add'">
-          Add scenario
+      <!-- ### Start: add parameter scenario modal ### -->
+      <modal name="add-parameter-scen"
+             height="auto"
+             :scrollable="true"
+             :width="500"
+             :classes="['v--modal', 'vue-dialog']"
+             :pivot-y="0.3"
+             :adaptive="true"
+             :clickToClose="clickToClose"
+             :transition="transition">
+
+        <div class="dialog-content">
+          <div class="dialog-c-title" v-if="addEditModal.mode=='add'">
+            Add scenario
+          </div>
+          <div class="dialog-c-title" v-else>
+            Edit scenario
+          </div>
+          <div class="dialog-c-text">
+            <b>Scenario name</b><br>
+            <input type="text"
+                   class="txbox"
+                   v-model="addEditModal.scenSummary.name"/><br>
+            <b>Parameter set</b><br>
+            <select v-model="parsetOptions[0]">
+              <option v-for='parset in parsetOptions'>
+                {{ parset }}
+              </option>
+            </select><br><br>
+            <b>Program set</b><br>
+            <select v-model="progsetOptions[0]">
+              <option v-for='progset in progsetOptions'>
+                {{ progset }}
+              </option>
+            </select><br><br>
+            <b>Start year</b><br>
+            <input type="text"
+                   class="txbox"
+                   v-model="addEditModal.scenSummary.alloc_year"/><br>
+            <table class="table table-bordered table-hover table-striped" style="width: 100%">
+              <thead>
+              <tr>
+                <th>Parameter</th>
+                <th>Population</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr v-for="item in addEditModal.scenSummary.alloc">
+                <td>
+                  {{ item[2] }}
+                </td>
+                <td>
+                  <input type="text"
+                         class="txbox"
+                         v-model="item[1]"
+                         style="text-align: right"
+                  />
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+          <div style="text-align:justify">
+            <button @click="addBudgetScen()" class='btn __green' style="display:inline-block">
+              Save scenario
+            </button>
+            <button @click="$modal.hide('add-budget-scen')" class='btn __red' style="display:inline-block">
+              Cancel
+            </button>
+          </div>
         </div>
-        <div class="dialog-c-title" v-else>
-          Edit scenario
+      </modal>
+      <!-- ### End: add parameter scenario modal ### -->
+
+
+      <!-- ### Start: add coverage scenario modal ### -->
+      <modal name="add-coverage-scen"
+             height="auto"
+             :scrollable="true"
+             :width="500"
+             :classes="['v--modal', 'vue-dialog']"
+             :pivot-y="0.3"
+             :adaptive="true"
+             :clickToClose="clickToClose"
+             :transition="transition">
+
+        <div class="dialog-content">
+          <div class="dialog-c-title" v-if="addEditModal.mode=='add'">
+            Add scenario
+          </div>
+          <div class="dialog-c-title" v-else>
+            Edit scenario
+          </div>
+          <div class="dialog-c-text">
+            <b>Scenario name</b><br>
+            <input type="text"
+                   class="txbox"
+                   v-model="addEditModal.scenSummary.name"/><br>
+            <b>Parameter set</b><br>
+            <select v-model="parsetOptions[0]">
+              <option v-for='parset in parsetOptions'>
+                {{ parset }}
+              </option>
+            </select><br><br>
+            <b>Program set</b><br>
+            <select v-model="progsetOptions[0]">
+              <option v-for='progset in progsetOptions'>
+                {{ progset }}
+              </option>
+            </select><br><br>
+            <b>Coverage year</b><br>
+            <input type="text"
+                   class="txbox"
+                   v-model="addEditModal.scenSummary.alloc_year"/><br>
+            <table class="table table-bordered table-hover table-striped" style="width: 100%">
+              <thead>
+              <tr>
+                <th>Program</th>
+                <th>Coverage</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr v-for="item in addEditModal.scenSummary.alloc">
+                <td>
+                  {{ item[2] }}
+                </td>
+                <td>
+                  <input type="text"
+                         class="txbox"
+                         v-model="item[1]"
+                         style="text-align: right"
+                  />
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+          <div style="text-align:justify">
+            <button @click="addCovScen()" class='btn __green' style="display:inline-block">
+              Save scenario
+            </button>
+            <button @click="$modal.hide('add-coverage-scen')" class='btn __red' style="display:inline-block">
+              Cancel
+            </button>
+          </div>
         </div>
-        <div class="dialog-c-text">
-          <b>Scenario name</b><br>
-          <input type="text"
-                 class="txbox"
-                 v-model="addEditModal.scenSummary.name"/><br>
-          <b>Parameter set</b><br>
-          <select v-model="parsetOptions[0]">
-            <option v-for='parset in parsetOptions'>
-              {{ parset }}
-            </option>
-          </select><br><br>
-          <b>Program set</b><br>
-          <select v-model="progsetOptions[0]">
-            <option v-for='progset in progsetOptions'>
-              {{ progset }}
-            </option>
-          </select><br><br>
-          <b>Budget year</b><br>
-          <input type="text"
-                 class="txbox"
-                 v-model="addEditModal.scenSummary.alloc_year"/><br>
-          <table class="table table-bordered table-hover table-striped" style="width: 100%">
-            <thead>
-            <tr>
-              <th>Program</th>
-              <th>Budget</th>
-            </tr>
-            </thead>
-            <tbody>
-            <tr v-for="item in addEditModal.scenSummary.alloc">
-              <td>
-                {{ item[2] }}
-              </td>
-              <td>
-                <input type="text"
-                       class="txbox"
-                       v-model="item[1]"
-                       style="text-align: right"
-                />
-              </td>
-            </tr>
-            </tbody>
-          </table>
+      </modal>
+      <!-- ### End: add coverage scenario modal ### -->
+
+
+      <!-- ### Start: add budget scenario modal ### -->
+      <modal name="add-budget-scen"
+             height="auto"
+             :scrollable="true"
+             :width="500"
+             :classes="['v--modal', 'vue-dialog']"
+             :pivot-y="0.3"
+             :adaptive="true"
+             :clickToClose="clickToClose"
+             :transition="transition">
+
+        <div class="dialog-content">
+          <div class="dialog-c-title" v-if="addEditModal.mode=='add'">
+            Add scenario
+          </div>
+          <div class="dialog-c-title" v-else>
+            Edit scenario
+          </div>
+          <div class="dialog-c-text">
+            <b>Scenario name</b><br>
+            <input type="text"
+                   class="txbox"
+                   v-model="addEditModal.scenSummary.name"/><br>
+            <b>Parameter set</b><br>
+            <select v-model="parsetOptions[0]">
+              <option v-for='parset in parsetOptions'>
+                {{ parset }}
+              </option>
+            </select><br><br>
+            <b>Program set</b><br>
+            <select v-model="progsetOptions[0]">
+              <option v-for='progset in progsetOptions'>
+                {{ progset }}
+              </option>
+            </select><br><br>
+            <b>Budget year</b><br>
+            <input type="text"
+                   class="txbox"
+                   v-model="addEditModal.scenSummary.alloc_year"/><br>
+            <table class="table table-bordered table-hover table-striped" style="width: 100%">
+              <thead>
+              <tr>
+                <th>Program</th>
+                <th>Budget</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr v-for="item in addEditModal.scenSummary.alloc">
+                <td>
+                  {{ item[2] }}
+                </td>
+                <td>
+                  <input type="text"
+                         class="txbox"
+                         v-model="item[1]"
+                         style="text-align: right"
+                  />
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+          <div style="text-align:justify">
+            <button @click="addBudgetScen()" class='btn __green' style="display:inline-block">
+              Save scenario
+            </button>
+            <button @click="$modal.hide('add-budget-scen')" class='btn __red' style="display:inline-block">
+              Cancel
+            </button>
+          </div>
         </div>
-        <div style="text-align:justify">
-          <button @click="addProgScen()" class='btn __green' style="display:inline-block">
-            Save scenario
-          </button>
-          <button @click="$modal.hide('add-budget-scen')" class='btn __red' style="display:inline-block">
-            Cancel
-          </button>
-        </div>
-      </div>
-    </modal>
-    <!-- ### End: add scenarios modal ### -->
+      </modal>
+      <!-- ### End: add budget scenario modal ### -->
+
+    </div>
+    <!-- ### End: scenarios modals ### -->
 
   </div>
 </template>
@@ -317,7 +473,7 @@ Last update: 2018-09-09
 
         // Page-specific data
         scenSummaries: [],
-        defaultProgScen: {},
+        defaultBudgetScen: {},
         scenariosLoaded: false,
         addEditModal: {
           scenSummary: {},
@@ -355,6 +511,7 @@ Last update: 2018-09-09
               .then(response2 => {
                 // The order of execution / completion of these doesn't matter.
                 this.getScenSummaries()
+                this.getDefaultBudgetScen()
                 this.reloadGraphs(false)
               })
           })
@@ -417,26 +574,26 @@ Last update: 2018-09-09
           })
       },
 
-      addProgScenModal(scen_type) {
+      addBudgetScenModal() {
         // Open a model dialog for creating a new project
-        console.log('addProgScenModal() called');
-        rpcs.rpc('get_default_prog_scen', [this.projectID, scen_type])
+        console.log('addBudgetScenModal() called');
+        rpcs.rpc('get_default_budget_scen', [this.projectID])
           .then(response => {
-            this.defaultProgScen = response.data // Set the scenario to what we received.
-            this.addEditModal.scenSummary = _.cloneDeep(this.defaultProgScen)
+            this.defaultBudgetScen = response.data // Set the scenario to what we received.
+            this.addEditModal.scenSummary = _.cloneDeep(this.defaultBudgetScen)
             this.addEditModal.origName = this.addEditModal.scenSummary.name
             this.addEditModal.mode = 'add'
-            this.$modal.show('add-prog-scen');
-            console.log(this.defaultProgScen)
+            this.$modal.show('add-budget-scen');
+            console.log(this.defaultBudgetScen)
           })
           .catch(error => {
             status.fail(this, 'Could not open add scenario modal', error)
           })
       },
 
-      addProgScen() {
-        console.log('addProgScen() called')
-        this.$modal.hide('add-prog-scen')
+      addBudgetScen() {
+        console.log('addBudgetScen() called')
+        this.$modal.hide('add-budget-scen')
         status.start(this)
         let newScen = _.cloneDeep(this.addEditModal.scenSummary) // Get the new scenario summary from the modal.
         let scenNames = [] // Get the list of all of the current scenario names.
@@ -471,11 +628,12 @@ Last update: 2018-09-09
       editScen(scenSummary) {
         // Open a model dialog for creating a new project
         console.log('editScen() called');
-        console.log(scenSummary)
-        this.addEditModal.scenSummary = _.cloneDeep(scenSummary)
+        this.defaultBudgetScen = scenSummary
+        console.log('defaultBudgetScen')
+        console.log(this.defaultBudgetScen)
+        this.addEditModal.scenSummary = _.cloneDeep(this.defaultBudgetScen)
         this.addEditModal.origName = this.addEditModal.scenSummary.name
         this.addEditModal.mode = 'edit'
-        if (scenSummmary.scen_type === 'coverage')
         this.$modal.show('add-budget-scen');
       },
 

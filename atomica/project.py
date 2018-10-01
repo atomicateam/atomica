@@ -243,12 +243,14 @@ class Project(object):
 
     def make_scenario(self, name="default", which=None, instructions=None, json=None,parsetname=None):
         if json is not None:
-            if which=='budget':
+            if which == 'budget':
                 scenario = BudgetScenario(**json)
+            elif which == 'parameter':
+                scenario = ParameterScenario(**json)
             else:
-                raise Exception('Parameter scenarios from JSON not implemented')
+                raise Exception('Scenarios from JSON not implemented for %s' % which)
         else:
-            if which=='parameter':
+            if which == 'parameter':
                 scenario = ParameterScenario(name=name, scenario_values=instructions,parsetname=parsetname)
             else:
                 raise Exception('Budget scenarios not from JSON not implemented')
@@ -516,36 +518,66 @@ class Project(object):
         assert isinstance(P,Project)
         return P
 
-    def demo_scenarios(self, dorun=False, doadd=True):
-        json1 = sc.odict()
-        json1['name']        ='Default budget'
-        json1['parsetname']  = -1
-        json1['progsetname'] = -1
-        json1['start_year']  = self.data.end_year # This allows the tests to run on the BE where this default never gets modified e.g. by set_scen_info()
-        json1['alloc_year']  = self.data.end_year
-        json1['alloc']       = self.progset(json1['progsetname']).get_budgets(year=json1['alloc_year'])
-        json1['active']      = True
+    def demo_scenarios(self, dorun=False, doadd=True, scen_type=None, default):
 
-        json2 = sc.dcp(json1)
-        json2['name']        ='Doubled budget'
-        json2['alloc'][:]    *= 2.0
-        json2['active']      = True
-
-        json3 = sc.dcp(json1)
-        json3['name']        ='Zero budget'
-        json3['alloc'][:]    *= 0.0
-        json3['active']      = True
+        if scen_type == 'parameter':
+            json1 = sc.odict()
+            json1['name']        ='Default parameters'
+            json1['parsetname']  = -1
+            json1['progsetname'] = -1
+            json1['start_year']  = self.data.end_year # This allows the tests to run on the BE where this default never gets modified e.g. by set_scen_info()
+            json1['cov_year']    = self.data.end_year
+            json1['cov']         = self.progset(json1['progsetname']).get_covergaes(year=json1['alloc_year'])
+            json1['active']      = True
+            
+            jsons = [json1]
+        
+        elif scen_type == 'coverage':
+            json1 = sc.odict()
+            json1['name']        ='Default coverage'
+            json1['parsetname']  = -1
+            json1['progsetname'] = -1
+            json1['start_year']  = self.data.end_year # This allows the tests to run on the BE where this default never gets modified e.g. by set_scen_info()
+            json1['cov_year']    = self.data.end_year
+            json1['cov']         = self.progset(json1['progsetname']).get_covergaes(year=json1['alloc_year'])
+            json1['active']      = True
+    
+            json2 = sc.dcp(json1)
+            json2['name']        ='Zero coverage'
+            json2['cov'][:]      *= 0.0
+            
+            jsons = [json1, json2]
+        
+        elif scen_type == 'budget':
+            json1 = sc.odict()
+            json1['name']        ='Default budget'
+            json1['parsetname']  = -1
+            json1['progsetname'] = -1
+            json1['start_year']  = self.data.end_year # This allows the tests to run on the BE where this default never gets modified e.g. by set_scen_info()
+            json1['alloc_year']  = self.data.end_year
+            json1['alloc']       = self.progset(json1['progsetname']).get_budgets(year=json1['alloc_year'])
+            json1['active']      = True
+            
+            json2 = sc.dcp(json1)
+            json2['name']        ='Zero budget'
+            json2['alloc'][:]    *= 0.0
+            
+            json3 = sc.dcp(json1)
+            json3['name']        ='Doubled budget'
+            json3['alloc'][:]    *= 2.0
+            
+            jsons = [json1, json2, json3]
 
         if doadd:
-            for json in [json1, json2, json3]:
-                self.make_scenario(which='budget', json=json)
+            for json in jsons:
+                self.make_scenario(which=scen_type, json=json)
             if dorun:
                 results = self.run_scenarios()
                 return results
             else:
                 return None
         else:
-            return json1
+            return jsons[0]
 
     def demo_optimization(self, dorun=False, tool=None, optim_type=None):
         # INPUTS

@@ -1549,11 +1549,55 @@ def set_scen_info(project_id, scenario_jsons, verbose=True):
     return None
 
 
+def get_parscen_params(proj, parset_name, year):
+    parset = proj.parsets[parset_name]
+    targets = proj.framework.pars[(proj.framework.pars['targetable'] == 'y') & proj.framework.pars['function'].isnull()]
+    scen_pars = sc.odict()
+    for _,spec in targets.iterrows():
+        par = parset.get_par(spec.name)
+        for pop in par.pops:
+            scen_pars[spec['display name']] = sc.odict()
+            val = par.interpolate(year,pop)
+            scen_pars[spec['display name']][proj.data.pops[pop]['label']] = val
+    return scen_pars
+
+
+def make_par_scen(proj, name, parsetname, start_year, end_year, fe_scen_pars):
+
+    # Reverse lookup from full names to code names
+    par_names = {row['display name']:row.name for _,row in proj.framework.pars.iterrows()}
+    pop_names = {popdict['label']:name for name,popdict in proj.data.pops.items()}
+
+    scvalues = sc.odict()
+    for (target_par,target_pop),vals in fe_scen_pars.items():
+        target_par = par_names[target_par]
+        target_pop = pop_names[target_pop]
+
+        if target_par not in scvalues:
+            scvalues[target_par]=sc.odict()
+        if target_pop not in scvalues[target_par]:
+            scvalues[target_par][target_pop] = {'y':[],'t':[]}
+
+        scvalues[target_par][target_pop]['t'].append(start_year)
+        scvalues[target_par][target_pop]['y'].append(vals[0])
+
+        if vals[1] is None:
+            scvalues[target_par][target_pop]['t'].append(proj.settings.sim_end)
+            scvalues[target_par][target_pop]['y'].append(vals[0])
+        else:
+            scvalues[target_par][target_pop]['t'] += [end_year,proj.settings.sim_end]
+            scvalues[target_par][target_pop]['y'] += [vals[1], vals[1]]
+
+    proj.make_scenario(which='parameter', name=name, instructions=scvalues, parsetname=parsetname)
+
+
+
+
 @RPC()    
-def get_default_budget_scen(project_id):
+def get_default_scen(project_id, scen_type):
     print('Creating default scenario...')
     proj = load_project(project_id, die=True)
-    py_scen = proj.demo_scenarios(doadd=False)
+    py_scen = proj.demo_scenarios(doadd=False, scen_type=scen_type)
     js_scen = py_to_js_scen(py_scen, project=proj)
     print('Created default JavaScript scenario:')
     sc.pp(js_scen)
@@ -1572,7 +1616,6 @@ def run_scenarios(project_id, cache_id, plot_options, saveresults=True, tool=Non
     print('Saving project...')
     save_project(proj)
     return output
-
 
 
 
@@ -1719,47 +1762,6 @@ def export_results(cache_id, username):
     au.export_results(results, full_file_name)
     print(">> export_results %s" % (full_file_name))
     return full_file_name # Return the filename
-
-
-def get_parscen_params(proj,parset_name,year):
-    parset = proj.parsets[parset_name]
-    targets = proj.framework.pars[(proj.framework.pars['targetable'] == 'y') & proj.framework.pars['function'].isnull()]
-    scen_pars = sc.odict()
-    for _,spec in targets.iterrows():
-        par = parset.get_par(spec.name)
-        for pop in par.pops:
-            val = par.interpolate(year,pop)
-            scen_pars[(spec['display name'],proj.data.pops[pop]['label'])] = val
-    return scen_pars
-
-def make_par_scen(proj, name, parsetname, start_year, end_year, fe_scen_pars):
-
-    # Reverse lookup from full names to code names
-    par_names = {row['display name']:row.name for _,row in proj.framework.pars.iterrows()}
-    pop_names = {popdict['label']:name for name,popdict in proj.data.pops.items()}
-
-    scvalues = sc.odict()
-    for (target_par,target_pop),vals in fe_scen_pars.items():
-        target_par = par_names[target_par]
-        target_pop = pop_names[target_pop]
-
-        if target_par not in scvalues:
-            scvalues[target_par]=sc.odict()
-        if target_pop not in scvalues[target_par]:
-            scvalues[target_par][target_pop] = {'y':[],'t':[]}
-
-        scvalues[target_par][target_pop]['t'].append(start_year)
-        scvalues[target_par][target_pop]['y'].append(vals[0])
-
-        if vals[1] is None:
-            scvalues[target_par][target_pop]['t'].append(proj.settings.sim_end)
-            scvalues[target_par][target_pop]['y'].append(vals[0])
-        else:
-            scvalues[target_par][target_pop]['t'] += [end_year,proj.settings.sim_end]
-            scvalues[target_par][target_pop]['y'] += [vals[1], vals[1]]
-
-    proj.make_scenario(which='parameter', name=name, instructions=scvalues,parsetname=parsetname)
-
 
 
 

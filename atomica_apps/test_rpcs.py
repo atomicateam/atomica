@@ -185,6 +185,7 @@ if 'run_tb_optimization' in torun and tool=='tb':
     if browser:
         sw.browser(output['graphs']+output['legends'])
 
+
 if 'minimize_money' in torun and tool=='tb':
     browser = False
     results = proj.demo_optimization(dorun=True,tool=tool,optim_type='money')
@@ -212,8 +213,8 @@ if 'parameter_scenario' in torun:
     fe_scen_pars[('Early latency departure rate','Children 0-4')][1] = fe_scen_pars[('Early latency departure rate','Children 0-4')][0]*0.5
 
     # Make and add the scenarios
-    rpcs.make_par_scen(proj,'Baseline',parsetname,start_year, end_year, baseline_scen)
-    rpcs.make_par_scen(proj,'Scenario',parsetname,start_year, end_year, fe_scen_pars)
+    rpcs.make_par_scen(proj, 'Baseline', parsetname, start_year, end_year, baseline_scen)
+    rpcs.make_par_scen(proj, 'Scenario', parsetname, start_year, end_year, fe_scen_pars)
 
     # Run and plot results
     for scen in proj.scens.values():

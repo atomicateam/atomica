@@ -50,8 +50,6 @@ class ParameterScenario(Scenario):
             scvalues[param]['Pop1']['smooth_onset'] = [1,2,3,4] (same length as y)
 
             pscenario = ParameterScenario(name="examplePS",scenario_values=scvalues)
-
-
         """
         super(ParameterScenario, self).__init__(name, active)
         self.parsetname = parsetname
