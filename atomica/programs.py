@@ -49,9 +49,9 @@ class ProgramInstructions(object):
                 self.alloc[prog.name] = TimeSeries(t=self.start_year, vals=prog.spend_data.interpolate(self.start_year))
         elif alloc:
             for prog_name,spending in alloc.items():
-                if isinstance(spending,TimeSeries):
+                if isinstance(spending,TimeSeries) and spending.has_data:
                     self.alloc[prog_name] = sc.dcp(spending)
-                else:
+                elif spending is not None:
                     self.alloc[prog_name] = TimeSeries(t=self.start_year,vals=spending)
 
         self.coverage = sc.odict() # Dict keyed by program name that stores a time series of coverages
