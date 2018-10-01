@@ -251,7 +251,6 @@ def del_project(project_key, username=None, die=None):
         project = load_project(key)
     except Exception as E:
         print('Warning: cannot delete project %s, not found (%s)' % (key, str(E)))
-        return None
     output = datastore.delete(key)
     try:
         if username is None: username = project.webapp.username
@@ -259,10 +258,28 @@ def del_project(project_key, username=None, die=None):
         user.projects.remove(key)
         datastore.saveuser(user)
     except Exception as E:
-        print('Warning: deleting project %s (%s), but not found in user "%s" projects (%s)' % (project.name, key,project.webapp.username, str(E)))
+        print('Warning: deleting project %s, but not found in user "%s" projects (%s)' % (project_key, username, str(E)))
     return output
 
 
+@RPC() # Not usually called as an RPC
+def del_framework(framework_key, username=None, die=None):
+    key = datastore.getkey(key=framework_key, objtype='framework')
+    try:
+        framework = load_framework(key)
+    except Exception as E:
+        print('Warning: cannot delete framework %s, not found (%s)' % (key, str(E)))
+    output = datastore.delete(key)
+    try:
+        if username is None: username = framework.webapp.username
+        user = get_user(username)
+        user.frameworks.remove(key)
+        datastore.saveuser(user)
+    except Exception as E:
+        print('Warning: deleting framework %s, but not found in user "%s" framework (%s)' % (framework_key, username, str(E)))
+    return output
+    
+    
 @RPC()
 def delete_projects(project_keys, username=None):
     ''' Delete one or more projects '''
@@ -272,20 +289,13 @@ def delete_projects(project_keys, username=None):
     return None
 
 
-@RPC() # Not usually called directly
-def del_framework(framework_key, die=None):
-    key = datastore.getkey(key=framework_key, objtype='framework', forcetype=False)
-    framework = load_framework(key)
-    user = get_user(framework.webapp.username)
-    output = datastore.delete(key)
-    if not output:
-        print('Warning: could not delete framework %s, not found' % framework_key)
-    if key in user.frameworks:
-        user.frameworks.remove(key)
-    else:
-        print('Warning: deleting framework %s (%s), but not found in user "%s" frameworks' % (framework.name, key, user.username))
-    datastore.saveuser(user)
-    return output
+@RPC()
+def delete_frameworks(framework_keys, username=None):
+    ''' Delete one or more frameworks '''
+    framework_keys = sc.promotetolist(framework_keys)
+    for framework_key in framework_keys:
+        del_framework(framework_key, username=username)
+    return None
 
 
 @RPC()
@@ -306,13 +316,6 @@ def del_result(result_key, project_key, die=None):
     return output
 
 
-@RPC()
-def delete_frameworks(framework_keys):
-    ''' Delete one or more frameworks '''
-    framework_keys = sc.promotetolist(framework_keys)
-    for framework_key in framework_keys:
-        del_framework(framework_key)
-    return None
 
 
 
@@ -604,7 +607,8 @@ def jsonify_frameworks(username, verbose=False):
     output = {'frameworks':[]}
     user = get_user(username)
     for framework_key in user.frameworks:
-        json = jsonify_framework(framework_key)
+        try:                   json = jsonify_project(framework_key)
+        except Exception as E: json = {'framework': {'name':'Framework load failed: %s' % str(E)}}
         output['frameworks'].append(json)
     if verbose: sc.pp(output)
     return output
