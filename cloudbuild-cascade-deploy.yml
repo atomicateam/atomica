@@ -24,7 +24,7 @@ steps:
       '--version',
       'template=cascade-app-${COMMIT_SHA}',
       '--zone=europe-west1-b',
-      '--max-surge=9999',
+      '--max-surge=10',
       '--max-unavailable=9999'
     ]
 images:
