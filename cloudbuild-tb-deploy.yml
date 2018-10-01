@@ -24,7 +24,7 @@ steps:
       '--version',
       'template=tb-app-${COMMIT_SHA}',
       '--zone=europe-west1-b',
-      '--max-surge=10',
+      '--max-surge=20',
       '--max-unavailable=9999'
     ]
 images:
