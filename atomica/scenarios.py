@@ -184,6 +184,8 @@ class BudgetScenario(Scenario):
             alloc = sc.odict()
             for prog_name, val in self.alloc.items():
                 assert not isinstance(val,TimeSeries) # Value must not be a TimeSeries
+                if val is None:
+                    continue # Use default spending for any program that does not have a spending overwrite
                 alloc[prog_name] = TimeSeries(self.alloc_year,val)
                 if self.alloc_year > self.start_year:
                     # If adding spending in a future year, linearly ramp from the start year
