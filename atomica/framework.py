@@ -499,8 +499,9 @@ class ProjectFramework(object):
                     elif dep in self.characs.index:
                         continue
                     elif dep in self.interactions.index:
-                        if not (par['function'].startswith("SRC_POP_AVG") or par['function'].startswith("TGT_POP_AVG")):
-                            message = 'The function for parameter "%s" includes the Interaction "%s", which means that the parameter function can only be "SRC_POP_AVG" or "TGT_POP_AVG"' % (par.name,dep)
+                        if not (par['function'].startswith("SRC_POP_AVG") or par['function'].startswith("TGT_POP_AVG")
+                                or par['function'].startswith("SRC_POP_SUM") or par['function'].startswith("TGT_POP_SUM")):
+                            message = 'The function for parameter "%s" includes the Interaction "%s", which means that the parameter function can only be one of: "SRC_POP_AVG", "TGT_POP_AVG", "SRC_POP_SUM" or "TGT_POP_SUM"' % (par.name,dep)
                             raise InvalidFramework(message)
                     elif dep in self.pars.index:
                         if dep not in defined:

@@ -368,7 +368,7 @@ class Project(object):
         for output in outputs:
             try: 
                 print('Plotting %s...' % output)
-                if not isinstance(output.values()[0],list): output = output.values()[0]
+                if not isinstance(list(output.values())[0],list): output = output.values()[0]
                 plotdata = PlotData(results, outputs=output, project=self, pops=pops)
                 figs,legends = plot_series(plotdata, axis='pops', plot_type='stacked', legend_mode='separate')
                 allfigs += figs
