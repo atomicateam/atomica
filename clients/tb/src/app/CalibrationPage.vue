@@ -97,14 +97,14 @@ Last update: 2018-09-06
                 <input type="text"
                        class="txbox"
                        v-model="par.meta_y_factor"
-                       @keyup.enter="saveParTable()"/>
+                       @keyup.enter="saveParTable(par)"/>
               </td>
               <td v-for="poppar in par.pop_y_factors">
                 <input type="text"
                        class="txbox"
                        :disabled="poppar.dispvalue==='0'"
                        v-model="poppar.dispvalue"
-                       @keyup.enter="saveParTable()"/>
+                       @keyup.enter="saveParTable(par)"/>
               </td>
             </tr>
             </tbody>
@@ -154,7 +154,7 @@ Last update: 2018-09-06
 
                 <div class="other-graphs">
                   <div v-for="index in placeholders">
-                    <div :id="'figcontainer'+index" style="display:flex; justify-content:flex-start; padding:5px; border:1px solid #ddd" v-show="showGraphDivs[index]">
+                    <div :id="'figcontainer'+index" class="figcontainer" v-show="showGraphDivs[index]">
                       <div :id="'fig'+index" class="calib-graph">
                         <!--mpld3 content goes here-->
                       </div>
@@ -401,7 +401,7 @@ Last update: 2018-09-06
         return new Promise((resolve, reject) => {
           console.log('loadParTable() called for ' + this.activeParset)
           // TODO: Get spinners working right for this leg of initialization.
-          rpcs.rpc('get_y_factors', [this.projectID, this.activeParset])
+          rpcs.rpc('get_y_factors', [this.projectID, this.activeParset, this.$globaltool])
             .then(response => {
               this.parlist = response.data.parlist // Get the parameter values
               var tmpParset = _.cloneDeep(this.activeParset)
@@ -424,11 +424,12 @@ Last update: 2018-09-06
         })
       },
 
-      saveParTable() {
+      saveParTable(par) {
         return new Promise((resolve, reject) => {
           console.log('saveParTable() called for ' + this.activeParset)
-          console.log(this.parlist)
-          rpcs.rpc('set_y_factors', [this.projectID, this.activeParset, this.filteredParlist])
+          console.log(par)
+          this.parlist[par.index] = par
+          rpcs.rpc('set_y_factors', [this.projectID, this.activeParset, this.parlist, this.$globaltool])
             .then(response => {
               this.loadParTable()
                 .then(response2 => {

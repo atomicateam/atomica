@@ -726,14 +726,14 @@ def upload_new_frameworkbook(filename, username):
 ##################################################################################
 
 @RPC()
-def get_y_factors(project_id, parsetname=-1, verbose=True):
+def get_y_factors(project_id, parsetname=-1, tool=None, verbose=False):
     print('Getting y factors for parset %s...' % parsetname)
     print('Warning, year hard coded!')
     TEMP_YEAR = 2018 # WARNING, hard-coded!
     y_factors = []
     proj = load_project(project_id, die=True)
     parset = proj.parsets[parsetname]
-    count = 0
+    count = -1
     for par_type in ["cascade", "comps", "characs"]:
         for par in parset.pars[par_type]:
             parname = par.name
@@ -748,7 +748,9 @@ def get_y_factors(project_id, parsetname=-1, verbose=True):
                     popindex = parset.pop_names.index(popname)
                     poplabel = parset.pop_labels[popindex]
                     try:    
-                        interp_val = this_par.interpolate([TEMP_YEAR],popname)[0]
+                        if   tool == 'tb':      interp_val = this_par.interpolate([TEMP_YEAR],popname)[0]
+                        elif tool == 'cascade': interp_val = 1
+                        else:                   raise Exception('Tool "%s" not recognized' % tool)
                         if not np.isfinite(interp_val):
                             print('NUMBER WARNING, value for %s %s is not finite' % (parlabel, poplabel))
                             interp_val = 1
@@ -766,7 +768,7 @@ def get_y_factors(project_id, parsetname=-1, verbose=True):
 
 
 @RPC()
-def set_y_factors(project_id, parsetname=-1, parlist=None, verbose=True):
+def set_y_factors(project_id, parsetname=-1, parlist=None, tool=None, verbose=False):
     print('Setting y factors for parset %s...' % parsetname)
     print('Warning, year hard coded!')
     TEMP_YEAR = 2018 # WARNING, hard-coded!
@@ -779,7 +781,10 @@ def set_y_factors(project_id, parsetname=-1, parlist=None, verbose=True):
         if verbose: print('Metaparameter %10s: %s' % (parname, this_par.meta_y_factor))
         for newpoppar in newpar['pop_y_factors']:
             popname = newpoppar['popname']
-            try:    
+            try:
+                if   tool == 'tb':      interp_val = this_par.interpolate([TEMP_YEAR],popname)[0]
+                elif tool == 'cascade': interp_val = 1
+                else:                   raise Exception('Tool "%s" not recognized' % tool)
                 interp_val = this_par.interpolate([TEMP_YEAR],popname)[0]
                 if not np.isfinite(interp_val):
                     print('NUMBER WARNING, value for %s %s is not finite' % (parname, popname))
