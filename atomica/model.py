@@ -289,15 +289,13 @@ class Parameter(Variable):
         assert sc.isstring(fcn_str), "Parameter function must be supplied as a string"
         self.fcn_str = fcn_str
         self._fcn, dep_list = parse_function(self.fcn_str)
-        if fcn_str.startswith("SRC_POP_AVG") or fcn_str.startswith("TGT_POP_AVG"):
+        if fcn_str.startswith("SRC_POP_AVG") or fcn_str.startswith("TGT_POP_AVG") or \
+                fcn_str.startswith("SRC_POP_SUM") or fcn_str.startswith("TGT_POP_SUM"):
             # The function is like 'SRC_POP_AVG(par_name,interaction_name,charac_name)'
             # self.pop_aggregation will be ['SRC_POP_AVG',parname,interaction_name,charac_object]
             special_function, temp_list = self.fcn_str.split("(")
             function_args = temp_list.rstrip(")").split(',')
             function_args = [x.strip() for x in function_args]
-
-            if len(function_args) == 2: # If weighting variable not provided
-                function_args.append(None)
 
             # Convert average variable to object reference
             v1 = self.pop.get_variable(function_args[0])[0]
@@ -1242,9 +1240,9 @@ class Model(object):
 
                 weights = self.interactions[pars[0].pop_aggregation[2]][:,:,ti].copy()
 
-                if pars[0].pop_aggregation[0] == 'SRC_POP_AVG':
+                if pars[0].pop_aggregation[0] in {'SRC_POP_AVG', 'SRC_POP_SUM'}:
                     weights = weights.T
-                elif pars[0].pop_aggregation[0] == 'TGT_POP_AVG':
+                elif pars[0].pop_aggregation[0] in {'TGT_POP_AVG', 'TGT_POP_SUM'}:
                     pass
                 else:
                     raise AtomicaException("Unknown aggregation function '{0}'").format(pars[0].pop_aggregation[0])  # This should never happen, an error should be raised earlier
@@ -1255,7 +1253,8 @@ class Model(object):
                     charac_vals = np.array(charac_vals).reshape(-1, 1)
                     weights *= charac_vals.T
 
-                weights /= np.sum(weights, axis=1, keepdims=1) # Normalize the interaction
+                if pars[0].pop_aggregation[0] in {'SRC_POP_AVG', 'TGT_POP_AVG'}:
+                    weights /= np.sum(weights, axis=1, keepdims=1) # Normalize the interaction
                 par_vals = np.matmul(weights, par_vals)
 
                 for par, val in zip(pars, par_vals):
