@@ -96,14 +96,14 @@ Last update: 2018-09-06
               <td>
                 <input type="text"
                        class="txbox"
-                       v-model="parlist[par.parname]['meta_y_factor']"
+                       v-model="par.meta_y_factor"
                        @keyup.enter="saveParTable()"/>
               </td>
-              <td v-for="poppar in parlist[par.parname]['pop_y_factors']">
+              <td v-for="poppar in par.pop_y_factors">
                 <input type="text"
                        class="txbox"
-                       :disabled="parlist[par.parname]['pop_y_factors'][poppar.popname]['dispvalue']==='0'"
-                       v-model="parlist[par.parname]['pop_y_factors'][poppar.popname]['dispvalue']"
+                       :disabled="poppar.dispvalue==='0'"
+                       v-model="poppar.dispvalue"
                        @keyup.enter="saveParTable()"/>
               </td>
             </tr>
@@ -345,11 +345,7 @@ Last update: 2018-09-06
       placeholders() { return graphs.placeholders(this, 1) },
 
       filteredParlist() {
-        return this.parlist
-//        var flatparlist = Object.keys(this.parlist).map(function(key) {
-//          return [this.parlist[key]];
-//        });
-//        return this.applyParametersFilter(flatparlist)
+        return this.applyParametersFilter(this.parlist)
       }
     },
 
@@ -413,8 +409,8 @@ Last update: 2018-09-06
               utils.sleep(500).then(response => {
                 this.activeParset = tmpParset
               })
-//              this.parlist.push('Update Vue DOM')
-//              this.parlist.pop()
+              this.parlist.push('Update Vue DOM')
+              this.parlist.pop()
               this.poplabels = response.data.poplabels
               console.log(response)
               console.log(this.poplabels)
@@ -432,7 +428,7 @@ Last update: 2018-09-06
         return new Promise((resolve, reject) => {
           console.log('saveParTable() called for ' + this.activeParset)
           console.log(this.parlist)
-          rpcs.rpc('set_y_factors', [this.projectID, this.activeParset, this.parlist])
+          rpcs.rpc('set_y_factors', [this.projectID, this.activeParset, this.filteredParlist])
             .then(response => {
               this.loadParTable()
                 .then(response2 => {
@@ -450,9 +446,8 @@ Last update: 2018-09-06
       },
 
       applyParametersFilter(parlist) {
-        return parlist
-//        return parlist.filter(par => ((par.parcategory.toLowerCase().indexOf(this.filterText.toLowerCase()) !== -1)
-//                                      || (par.parlabel.toLowerCase().indexOf(this.filterText.toLowerCase()) !== -1)))
+        return parlist.filter(par => ((par.parcategory.toLowerCase().indexOf(this.filterText.toLowerCase()) !== -1)
+                                      || (par.parlabel.toLowerCase().indexOf(this.filterText.toLowerCase()) !== -1)))
       },
 
       renameParsetModal() {
