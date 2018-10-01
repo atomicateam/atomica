@@ -10,10 +10,13 @@ def to_annual(p,dt):
 # Only calls to functions in the dict below will be permitted
 supported_functions = {
     'max':max,
+    'min': min,
     'exp': np.exp,
     'floor': np.floor,
     'SRC_POP_AVG': None,
     'TGT_POP_AVG': None,
+    'SRC_POP_SUM': None,
+    'TGT_POP_SUM': None,
     'pi':np.pi,
     'cos':np.cos,
     'sin':np.sin,
