@@ -735,12 +735,12 @@ class Population(object):
                                                  "Target value = N/A (0.0)".format(charac.name))
 
             n_indent += 1
-            for inc in charac.includes:
-                if isinstance(inc, Characteristic):
-                    report_characteristic(inc, n_indent)
-                else:
-                    logger.warning(
-                        n_indent * '\t' + 'Compartment %s: Computed value = %f' % (inc.name, x[comp_indices[inc.name]]))
+            if isinstance(charac,Characteristic):
+                for inc in charac.includes:
+                    if isinstance(inc, Characteristic):
+                        report_characteristic(inc, n_indent)
+                    else:
+                        logger.warning(n_indent * '\t' + 'Compartment %s: Computed value = %f' % (inc.name, x[comp_indices[inc.name]]))
 
         for i in range(0, len(comps)):
             if x[i] < -model_settings['tolerance']:
@@ -849,7 +849,11 @@ class Model(object):
                 self._program_cache['pars'][target_par['param']][target_par['pop']] = self.get_pop(target_par['pop']).get_par(target_par['param'])
 
             self._program_cache['alloc'] = self.progset.get_alloc(self.program_instructions, self.t)
-            self._program_cache['coverage'] = self.progset.get_num_covered(year=self.t, alloc=self._program_cache['alloc'])
+            self._program_cache['num_coverage'] = self.progset.get_num_covered(year=self.t, alloc=self._program_cache['alloc'])
+
+            self._program_cache['prop_coverage'] = dict()
+            for prog_name, coverage_ts in self.program_instructions.coverage.items():
+                self._program_cache['prop_coverage'][prog_name] = coverage_ts.interpolate(self.t)
 
             self.progset.prepare_cache()
         else:
@@ -1055,7 +1059,7 @@ class Model(object):
                         else:
                             par.links[0].vals[ti] = converted_amt
                     elif quantity_type not in [FS.QUANTITY_TYPE_PROPORTION]:
-                        raise AtomicaException("Encountered unknown quantity type %s for Parameter %s (%s)" % (quantity_type,par.name,pop.name))
+                        raise AtomicaException("Encountered unknown units '%s' for Parameter '%s' (%s) in Population %s" % (quantity_type,par.name,self.framework.get_label(par.name),pop.name))
 
             # Then, adjust outflows to prevent negative popsizes.
             for comp_source in pop.comps:
@@ -1146,7 +1150,7 @@ class Model(object):
                         # Outflows are scaled to the entire compartment size.
                         denom_val = sum(link.parameter.vals[ti] for link in junc.outlinks)
                         if denom_val == 0:
-                            raise AtomicaException("Total junction outflow for junction %s was zero - all junctions must have a nonzero outflow" % (junc.name))
+                            raise AtomicaException("Total junction outflow for junction '%s' was zero - all junctions must have a nonzero outflow" % (self.framework.get_label(junc.name)))
 
                         for link in junc.outlinks:
                             flow = current_size * link.parameter.vals[ti] / denom_val
@@ -1195,17 +1199,27 @@ class Model(object):
 
         if do_program_overwrite:
             # Compute the fraction covered
-            num_covered  = sc.odict([(k,v[ti]) for k,v in self._program_cache['coverage'].iteritems()])
+            num_covered  = sc.odict([(k,v[ti]) for k,v in self._program_cache['num_coverage'].iteritems()])
             prop_covered = sc.odict.fromkeys(self._program_cache['comps'], 0.0)
             for k,comp_list in self._program_cache['comps'].items():
-                n = 0.0
-                for comp in comp_list:
-                    n += comp.vals[ti]
-                if n:
-                    prop_covered[k] = np.minimum(self._program_cache['coverage'][k][ti] / n, 1.)
+                if k in self._program_cache['prop_coverage']:
+                    prop_covered[k] = self._program_cache['prop_coverage'][k][ti]
                 else:
-                    prop_covered[k] = 1.
+                    n = 0.0
+                    for comp in comp_list:
+                        n += comp.vals[ti]
+                    if n:
+                        prop_covered[k] = np.minimum(self._program_cache['num_coverage'][k][ti] / n, 1.)
+                    else:
+                        prop_covered[k] = 1.
 
+            # TODO - Note that if a program has a coverage overwrite (in proportion units) but then targets
+            # a number parameter, the coverage overwrite will have no effect. This is kind of fitting in the
+            # sense that for number parameters, at the moment
+            # - the proportion coverage is ignored
+            # - the targeting sheet is ignored
+            # so it is consistent to have (fraction) coverage overwrites also be ignored. This may change if the
+            # design of number coverage programs is modified
             par_covered = dict()
             for par_name in self.progset.pars:
                 for pop in self.pops:

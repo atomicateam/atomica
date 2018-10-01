@@ -19,7 +19,7 @@ import io
 import numpy as np
 
 class ProgramInstructions(object):
-    def __init__(self,alloc=None,start_year=None,stop_year=None):
+    def __init__(self,alloc=None,start_year=None,stop_year=None, coverage=None):
         """ Set up a structure that stores instructions for a model on how to use programs. """
         # Instantiate a new ProgramInstructions instance. ProgramInstructions specify how to use programs
         # - specifically, which years the programs are applied from, and any funding overwrites from the
@@ -33,6 +33,9 @@ class ProgramInstructions(object):
         #             spending onto the program start year. This is a shortcut to ensure that budget scenarios and optimizations
         #             where spending is specified in future years ramp correctly from the program start year (and not the last year
         #             that data was entered for)
+        # - coverage : Overwrites to proportion coverage. It can be
+        #           - A dict keyed by program name, containing a scalar coverage or a TimeSeries of coverage values
+        #   Note that coverage overwrites have no effect
 
         self.start_year = start_year if start_year else 2018.
         self.stop_year = stop_year if stop_year else inf
@@ -46,10 +49,18 @@ class ProgramInstructions(object):
                 self.alloc[prog.name] = TimeSeries(t=self.start_year, vals=prog.spend_data.interpolate(self.start_year))
         elif alloc:
             for prog_name,spending in alloc.items():
-                if isinstance(spending,TimeSeries):
+                if isinstance(spending,TimeSeries) and spending.has_data:
                     self.alloc[prog_name] = sc.dcp(spending)
-                else:
+                elif spending is not None:
                     self.alloc[prog_name] = TimeSeries(t=self.start_year,vals=spending)
+
+        self.coverage = sc.odict() # Dict keyed by program name that stores a time series of coverages
+        if coverage:
+            for prog_name,cov_values in coverage.items():
+                if isinstance(cov_values,TimeSeries):
+                    self.coverage[prog_name] = sc.dcp(cov_values)
+                else:
+                    self.coverage[prog_name] = TimeSeries(t=self.start_year,vals=cov_values)
 
 #--------------------------------------------------------------------
 # ProgramSet class
@@ -217,22 +228,36 @@ class ProgramSet(NamedItem):
             if is_impact == 'y' and y_format == 'number':
                 self.num_pars[name] = label
 
+    @staticmethod
+    def validate_inputs(framework, data, project):
+        # To load a spreadsheet or make a new ProgramSet, people can pass in
+        # framework, data, and/or a project. If the framework and data are not explicitly specified,
+        # they get drawn from the project
+        if (framework is None and project is None) or (data is None and project is None):
+            errormsg = 'To read in a ProgramSet, please supply one of the following sets of inputs: (a) a Framework and a ProjectData, (b) a Project.'
+            raise AtomicaException(errormsg)
+
+        if framework is None:
+            if project.framework is None:
+                errormsg = 'A Framework was not provided, and the Project has not been initialized with a Framework'
+                raise AtomicaException(errormsg)
+            else:
+                framework = project.framework
+
+        if data is None:
+            if project.data is None:
+                errormsg = 'Project data has not been loaded yet'
+                raise AtomicaException(errormsg)
+            else:
+                data = project.data
+
+        return framework, data
 
     @staticmethod
     def from_spreadsheet(spreadsheet=None, framework=None, data=None, project=None):
         '''Make a program set by loading in a spreadsheet.'''
 
-        # Check framework/data requirements - people can EITHER provide:
-        #  - a data and framework
-        #  - a project containing data and a framework
-        # Try to get them from the data/framework
-        if data is None or framework is None:
-            if project is None:
-                errormsg = 'To read in a ProgramSet, please supply one of the following sets of inputs: (a) a Framework and a ProjectData, (b) a Project.'
-                raise AtomicaException(errormsg)
-            else:
-                data = project.data
-                framework = project.framework
+        framework, data = ProgramSet.validate_inputs(framework,data,project)
 
         # Populate the available pops, comps, and pars based on the framework and data provided at this step
         self = ProgramSet()
@@ -546,13 +571,13 @@ class ProgramSet(NamedItem):
                 if covout and covout.cov_interaction is not None:
                     sheet.write(current_row, 2, covout.cov_interaction,self._formats['not_required'])
                 else:
-                    sheet.write(current_row, 2, None, self._formats['unlocked'])
+                    sheet.write(current_row, 2, 'Additive', self._formats['unlocked'])
                 sheet.data_validation(xlrc(current_row, 2), {"validate": "list", "source": ["Random","Additive","Nested"]})
 
                 if covout and covout.imp_interaction is not None:
                     sheet.write(current_row, 3, covout.imp_interaction,self._formats['not_required'])
                 else:
-                    sheet.write(current_row, 3, None, self._formats['unlocked'])
+                    sheet.write(current_row, 3, 'Best', self._formats['unlocked'])
                 sheet.data_validation(xlrc(current_row, 3), {"validate": "list", "source": ["Synergistic","Best"]})
 
                 if covout and covout.sigma is not None:
@@ -611,11 +636,7 @@ class ProgramSet(NamedItem):
             errormsg = 'Please just supply a number of programs, not "%s"' % (type(progs))
             raise AtomicaException(errormsg)
 
-        # First, assign the data and framework
-        if framework is None and project:
-            framework = project.framework
-        if data is None and project:
-            data = project.data
+        framework, data = ProgramSet.validate_inputs(framework,data,project)
 
         # Assign the pops
         if pops is None:
@@ -971,9 +992,16 @@ class Covout(object):
            )
     '''
 
-    def __init__(self, par, pop, progs, cov_interaction='additive', imp_interaction='best', uncertainty=0.0, baseline=0.0, is_num_par=False):
-        assert cov_interaction in ['additive','random','nested']
-        assert imp_interaction in ['best','synergistic']
+    def __init__(self, par, pop, progs, cov_interaction=None, imp_interaction=None, uncertainty=0.0, baseline=0.0, is_num_par=False):
+        if cov_interaction is None:
+            cov_interaction = 'additive'
+        else:
+            assert cov_interaction in ['additive','random','nested'], 'Coverage interaction must be set to "additive", "random", or "nested"'
+
+        if imp_interaction is None:
+            imp_interaction = 'best'
+        else:
+            assert imp_interaction in ['best','synergistic'], 'Impact interaction must be "best" or "synergistic"'
 
         self.par = par
         self.pop = pop
