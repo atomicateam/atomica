@@ -730,7 +730,7 @@ def get_y_factors(project_id, parsetname=-1, verbose=True):
     print('Getting y factors for parset %s...' % parsetname)
     print('Warning, year hard coded!')
     TEMP_YEAR = 2018 # WARNING, hard-coded!
-    y_factors = sc.odict()
+    y_factors = []
     proj = load_project(project_id, die=True)
     parset = proj.parsets[parsetname]
     count = 0
@@ -743,7 +743,7 @@ def get_y_factors(project_id, parsetname=-1, verbose=True):
                 count += 1
                 parlabel = this_spec['display name']
                 parcategory = this_spec['calibrate']
-                y_factors[parname] = {'index':count, 'parname':parname, 'parlabel':parlabel, 'parcategory':parcategory, 'meta_y_factor':this_par.meta_y_factor, 'pop_y_factors':sc.odict()}
+                y_factors.append({'index':count, 'parname':parname, 'parlabel':parlabel, 'parcategory':parcategory, 'meta_y_factor':this_par.meta_y_factor, 'pop_y_factors':[]}) 
                 for p,popname,y_factor in this_par.y_factor.enumitems():
                     popindex = parset.pop_names.index(popname)
                     poplabel = parset.pop_labels[popindex]
@@ -759,7 +759,7 @@ def get_y_factors(project_id, parsetname=-1, verbose=True):
                         interp_val = 1
                     dispvalue = from_number(interp_val*y_factor)
                     thisdict = {'popcount':p, 'popname':popname, 'dispvalue':dispvalue, 'origdispvalue':dispvalue, 'poplabel':poplabel}
-                    y_factors[parname]['pop_y_factors'][popname] = thisdict
+                    y_factors[-1]['pop_y_factors'].append(thisdict)
     if verbose: sc.pp(y_factors)
     print('Returning %s y-factors for %s' % (len(y_factors), parsetname))
     return {'parlist':y_factors, 'poplabels':parset.pop_labels}
@@ -772,12 +772,12 @@ def set_y_factors(project_id, parsetname=-1, parlist=None, verbose=True):
     TEMP_YEAR = 2018 # WARNING, hard-coded!
     proj = load_project(project_id, die=True)
     parset = proj.parsets[parsetname]
-    for newpar in parlist.values():
+    for newpar in parlist:
         parname = newpar['parname']
         this_par = parset.get_par(parname)
         this_par.meta_y_factor = to_float(newpar['meta_y_factor'])
         if verbose: print('Metaparameter %10s: %s' % (parname, this_par.meta_y_factor))
-        for newpoppar in newpar['pop_y_factors'].values():
+        for newpoppar in newpar['pop_y_factors']:
             popname = newpoppar['popname']
             try:    
                 interp_val = this_par.interpolate([TEMP_YEAR],popname)[0]
