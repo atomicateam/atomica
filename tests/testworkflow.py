@@ -9,7 +9,7 @@ import pylab as pl
 import matplotlib.pyplot as plt
 from atomica.optimization import optimize
 
-#test = "sir"
+test = "sir"
 #test = "tb"
 #test = "tb_simple_dyn"
 #test = "tb_simple"
@@ -18,7 +18,7 @@ from atomica.optimization import optimize
 #test = "dt"
 #test = "udt"
 #test = "usdt"
-test = "cervicalcancer"
+# test = "cervicalcancer"
 #test = "hiv"
 #test = "hiv_dyn"
 #test = "diabetes"
@@ -36,12 +36,13 @@ torun = [
 #"makeblankprogbook",
 # "writeprogbook",
 #"testprograms",
-"runsim_programs",
+# "runsim_programs",
 #"makeplots",
 #"export",
 # "manualcalibrate",
 #"autocalibrate",
 #"parameterscenario",
+"coveragescenario",
 #'budgetscenarios',
 #'optimization',
 # "saveproject",
@@ -472,6 +473,38 @@ if "parameterscenario" in torun:
         plt.title('Scenario comparison')
         plt.ylabel('Number of people')
 
+if "coveragescenario" in torun:
+
+    P = au.demo(which=test)
+    instructions = au.ProgramInstructions(start_year=2018)
+    no_programs = P.run_sim(parset='default',result_name='No programs')
+    baseline = P.run_sim(parset='default',progset='default',progset_instructions=instructions,result_name='Default programs')
+
+    coverage = {
+        'Risk avoidance':0.5,
+         'Harm reduction 1':0.5,
+         'Harm reduction 2':au.TimeSeries([2018,2020],[0.7,0.2]),
+    }
+    scen = au.CoverageScenario('Reduced coverage','default','default',coverage=coverage,start_year=2018)
+    scen_result = scen.run(project=P)
+
+    # Plot coverages
+    d = au.PlotData.programs([baseline,scen_result],quantity='coverage_fraction',outputs='Harm reduction 2')
+    au.plot_series(d, axis="results")
+
+    # Plot results
+    d = au.PlotData([no_programs,baseline,scen_result],outputs='ch_infrec')
+    au.plot_series(d, axis="results")
+    plt.xlim(2022.5,2023)
+    plt.ylim(741,746)
+
+    # Test export
+    no_programs.export('temp/covscen_noprogs.xlsx')
+    baseline.export('temp/covscen_baseline.xlsx')
+    scen_result.export('temp/covscen_reduced.xlsx')
+    # Confirm that
+    # - FOI-related values (e.g. transmission probability) in decreasing order are noprogs, reduced, baselilne
+    # - Coverage values are 1.0 in baseline and 0.5 (or time varying) in scen result for applicable programs
 
 def supported_plots_func():
     ''' TEMP '''

@@ -115,6 +115,10 @@ class TimeSeries(object):
     def insert(self, t, v):
         # Insert value v at time t maintaining sort order
         # To set the assumption, set t=None
+
+        if v is None: # Can't cast a None to a float, just skip it
+            return
+
         v = float(v) # Convert input to float
 
         if t is None:

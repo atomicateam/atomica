@@ -20,10 +20,12 @@ steps:
     args: [
       'beta', 'compute', '--project=sharp-imprint-213320', 'instance-groups',
       'managed', 'rolling-action', 'start-update',
-      'tb-app-20180921',
+      'tb-app-eu',
       '--version',
       'template=tb-app-${COMMIT_SHA}',
-      '--zone=asia-southeast1-b'
+      '--zone=europe-west1-b',
+      '--max-surge=20',
+      '--max-unavailable=9999'
     ]
 images:
   - 'gcr.io/${PROJECT_ID}/${REPO_NAME}_tb__app:${COMMIT_SHA}'

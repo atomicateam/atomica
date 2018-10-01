@@ -32,10 +32,9 @@ from .model import run_model
 from .parameters import ParameterSet
 
 from .programs import ProgramSet
-from .scenarios import Scenario, ParameterScenario
+from .scenarios import Scenario, ParameterScenario, BudgetScenario, CoverageScenario
 from .optimization import Optimization, optimize, OptimInstructions, InvalidInitialConditions
 from .system import logger, AtomicaException
-from .scenarios import BudgetScenario
 from .cascade import get_cascade_outputs
 from .utils import NDict
 from .plotting import PlotData, plot_series
@@ -215,6 +214,9 @@ class Project(object):
     def make_progbook(self, progbook_path=None, progs=None, data_start=None, data_end=None, blh_effects=False):
         ''' Make a blank program databook'''
         ## Get filepath
+        if self.data is None:
+            errormsg = 'Please upload a databook before creating a program book. The databook defines which populations will appear in the program book.'
+            raise AtomicaException(errormsg)
         full_path = sc.makefilepath(filename=progbook_path, default=self.name, ext='xlsx')
         if data_start is None:  data_start = self.data.tvec[0]
         if data_end is None:    data_end= self.data.tvec[-1]
@@ -226,6 +228,10 @@ class Project(object):
         ''' Load a programs databook'''
         if verbose: print('Making ProgramSet')
         if verbose: print('Uploading program data')
+        if self.data is None:
+            errormsg = 'Please upload a databook before uploading a program book. The databook contains the population definitions required to read the program book.'
+            raise AtomicaException(errormsg)
+
         if sc.isstring(progbook_path):
             full_path = sc.makefilepath(filename=progbook_path, default=self.name, ext='xlsx')
             progbook_spreadsheet = AtomicaSpreadsheet(full_path)
@@ -245,6 +251,8 @@ class Project(object):
         if json is not None:
             if which == 'budget':
                 scenario = BudgetScenario(**json)
+            elif which == 'coverage':
+                scenario = CoverageScenario(**json)
             elif which == 'parameter':
                 scenario = ParameterScenario(**json)
             else:
@@ -362,7 +370,7 @@ class Project(object):
         for output in outputs:
             try: 
                 print('Plotting %s...' % output)
-                if not isinstance(output.values()[0],list): output = output.values()[0]
+                if not isinstance(list(output.values())[0],list): output = output.values()[0]
                 plotdata = PlotData(results, outputs=output, project=self, pops=pops)
                 figs,legends = plot_series(plotdata, axis='pops', plot_type='stacked', legend_mode='separate')
                 allfigs += figs

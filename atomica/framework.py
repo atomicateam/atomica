@@ -64,9 +64,10 @@ class ProjectFramework(object):
                 # Get a dataframe
                 df = pd.DataFrame.from_records(table).applymap(lambda x: x.value.strip() if sc.isstring(x.value) else x.value)
                 df.dropna(axis=1, how='all', inplace=True) # If a column is completely empty, including the header, ignore it. Helps avoid errors where blank cells are loaded by openpyxl due to extra non-value content
-                if sheet_title == 'cascades':
+                if sheet_title == 'cascades' or sheet_title == 'transitions':
                     # On the cascades sheet, the user-entered name appears in the header row. We must preserve case for this
-                    # name so that things like 'TB cascade' don't become 'tb cascade'
+                    # name so that things like 'TB cascade' don't become 'tb cascade'. Same for compartment names so that
+                    # any capitals in the compartment name are preserved
                     df.columns = [df.iloc[0, 0]] + list(df.iloc[0,1:].str.lower())
                 else:
                     df.columns = df.iloc[0].str.lower()
@@ -204,6 +205,12 @@ class ProjectFramework(object):
                 return df.loc[df['display name'] == name].iloc[0], item_type
 
         raise NotFoundError('Variable "%s" not found in Framework' % (name))
+
+    def get_label(self,name):
+        # Wrapper function to get the label (display name) from a variable. Accepts either
+        # a code name or a full name - same as get_variable(). Note that all items that can be
+        # returned by get_variable() have a 'display name'
+        return self.get_variable(name)[0]['display name']
 
     def __contains__(self,item):
         # An item is contained in this Framework if `get_variable` would return something
@@ -492,8 +499,9 @@ class ProjectFramework(object):
                     elif dep in self.characs.index:
                         continue
                     elif dep in self.interactions.index:
-                        if not (par['function'].startswith("SRC_POP_AVG") or par['function'].startswith("TGT_POP_AVG")):
-                            message = 'The function for parameter "%s" includes the Interaction "%s", which means that the parameter function can only be "SRC_POP_AVG" or "TGT_POP_AVG"' % (par.name,dep)
+                        if not (par['function'].startswith("SRC_POP_AVG") or par['function'].startswith("TGT_POP_AVG")
+                                or par['function'].startswith("SRC_POP_SUM") or par['function'].startswith("TGT_POP_SUM")):
+                            message = 'The function for parameter "%s" includes the Interaction "%s", which means that the parameter function can only be one of: "SRC_POP_AVG", "TGT_POP_AVG", "SRC_POP_SUM" or "TGT_POP_SUM"' % (par.name,dep)
                             raise InvalidFramework(message)
                     elif dep in self.pars.index:
                         if dep not in defined:
@@ -546,6 +554,9 @@ class ProjectFramework(object):
         tmp = set()
         for name in code_names:
 
+            if len(name) == 1:
+                raise InvalidFramework('Code name "%s" is not valid: code names must be at least two characters long' % (name))
+
             if FS.RESERVED_SYMBOLS.intersection(name):
                 raise InvalidFramework('Code name "%s" is not valid: it cannot contain any of these reserved symbols %s' % (name,FS.RESERVED_SYMBOLS))
 
@@ -596,10 +607,10 @@ class ProjectFramework(object):
         for cascade_name,df in self.cascades.items():
             for _,spec in df.iterrows():
                 if not spec['constituents']:
-                    raise InvalidFramework('In cascade "%s" stage "%s" - no constituents were provided in the spreadsheet' % (cascade_name, spec.iloc[0]))
+                    raise InvalidFramework('In cascade "%s", stage "%s" - no constituents were provided in the spreadsheet' % (cascade_name, spec.iloc[0]))
                 for component in spec['constituents'].split(','):
                     if not (component.strip() in self.comps.index or component.strip() in self.characs.index):
-                        raise InvalidFramework('In cascade "%s" stage "%s" - included component "%s" was not recognized as a Compartment or Characteristic' % (cascade_name,spec.iloc[:,0],component))
+                        raise InvalidFramework('In cascade "%s", stage "%s" - the included component "%s" was not recognized as a Compartment or Characteristic' % (cascade_name,spec.iloc[0],component))
 
         # Check that the cascades are validly nested
         # This will also check the fallback cascade
@@ -620,7 +631,11 @@ class ProjectFramework(object):
                 characs.append(spec.name)
 
         if len(characs) == 0:
-            raise AtomicaException('No compartments or characteristics have a setup weight, cannot initialize simulation')
+            if not self.comps['databook page'].any() and self.comps['databook page'].any():
+                message = 'No compartments or characteristics appear in the databook, which means it is not possible to initialize the simulation. Please assign at least some of the compartments and/or characteristics to a databook page.'
+            else:
+                message = 'No compartments or characteristics have a setup weight (either because they do not appear in the databook, or the setup weight has been explicitly set to zero) - cannot initialize simulation. Please change some of the setup weights to be nonzero'
+            raise AtomicaException(message)
 
         A = np.zeros((len(characs), len(comps)))
         for i, charac in enumerate(characs):
@@ -699,6 +714,4 @@ def sanitize_dataframe(df,required_columns,defaults,valid_content):
     df.columns = [x.strip() for x in df.columns]
 
     return df
-
-
 

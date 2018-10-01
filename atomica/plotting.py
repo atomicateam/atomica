@@ -484,8 +484,11 @@ class PlotData(object):
                             else:
                                 num_eligible[prog.name] += result.get_variable(pop_name,comp_name)[0].vals
 
-                    prop_covered[prog.name] = np.divide(num_covered[prog.name], num_eligible[prog.name], out=np.zeros_like(num_covered[prog.name]), where=num_eligible[prog.name] != 0)
-                    prop_covered[prog.name] = np.minimum(prop_covered[prog.name],np.ones(result.t.shape))
+                    if prog.name in result.model.program_instructions.coverage:
+                        prop_covered[prog.name] = result.model.program_instructions.coverage[prog.name].interpolate(result.t)
+                    else:
+                        prop_covered[prog.name] = np.divide(num_covered[prog.name], num_eligible[prog.name], out=np.zeros_like(num_covered[prog.name]), where=num_eligible[prog.name] != 0)
+                        prop_covered[prog.name] = np.minimum(prop_covered[prog.name],np.ones(result.t.shape))
 
                 if quantity == 'coverage_denominator':
                     units = 'Number of people'
