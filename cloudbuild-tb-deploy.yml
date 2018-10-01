@@ -22,6 +22,8 @@ steps:
       'managed', 'rolling-action', 'start-update',
       'tb-app-eu',
       '--version',
+      '--max-surge=9999',
+      '--max-unavailable=9999',
       'template=tb-app-${COMMIT_SHA}',
       '--zone=europe-west1-b'
     ]
