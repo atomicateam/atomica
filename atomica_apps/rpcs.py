@@ -204,11 +204,13 @@ def save_new_project(proj, username=None, uid=None, verbose=True):
         new_project.webapp = sc.prettyobj()
         new_project.webapp.username = username
         new_project.webapp.tasks = []
+    new_project.webapp.username = username # Make sure we have the current username
     
     # Save all the things
     key = save_project(new_project, verbose=verbose)
-    user.projects.append(key)
-    datastore.saveuser(user)
+    if key not in user.projects: # Let's not allow multiple copies
+        user.projects.append(key)
+        datastore.saveuser(user)
     return key,new_project
 
 
@@ -242,20 +244,32 @@ def save_new_framework(framework, username=None):
     return key,new_framework
 
 
-@RPC() # Not usually called directly
-def del_project(project_key, die=None):
-    key = datastore.getkey(key=project_key, objtype='project', forcetype=False)
-    project = load_project(key)
-    user = get_user(project.webapp.username)
+@RPC() # Not usually called as an RPC
+def del_project(project_key, username=None, die=None):
+    key = datastore.getkey(key=project_key, objtype='project')
+    try:
+        project = load_project(key)
+    except Exception as E:
+        print('Warning: cannot delete project %s, not found (%s)' % (key, str(E)))
+        return None
     output = datastore.delete(key)
-    if not output:
-        print('Warning: could not delete project %s, not found' % project_key)
-    if key in user.projects:
+    try:
+        if username is None: username = project.webapp.username
+        user = get_user(username)
         user.projects.remove(key)
-    else:
-        print('Warning: deleting project %s (%s), but not found in user "%s" projects' % (project.name, key, user.username))
-    datastore.saveuser(user)
+        datastore.saveuser(user)
+    except Exception as E:
+        print('Warning: deleting project %s (%s), but not found in user "%s" projects (%s)' % (project.name, key,project.webapp.username, str(E)))
     return output
+
+
+@RPC()
+def delete_projects(project_keys, username=None):
+    ''' Delete one or more projects '''
+    project_keys = sc.promotetolist(project_keys)
+    for project_key in project_keys:
+        del_project(project_key, username=username)
+    return None
 
 
 @RPC() # Not usually called directly
@@ -273,6 +287,7 @@ def del_framework(framework_key, die=None):
     datastore.saveuser(user)
     return output
 
+
 @RPC()
 def del_result(result_key, project_key, die=None):
     key = datastore.getkey(key=result_key, objtype='result', forcetype=False)
@@ -289,15 +304,6 @@ def del_result(result_key, project_key, die=None):
         print('Warning: deleting result %s (%s), but not found in project "%s"' % (result_key, key, project_key))
     if found: save_project(project) # Only save if required
     return output
-
-
-@RPC()
-def delete_projects(project_keys):
-    ''' Delete one or more projects '''
-    project_keys = sc.promotetolist(project_keys)
-    for project_key in project_keys:
-        del_project(project_key)
-    return None
 
 
 @RPC()
@@ -515,7 +521,11 @@ def download_databook(project_id):
     proj = load_project(project_id, die=True) # Load the project with the matching UID.
     file_name = '%s_databook.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
     full_file_name = get_path(file_name, username=proj.webapp.username) # Generate the full file name with path.
-    proj.databook.save(full_file_name)
+    try:
+        proj.databook.save(full_file_name)
+    except Exception as E:
+        errormsg = 'Databook has not been uploaded or is invalid: %s' % str(E)
+        raise Exception(errormsg)
     print(">> download_databook %s" % (full_file_name)) # Display the call information.
     return full_file_name # Return the full filename.
 
@@ -526,14 +536,18 @@ def download_progbook(project_id):
     proj = load_project(project_id, die=True) # Load the project with the matching UID.
     file_name = '%s_program_book.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
     full_file_name = get_path(file_name, username=proj.webapp.username) # Generate the full file name with path.
-    proj.progbook.save(full_file_name)
+    try:
+        proj.progbook.save(full_file_name)
+    except Exception as E:
+        errormsg = 'Program book has not been uploaded or is invalid: %s' % str(E)
+        raise Exception(errormsg)
     print(">> download_progbook %s" % (full_file_name)) # Display the call information.
     return full_file_name # Return the full filename.
   
     
 @RPC(call_type='download')   
 def create_progbook(project_id, num_progs):
-    ''' Create program book '''
+    ''' Create program book -- only used for Cascades '''
     proj = load_project(project_id, die=True) # Load the project with the matching UID.
     file_name = '%s_program_book.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
     full_file_name = get_path(file_name, username=proj.webapp.username) # Generate the full file name with path.
@@ -941,6 +955,7 @@ def delete_progset(project_id, progsetname=None):
 
 @RPC()
 def get_default_programs(freshrun=False, verbose=False, fulloutput=False):
+    ''' Only used for TB '''
     
     if freshrun or fulloutput: # This is because creating the framework is very slow (>3 s)
         # Get programs
@@ -1003,6 +1018,7 @@ def get_default_programs(freshrun=False, verbose=False, fulloutput=False):
 
 @RPC(call_type='download')
 def create_default_progbook(project_id, program_years=None, active_progs=None):
+    ''' Only used for TB '''
     # INPUTS
     # - proj : a project
     # - program_years : a two-element range (inclusive) of years for data entry e.g. [2015,2018]
