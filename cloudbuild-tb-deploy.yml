@@ -16,15 +16,15 @@ steps:
       '--boot-disk-device-name=tb-app-${COMMIT_SHA}',
       '--container-image=gcr.io/${PROJECT_ID}/${REPO_NAME}_tb__app:${COMMIT_SHA}'
     ]
-  # - name: 'gcr.io/cloud-builders/gcloud'
-  #   args: [
-  #     'beta', 'compute', '--project=sharp-imprint-213320', 'instance-groups',
-  #     'managed', 'rolling-action', 'start-update',
-  #     'tb-app-20180921',
-  #     '--version',
-  #     'template=tb-app-${COMMIT_SHA}',
-  #     '--zone=asia-southeast1-b'
-  #   ]
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args: [
+      'beta', 'compute', '--project=sharp-imprint-213320', 'instance-groups',
+      'managed', 'rolling-action', 'start-update',
+      ' tb-app-eu',
+      '--version',
+      'template=tb-app-${COMMIT_SHA}',
+      '--zone=europe-west1-b'
+    ]
 images:
   - 'gcr.io/${PROJECT_ID}/${REPO_NAME}_tb__app:${COMMIT_SHA}'
 timeout: 1200s
