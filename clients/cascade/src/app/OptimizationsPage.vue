@@ -602,8 +602,6 @@ Last update: 2018-09-26
         status.start(this)
         rpcs.rpc('get_optim_info', [this.projectID]) // Get the current project's optimization summaries from the server.
           .then(response => {
-            console.log('TEMPPPPPPPPPPP')
-            console.log(response.data)
             this.optimSummaries = response.data // Set the optimizations to what we received.
             this.optimSummaries.forEach(optimSum => { // For each of the optimization summaries...
               optimSum.serverDatastoreId = this.$store.state.activeProject.project.id + ':opt-' + optimSum.name // Build a task and results cache ID from the project's hex UID and the optimization name.
@@ -661,12 +659,15 @@ Last update: 2018-09-26
             this.optimSummaries[index].name = newOptim.name  // hack to make sure Vue table updated
             this.optimSummaries[index] = newOptim
             if (newOptim.name !== this.addEditDialogOldName) {  // If we've renamed an optimization
-              if (newOptim.status !== 'not started') { // Clear the present task.
-                this.clearTask(newOptim)  // Clear the task from the server.
-              }
               newOptim.serverDatastoreId = this.$store.state.activeProject.project.id + ':opt-' + newOptim.name // Set a new server DataStore ID.
-              this.getOptimTaskState(newOptim)
             }
+            if (newOptim.status !== 'not started') { // Clear the present task.
+              this.clearTask(newOptim)  // Clear the task from the server.
+            }
+            newOptim.serverDatastoreId = this.$store.state.activeProject.project.id + ':opt-' + newOptim.name // Build a task and results cache ID from the project's hex UID and the optimization name.
+            newOptim.status = 'not started' // Set the status to 'not started' by default, and the pending and execution times to '--'.
+            newOptim.pendingTime = '--'
+            newOptim.executionTime = '--'
           }
           else {
             status.fail(this, 'Could not find optimization "' + this.addEditDialogOldName + '" to edit')

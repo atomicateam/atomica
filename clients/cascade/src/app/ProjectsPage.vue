@@ -104,12 +104,12 @@ Last update: 2018sep23
             </td>
             <td style="text-align:left">
               <button class="btn __blue btn-icon" @click="uploadDatabook(projectSummary.project.id)" data-tooltip="Upload">  <i class="ti-upload"></i></button>
-              <button class="btn btn-icon" @click="downloadDatabook(projectSummary.project.id)"      data-tooltip="Download"><i class="ti-download"></i></button>
+              <button class="btn btn-icon" :disabled="!projectSummary.project.hasData" @click="downloadDatabook(projectSummary.project.id)"      data-tooltip="Download"><i class="ti-download"></i></button>
             </td>
             <td style="white-space: nowrap; text-align:left">
               <button class="btn btn-icon" @click="createProgbookModal(projectSummary.project.id)"   data-tooltip="New">     <i class="ti-plus"></i></button>
               <button class="btn __blue btn-icon" @click="uploadProgbook(projectSummary.project.id)" data-tooltip="Upload">  <i class="ti-upload"></i></button>
-              <button class="btn btn-icon" @click="downloadProgbook(projectSummary.project.id)"      data-tooltip="Download"><i class="ti-download"></i></button>
+              <button class="btn btn-icon" :disabled="!projectSummary.project.hasPrograms" @click="downloadProgbook(projectSummary.project.id)"      data-tooltip="Download"><i class="ti-download"></i></button>
             </td>
           </tr>
           </tbody>
