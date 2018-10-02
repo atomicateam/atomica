@@ -607,7 +607,7 @@ def jsonify_frameworks(username, verbose=False):
     output = {'frameworks':[]}
     user = get_user(username)
     for framework_key in user.frameworks:
-        try:                   json = jsonify_project(framework_key)
+        try:                   json = jsonify_framework(framework_key)
         except Exception as E: json = {'framework': {'name':'Framework load failed: %s' % str(E)}}
         output['frameworks'].append(json)
     if verbose: sc.pp(output)
