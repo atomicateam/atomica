@@ -54,6 +54,15 @@
     }
   }
 }
+.figcontainer {
+  display:flex;
+  justify-content:flex-start;
+  padding:5px;
+  border:1px solid #ddd;
+  //resize: both; // CK: re-enable if we figure out how to resize the graphs dynamically!
+  //overflow: auto;
+}
+
 .plotopts-main {
   flex: 0 0 30%;
   display: flex;

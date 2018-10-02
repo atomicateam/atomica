@@ -77,7 +77,7 @@ function simYears(vm) {
     for (var i = sim_start; i <= sim_end; i++) {
       years.push(i);
     }
-    console.log('sim years: ' + years)
+    console.log('Sim years: ' + years)
     return years;
   }
 }

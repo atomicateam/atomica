@@ -25,7 +25,7 @@ Last update: 2018-09-06
       <div class="card">
         <div><help reflink="bl-overview" label="Calibration and reconciliation"></help></div>
         <div class="controls-box">
-          <button class="btn __green" @click="manualCalibration(projectID)">Run</button>
+          <button class="btn __green" @click="saveParTable()">Run</button>
           <button class="btn" @click="toggleParams()">
             <span v-if="showParameters">Hide</span>
             <span v-else>Show</span>
@@ -85,7 +85,7 @@ Last update: 2018-09-06
             <tr>
               <th v-if="$globaltool=='tb'">Category</th>
               <th>Parameter</th>
-              <th>Overall scale factor</th>
+              <th v-if="$globaltool=='tb'">Overall scale factor</th>
               <th v-for="popLabel in poplabels">{{ popLabel }}</th>
             </tr>
             </thead>
@@ -93,18 +93,15 @@ Last update: 2018-09-06
             <tr v-for="par in filteredParlist">
               <td v-if="$globaltool=='tb'">{{par.parcategory}}</td>
               <td>{{par.parlabel}}</td>
-              <td>
+              <td v-if="$globaltool=='tb'">
                 <input type="text"
                        class="txbox"
-                       v-model="par.meta_y_factor"
-                       @keyup.enter="saveParTable()"/>
+                       v-model="par.meta_y_factor"/>
               </td>
               <td v-for="poppar in par.pop_y_factors">
                 <input type="text"
                        class="txbox"
-                       :disabled="poppar.dispvalue==='0'"
-                       v-model="poppar.dispvalue"
-                       @keyup.enter="saveParTable()"/>
+                       v-model="poppar.dispvalue"/>
               </td>
             </tr>
             </tbody>
@@ -154,7 +151,7 @@ Last update: 2018-09-06
 
                 <div class="other-graphs">
                   <div v-for="index in placeholders">
-                    <div :id="'figcontainer'+index" style="display:flex; justify-content:flex-start; padding:5px; border:1px solid #ddd" v-show="showGraphDivs[index]">
+                    <div :id="'figcontainer'+index" class="figcontainer" v-show="showGraphDivs[index]">
                       <div :id="'fig'+index" class="calib-graph">
                         <!--mpld3 content goes here-->
                       </div>
@@ -324,7 +321,8 @@ Last update: 2018-09-06
         figscale: 1.0,
 
         // Page-specific data
-        parList: [],
+        parlist: [],
+        poplabels:[],
         origParsetName: [],
         showParameters: false,
         calibTime: '30 seconds',
@@ -401,7 +399,7 @@ Last update: 2018-09-06
         return new Promise((resolve, reject) => {
           console.log('loadParTable() called for ' + this.activeParset)
           // TODO: Get spinners working right for this leg of initialization.
-          rpcs.rpc('get_y_factors', [this.projectID, this.activeParset])
+          rpcs.rpc('get_y_factors', [this.projectID, this.activeParset, this.$globaltool])
             .then(response => {
               this.parlist = response.data.parlist // Get the parameter values
               var tmpParset = _.cloneDeep(this.activeParset)
@@ -426,8 +424,7 @@ Last update: 2018-09-06
 
       saveParTable() {
         return new Promise((resolve, reject) => {
-          console.log('saveParTable() called for ' + this.activeParset)
-          rpcs.rpc('set_y_factors', [this.projectID, this.activeParset, this.parlist])
+          rpcs.rpc('set_y_factors', [this.projectID, this.activeParset, this.parlist, this.$globaltool])
             .then(response => {
               this.loadParTable()
                 .then(response2 => {
