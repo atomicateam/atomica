@@ -469,7 +469,7 @@ Last update: 2018sep23
 
       downloadSelectedFrameworks() {
         let selectFrameworksUIDs = this.frameworkSummaries.filter(theFrame => theFrame.selected).map(theFrame => theFrame.framework.id) // Pull out the names of the frameworks that are selected.
-        console.log('deleteSelectedFrameworks() called for ', selectFrameworksUIDs)
+        console.log('downloadSelectedFrameworks() called for ', selectFrameworksUIDs)
         if (selectFrameworksUIDs.length > 0) { // Have the server download the selected frameworks.
           status.start(this) 
           rpcs.download('download_frameworks', [selectFrameworksUIDs, this.$store.state.currentUser.username])

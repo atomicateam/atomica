@@ -1,7 +1,7 @@
 <!--
 Optimizations Page
 
-Last update: 2018-09-25
+Last update: 2018-09-26
 -->
 
 <template>
@@ -269,7 +269,7 @@ Last update: 2018-09-25
             </tr>
             </tbody>
           </table>
-          <b>Spending constraints</b><br>
+          <b>Spending constraints (absolute)</b><br>
           <table class="table table-bordered table-hover table-striped" style="width: 100%">
             <thead>
             <tr>
@@ -355,6 +355,7 @@ Last update: 2018-09-25
         // Page-specific data
         optimSummaries: [],
         optimsLoaded: false,
+        pollingTasks: false,
         defaultOptim: {},
         modalOptim: {},
         objectiveOptions: [],
@@ -446,53 +447,130 @@ Last update: 2018-09-25
       canCancelTask(optimSummary)  { return (optimSummary.status !== 'not started') },
       canPlotResults(optimSummary) { return (optimSummary.status === 'completed') },
 
-      needToPoll(optimSummary) {
-        let routePath = (this.$route.path === '/optimizations')
-        let optimState = true; // ((optimSummary.status === 'queued') || (optimSummary.status === 'started')) // CK: this needs to be given a delay to work
-        return (routePath && optimState)
-      },
-
       getOptimTaskState(optimSummary) {
-        console.log('getOptimTaskState() called for with: ' + optimSummary.status)
-        let statusStr = '';
-        rpcs.rpc('check_task', [optimSummary.serverDatastoreId]) // Check the status of the task.
-          .then(result => {
-            statusStr = result.data.task.status
-            optimSummary.status = statusStr
-            optimSummary.pendingTime = result.data.pendingTime
-            optimSummary.executionTime = result.data.executionTime
-            if (optimSummary.status == 'error') {
-              console.log('Error in task: ', optimSummary.serverDatastoreId)
-              console.log(result.data.task.errorText)
-            }            
-          })
-          .catch(error => {
-            optimSummary.status = 'not started'
-            optimSummary.pendingTime = '--'
-            optimSummary.executionTime = '--'
-          })
+        return new Promise((resolve, reject) => {
+          console.log('getOptimTaskState() called for with: ' + optimSummary.status)
+          let statusStr = '';
+          rpcs.rpc('check_task', [optimSummary.serverDatastoreId]) // Check the status of the task.
+            .then(result => {
+              statusStr = result.data.task.status
+              optimSummary.status = statusStr
+              optimSummary.pendingTime = result.data.pendingTime
+              optimSummary.executionTime = result.data.executionTime
+              if (optimSummary.status == 'error') {
+                console.log('Error in task: ', optimSummary.serverDatastoreId)
+                console.log(result.data.task.errorText)
+              }
+              resolve(result)
+            })
+            .catch(error => {
+              optimSummary.status = 'not started'
+              optimSummary.pendingTime = '--'
+              optimSummary.executionTime = '--'
+              resolve(error)  // yes, resolve, not reject, because this means non-started task
+            })
+        })
       },
-
-      pollAllTaskStates() {
-        console.log('Polling all tasks...');
-        this.optimSummaries.forEach(optimSum => { // For each of the optimization summaries...
-          console.log(optimSum.serverDatastoreId, optimSum.status)
-          if ((optimSum.status !== 'not started') && (optimSum.status !== 'completed') && 
-            (optimSum.status !== 'error')) { // If there is a valid task launched, check it.
-            this.getOptimTaskState(optimSum)
+      
+      needToPoll() {
+        // Check if we're still on the Optimizations page.
+        let routePath = (this.$route.path === '/optimizations')
+        
+        // Check if we have a queued or started task.
+        let runningState = false
+        this.optimSummaries.forEach(optimSum => {
+          if ((optimSum.status === 'queued') || (optimSum.status === 'started')) {
+            runningState = true
           }
-        });
-        this.optimSummaries.push(this.optimSummaries[0]); // Hack to get the Vue display of optimSummaries to update
-        this.optimSummaries.pop();
-        let waitingtime = 1 // Sleep waitingtime seconds
-        utils.sleep(waitingtime * 1000)
-          .then(response => {
-            if (this.needToPoll()) { // Only if we are still in the optimizations page, call ourselves.
-              this.pollAllTaskStates()
-            }
-          })
+        })
+        
+        // We need to poll if we are in the page and a task is going.
+        return (routePath && runningState)
       },
-
+      
+      pollAllTaskStates(checkAllTasks) {
+        return new Promise((resolve, reject) => {
+          console.log('Polling all tasks...')
+          
+          // Clear the poll states.
+          this.optimSummaries.forEach(optimSum => {
+            optimSum.polled = false
+          })
+          
+          // For each of the optimization summaries...
+          this.optimSummaries.forEach(optimSum => { 
+            console.log(optimSum.serverDatastoreId, optimSum.status)
+            
+            // If we are to check all tasks OR there is a valid task running, check it.
+            if ((checkAllTasks) ||            
+              ((optimSum.status !== 'not started') && (optimSum.status !== 'completed') && 
+                (optimSum.status !== 'error'))) {
+              this.getOptimTaskState(optimSum)
+              .then(response => {
+                // Flag as polled.
+                optimSum.polled = true
+                
+                // Resolve the main promise when all of the optimSummaries are polled.
+                let done = true
+                this.optimSummaries.forEach(optimSum2 => {
+                  if (!optimSum2.polled) {
+                    done = false
+                  }
+                })
+                if (done) {
+                  resolve()
+                }
+              })
+            }
+            
+            // Otherwise (no task to check), we are done polling for it.
+            else {
+              // Flag as polled.
+              optimSum.polled = true
+              
+              // Resolve the main promise when all of the optimSummaries are polled.
+              let done = true
+              this.optimSummaries.forEach(optimSum2 => {
+                if (!optimSum2.polled) {
+                  done = false
+                }
+              })
+              if (done) {
+                resolve()
+              }
+            }           
+          })   
+        })     
+      },
+      
+      doTaskPolling(checkAllTasks) {
+        // Flag that we're polling.
+        this.pollingTasks = true
+        
+        // Do the polling of the task states.
+        this.pollAllTaskStates(checkAllTasks)
+        .then(() => {
+          // Hack to get the Vue display of optimSummaries to update
+          this.optimSummaries.push(this.optimSummaries[0])
+          this.optimSummaries.pop()
+            
+          // Only if we need to continue polling...
+          if (this.needToPoll()) {
+            // Sleep waitingtime seconds.
+            let waitingtime = 1
+            utils.sleep(waitingtime * 1000)
+              .then(response => {
+                this.doTaskPolling(false) // Call the next polling, in a way that doesn't check_task() for _every_ task.
+              })         
+          }
+          
+          // Otherwise, flag that we're no longer polling.
+          else {
+            this.pollingTasks = false
+          }
+        })
+      },
+      
       clearTask(optimSummary) {
         return new Promise((resolve, reject) => {
           let datastoreId = optimSummary.serverDatastoreId  // hack because this gets overwritten soon by caller
@@ -502,6 +580,9 @@ Last update: 2018-09-25
               rpcs.rpc('delete_task', [datastoreId])
                 .then(response => {
                   this.getOptimTaskState(optimSummary) // Get the task state for the optimization.
+                  if (!this.pollingTasks) {
+                    this.doTaskPolling(true)
+                  }                  
                   resolve(response)
                 })
                 .catch(error => {
@@ -525,11 +606,8 @@ Last update: 2018-09-25
               optimSum.status = 'not started' // Set the status to 'not started' by default, and the pending and execution times to '--'.
               optimSum.pendingTime = '--'
               optimSum.executionTime = '--'
-
-              // Get the task state for the optimization.
-              this.getOptimTaskState(optimSum) // Get the task state for the optimization.
             })
-            this.pollAllTaskStates() // Start polling of tasks states.
+            this.doTaskPolling(true)  // start task polling, kicking off with running check_task() for all optimizations
             this.optimsLoaded = true
             status.succeed(this, 'Optimizations loaded')
           })
@@ -579,12 +657,15 @@ Last update: 2018-09-25
             this.optimSummaries[index].name = newOptim.name  // hack to make sure Vue table updated
             this.optimSummaries[index] = newOptim
             if (newOptim.name !== this.addEditDialogOldName) {  // If we've renamed an optimization
-              if (newOptim.status !== 'not started') { // Clear the present task.
-                this.clearTask(newOptim)  // Clear the task from the server.
-              }
               newOptim.serverDatastoreId = this.$store.state.activeProject.project.id + ':opt-' + newOptim.name // Set a new server DataStore ID.
-              this.getOptimTaskState(newOptim)
             }
+            if (newOptim.status !== 'not started') { // Clear the present task.
+              this.clearTask(newOptim)  // Clear the task from the server.
+            }
+            newOptim.serverDatastoreId = this.$store.state.activeProject.project.id + ':opt-' + newOptim.name // Build a task and results cache ID from the project's hex UID and the optimization name.
+            newOptim.status = 'not started' // Set the status to 'not started' by default, and the pending and execution times to '--'.
+            newOptim.pendingTime = '--'
+            newOptim.executionTime = '--'
           }
           else {
             status.fail(this, 'Could not find optimization "' + this.addEditDialogOldName + '" to edit')
@@ -595,6 +676,11 @@ Last update: 2018-09-25
           newOptim.serverDatastoreId = this.$store.state.activeProject.project.id + ':opt-' + newOptim.name
           this.optimSummaries.push(newOptim)
           this.getOptimTaskState(newOptim)
+          .then(result => {
+            // Hack to get the Vue display of optimSummaries to update
+            this.optimSummaries.push(this.optimSummaries[0])
+            this.optimSummaries.pop()
+          })          
         }
 
         rpcs.rpc('set_optim_info', [this.projectID, this.optimSummaries])
@@ -685,6 +771,9 @@ Last update: 2018-09-25
                 'plotyear': this.endYear, 'pops': this.activePop, 'cascade': null}])  // should this last be null?
               .then(response => {
                 this.getOptimTaskState(optimSummary) // Get the task state for the optimization.
+                if (!this.pollingTasks) {
+                  this.doTaskPolling(true)
+                }                
                 status.succeed(this, 'Started optimization')
               })
               .catch(error => {

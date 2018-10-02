@@ -204,11 +204,13 @@ def save_new_project(proj, username=None, uid=None, verbose=True):
         new_project.webapp = sc.prettyobj()
         new_project.webapp.username = username
         new_project.webapp.tasks = []
+    new_project.webapp.username = username # Make sure we have the current username
     
     # Save all the things
     key = save_project(new_project, verbose=verbose)
-    user.projects.append(key)
-    datastore.saveuser(user)
+    if key not in user.projects: # Let's not allow multiple copies
+        user.projects.append(key)
+        datastore.saveuser(user)
     return key,new_project
 
 
@@ -242,36 +244,59 @@ def save_new_framework(framework, username=None):
     return key,new_framework
 
 
-@RPC() # Not usually called directly
-def del_project(project_key, die=None):
-    key = datastore.getkey(key=project_key, objtype='project', forcetype=False)
-    project = load_project(key)
-    user = get_user(project.webapp.username)
+@RPC() # Not usually called as an RPC
+def del_project(project_key, username=None, die=None):
+    key = datastore.getkey(key=project_key, objtype='project')
+    try:
+        project = load_project(key)
+    except Exception as E:
+        print('Warning: cannot delete project %s, not found (%s)' % (key, str(E)))
     output = datastore.delete(key)
-    if not output:
-        print('Warning: could not delete project %s, not found' % project_key)
-    if key in user.projects:
+    try:
+        if username is None: username = project.webapp.username
+        user = get_user(username)
         user.projects.remove(key)
-    else:
-        print('Warning: deleting project %s (%s), but not found in user "%s" projects' % (project.name, key, user.username))
-    datastore.saveuser(user)
+        datastore.saveuser(user)
+    except Exception as E:
+        print('Warning: deleting project %s, but not found in user "%s" projects (%s)' % (project_key, username, str(E)))
     return output
 
 
-@RPC() # Not usually called directly
-def del_framework(framework_key, die=None):
-    key = datastore.getkey(key=framework_key, objtype='framework', forcetype=False)
-    framework = load_framework(key)
-    user = get_user(framework.webapp.username)
+@RPC() # Not usually called as an RPC
+def del_framework(framework_key, username=None, die=None):
+    key = datastore.getkey(key=framework_key, objtype='framework')
+    try:
+        framework = load_framework(key)
+    except Exception as E:
+        print('Warning: cannot delete framework %s, not found (%s)' % (key, str(E)))
     output = datastore.delete(key)
-    if not output:
-        print('Warning: could not delete framework %s, not found' % framework_key)
-    if key in user.frameworks:
+    try:
+        if username is None: username = framework.webapp.username
+        user = get_user(username)
         user.frameworks.remove(key)
-    else:
-        print('Warning: deleting framework %s (%s), but not found in user "%s" frameworks' % (framework.name, key, user.username))
-    datastore.saveuser(user)
+        datastore.saveuser(user)
+    except Exception as E:
+        print('Warning: deleting framework %s, but not found in user "%s" framework (%s)' % (framework_key, username, str(E)))
     return output
+    
+    
+@RPC()
+def delete_projects(project_keys, username=None):
+    ''' Delete one or more projects '''
+    project_keys = sc.promotetolist(project_keys)
+    for project_key in project_keys:
+        del_project(project_key, username=username)
+    return None
+
+
+@RPC()
+def delete_frameworks(framework_keys, username=None):
+    ''' Delete one or more frameworks '''
+    framework_keys = sc.promotetolist(framework_keys)
+    for framework_key in framework_keys:
+        del_framework(framework_key, username=username)
+    return None
+
 
 @RPC()
 def del_result(result_key, project_key, die=None):
@@ -291,22 +316,6 @@ def del_result(result_key, project_key, die=None):
     return output
 
 
-@RPC()
-def delete_projects(project_keys):
-    ''' Delete one or more projects '''
-    project_keys = sc.promotetolist(project_keys)
-    for project_key in project_keys:
-        del_project(project_key)
-    return None
-
-
-@RPC()
-def delete_frameworks(framework_keys):
-    ''' Delete one or more frameworks '''
-    framework_keys = sc.promotetolist(framework_keys)
-    for framework_key in framework_keys:
-        del_framework(framework_key)
-    return None
 
 
 
@@ -360,8 +369,12 @@ def jsonify_projects(username, verbose=False):
     output = {'projects':[]}
     user = get_user(username)
     for project_key in user.projects:
-        try:                   json = jsonify_project(project_key)
-        except Exception as E: json = {'project': {'name':'Project load failed: %s' % str(E)}}
+        try:
+            json = jsonify_project(project_key)
+        except Exception as E:
+            print('Project load failed, removing: %s' % str(E))
+            user.projects.remove(project_key)
+            datastore.saveuser(user)
         output['projects'].append(json)
     if verbose: sc.pp(output)
     return output
@@ -515,7 +528,11 @@ def download_databook(project_id):
     proj = load_project(project_id, die=True) # Load the project with the matching UID.
     file_name = '%s_databook.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
     full_file_name = get_path(file_name, username=proj.webapp.username) # Generate the full file name with path.
-    proj.databook.save(full_file_name)
+    try:
+        proj.databook.save(full_file_name)
+    except Exception as E:
+        errormsg = 'Databook has not been uploaded or is invalid: %s' % str(E)
+        raise Exception(errormsg)
     print(">> download_databook %s" % (full_file_name)) # Display the call information.
     return full_file_name # Return the full filename.
 
@@ -526,18 +543,22 @@ def download_progbook(project_id):
     proj = load_project(project_id, die=True) # Load the project with the matching UID.
     file_name = '%s_program_book.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
     full_file_name = get_path(file_name, username=proj.webapp.username) # Generate the full file name with path.
-    proj.progbook.save(full_file_name)
+    try:
+        proj.progbook.save(full_file_name)
+    except Exception as E:
+        errormsg = 'Program book has not been uploaded or is invalid: %s' % str(E)
+        raise Exception(errormsg)
     print(">> download_progbook %s" % (full_file_name)) # Display the call information.
     return full_file_name # Return the full filename.
   
     
 @RPC(call_type='download')   
-def create_progbook(project_id, num_progs):
-    ''' Create program book '''
+def create_progbook(project_id, num_progs, start_year, end_year):
+    ''' Create program book -- only used for Cascades '''
     proj = load_project(project_id, die=True) # Load the project with the matching UID.
     file_name = '%s_program_book.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
     full_file_name = get_path(file_name, username=proj.webapp.username) # Generate the full file name with path.
-    proj.make_progbook(progbook_path=full_file_name, progs=int(num_progs))
+    proj.make_progbook(progbook_path=full_file_name, progs=int(num_progs), data_start=int(start_year), data_end=int(end_year))
     print(">> download_progbook %s" % (full_file_name)) # Display the call information.
     return full_file_name # Return the full filename.    
 
@@ -590,7 +611,12 @@ def jsonify_frameworks(username, verbose=False):
     output = {'frameworks':[]}
     user = get_user(username)
     for framework_key in user.frameworks:
-        json = jsonify_framework(framework_key)
+        try:
+            json = jsonify_framework(framework_key)
+        except Exception as E:
+            print('Framework load failed, removing: %s' % str(E))
+            user.projects.remove(framework_key)
+            datastore.saveuser(user)
         output['frameworks'].append(json)
     if verbose: sc.pp(output)
     return output
@@ -708,14 +734,14 @@ def upload_new_frameworkbook(filename, username):
 ##################################################################################
 
 @RPC()
-def get_y_factors(project_id, parsetname=-1, verbose=False):
+def get_y_factors(project_id, parsetname=-1, tool=None, verbose=False):
     print('Getting y factors for parset %s...' % parsetname)
     print('Warning, year hard coded!')
     TEMP_YEAR = 2018 # WARNING, hard-coded!
     y_factors = []
     proj = load_project(project_id, die=True)
     parset = proj.parsets[parsetname]
-    count = 0
+    count = -1
     for par_type in ["cascade", "comps", "characs"]:
         for par in parset.pars[par_type]:
             parname = par.name
@@ -729,17 +755,24 @@ def get_y_factors(project_id, parsetname=-1, verbose=False):
                 for p,popname,y_factor in this_par.y_factor.enumitems():
                     popindex = parset.pop_names.index(popname)
                     poplabel = parset.pop_labels[popindex]
-                    try:    
-                        interp_val = this_par.interpolate([TEMP_YEAR],popname)[0]
-                        if not np.isfinite(interp_val):
-                            print('NUMBER WARNING, value for %s %s is not finite' % (parlabel, poplabel))
-                            interp_val = 1
-                        if sc.approx(interp_val, 0):
-                            interp_val = 0.0
-                    except Exception as E: 
-                        print('NUMBER WARNING, value for %s %s is not convertible: %s' % (parlabel, poplabel, str(E)))
-                        interp_val = 1
-                    dispvalue = from_number(interp_val*y_factor)
+
+                    if tool == 'cascade':
+                        dispvalue = from_number(y_factor)
+                    else:
+                        if not this_par.has_values(popname):
+                            interp_val = 1.0
+                        else:
+                            try:
+                                interp_val = this_par.interpolate([TEMP_YEAR],popname)[0]
+                                if not np.isfinite(interp_val):
+                                    print('NUMBER WARNING, value for %s %s is not finite' % (parlabel, poplabel))
+                                    interp_val = 1
+                                if sc.approx(interp_val, 0):
+                                    interp_val = 0.0
+                            except Exception as E:
+                                print('NUMBER WARNING, value for %s %s is not convertible: %s' % (parlabel, poplabel, str(E)))
+                                interp_val = 1
+                        dispvalue = from_number(interp_val*y_factor)
                     thisdict = {'popcount':p, 'popname':popname, 'dispvalue':dispvalue, 'origdispvalue':dispvalue, 'poplabel':poplabel}
                     y_factors[-1]['pop_y_factors'].append(thisdict)
     if verbose: sc.pp(y_factors)
@@ -748,7 +781,7 @@ def get_y_factors(project_id, parsetname=-1, verbose=False):
 
 
 @RPC()
-def set_y_factors(project_id, parsetname=-1, parlist=None, verbose=False):
+def set_y_factors(project_id, parsetname=-1, parlist=None, tool=None, verbose=False):
     print('Setting y factors for parset %s...' % parsetname)
     print('Warning, year hard coded!')
     TEMP_YEAR = 2018 # WARNING, hard-coded!
@@ -758,35 +791,45 @@ def set_y_factors(project_id, parsetname=-1, parlist=None, verbose=False):
         parname = newpar['parname']
         this_par = parset.get_par(parname)
         this_par.meta_y_factor = to_float(newpar['meta_y_factor'])
+        if verbose: print('Metaparameter %10s: %s' % (parname, this_par.meta_y_factor))
         for newpoppar in newpar['pop_y_factors']:
             popname = newpoppar['popname']
-            try:    
-                interp_val = this_par.interpolate([TEMP_YEAR],popname)[0]
-                if not np.isfinite(interp_val):
-                    print('NUMBER WARNING, value for %s %s is not finite' % (parname, popname))
-                    interp_val = 1
-                if sc.approx(interp_val, 0):
-                    interp_val = 0.0
-            except Exception as E: 
-                print('NUMBER WARNING, value for %s %s is not convertible: %s' % (parname, popname, str(E)))
-                interp_val = 1
-            dispvalue     = to_float(newpoppar['dispvalue'])
-            origdispvalue = to_float(newpoppar['origdispvalue'])
-            changed = (dispvalue != origdispvalue)
-            if changed:
-                print('Parameter %10s %10s UPDATED! %s -> %s' % (parname, popname, origdispvalue, dispvalue))
+            if tool == 'cascade':
+                this_par.y_factor[popname] = to_float(newpoppar['dispvalue'])
             else:
-                print('Note: parameter %10s %10s stayed the same! %s -> %s' % (parname, popname, origdispvalue, dispvalue))
-            orig_y_factor = this_par.y_factor[popname]
-            if not sc.approx(origdispvalue, 0):
-                y_factor_change = dispvalue/origdispvalue
-                y_factor        = orig_y_factor*y_factor_change
-            elif not sc.approx(interp_val, 0):
-                y_factor = dispvalue/(1e-6+interp_val)
-            else:
-                if changed: print('NUMBER WARNING, everything is 0 for %s %s: %s %s %s %s' % (parname, popname, origdispvalue, dispvalue, interp_val, orig_y_factor))
-                y_factor = orig_y_factor
-            this_par.y_factor[popname] = y_factor
+                # Try to get interpolated value
+                if not this_par.has_values(popname):
+                    interp_val = 1.0
+                else:
+                    try:
+                        interp_val = this_par.interpolate([TEMP_YEAR],popname)[0]
+                        if not np.isfinite(interp_val):
+                            print('NUMBER WARNING, value for %s %s is not finite' % (parname, popname))
+                            interp_val = 1
+                        if sc.approx(interp_val, 0):
+                            interp_val = 0.0
+                    except Exception as E:
+                        print('NUMBER WARNING, value for %s %s is not convertible: %s' % (parname, popname, str(E)))
+                        interp_val = 1
+
+                # Convert the value
+                dispvalue     = to_float(newpoppar['dispvalue'])
+                origdispvalue = to_float(newpoppar['origdispvalue'])
+                changed = (dispvalue != origdispvalue)
+                if changed:
+                    print('Parameter %10s %10s updated: %s -> %s' % (parname, popname, origdispvalue, dispvalue))
+                else:
+                    if verbose: print('Note: parameter %10s %10s stayed the same! %s -> %s' % (parname, popname, origdispvalue, dispvalue))
+                orig_y_factor = this_par.y_factor[popname]
+                if not sc.approx(origdispvalue, 0):
+                    y_factor_change = dispvalue/origdispvalue
+                    y_factor        = orig_y_factor*y_factor_change
+                elif not sc.approx(interp_val, 0):
+                    y_factor = dispvalue/(1e-6+interp_val)
+                else:
+                    if changed: print('NUMBER WARNING, everything is 0 for %s %s: %s %s %s %s' % (parname, popname, origdispvalue, dispvalue, interp_val, orig_y_factor))
+                    y_factor = orig_y_factor
+                this_par.y_factor[popname] = y_factor
     if verbose: sc.pp(parlist)
     print('Setting %s y-factors for %s' % (len(parlist), parsetname))
     print('Saving project...')
@@ -941,6 +984,7 @@ def delete_progset(project_id, progsetname=None):
 
 @RPC()
 def get_default_programs(freshrun=False, verbose=False, fulloutput=False):
+    ''' Only used for TB '''
     
     if freshrun or fulloutput: # This is because creating the framework is very slow (>3 s)
         # Get programs
@@ -1003,6 +1047,7 @@ def get_default_programs(freshrun=False, verbose=False, fulloutput=False):
 
 @RPC(call_type='download')
 def create_default_progbook(project_id, program_years=None, active_progs=None):
+    ''' Only used for TB '''
     # INPUTS
     # - proj : a project
     # - program_years : a two-element range (inclusive) of years for data entry e.g. [2015,2018]
@@ -1591,7 +1636,7 @@ def js_to_py_optim(js_optim):
     
 
 @RPC()    
-def get_optim_info(project_id, verbose=True):
+def get_optim_info(project_id, verbose=False):
     print('Getting optimization info...')
     proj = load_project(project_id, die=True)
     optim_jsons = []
@@ -1613,7 +1658,7 @@ def get_default_optim(project_id, tool=None, optim_type=None, verbose=True):
 
 
 @RPC()    
-def set_optim_info(project_id, optim_jsons, verbose=True):
+def set_optim_info(project_id, optim_jsons, verbose=False):
     print('Setting optimization info...')
     proj = load_project(project_id, die=True)
     proj.optims.clear()

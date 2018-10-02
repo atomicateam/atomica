@@ -104,12 +104,12 @@ Last update: 2018sep23
             </td>
             <td style="text-align:left">
               <button class="btn __blue btn-icon" @click="uploadDatabook(projectSummary.project.id)" data-tooltip="Upload">  <i class="ti-upload"></i></button>
-              <button class="btn btn-icon" @click="downloadDatabook(projectSummary.project.id)"      data-tooltip="Download"><i class="ti-download"></i></button>
+              <button class="btn btn-icon" :disabled="!projectSummary.project.hasData" @click="downloadDatabook(projectSummary.project.id)"      data-tooltip="Download"><i class="ti-download"></i></button>
             </td>
             <td style="white-space: nowrap; text-align:left">
               <button class="btn btn-icon" @click="createProgbookModal(projectSummary.project.id)"   data-tooltip="New">     <i class="ti-plus"></i></button>
               <button class="btn __blue btn-icon" @click="uploadProgbook(projectSummary.project.id)" data-tooltip="Upload">  <i class="ti-upload"></i></button>
-              <button class="btn btn-icon" @click="downloadProgbook(projectSummary.project.id)"      data-tooltip="Download"><i class="ti-download"></i></button>
+              <button class="btn btn-icon" :disabled="!projectSummary.project.hasPrograms" @click="downloadProgbook(projectSummary.project.id)"      data-tooltip="Download"><i class="ti-download"></i></button>
             </td>
           </tr>
           </tbody>
@@ -281,6 +281,19 @@ Last update: 2018sep23
           Create program book
         </div>
 
+        <div class="divTable">
+          <div class="divTableBody">
+            <div class="divTableRow">
+              <div class="divRowContent" style="padding-bottom:10px"><b>Start year: &nbsp;</b></div>
+              <div class="divRowContent" style="padding-bottom:10px"><select v-model="progStartYear"><option v-for='year in simYears'>{{ year }}</option></select></div>
+            </div>
+            <div class="divTableRow">
+              <div class="divRowContent" style="padding-bottom:10px"><b>End year: &nbsp;</b></div>
+              <div class="divRowContent" style="padding-bottom:10px"><select v-model="progEndYear"><option v-for='year in simYears'>{{ year }}</option></select></div>
+            </div>
+          </div>
+        </div>
+
         <div v-if="$globaltool=='cascade'">
           <div class="dialog-c-text">
             Number of programs:<br>
@@ -295,19 +308,6 @@ Last update: 2018sep23
         </div>
 
         <div v-if="$globaltool=='tb'">
-
-          <div class="divTable">
-            <div class="divTableBody">
-              <div class="divTableRow">
-                <div class="divRowContent" style="padding-bottom:10px"><b>Start year: &nbsp;</b></div>
-                <div class="divRowContent" style="padding-bottom:10px"><select v-model="progStartYear"><option v-for='year in simYears'>{{ year }}</option></select></div>
-              </div>
-              <div class="divTableRow">
-                <div class="divRowContent" style="padding-bottom:10px"><b>End year: &nbsp;</b></div>
-                <div class="divRowContent" style="padding-bottom:10px"><select v-model="progEndYear"><option v-for='year in simYears'>{{ year }}</option></select></div>
-              </div>
-            </div>
-          </div>
 
           <div class="scrolltable" style="max-height: 70vh;">
             <table class="table table-bordered table-striped table-hover">
@@ -374,15 +374,17 @@ Last update: 2018sep23
         demoOptions: [],
         demoOption: '',
         defaultPrograms: [],
-        progStartYear: 2015,
-        progEndYear: 2017,
+        progStartYear: '',
+        progEndYear: '',
       }
     },
 
     computed: {
       projectID()    { return utils.projectID(this) },
       userName()     { return this.$store.state.currentUser.username },
-      simYears()     { return utils.dataYears(this) },
+      simStart()     { return utils.simStart(this) },
+      simEnd()       { return utils.simEnd(this) },
+      simYears()     { return utils.simYears(this) },
       sortedFilteredProjectSummaries() {
         return this.applyNameFilter(this.applySorting(this.projectSummaries))
       },
@@ -395,6 +397,11 @@ Last update: 2018sep23
       } else {    // Otherwise...
         if (this.$store.state.activeProject.project !== undefined) { // Get the active project ID if there is an active project.
           projectID = this.$store.state.activeProject.project.id
+          utils.sleep(2000) // This can take a surprisingly long time...
+            .then(response => {
+              this.progStartYear = this.simStart
+              this.progEndYear = this.simEnd
+            })
         }
         this.getDefaultPrograms()
         this.getDemoOptions()
@@ -734,7 +741,7 @@ Last update: 2018sep23
         console.log('createProgbook() called')
         this.$modal.hide('create-progbook')
         status.start(this, 'Creating program book...')
-        rpcs.download('create_progbook', [uid, this.num_progs])
+        rpcs.download('create_progbook', [uid, this.num_progs, this.progStartYear, this.progEndYear])
           .then(response => {
             status.succeed(this, '')
           })
@@ -807,7 +814,7 @@ Last update: 2018sep23
         console.log('deleteSelectedProjects() called for ', selectProjectsUIDs)
         if (selectProjectsUIDs.length > 0) { // Have the server delete the selected projects.
           status.start(this)
-          rpcs.rpc('delete_projects', [selectProjectsUIDs])
+          rpcs.rpc('delete_projects', [selectProjectsUIDs, this.userName])
             .then(response => {
               let activeProjectId = this.$store.state.activeProject.project.id // Get the active project ID.
               if (activeProjectId === undefined) {
