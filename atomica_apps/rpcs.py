@@ -747,19 +747,24 @@ def get_y_factors(project_id, parsetname=-1, tool=None, verbose=False):
                 for p,popname,y_factor in this_par.y_factor.enumitems():
                     popindex = parset.pop_names.index(popname)
                     poplabel = parset.pop_labels[popindex]
-                    try:    
-                        if   tool == 'tb':      interp_val = this_par.interpolate([TEMP_YEAR],popname)[0]
-                        elif tool == 'cascade': interp_val = 1
-                        else:                   raise Exception('Tool "%s" not recognized' % tool)
-                        if not np.isfinite(interp_val):
-                            print('NUMBER WARNING, value for %s %s is not finite' % (parlabel, poplabel))
-                            interp_val = 1
-                        if sc.approx(interp_val, 0):
-                            interp_val = 0.0
-                    except Exception as E: 
-                        print('NUMBER WARNING, value for %s %s is not convertible: %s' % (parlabel, poplabel, str(E)))
-                        interp_val = 1
-                    dispvalue = from_number(interp_val*y_factor)
+
+                    if tool == 'cascade':
+                        dispvalue = from_number(y_factor)
+                    else:
+                        if not this_par.has_values(popname):
+                            interp_val = 1.0
+                        else:
+                            try:
+                                interp_val = this_par.interpolate([TEMP_YEAR],popname)[0]
+                                if not np.isfinite(interp_val):
+                                    print('NUMBER WARNING, value for %s %s is not finite' % (parlabel, poplabel))
+                                    interp_val = 1
+                                if sc.approx(interp_val, 0):
+                                    interp_val = 0.0
+                            except Exception as E:
+                                print('NUMBER WARNING, value for %s %s is not convertible: %s' % (parlabel, poplabel, str(E)))
+                                interp_val = 1
+                        dispvalue = from_number(interp_val*y_factor)
                     thisdict = {'popcount':p, 'popname':popname, 'dispvalue':dispvalue, 'origdispvalue':dispvalue, 'poplabel':poplabel}
                     y_factors[-1]['pop_y_factors'].append(thisdict)
     if verbose: sc.pp(y_factors)
@@ -781,36 +786,42 @@ def set_y_factors(project_id, parsetname=-1, parlist=None, tool=None, verbose=Fa
         if verbose: print('Metaparameter %10s: %s' % (parname, this_par.meta_y_factor))
         for newpoppar in newpar['pop_y_factors']:
             popname = newpoppar['popname']
-            try:
-                if   tool == 'tb':      interp_val = this_par.interpolate([TEMP_YEAR],popname)[0]
-                elif tool == 'cascade': interp_val = 1
-                else:                   raise Exception('Tool "%s" not recognized' % tool)
-                interp_val = this_par.interpolate([TEMP_YEAR],popname)[0]
-                if not np.isfinite(interp_val):
-                    print('NUMBER WARNING, value for %s %s is not finite' % (parname, popname))
-                    interp_val = 1
-                if sc.approx(interp_val, 0):
-                    interp_val = 0.0
-            except Exception as E: 
-                print('NUMBER WARNING, value for %s %s is not convertible: %s' % (parname, popname, str(E)))
-                interp_val = 1
-            dispvalue     = to_float(newpoppar['dispvalue'])
-            origdispvalue = to_float(newpoppar['origdispvalue'])
-            changed = (dispvalue != origdispvalue)
-            if changed:
-                print('Parameter %10s %10s updated: %s -> %s' % (parname, popname, origdispvalue, dispvalue))
+            if tool == 'cascade':
+                this_par.y_factor[popname] = to_float(newpoppar['dispvalue'])
             else:
-                if verbose: print('Note: parameter %10s %10s stayed the same! %s -> %s' % (parname, popname, origdispvalue, dispvalue))
-            orig_y_factor = this_par.y_factor[popname]
-            if not sc.approx(origdispvalue, 0):
-                y_factor_change = dispvalue/origdispvalue
-                y_factor        = orig_y_factor*y_factor_change
-            elif not sc.approx(interp_val, 0):
-                y_factor = dispvalue/(1e-6+interp_val)
-            else:
-                if changed: print('NUMBER WARNING, everything is 0 for %s %s: %s %s %s %s' % (parname, popname, origdispvalue, dispvalue, interp_val, orig_y_factor))
-                y_factor = orig_y_factor
-            this_par.y_factor[popname] = y_factor
+                # Try to get interpolated value
+                if not this_par.has_values(popname):
+                    interp_val = 1.0
+                else:
+                    try:
+                        interp_val = this_par.interpolate([TEMP_YEAR],popname)[0]
+                        if not np.isfinite(interp_val):
+                            print('NUMBER WARNING, value for %s %s is not finite' % (parname, popname))
+                            interp_val = 1
+                        if sc.approx(interp_val, 0):
+                            interp_val = 0.0
+                    except Exception as E:
+                        print('NUMBER WARNING, value for %s %s is not convertible: %s' % (parname, popname, str(E)))
+                        interp_val = 1
+
+                # Convert the value
+                dispvalue     = to_float(newpoppar['dispvalue'])
+                origdispvalue = to_float(newpoppar['origdispvalue'])
+                changed = (dispvalue != origdispvalue)
+                if changed:
+                    print('Parameter %10s %10s updated: %s -> %s' % (parname, popname, origdispvalue, dispvalue))
+                else:
+                    if verbose: print('Note: parameter %10s %10s stayed the same! %s -> %s' % (parname, popname, origdispvalue, dispvalue))
+                orig_y_factor = this_par.y_factor[popname]
+                if not sc.approx(origdispvalue, 0):
+                    y_factor_change = dispvalue/origdispvalue
+                    y_factor        = orig_y_factor*y_factor_change
+                elif not sc.approx(interp_val, 0):
+                    y_factor = dispvalue/(1e-6+interp_val)
+                else:
+                    if changed: print('NUMBER WARNING, everything is 0 for %s %s: %s %s %s %s' % (parname, popname, origdispvalue, dispvalue, interp_val, orig_y_factor))
+                    y_factor = orig_y_factor
+                this_par.y_factor[popname] = y_factor
     if verbose: sc.pp(parlist)
     print('Setting %s y-factors for %s' % (len(parlist), parsetname))
     print('Saving project...')
