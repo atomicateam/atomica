@@ -560,9 +560,7 @@ Last update: 2018-09-26
             let waitingtime = 1
             utils.sleep(waitingtime * 1000)
               .then(response => {
-                // Call the next polling, in a way that doesn't check_task()
-                // for _every_ task.
-                this.doTaskPolling(false)
+                this.doTaskPolling(false) // Call the next polling, in a way that doesn't check_task() for _every_ task.
               })         
           }
           
@@ -659,12 +657,15 @@ Last update: 2018-09-26
             this.optimSummaries[index].name = newOptim.name  // hack to make sure Vue table updated
             this.optimSummaries[index] = newOptim
             if (newOptim.name !== this.addEditDialogOldName) {  // If we've renamed an optimization
-              if (newOptim.status !== 'not started') { // Clear the present task.
-                this.clearTask(newOptim)  // Clear the task from the server.
-              }
               newOptim.serverDatastoreId = this.$store.state.activeProject.project.id + ':opt-' + newOptim.name // Set a new server DataStore ID.
-              this.getOptimTaskState(newOptim)
             }
+            if (newOptim.status !== 'not started') { // Clear the present task.
+              this.clearTask(newOptim)  // Clear the task from the server.
+            }
+            newOptim.serverDatastoreId = this.$store.state.activeProject.project.id + ':opt-' + newOptim.name // Build a task and results cache ID from the project's hex UID and the optimization name.
+            newOptim.status = 'not started' // Set the status to 'not started' by default, and the pending and execution times to '--'.
+            newOptim.pendingTime = '--'
+            newOptim.executionTime = '--'
           }
           else {
             status.fail(this, 'Could not find optimization "' + this.addEditDialogOldName + '" to edit')

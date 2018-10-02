@@ -560,9 +560,7 @@ Last update: 2018-09-26
             let waitingtime = 1
             utils.sleep(waitingtime * 1000)
               .then(response => {
-                // Call the next polling, in a way that doesn't check_task()
-                // for _every_ task.
-                this.doTaskPolling(false)
+                this.doTaskPolling(false) // Call the next polling, in a way that doesn't check_task() for _every_ task.
               })         
           }
           

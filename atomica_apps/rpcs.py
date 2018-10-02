@@ -553,12 +553,12 @@ def download_progbook(project_id):
   
     
 @RPC(call_type='download')   
-def create_progbook(project_id, num_progs):
+def create_progbook(project_id, num_progs, start_year, end_year):
     ''' Create program book -- only used for Cascades '''
     proj = load_project(project_id, die=True) # Load the project with the matching UID.
     file_name = '%s_program_book.xlsx' % proj.name # Create a filename containing the project name followed by a .prj suffix.
     full_file_name = get_path(file_name, username=proj.webapp.username) # Generate the full file name with path.
-    proj.make_progbook(progbook_path=full_file_name, progs=int(num_progs))
+    proj.make_progbook(progbook_path=full_file_name, progs=int(num_progs), data_start=int(start_year), data_end=int(end_year))
     print(">> download_progbook %s" % (full_file_name)) # Display the call information.
     return full_file_name # Return the full filename.    
 
