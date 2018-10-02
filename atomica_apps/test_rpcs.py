@@ -166,11 +166,11 @@ if 'optim_io' in torun:
     optim_summaries = rpcs.get_optim_info(proj.uid)
     rpcs.set_optim_info(proj.uid, optim_summaries)
     if dorun: # Do not use Celery, do not pass go
-        R = proj.run_optim(maxtime=5, parallel=False)
+        R = proj.run_optimization(maxtime=5)
         heading('Results:')
         print(R)
     heading('Optimization summaries:')
-#    sc.pp(optim_summaries)
+    sc.pp(optim_summaries)
 
 
 if 'run_cascade_optimization' in torun and tool=='cascade':

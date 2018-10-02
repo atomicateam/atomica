@@ -602,6 +602,8 @@ Last update: 2018-09-26
         status.start(this)
         rpcs.rpc('get_optim_info', [this.projectID]) // Get the current project's optimization summaries from the server.
           .then(response => {
+            console.log('TEMPPPPPPPPPPP')
+            console.log(response.data)
             this.optimSummaries = response.data // Set the optimizations to what we received.
             this.optimSummaries.forEach(optimSum => { // For each of the optimization summaries...
               optimSum.serverDatastoreId = this.$store.state.activeProject.project.id + ':opt-' + optimSum.name // Build a task and results cache ID from the project's hex UID and the optimization name.
