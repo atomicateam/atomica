@@ -25,7 +25,7 @@ Last update: 2018-09-06
       <div class="card">
         <div><help reflink="bl-overview" label="Calibration and reconciliation"></help></div>
         <div class="controls-box">
-          <button class="btn __green" @click="saveParTable(projectID)">Run</button>
+          <button class="btn __green" @click="saveParTable()">Run</button>
           <button class="btn" @click="toggleParams()">
             <span v-if="showParameters">Hide</span>
             <span v-else>Show</span>
@@ -85,7 +85,7 @@ Last update: 2018-09-06
             <tr>
               <th v-if="$globaltool=='tb'">Category</th>
               <th>Parameter</th>
-              <th>Overall scale factor</th>
+              <th v-if="$globaltool=='tb'">Overall scale factor</th>
               <th v-for="popLabel in poplabels">{{ popLabel }}</th>
             </tr>
             </thead>
@@ -93,18 +93,15 @@ Last update: 2018-09-06
             <tr v-for="par in filteredParlist">
               <td v-if="$globaltool=='tb'">{{par.parcategory}}</td>
               <td>{{par.parlabel}}</td>
-              <td>
+              <td v-if="$globaltool=='tb'">
                 <input type="text"
                        class="txbox"
-                       v-model="par.meta_y_factor"
-                       @keyup.enter="saveParTable(par)"/>
+                       v-model="par.meta_y_factor"/>
               </td>
               <td v-for="poppar in par.pop_y_factors">
                 <input type="text"
                        class="txbox"
-                       :disabled="poppar.dispvalue==='0'"
-                       v-model="poppar.dispvalue"
-                       @keyup.enter="saveParTable(par)"/>
+                       v-model="poppar.dispvalue"/>
               </td>
             </tr>
             </tbody>
@@ -324,7 +321,8 @@ Last update: 2018-09-06
         figscale: 1.0,
 
         // Page-specific data
-        parList: [],
+        parlist: [],
+        poplabels:[],
         origParsetName: [],
         showParameters: false,
         calibTime: '30 seconds',
@@ -424,11 +422,8 @@ Last update: 2018-09-06
         })
       },
 
-      saveParTable(par) {
+      saveParTable() {
         return new Promise((resolve, reject) => {
-          console.log('saveParTable() called for ' + this.activeParset)
-          console.log(par)
-          this.parlist[par.index] = par
           rpcs.rpc('set_y_factors', [this.projectID, this.activeParset, this.parlist, this.$globaltool])
             .then(response => {
               this.loadParTable()
