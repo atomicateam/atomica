@@ -7,7 +7,7 @@ Version:
 ###########################################################################
 
 torun = [
-'slack',
+#'slack',
 #'project_io',
 #'get_cascade_plot',
 #'get_cascade_json',
@@ -15,6 +15,7 @@ torun = [
 #'get_y_factors',
 #'autocalibration',
 #'run_scenarios',
+'optim_io',
 #'run_cascade_optimization',
 #'run_tb_optimization',
 # 'minimize_money',
@@ -22,8 +23,8 @@ torun = [
 ]
 
 # Set defaults
-tool = ['tb','cascade'][0] # Change this to change between TB and Cascade
-default_which = {'tb':'tb', 'cascade':'hypertension'}[tool]
+tool = ['tb','cascade'][1] # Change this to change between TB and Cascade
+default_which = 'udt' # {'tb':'tb', 'cascade':'hypertension'}[tool]
 
 # Imports
 import sciris as sc
@@ -157,6 +158,19 @@ if 'run_scenarios' in torun:
     sc.pp(output)
     if browser:
         sw.browser(output['graphs']+output['legends'])
+
+
+if 'optim_io' in torun:
+    heading('Running optim_io', 'big')
+    dorun = True
+    optim_summaries = rpcs.get_optim_info(proj.uid)
+    rpcs.set_optim_info(proj.uid, optim_summaries)
+    if dorun: # Do not use Celery, do not pass go
+        R = proj.run_optim(maxtime=5, parallel=False)
+        heading('Results:')
+        print(R)
+    heading('Optimization summaries:')
+#    sc.pp(optim_summaries)
 
 
 if 'run_cascade_optimization' in torun and tool=='cascade':

@@ -1611,6 +1611,11 @@ def run_scenarios(project_id, cache_id, plot_options, saveresults=True, tool=Non
 
 def py_to_js_optim(py_optim, project=None):
     js_optim = sc.sanitizejson(py_optim.json)
+    print('\n\n\n\nTESSST')
+    print(py_optim.json)
+    print('ADNNNDNND')
+    print(js_optim)
+    print('OKKKKKKK')
     if 'objective_labels' not in js_optim:
         js_optim['objective_labels'] = sc.odict()
         for key in js_optim['objective_weights'].keys():
@@ -1625,6 +1630,9 @@ def py_to_js_optim(py_optim, project=None):
 
 def js_to_py_optim(js_optim):
     json = js_optim
+    print('\n\n\n\nnDKFJDKFJDKFDKFD')
+    print(json)
+    print('KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK')
     for key in ['start_year', 'end_year', 'budget_factor', 'maxtime']:
         json[key] = to_float(json[key]) # Convert to a number
     for subkey in json['objective_weights'].keys():
@@ -1636,7 +1644,7 @@ def js_to_py_optim(js_optim):
     
 
 @RPC()    
-def get_optim_info(project_id, verbose=True):
+def get_optim_info(project_id, verbose=False):
     print('Getting optimization info...')
     proj = load_project(project_id, die=True)
     optim_jsons = []
@@ -1658,7 +1666,7 @@ def get_default_optim(project_id, tool=None, optim_type=None, verbose=True):
 
 
 @RPC()    
-def set_optim_info(project_id, optim_jsons, verbose=True):
+def set_optim_info(project_id, optim_jsons, verbose=False):
     print('Setting optimization info...')
     proj = load_project(project_id, die=True)
     proj.optims.clear()

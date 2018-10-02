@@ -269,7 +269,7 @@ Last update: 2018-09-26
             </tr>
             </tbody>
           </table>
-          <b>Spending constraints</b><br>
+          <b>Spending constraints (absolute)</b><br>
           <table class="table table-bordered table-hover table-striped" style="width: 100%">
             <thead>
             <tr>
