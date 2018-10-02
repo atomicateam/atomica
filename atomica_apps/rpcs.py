@@ -369,8 +369,12 @@ def jsonify_projects(username, verbose=False):
     output = {'projects':[]}
     user = get_user(username)
     for project_key in user.projects:
-        try:                   json = jsonify_project(project_key)
-        except Exception as E: json = {'project': {'name':'Project load failed: %s' % str(E)}}
+        try:
+            json = jsonify_project(project_key)
+        except Exception as E:
+            print('Project load failed, removing: %s' % str(E))
+            user.projects.remove(project_key)
+            datastore.saveuser(user)
         output['projects'].append(json)
     if verbose: sc.pp(output)
     return output
@@ -607,8 +611,12 @@ def jsonify_frameworks(username, verbose=False):
     output = {'frameworks':[]}
     user = get_user(username)
     for framework_key in user.frameworks:
-        try:                   json = jsonify_framework(framework_key)
-        except Exception as E: json = {'framework': {'name':'Framework load failed: %s' % str(E)}}
+        try:
+            json = jsonify_framework(framework_key)
+        except Exception as E:
+            print('Framework load failed, removing: %s' % str(E))
+            user.projects.remove(framework_key)
+            datastore.saveuser(user)
         output['frameworks'].append(json)
     if verbose: sc.pp(output)
     return output
