@@ -357,9 +357,9 @@ class TimeDependentConnections(object):
                 to_pop = vals[2]
                 units = vals[3].lower().strip() if vals[3] else None
                 assumption = vals[4] # This is the assumption cell
-                assert vals[5] == 'OR' # Double check we are reading a time-dependent row with the expected shape
+                assert vals[5].strip() == 'OR' # Double check we are reading a time-dependent row with the expected shape
                 ts = TimeSeries(format=units,units=units)
-                if assumption:
+                if assumption is not None:
                     ts.insert(None, assumption)
                 for t, v in zip(tvec, vals[6:]):
                     if v is not None:

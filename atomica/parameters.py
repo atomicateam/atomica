@@ -78,7 +78,7 @@ class Parameter(NamedItem):
             if t_remove[0] < tval < t_remove[1]:
                 self.remove_value_at(tval, pop_name)
 
-    def interpolate(self, tvec=None, pop_name=None):  # , extrapolate_nan = False):
+    def interpolate(self, tvec, pop_name):  # , extrapolate_nan = False):
         """ Take parameter values and construct an interpolated array corresponding to the input time vector. """
 
         # Validate input.
@@ -88,6 +88,10 @@ class Parameter(NamedItem):
         if tvec is None:
             raise AtomicaException("Cannot interpolate parameter '{0}' "
                                    "without providing a time vector.".format(self.name))
+
+        if not self.has_values(pop_name):
+            raise AtomicaException('Parameter "%s" contains no data for pop "%s", and thus cannot be interpolated' % (self.name,pop_name))
+
         tvec = sc.promotetoarray(tvec)
         if not len(self.t[pop_name]) > 0:
             raise AtomicaException("There are no timepoint values for parameter '{0}', "
