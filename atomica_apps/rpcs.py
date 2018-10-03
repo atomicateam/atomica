@@ -983,13 +983,22 @@ def delete_progset(project_id, progsetname=None):
 
 
 @RPC()
-def get_default_programs(freshrun=False, verbose=True, fulloutput=False):
+def get_default_programs(fulloutput=False, verbose=True):
     ''' Only used for TB '''
     
+    # Get programs
+    if verbose: print('get_default_programs(): Creating framework...')
+    F = au.demo(kind='framework', which='tb')
+    if verbose: print('get_default_programs(): Creating dict...')
+    default_pops = sc.odict() # TODO - read in the pops from the defaults file instead of hard-coding them here
+    for key in ['^0.*', '.*HIV.*', '.*[pP]rison.*', '^[^0](?!HIV)(?![pP]rison).*']:
+        default_pops[key] = key
+    if verbose: print('get_default_programs(): Creating project data...')
+    D = au.ProjectData.new(F, tvec=np.array([0]), pops=default_pops, transfers=0)
+    if verbose: print('get_default_programs(): Loading spreadsheet...')
     spreadsheetpath = au.atomica_path(['tests', 'databooks']) + "progbook_tb_defaults.xlsx"
-    data = sc.loadspreadsheet(spreadsheetpath)
-    import traceback; traceback.print_exc(); import pdb; pdb.set_trace()
-    
+    default_progset = au.ProgramSet.from_spreadsheet(spreadsheetpath, framework=F, data=D)
+
     # Assemble dictionary
     if verbose: print('get_default_programs(): Assembling output...')
     progs = sc.odict()
@@ -1012,7 +1021,7 @@ def get_default_programs(freshrun=False, verbose=True, fulloutput=False):
 
 
 @RPC(call_type='download')
-def create_default_progbook(project_id, program_years=None, active_progs=None):
+def create_default_progbook(project_id, start_year, end_year, active_progs):
     ''' Only used for TB '''
     # INPUTS
     # - proj : a project
@@ -1025,9 +1034,15 @@ def create_default_progbook(project_id, program_years=None, active_progs=None):
     if default_active_progs is None:
         active_progs = default_active_progs
     
-    if program_years is None:
+    # Validate years
+    try:
+        start_year = float(start_year)
+        end_year = float(end_year)
+        program_years = [start_year, end_year]
+    except Exception as E:
+        print('Converting program years "%s, %s" failed: %s' % (start_year, end_year, str(E)))
         program_years = [2015,2018]
-
+        
     # Convert from list back to odict
     active_progs_dict = sc.odict()
     for prog in active_progs:

@@ -374,16 +374,14 @@ Last update: 2018sep23
         demoOptions: [],
         demoOption: '',
         defaultPrograms: [],
-        progStartYear: '',
-        progEndYear: '',
+        progStartYear: [],
+        progEndYear: [],
       }
     },
 
     computed: {
       projectID()    { return utils.projectID(this) },
       userName()     { return this.$store.state.currentUser.username },
-      simStart()     { return utils.simStart(this) },
-      simEnd()       { return utils.simEnd(this) },
       simYears()     { return utils.simYears(this) },
       sortedFilteredProjectSummaries() {
         return this.applyNameFilter(this.applySorting(this.projectSummaries))
@@ -397,16 +395,16 @@ Last update: 2018sep23
       } else {    // Otherwise...
         if (this.$store.state.activeProject.project !== undefined) { // Get the active project ID if there is an active project.
           projectID = this.$store.state.activeProject.project.id
-          utils.sleep(2000) // This can take a surprisingly long time...
-            .then(response => {
-              this.progStartYear = this.simStart
-              this.progEndYear = this.simEnd
-            })
         }
         this.getDefaultPrograms()
         this.getDemoOptions()
         this.updateFrameworkSummaries()        // Load the frameworks so the new project dialog is populated
         this.updateProjectSummaries(projectID) // Load the project summaries of the current user.
+        utils.sleep(2000) // This can take a surprisingly long time...
+          .then(response => {
+            this.progStartYear = this.simYears[0] // This isn't ideal, but this ensures that the drop-down boxes are actually populated
+            this.progEndYear = this.simYears[this.simYears.length -1]
+          })
       }
     },
 
@@ -756,7 +754,7 @@ Last update: 2018sep23
         console.log('createDefaultProgbook() called')
         this.$modal.hide('create-progbook')
         status.start(this, 'Creating default program book...')
-        rpcs.download('create_default_progbook', [uid, null, this.defaultPrograms]) // TODO: set years
+        rpcs.download('create_default_progbook', [uid, this.progStartYear, this.progEndYear, this.defaultPrograms]) // TODO: set years
           .then(response => {
             status.succeed(this, '')
           })
