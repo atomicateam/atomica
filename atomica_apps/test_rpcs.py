@@ -9,13 +9,14 @@ Version:
 torun = [
 #'slack',
 #'project_io',
+'get_default_programs',
 #'get_cascade_plot',
 #'get_cascade_json',
 #'make_plots',
 #'get_y_factors',
 #'autocalibration',
 #'run_scenarios',
-'optim_io',
+#'optim_io',
 #'run_cascade_optimization',
 #'run_tb_optimization',
 # 'minimize_money',
@@ -83,6 +84,12 @@ if 'project_io' in torun:
     uid = rpcs.save_new_project(proj, username=user.username)
     P = rpcs.load_project_record(uid)
     print(P)
+
+
+if 'get_default_programs' in torun:
+    heading('Running get_default_programs', 'big')
+    output = rpcs.get_default_programs()
+    sc.pp(output)
 
 
 if 'get_cascade_plot' in torun and tool=='cascade':
