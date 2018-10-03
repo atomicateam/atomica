@@ -983,61 +983,36 @@ def delete_progset(project_id, progsetname=None):
 
 
 @RPC()
-def get_default_programs(freshrun=False, verbose=False, fulloutput=False):
+def get_default_programs(fulloutput=False, verbose=True):
     ''' Only used for TB '''
     
-    if freshrun or fulloutput: # This is because creating the framework is very slow (>3 s)
-        # Get programs
-        F = au.demo(kind='framework', which='tb')
-        default_pops = sc.odict() # TODO - read in the pops from the defaults file instead of hard-coding them here
-        for key in ['^0.*', '.*HIV.*', '.*[pP]rison.*', '^[^0](?!HIV)(?![pP]rison).*']:
-            default_pops[key] = key
-        D = au.ProjectData.new(F, tvec=np.array([0]), pops=default_pops, transfers=0)
-        spreadsheetpath = au.atomica_path(['tests', 'databooks']) + "progbook_tb_defaults.xlsx"
-        default_progset = au.ProgramSet.from_spreadsheet(spreadsheetpath, framework=F, data=D)
+    # Get programs
+    if verbose: print('get_default_programs(): Creating framework...')
+    F = au.demo(kind='framework', which='tb')
+    if verbose: print('get_default_programs(): Creating dict...')
+    default_pops = sc.odict() # TODO - read in the pops from the defaults file instead of hard-coding them here
+    for key in ['^0.*', '.*HIV.*', '.*[pP]rison.*', '^[^0](?!HIV)(?![pP]rison).*']:
+        default_pops[key] = key
+    if verbose: print('get_default_programs(): Creating project data...')
+    D = au.ProjectData.new(F, tvec=np.array([0]), pops=default_pops, transfers=0)
+    if verbose: print('get_default_programs(): Loading spreadsheet...')
+    spreadsheetpath = au.atomica_path(['tests', 'databooks']) + "progbook_tb_defaults.xlsx"
+    default_progset = au.ProgramSet.from_spreadsheet(spreadsheetpath, framework=F, data=D)
+
+    # Assemble dictionary
+    if verbose: print('get_default_programs(): Assembling output...')
+    progs = sc.odict()
+    for key in default_progset.programs.keys():
+        prog_label = default_progset.programs[key].label
+        if '[Inactive]' in prog_label:
+            progs[prog_label.replace('[Inactive]','').strip()] = False
+        else:
+            progs[prog_label.replace('[Active]','').strip()] = True
     
-        # Assemble dictionary
-        progs = sc.odict()
-        for key in default_progset.programs.keys():
-            prog_label = default_progset.programs[key].label
-            if '[Inactive]' in prog_label:
-                progs[prog_label.replace('[Inactive]','').strip()] = False
-            else:
-                progs[prog_label.replace('[Active]','').strip()] = True
-        
-        # Frontendify
-        output = []
-        for key,val in progs.items():
-            output.append({'name':key, 'included':val})
-    
-    else: # ...so just hard-code it for now
-        output = [{'included': True,  'name': 'BCG vaccination'},
-                  {'included': False, 'name': 'ART Treatment'},
-                  {'included': True,  'name': 'Preventive treatment (contacts of active TB)'},
-                  {'included': False, 'name': 'Latent testing and treatment'},
-                  {'included': False, 'name': 'Passive case finding  (smear test only)'},
-                  {'included': False, 'name': 'Active case finding (contact tracing, smear test only)'},
-                  {'included': False, 'name': 'Passive case finding (with X-ray testing)'},
-                  {'included': False, 'name': 'Active case finding (contact tracing with X-ray testing)'},
-                  {'included': False, 'name': 'Active case finding (outreach with X-ray testing)'},
-                  {'included': False, 'name': 'Active case finding (prisons with X-ray testing)'},
-                  {'included': True,  'name': 'Passive case finding (with geneXpert)'},
-                  {'included': True,  'name': 'Active case finding (contact tracing with geneXpert)'},
-                  {'included': False, 'name': 'Active case finding (outreach with geneXpert)'},
-                  {'included': False, 'name': 'Active case finding (prisons with geneXpert)'},
-                  {'included': True,  'name': 'Hospitalized DS treatment'},
-                  {'included': True,  'name': 'Ambulatory DS treatment'},
-                  {'included': False, 'name': 'Prisoner DS treatment'},
-                  {'included': True,  'name': 'Hospitalized MDR treatment (long course)'},
-                  {'included': True,  'name': 'Ambulatory MDR treatment (long course)'},
-                  {'included': False, 'name': 'Hospitalized MDR treatment (short course)'},
-                  {'included': False, 'name': 'Ambulatory MDR treatment (short course)'},
-                  {'included': False, 'name': 'Hospitalized MDR treatment (new drugs)'},
-                  {'included': True,  'name': 'Hospitalized XDR treament'},
-                  {'included': False, 'name': 'Ambulatory XDR treatment'},
-                  {'included': True,  'name': 'Hospitalized XDR treatment (new drugs)'},
-                  {'included': False, 'name': 'Prisoner DR treatment'},
-                  {'included': False, 'name': 'Other (user defined)'}]
+    # Frontendify
+    output = []
+    for key,val in progs.items():
+        output.append({'name':key, 'included':val})
     
     if verbose: sc.pp(output)
 
@@ -1046,7 +1021,7 @@ def get_default_programs(freshrun=False, verbose=False, fulloutput=False):
 
 
 @RPC(call_type='download')
-def create_default_progbook(project_id, program_years=None, active_progs=None):
+def create_default_progbook(project_id, start_year, end_year, active_progs):
     ''' Only used for TB '''
     # INPUTS
     # - proj : a project
@@ -1059,9 +1034,15 @@ def create_default_progbook(project_id, program_years=None, active_progs=None):
     if default_active_progs is None:
         active_progs = default_active_progs
     
-    if program_years is None:
+    # Validate years
+    try:
+        start_year = float(start_year)
+        end_year = float(end_year)
+        program_years = [start_year, end_year]
+    except Exception as E:
+        print('Converting program years "%s, %s" failed: %s' % (start_year, end_year, str(E)))
         program_years = [2015,2018]
-
+        
     # Convert from list back to odict
     active_progs_dict = sc.odict()
     for prog in active_progs:
