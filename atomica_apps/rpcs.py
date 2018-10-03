@@ -983,20 +983,25 @@ def delete_progset(project_id, progsetname=None):
 
 
 @RPC()
-def get_default_programs(freshrun=False, verbose=False, fulloutput=False):
+def get_default_programs(freshrun=False, verbose=True, fulloutput=False):
     ''' Only used for TB '''
     
-    if freshrun or fulloutput: # This is because creating the framework is very slow (>3 s)
+    if True: # freshrun or fulloutput: # This is because creating the framework is very slow (>3 s)
         # Get programs
+        if verbose: print('get_default_programs(): Creating framework...')
         F = au.demo(kind='framework', which='tb')
+        if verbose: print('get_default_programs(): Creating dict...')
         default_pops = sc.odict() # TODO - read in the pops from the defaults file instead of hard-coding them here
         for key in ['^0.*', '.*HIV.*', '.*[pP]rison.*', '^[^0](?!HIV)(?![pP]rison).*']:
             default_pops[key] = key
+        if verbose: print('get_default_programs(): Creating project data...')
         D = au.ProjectData.new(F, tvec=np.array([0]), pops=default_pops, transfers=0)
+        if verbose: print('get_default_programs(): Loading spreadsheet...')
         spreadsheetpath = au.atomica_path(['tests', 'databooks']) + "progbook_tb_defaults.xlsx"
         default_progset = au.ProgramSet.from_spreadsheet(spreadsheetpath, framework=F, data=D)
     
         # Assemble dictionary
+        if verbose: print('get_default_programs(): Assembling output...')
         progs = sc.odict()
         for key in default_progset.programs.keys():
             prog_label = default_progset.programs[key].label
