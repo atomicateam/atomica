@@ -45,13 +45,20 @@ from .excel import AtomicaSpreadsheet
 
 
 class ProjectSettings(object):
-    def __init__(self, sim_start=None, sim_end=None, sim_dt=None):
+    def __init__(self, sim_start=None, sim_end=None, sim_dt=None, current_year=None):
 
         self.sim_start = sim_start if sim_start is not None else 2000.0
         self.sim_end   = sim_end   if sim_end   is not None else 2035.0
         self.sim_dt    = sim_dt    if sim_dt    is not None else 0.25
+        self.current_year = current_year if current_year is not None else 2018.0
 
         logger.debug("Initialized project settings.")
+
+    def __setstate__(self,state):
+        # Simple migration
+        if 'current_year' not in state:
+            state['current_year'] = 2018.0
+        self.__dict__ = state
 
     def __repr__(self):
         """ Print object """
