@@ -367,7 +367,7 @@ Last update: 2018sep23
         num_pops:   5, // For creating a new project: number of populations
         num_progs:  5, // For creating a new project: number of populations
         data_start: 2000, // For creating a new project: number of populations
-        data_end:   2035, // For creating a new project: number of populations
+        data_end:   2017, // For creating a new project: number of populations
         activeuid:  [], // WARNING, kludgy to get create progbook working
         frameworkSummaries: [],
         currentFramework: '',

@@ -50,7 +50,6 @@ class ProjectSettings(object):
         self.sim_start = sim_start if sim_start is not None else 2000.0
         self.sim_end   = sim_end   if sim_end   is not None else 2035.0
         self.sim_dt    = sim_dt    if sim_dt    is not None else 0.25
-
         logger.debug("Initialized project settings.")
 
     def __repr__(self):
