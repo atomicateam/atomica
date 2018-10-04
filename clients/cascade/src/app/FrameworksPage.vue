@@ -1,7 +1,7 @@
 <!--
 Manage frameworks page
 
-Last update: 2018sep23
+Last update: 2018oct04
 -->
 
 <template>
@@ -78,7 +78,7 @@ Last update: 2018sep23
           </td>
           <td v-if="frameworkSummary.renaming !== ''">
             <input type="text"
-                   class="txbox"
+                   class="txbox renamebox"
                    @keyup.enter="renameFramework(frameworkSummary)"
                    v-model="frameworkSummary.renaming"/>
           </td>
