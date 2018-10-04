@@ -657,7 +657,7 @@ Last update: 2018oct04
         // Grab the element of the open textbox for the project name to be renamed.
         let renameboxElem = document.querySelector('.renamebox')
 
-        // If the click is outside the textbox, renamed the remembered project.
+        // If the click is outside the textbox, rename the remembered project.
         if (!renameboxElem.contains(event.target)) {
           this.renameProject(this.projectToRename)
         }
