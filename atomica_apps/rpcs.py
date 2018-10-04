@@ -141,11 +141,18 @@ def run_query(token, query):
             output = str(output)
             return output
     else:
-        errormsg = 'Authentication failed; this incident has been reported'
+        errormsg = 'Authentication "%s" failed; this incident has been reported and your account access will be removed.' % token
         raise Exception(errormsg)
         return None
     
 
+def admin_grab_projects(username1, username2):
+    ''' For use with run_query '''
+    user1 = datastore.loaduser(username1)
+    for projectkey in user1.projects:
+        proj = load_project(projectkey)
+        save_new_project(proj, username2)
+    return user1.projects
 
 ##################################################################################
 ### Datastore functions
