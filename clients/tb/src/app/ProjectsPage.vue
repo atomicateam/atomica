@@ -1,7 +1,7 @@
 <!--
 Manage projects page
 
-Last update: 2018sep23
+Last update: 2018oct04
 -->
 
 <template>
@@ -75,7 +75,7 @@ Last update: 2018sep23
             </td>
             <td v-if="projectSummary.renaming !== ''">
               <input type="text"
-                     class="txbox"
+                     class="txbox renamebox"
                      @keyup.enter="renameProject(projectSummary)"
                      v-model="projectSummary.renaming"/>
             </td>
@@ -360,14 +360,15 @@ Last update: 2018sep23
         filterPlaceholder: 'Type here to filter projects', // Placeholder text for table filter box
         filterText: '',  // Text in the table filter box
         allSelected: false, // Are all of the projects selected?
+        projectToRename: null, // What project is being renamed?
         sortColumn: 'name',  // Column of table used for sorting the projects: name, country, creationTime, updatedTime, dataUploadTime
         sortReverse: false, // Sort in reverse order?
         projectSummaries: [], // List of summary objects for projects the user has
         proj_name:  'New project', // For creating a new project: number of populations
         num_pops:   5, // For creating a new project: number of populations
         num_progs:  5, // For creating a new project: number of populations
-        data_start: 2000, // For creating a new project: number of populations
-        data_end:   2017, // For creating a new project: number of populations
+        data_start: 2015, // For creating a new project: number of populations
+        data_end:   2018, // For creating a new project: number of populations
         activeuid:  [], // WARNING, kludgy to get create progbook working
         frameworkSummaries: [],
         currentFramework: '',
@@ -489,6 +490,7 @@ Last update: 2018sep23
               lastCreationTime = new Date(this.projectSummaries[0].project.creationTime)
               lastCreatedID = this.projectSummaries[0].project.id
             }
+            this.projectToRename = null  // Unset the link to a project being renamed.
             this.projectSummaries.forEach(theProj => { // Preprocess all projects.
               theProj.selected = false // Set to not selected.
               theProj.renaming = '' // Set to not being renamed.
@@ -651,11 +653,29 @@ Last update: 2018sep23
           })
       },
 
+      finishRename(event) {
+        // Grab the element of the open textbox for the project name to be renamed.
+        let renameboxElem = document.querySelector('.renamebox')
+
+        // If the click is outside the textbox, rename the remembered project.
+        if (!renameboxElem.contains(event.target)) {
+          this.renameProject(this.projectToRename)
+        }
+      },
+
       renameProject(projectSummary) {
         console.log('renameProject() called for ' + projectSummary.project.name)
         if (projectSummary.renaming === '') { // If the project is not in a mode to be renamed, make it so.
           projectSummary.renaming = projectSummary.project.name
+          // Add a click listener to run the rename when outside the input box is click, and remember
+          // which project needs to be renamed.
+          window.addEventListener('click', this.finishRename)
+          this.projectToRename = projectSummary
         } else { // Otherwise (it is to be renamed)...
+          // Remove the listener for reading the clicks outside the input box, and null out the project
+          // to be renamed.
+          window.removeEventListener('click', this.finishRename)
+          this.projectToRename = null
           let newProjectSummary = _.cloneDeep(projectSummary) // Make a deep copy of the projectSummary object by JSON-stringifying the old object, and then parsing the result back into a new object.
           newProjectSummary.project.name = projectSummary.renaming // Rename the project name in the client list from what's in the textbox.
           status.start(this)
