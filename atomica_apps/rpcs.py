@@ -650,7 +650,7 @@ def rename_framework(framework_json):
 @RPC()    
 def copy_framework(framework_id):
     ''' Given a framework UID, creates a copy of the framework with a new UID and returns that UID. '''
-    frame = load_framework.frame
+    frame = load_framework(framework_id, die=True) # Load the project with the matching UID.
     new_framework = sc.dcp(frame) # Make a copy of the framework loaded in to work with.
     key,new_framework = save_new_framework(new_framework, username=new_framework.webapp.username) # Save a DataStore frameworks record for the copy framework.
     print(">> copy_framework %s" % (new_framework.name))  # Display the call information.
