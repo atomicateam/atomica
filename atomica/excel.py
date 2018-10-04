@@ -356,10 +356,12 @@ class TimeDependentConnections(object):
                 from_pop = vals[0]
                 to_pop = vals[2]
                 units = vals[3].lower().strip() if vals[3] else None
+                if units is None:
+                    raise AtomicaException(str('The units for transfer "%s" ("%s"->"%s") cannot be empty' % (full_name,from_pop,to_pop)))
                 assumption = vals[4] # This is the assumption cell
-                assert vals[5] == 'OR' # Double check we are reading a time-dependent row with the expected shape
+                assert vals[5].strip() == 'OR' # Double check we are reading a time-dependent row with the expected shape
                 ts = TimeSeries(format=units,units=units)
-                if assumption:
+                if assumption is not None:
                     ts.insert(None, assumption)
                 for t, v in zip(tvec, vals[6:]):
                     if v is not None:
@@ -441,7 +443,7 @@ class TimeDependentConnections(object):
                     worksheet.write_formula(current_row, 1, gate_content('--->', entry_cell), formats['center'], value='--->')
                     worksheet.write_formula(current_row, 2, gate_content(references[to_pop], entry_cell), formats['center_bold'], value=to_pop)
                     update_widths(widths, 2, to_pop)
-                    worksheet.write(current_row, 3, ts.format.title())
+                    worksheet.write(current_row, 3, ts.format.title(), format)
                     update_widths(widths, 3, ts.format.title())
 
                     if self.allowed_units:
@@ -454,7 +456,8 @@ class TimeDependentConnections(object):
                     worksheet.write_formula(current_row, 0, gate_content(references[from_pop], entry_cell), formats['center_bold'], value='...')
                     worksheet.write_formula(current_row, 1, gate_content('--->', entry_cell), formats['center'], value='...')
                     worksheet.write_formula(current_row, 2, gate_content(references[to_pop], entry_cell), formats['center_bold'], value='...')
-                    worksheet.write_blank(current_row, 3, '')
+                    worksheet.write_blank(current_row, 3, '', format)
+
                     if self.allowed_units:
                         worksheet.data_validation(xlrc(current_row, 3), {"validate": "list", "source": [x.title() for x in self.allowed_units]})
                     worksheet.write_blank(current_row, 4, '', format)
@@ -486,7 +489,7 @@ class TimeDependentConnections(object):
                 worksheet.conditional_format(xlrc(current_row, 4), {'type': 'formula', 'criteria': '=AND(%s,NOT(ISBLANK(%s)))' % (fcn_empty_times, xlrc(current_row, 4)), 'format': formats['ignored_warning']})
 
                 # Conditional formatting for the row - it has a white background if the gating cell is 'N'
-                worksheet.conditional_format('%s' % (xlrc(current_row, 4)), {'type': 'formula', 'criteria': '=%s<>"Y"' % (entry_cell), 'format': formats['white_bg']})
+                worksheet.conditional_format('%s:%s' % (xlrc(current_row, 3), xlrc(current_row, 4)), {'type': 'formula', 'criteria': '=%s<>"Y"' % (entry_cell), 'format': formats['white_bg']})
                 worksheet.conditional_format('%s:%s' % (xlrc(current_row, offset), xlrc(current_row, offset + idx)), {'type': 'formula', 'criteria': '=%s<>"Y"' % (entry_cell), 'format': formats['white_bg']})
 
         current_row += 2

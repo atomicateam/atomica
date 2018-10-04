@@ -1059,7 +1059,11 @@ class Model(object):
                         else:
                             par.links[0].vals[ti] = converted_amt
                     elif quantity_type not in [FS.QUANTITY_TYPE_PROPORTION]:
-                        raise AtomicaException("Encountered unknown units '%s' for Parameter '%s' (%s) in Population %s" % (quantity_type,par.name,self.framework.get_label(par.name),pop.name))
+                        try:
+                            par_label = self.framework.get_label(par.name)
+                        except: # Name lookup will fail for transfer parameters
+                            par_label = par.name
+                        raise AtomicaException("Encountered unknown units '%s' for Parameter '%s' (%s) in Population %s" % (quantity_type,par.name,par_label,pop.name))
 
             # Then, adjust outflows to prevent negative popsizes.
             for comp_source in pop.comps:
