@@ -46,7 +46,7 @@ Last update: 2018-10-05
         </div>
         &nbsp;&nbsp;
         <div class="controls-box">
-          <b>Parameter set: &nbsp;</b>         
+          <b>Parameter set: &nbsp;</b>
           <select v-model="activeParset" @change="loadParTable()">
             <option v-for='parset in parsetOptions'>
               {{ parset }}
