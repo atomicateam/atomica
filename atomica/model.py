@@ -389,15 +389,18 @@ class Parameter(Variable):
     def source_popsize(self, ti):
         # Get the total number of people covered by this program
         # i.e. the sum of the source compartments of all links that
-        # derive from this program
-        # If impact_names is specified, it must be a list of link names
-        # Then only links whose name is in that list will be included
+        # derive from this program. If the parameter has no links, return NaN
+        # which disambiguates between a parameter whose source compartments are all
+        # empty, vs a parameter that has no source compartments
         if ti == self.source_popsize_cache_time:
             return self.source_popsize_cache_val
         else:
-            n = 0
-            for link in self.links:
-                n += link.source.vals[ti]
+            if self.links:
+                n = 0
+                for link in self.links:
+                    n += link.source.vals[ti]
+            else:
+                n = np.nan
             self.source_popsize_cache_time = ti
             self.source_popsize_cache_val = n
             return n
