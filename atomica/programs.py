@@ -824,24 +824,31 @@ class ProgramSet(NamedItem):
         # If the program has coverage of 100, and par A reaches (200,300) and par B reaches (400,500) then we would allocate:
         # 100* (200/1400, 300/1400, 400/1400, 500/1400)
         # So - the denominator is at the _program_ level
-        prog_denominator = dict()
-        for prog in self.programs:
-            for covout in self.covouts.values():
-                if prog in covout.progs:
-                    if prog not in prog_denominator:
-                        prog_denominator[prog] = par_covered[(covout.par,covout.pop)]
-                    else:
-                        prog_denominator[prog] += par_covered[(covout.par,covout.pop)]
+
+        prog_denominator = dict.fromkeys(self.programs.keys(),0.0)
+        prog_n_covouts = dict.fromkeys(self.programs.keys(),0)
+        for covout in self.covouts.values():
+            for prog in covout.progs:
+                prog_denominator[prog] += par_covered[(covout.par, covout.pop)]
+                prog_n_covouts[prog] += 1
 
         # Initialise output
         outcomes = dict()
         for covout in self.covouts.values():
-            covout_num_covered = dict()
-            for prog in covout.progs:
-                if not prog_denominator[prog]:
-                    covout_num_covered[prog] = sc.promotetoarray(0.0)
-                else:
-                    covout_num_covered[prog] = sc.promotetoarray(num_covered[prog] * par_covered[(covout.par,covout.pop)]/prog_denominator[prog])
+            if covout.is_num_par:
+                covout_num_covered = dict()
+                for prog in covout.progs:
+                    if prog_n_covouts[prog] <= 1:
+                        # If a program only appears in one covout, then that program's coverage does not need to be disaggregated
+                        covout_num_covered[prog] = sc.promotetoarray(num_covered[prog])
+                    else:
+                        # Otherwise, we need to disaggregate the program's coverage across multiple covouts. The number covered will be NaN if the program
+                        # has more than one Covout associated with it, and if any of the parameters that it targets have no source popsize. In that case, it is
+                        # not possible to disaggregate the coverage.
+                        # TODO - do this check more rigorously - plan what to do if programs mix coverage (or else guard against it in pre-validation)
+                        covout_num_covered[prog] = sc.promotetoarray(num_covered[prog] * par_covered[(covout.par, covout.pop)] / prog_denominator[prog])
+            else:
+                covout_num_covered = None
             outcomes[(covout.par,covout.pop)] = covout.get_outcome(num_covered=covout_num_covered, prop_covered=prop_covered)
         return outcomes
 
@@ -1057,18 +1064,23 @@ class Covout(object):
         # Don't forget that this covout instance is already specific to a (par,pop) combination
 
         # Put coverages and deltas into array form
-        cov = []
-        num_cov = []
-        for prog in self.progs.keys():
-            cov.append(prop_covered[prog][0])
-            num_cov.append(num_covered[prog][0])
-        cov = np.array(cov)
-        num_cov = np.array(num_cov)
+
+
+
         outcome = self.baseline # Accumulate the outcome by adding the deltas onto this
 
 #        # If the parameter is in number format, use number covered as the outcome, implicitly treating as additive
-        if self.is_num_par:   
+        if self.is_num_par:
+            num_cov = []
+            for prog in self.progs.keys():
+                num_cov.append(num_covered[prog][0])
+            num_cov = np.array(num_cov)
             return outcome + sum(num_cov*self.deltas)
+        else:
+            cov = []
+            for prog in self.progs.keys():
+                cov.append(prop_covered[prog][0])
+            cov = np.array(cov)
 
         # If there's only one program, then just use the outcome directly
         if self.n_progs == 1:
