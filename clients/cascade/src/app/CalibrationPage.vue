@@ -176,7 +176,7 @@ Last update: 2018-09-06
                     :h="400"
                     :yAxisTitle="'Number of people'"
                     :cascadeData="jsonData"
-                    :colourScheme="projectColour"
+                    :colourScheme="jsonColors"
                     :legendDisplay="true" />
                 </div>
                 <!-- ### End: Cascade plot ### -->
@@ -345,6 +345,10 @@ Last update: 2018-09-06
         calibTimes: ['30 seconds', 'Unlimited'],
         filterPlaceholder: 'Type here to filter parameters', // Placeholder text for second table filter box
         filterText: '', // Text in the first table filter box
+
+        // Cascade plot data
+        jsonData: [],
+        jsonColors: [],
       }
     },
 
@@ -548,6 +552,8 @@ Last update: 2018-09-06
           .then(response => {
             this.makeGraphs(response.data)
             this.table = response.data.table
+            this.jsonData = response.data.jsondata
+            this.jsonColors = response.data.jsoncolors
             status.succeed(this, 'Simulation run, graphs now rendering...')
           })
           .catch(error => {
@@ -570,6 +576,8 @@ Last update: 2018-09-06
         ) // Go to the server to get the results from the package set.
           .then(response => {
             this.table = response.data.table
+            this.jsonData = response.data.jsondata
+            this.jsonColors = response.data.jsoncolors
             this.makeGraphs(response.data.graphs)
             status.succeed(this, 'Simulation run, graphs now rendering...')
           })
