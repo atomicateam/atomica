@@ -1377,8 +1377,9 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plo
         graph_dict = sw.mpld3ify(fig, jsonify=False)
         legendjsons.append(graph_dict)
         pl.close(fig)
-        
-    output = {'graphs':figjsons, 'legends':legendjsons, 'table':table}
+    
+    jsondata,jsoncolors = get_json_cascade(results=results, data=proj.data)
+    output = {'graphs':figjsons, 'legends':legendjsons, 'table':table, 'jsondata':jsondata, 'jsoncolors':jsoncolors}
     print('Cascade plot succeeded with %s plots and %s legends and %s table' % (len(figjsons), len(legendjsons), bool(table)))
     return output, figs, legends
 
@@ -1447,9 +1448,10 @@ def get_json_cascade(results,data):
             cascade_data['data'][name][pop_label],t = au.get_cascade_data(data,results[0].framework, cascade=cascade,pops=pop_name)
     cascade_data['data_t'] = t
     
-    output = sc.sanitizejson(cascade_data)
-    
-    return output
+    jsondata = sc.sanitizejson(cascade_data)
+    ncolors = len(result.pop_names)
+    jsoncolors = sc.gridcolors(ncolors, ashex=True)
+    return jsondata,jsoncolors
 
 
 @RPC()  
