@@ -9,36 +9,40 @@ import pylab as pl
 import matplotlib.pyplot as plt
 from atomica.optimization import optimize
 
-#test = "sir"
+test = "sir"
 #test = "tb"
+#test = "tb_simple_dyn"
+#test = "tb_simple"
 #test = "hypertension"
 #test = "hypertension_dyn"
 #test = "dt"
 #test = "udt"
 #test = "usdt"
-#test = "cervicalcancer"
+# test = "cervicalcancer"
 #test = "hiv"
-test = "diabetes"
+#test = "hiv_dyn"
+#test = "diabetes"
 #test = "service"
 
 torun = [
-"loadframework",
-"saveframework",
-"makedatabook",
-"makeproject",
-"loaddatabook",
-"makeparset",
-"runsim",
-"plotcascade",
-"makeblankprogbook",
+#"loadframework",
+#"saveframework",
+#"makedatabook",
+#"makeproject",
+#"loaddatabook",
+#"makeparset",
+#"runsim",
+#"plotcascade",
+#"makeblankprogbook",
 # "writeprogbook",
 #"testprograms",
-#"runsim_programs",
+# "runsim_programs",
 #"makeplots",
 #"export",
 # "manualcalibrate",
 #"autocalibrate",
 #"parameterscenario",
+"coveragescenario",
 #'budgetscenarios',
 #'optimization',
 # "saveproject",
@@ -80,10 +84,11 @@ if "makedatabook" in torun:
     P = au.Project(framework=F) # Create a project with an empty data structure.
     if test == "sir": args = {"num_pops":1, "num_transfers":1,"data_start":2000, "data_end":2015, "data_dt":1.0}
     elif test == "tb": args = {"num_pops":12, "num_transfers":3, "data_end":2018}
+    elif test in ["tb_simple","tb_simple_dyn"]: args = {"num_pops":1, "num_transfers":0, "data_start":2014, "data_end":2018, "data_dt":1.0}
     elif test == "diabetes": args = {"num_pops":1, "num_transfers":0, "data_start":2014, "data_end":2017, "data_dt":1.0}
     elif test == "service": args = {"num_pops":1, "num_transfers":0,"data_start":2014, "data_end":2017, "data_dt":1.0}
     elif test in ["udt","usdt","usdt_dyn","dt"]: args = {"num_pops":1, "num_transfers":0,"data_start":2016, "data_end":2019, "data_dt":1.0}
-    elif test == "hiv": args = {"num_pops":2, "num_transfers":0,"data_start":2016, "data_end":2019, "data_dt":1.0}
+    elif test in ["hiv","hiv_dyn"]: args = {"num_pops":2, "num_transfers":0,"data_start":2016, "data_end":2019, "data_dt":1.0}
     elif test in ["hypertension","hypertension_dyn"]: args = {"num_pops":4, "num_transfers":0,"data_start":2016, "data_end":2019, "data_dt":1.0}
     P.create_databook(databook_path=tmpdir + "databook_" + test + "_blank.xlsx", **args)
 
@@ -96,17 +101,14 @@ if "loaddatabook" in torun:
     P.load_databook(databook_path="./databooks/databook_" + test + ".xlsx", make_default_parset=False, do_run=False)
     
 if "makeparset" in torun:
-    if test in ['di2abetes']:
-        print('\n\n\nDatabook not yet filled in for diabetes example.')
-    else:
-        P.make_parset(name="default")
+    P.make_parset(name="default")
     
 if "runsim" in torun:
     if test in ["tb"]:
         P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
-    elif test=='diabetes':
+    elif test in ['diabetes','tb_simple','tb_simple_dyn']:
         P.update_settings(sim_start=2014.0, sim_end=2020, sim_dt=1.)
-    elif test in ['udt','hiv','usdt','hypertension','hypertension_dyn']:
+    elif test in ['udt','hiv','cervicalcancer','hiv_dyn','usdt','hypertension','hypertension_dyn']:
         P.update_settings(sim_start=2016.0, sim_end=2018, sim_dt=1.)
     elif test in ['sir']:
         P.update_settings(sim_start=2000.0, sim_end=2018, sim_dt=1.)
@@ -116,7 +118,7 @@ if "runsim" in torun:
     P.run_sim(parset="default", result_name="default")    
 
 if 'plotcascade' in torun:
-    au.plot_cascade(P.results[-1], pops='all', year=[2016,2017], data=P.data)
+    au.plot_cascade(P.results[-1], pops='all', year=[2017], data=P.data)
     if forceshow: pl.show()
     
     # Browser test
@@ -138,9 +140,9 @@ if "makeblankprogbook" in torun:
         P.make_progbook(filename, progs=9)
     elif test == "udt":
         P.make_progbook(filename, progs=4)
-    elif test == ["usdt","cervicalcancer"]:
+    elif test in ["usdt","cervicalcancer"]:
         P.make_progbook(filename, progs=9)
-    elif test == "hiv":
+    elif test in ["hiv","hiv_dyn"]:
         P.make_progbook(filename, progs=8)
     else:
         P.make_progbook(filename, progs=5)
@@ -248,6 +250,16 @@ if "runsim_programs" in torun:
         progresults = P.run_sim(parset="default", progset='default',progset_instructions=instructions,result_name="default-progs")
         au.plot_multi_cascade([parresults, progresults],'Diabetes care cascade',year=[2017])
 
+    elif test in ['tb_simple','tb_simple_dyn']:
+        parset = P.parsets[0]
+        original_progset = P.progsets[0]
+        reconciled_progset, progset_comparison, parameter_comparison = au.reconcile(project=P,parset=parset,progset=original_progset,reconciliation_year=2016.,unit_cost_bounds=0.2)
+        instructions = au.ProgramInstructions(start_year=2016.) 
+        newalloc = {'Passive case finding':  2000000 }
+        parresults = P.run_sim(parset="default", result_name="default-noprogs")
+        progresults = P.run_sim(parset="default", progset='default',progset_instructions=instructions,result_name="default-progs")
+        au.plot_multi_cascade([parresults, progresults],'TB care cascade',year=[2017])
+
     elif test == 'tb':
         instructions = au.ProgramInstructions(start_year=2015,stop_year=2030) 
 #        P.run_sim(parset="default", result_name="default-noprogs")
@@ -283,6 +295,17 @@ if "runsim_programs" in torun:
 
         au.plot_multi_cascade([baselineresults, scenresults],'main',year=[2017])
 
+    elif test == 'cervicalcancer':
+        scenalloc = {'HPV vaccine':  200000 }
+    
+        bl_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018) 
+        scen_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scenalloc) 
+
+        baselineresults = P.run_sim(parset="default", progset='default',progset_instructions=bl_instructions,result_name="baseline")
+        scenresults = P.run_sim(parset="default", progset='default',progset_instructions=scen_instructions,result_name="scen")
+
+        au.plot_multi_cascade([baselineresults, scenresults],year=[2017])
+
     elif test in ['hypertension','hypertension_dyn']:
         scenalloc = {'Screening - urban':  30000 }
     
@@ -295,9 +318,9 @@ if "runsim_programs" in torun:
 
         au.plot_multi_cascade([noprogs, baselineresults, scenresults],'Hypertension care cascade',year=[2018])
 
-    elif test == 'hiv':
-        scen1alloc = {'Testing - clinics': 1500000}
-        scen2alloc = {'Testing - outreach': 600000}
+    elif test in ['hiv','hiv_dyn']:
+        scen1alloc = {'Testing - clinics': 4200000}# 1500000
+        scen2alloc = {'Testing - outreach': 1600000}#600000
         scen3alloc = {'Same-day initiation counselling': 6000000}
         scen4alloc = {'Classic initiation counselling': 4500000}
         scen5alloc = {'Client tracing': 60000}
@@ -322,10 +345,10 @@ if "runsim_programs" in torun:
         scen6results = P.run_sim(parset="default", progset='default',progset_instructions=scen6_instructions,result_name="scen6")
         scen7results = P.run_sim(parset="default", progset='default',progset_instructions=scen7_instructions,result_name="scen7")
 
-        au.plot_multi_cascade([baselineresults, scen1results, scen2results, scen3results, scen4results, scen5results, scen6results, scen7results],'main',year=[2017])
+        au.plot_multi_cascade([baselineresults, scen1results, scen2results, scen3results, scen4results, scen5results, scen6results, scen7results],year=[2018])
 
     elif test in ['service']:
-        print('\n\n\nRunning with programs not yet implemented for diabetes or service examples.')
+        print('\n\n\nRunning with programs not yet implemented for service example.')
 
     else:
         print('\n\n\nUnknown test.')
@@ -450,6 +473,38 @@ if "parameterscenario" in torun:
         plt.title('Scenario comparison')
         plt.ylabel('Number of people')
 
+if "coveragescenario" in torun:
+
+    P = au.demo(which=test)
+    instructions = au.ProgramInstructions(start_year=2018)
+    no_programs = P.run_sim(parset='default',result_name='No programs')
+    baseline = P.run_sim(parset='default',progset='default',progset_instructions=instructions,result_name='Default programs')
+
+    coverage = {
+        'Risk avoidance':0.5,
+         'Harm reduction 1':0.5,
+         'Harm reduction 2':au.TimeSeries([2018,2020],[0.7,0.2]),
+    }
+    scen = au.CoverageScenario('Reduced coverage','default','default',coverage=coverage,start_year=2018)
+    scen_result = scen.run(project=P)
+
+    # Plot coverages
+    d = au.PlotData.programs([baseline,scen_result],quantity='coverage_fraction',outputs='Harm reduction 2')
+    au.plot_series(d, axis="results")
+
+    # Plot results
+    d = au.PlotData([no_programs,baseline,scen_result],outputs='ch_infrec')
+    au.plot_series(d, axis="results")
+    plt.xlim(2022.5,2023)
+    plt.ylim(741,746)
+
+    # Test export
+    no_programs.export('temp/covscen_noprogs.xlsx')
+    baseline.export('temp/covscen_baseline.xlsx')
+    scen_result.export('temp/covscen_reduced.xlsx')
+    # Confirm that
+    # - FOI-related values (e.g. transmission probability) in decreasing order are noprogs, reduced, baselilne
+    # - Coverage values are 1.0 in baseline and 0.5 (or time varying) in scen result for applicable programs
 
 def supported_plots_func():
     ''' TEMP '''

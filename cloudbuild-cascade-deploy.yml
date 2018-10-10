@@ -1,0 +1,32 @@
+#cloudbuild.yaml
+steps:
+  - name: 'docker/compose:1.22.0'
+    args: ['-f', 'docker-compose-cascade.yml', 'up', '-d']
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['tag', 'workspace_app:latest', 'gcr.io/${PROJECT_ID}/${REPO_NAME}_cascade__app:${COMMIT_SHA}']
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args: [
+      'beta', 'compute', '--project=sharp-imprint-213320', 'instance-templates', 'create-with-container',
+      'cascade-app-${COMMIT_SHA}',
+      '--machine-type=n1-standard-2', '--network=projects/sharp-imprint-213320/global/networks/default', '--network-tier=PREMIUM', '--metadata=google-logging-enabled=true',
+      '--maintenance-policy=MIGRATE', '--service-account=702663043266-compute@developer.gserviceaccount.com',
+      '--scopes=https://www.googleapis.com/auth/devstorage.read_only,https://www.googleapis.com/auth/logging.write,https://www.googleapis.com/auth/monitoring.write,https://www.googleapis.com/auth/servicecontrol,https://www.googleapis.com/auth/service.management.readonly,https://www.googleapis.com/auth/trace.append',
+      '--tags=http-server,https-server', '--image=cos-stable-69-10895-62-0', '--image-project=cos-cloud', '--boot-disk-size=20GB', '--boot-disk-type=pd-standard',
+      '--container-restart-policy=always', '--labels=container-vm=cos-stable-69-10895-62-0',
+      '--boot-disk-device-name=cascade-app-${COMMIT_SHA}',
+      '--container-image=gcr.io/${PROJECT_ID}/${REPO_NAME}_cascade__app:${COMMIT_SHA}'
+    ]
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args: [
+      'beta', 'compute', '--project=sharp-imprint-213320', 'instance-groups',
+      'managed', 'rolling-action', 'start-update',
+      'cascade-app-eu',
+      '--version',
+      'template=cascade-app-${COMMIT_SHA}',
+      '--zone=europe-west1-b',
+      '--max-surge=20',
+      '--max-unavailable=9999'
+    ]
+images:
+  - 'gcr.io/${PROJECT_ID}/${REPO_NAME}_cascade__app:${COMMIT_SHA}'
+timeout: 1200s

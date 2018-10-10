@@ -28,7 +28,7 @@ module.exports = {
     assetsSubDirectory: 'static',
     assetsPublicPath: '/',
     proxyTable: {
-      // proxy all requests starting with /api to http://localhost:8094
+      // proxy all requests starting with /api to http://localhost:8094 // CASCADE-TB DIFFERENCE
       '/api': {
         target: 'http://localhost:8094', // CK: Must match config.py SERVER_PORT
         changeOrigin: true,

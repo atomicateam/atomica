@@ -25,7 +25,7 @@ Last update: 2018-09-06
       <div class="card">
         <div><help reflink="bl-overview" label="Calibration and reconciliation"></help></div>
         <div class="controls-box">
-          <button class="btn __green" @click="manualCalibration(projectID)">Save & run</button>
+          <button class="btn __green" @click="saveParTable()">Run</button>
           <button class="btn" @click="toggleParams()">
             <span v-if="showParameters">Hide</span>
             <span v-else>Show</span>
@@ -51,34 +51,18 @@ Last update: 2018-09-06
             <option v-for='parset in parsetOptions'>
               {{ parset }}
             </option>
-          </select>
-          &nbsp;
-          <button class="btn btn-icon" @click="renameParsetModal()" data-tooltip="Rename">
-            <i class="ti-pencil"></i>
-          </button>
-          <button class="btn btn-icon" @click="copyParset()" data-tooltip="Copy">
-            <i class="ti-files"></i>
-          </button>
-          <button class="btn btn-icon" @click="deleteParset()" data-tooltip="Delete">
-            <i class="ti-trash"></i>
-          </button>
-          <button class="btn btn-icon" @click="downloadParset()" data-tooltip="Download">
-            <i class="ti-download"></i>
-          </button>
-          <button class="btn btn-icon" @click="uploadParset()" data-tooltip="Upload">
-            <i class="ti-upload"></i>
-          </button>
-          <button class="btn btn-icon" @click="loadParTable()" data-tooltip="Refresh">
-            <i class="ti-reload"></i>
-          </button>
-          &nbsp;
+          </select>&nbsp;
+          <button class="btn btn-icon" @click="renameParsetModal()" data-tooltip="Rename"><i class="ti-pencil"></i></button>
+          <button class="btn btn-icon" @click="copyParset()" data-tooltip="Copy"><i class="ti-files"></i></button>
+          <button class="btn btn-icon" @click="deleteParset()" data-tooltip="Delete"><i class="ti-trash"></i></button>
+          <button class="btn btn-icon" @click="downloadParset()" data-tooltip="Download"><i class="ti-download"></i></button>
+          <button class="btn btn-icon" @click="uploadParset()" data-tooltip="Upload"><i class="ti-upload"></i></button>
+          <button class="btn btn-icon" @click="loadParTable()" data-tooltip="Refresh"><i class="ti-reload"></i></button>&nbsp;
           <help reflink="parameter-sets"></help>
         </div>
 
         <div class="controls-box">
-          <button class="btn" @click="notImplemented()">
-            Reconcile
-          </button>&nbsp;
+          <button class="btn" @click="reconcile()">Reconcile</button>&nbsp;
           <help reflink="reconciliation"></help>
         </div>
       </div>
@@ -89,44 +73,40 @@ Last update: 2018-09-06
       <div class="PageSection" v-show="showParameters">
         <div class="card">
           <help reflink="parameters" label="Parameters"></help>
+
+          <input type="text"
+                 class="txbox"
+                 style="margin-left:0px; margin-bottom:10px; display:inline-block; width:100%"
+                 :placeholder="filterPlaceholder"
+                 v-model="filterText"/>
+
           <table class="table table-bordered table-hover table-striped" style="width: 100%">
             <thead>
             <tr>
-              <th>
-                Parameter
-              </th>
-              <th>
-                Overall scale factor
-              </th>
-              <th v-for="popLabel in poplabels">
-                {{ popLabel }}
-              </th>
+              <th v-if="$globaltool=='tb'">Category</th>
+              <th>Parameter</th>
+              <th v-if="$globaltool=='tb'">Overall scale factor</th>
+              <th v-for="popLabel in poplabels">{{ popLabel }}</th>
             </tr>
             </thead>
             <tbody>
-            <tr v-for="par in parlist">
-              <td>
-                {{par.parlabel}}
-              </td>
-              <td>
+            <tr v-for="par in filteredParlist">
+              <td v-if="$globaltool=='tb'">{{par.parcategory}}</td>
+              <td>{{par.parlabel}}</td>
+              <td v-if="$globaltool=='tb'">
                 <input type="text"
                        class="txbox"
-                       v-model="par.meta_y_factor"
-                       @keyup.enter="saveParTable()"/>
+                       v-model="par.meta_y_factor"/>
               </td>
               <td v-for="poppar in par.pop_y_factors">
                 <input type="text"
                        class="txbox"
-                       :disabled="poppar.dispvalue==='0'"
-                       v-model="poppar.dispvalue"
-                       @keyup.enter="saveParTable()"/>
+                       v-model="poppar.dispvalue"/>
               </td>
             </tr>
             </tbody>
           </table>
-          <button class="btn __green" @click="saveParTable()">
-            Save
-          </button>&nbsp;
+          <button class="btn __green" @click="saveParTable()">Save & run</button>&nbsp;
         </div>
       </div>
       <!-- ### End: parameters card ### -->
@@ -149,14 +129,11 @@ Last update: 2018-09-06
               &nbsp;&nbsp;&nbsp;
               <b>Population: &nbsp;</b>
               <select v-model="activePop" @change="reloadGraphs(true)">
-                <option v-for='pop in activePops'>
-                  {{ pop }}
-                </option>
-              </select>
+                <option v-for='pop in activePops'>{{ pop }}</option>
+              </select>&nbsp;&nbsp;&nbsp;
               <button class="btn btn-icon" @click="scaleFigs(0.9)" data-tooltip="Zoom out">&ndash;</button>
               <button class="btn btn-icon" @click="scaleFigs(1.0)" data-tooltip="Reset zoom"><i class="ti-zoom-in"></i></button>
-              <button class="btn btn-icon" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>
-              &nbsp;&nbsp;&nbsp;
+              <button class="btn btn-icon" @click="scaleFigs(1.1)" data-tooltip="Zoom in">+</button>&nbsp;&nbsp;&nbsp;
               <button class="btn" @click="exportGraphs()">Export graphs</button>
               <button class="btn" @click="exportResults(serverDatastoreId)">Export data</button>
               <button v-if="false" class="btn btn-icon" @click="togglePlotControls()"><i class="ti-settings"></i></button> <!-- When popups are working: v-if="$globaltool=='tb'" -->
@@ -174,7 +151,7 @@ Last update: 2018-09-06
 
                 <div class="other-graphs">
                   <div v-for="index in placeholders">
-                    <div :id="'figcontainer'+index" style="display:flex; justify-content:flex-start; padding:5px; border:1px solid #ddd" v-show="showGraphDivs[index]">
+                    <div :id="'figcontainer'+index" class="figcontainer" v-show="showGraphDivs[index]">
                       <div :id="'fig'+index" class="calib-graph">
                         <!--mpld3 content goes here-->
                       </div>
@@ -339,16 +316,19 @@ Last update: 2018-09-06
         openDialogs: [],
         showGraphDivs: [], // These don't actually do anything, but they're here for future use
         showLegendDivs: [],
-        mousex:-1,
-        mousey:-1,
+        mousex: -1,
+        mousey: -1,
         figscale: 1.0,
 
         // Page-specific data
-        parList: [],
+        parlist: [],
+        poplabels:[],
         origParsetName: [],
         showParameters: false,
         calibTime: '30 seconds',
         calibTimes: ['30 seconds', 'Unlimited'],
+        filterPlaceholder: 'Type here to filter parameters', // Placeholder text for second table filter box
+        filterText: '', // Text in the first table filter box
       }
     },
 
@@ -361,6 +341,10 @@ Last update: 2018-09-06
       simYears()     { return utils.simYears(this) },
       activePops()   { return utils.activePops(this) },
       placeholders() { return graphs.placeholders(this, 1) },
+
+      filteredParlist() {
+        return this.applyParametersFilter(this.parlist)
+      }
     },
 
     created() {
@@ -370,7 +354,7 @@ Last update: 2018-09-06
         (this.$store.state.activeProject.project.hasData) ) {
         console.log('created() called')
         this.startYear = this.simStart
-//        this.endYear = this.simEnd // CK: Uncomment to set the end year to 2035 instead of 2018
+        this.endYear = this.simEnd // CK: Uncomment to set the end year to 2035 instead of 2018
         this.popOptions = this.activePops
         this.serverDatastoreId = this.$store.state.activeProject.project.id + ':calibration'
         this.getPlotOptions(this.$store.state.activeProject.project.id)
@@ -394,18 +378,18 @@ Last update: 2018-09-06
 
     methods: {
 
-      validateYears()                   { return utils.validateYears(this) },
-      updateSets()                      { return shared.updateSets(this) },
-      exportGraphs()                    { return shared.exportGraphs(this) },
-      exportResults(datastoreID)        { return shared.exportResults(this, datastoreID) },
-      scaleFigs(frac)                   { return graphs.scaleFigs(this, frac)},
-      clearGraphs()                     { return graphs.clearGraphs(this) },
-      togglePlotControls()              { return graphs.togglePlotControls(this) },
-      getPlotOptions(project_id)        { return graphs.getPlotOptions(this, project_id) },
-      makeGraphs(graphdata)             { return graphs.makeGraphs(this, graphdata, '/calibration') },
-      reloadGraphs(showErr)             { return graphs.reloadGraphs(this, this.projectID, this.serverDatastoreId, showErr, true) }, // Set to calibration=true
-      maximize(legend_id)               { return graphs.maximize(this, legend_id) },
-      minimize(legend_id)               { return graphs.minimize(this, legend_id) },
+      validateYears()            { return utils.validateYears(this) },
+      updateSets()               { return shared.updateSets(this) },
+      exportGraphs()             { return shared.exportGraphs(this) },
+      exportResults(datastoreID) { return shared.exportResults(this, datastoreID) },
+      scaleFigs(frac)            { return graphs.scaleFigs(this, frac)},
+      clearGraphs()              { return graphs.clearGraphs(this) },
+      togglePlotControls()       { return graphs.togglePlotControls(this) },
+      getPlotOptions(project_id) { return graphs.getPlotOptions(this, project_id) },
+      makeGraphs(graphdata)      { return graphs.makeGraphs(this, graphdata, '/calibration') },
+      reloadGraphs(showErr)      { return graphs.reloadGraphs(this, this.projectID, this.serverDatastoreId, showErr, true) }, // Set to calibration=true
+      maximize(legend_id)        { return graphs.maximize(this, legend_id) },
+      minimize(legend_id)        { return graphs.minimize(this, legend_id) },
 
       toggleParams() {
         this.showParameters = !this.showParameters
@@ -415,7 +399,7 @@ Last update: 2018-09-06
         return new Promise((resolve, reject) => {
           console.log('loadParTable() called for ' + this.activeParset)
           // TODO: Get spinners working right for this leg of initialization.
-          rpcs.rpc('get_y_factors', [this.projectID, this.activeParset])
+          rpcs.rpc('get_y_factors', [this.projectID, this.activeParset, this.$globaltool])
             .then(response => {
               this.parlist = response.data.parlist // Get the parameter values
               var tmpParset = _.cloneDeep(this.activeParset)
@@ -440,12 +424,12 @@ Last update: 2018-09-06
 
       saveParTable() {
         return new Promise((resolve, reject) => {
-          console.log('saveParTable() called for ' + this.activeParset)
-          rpcs.rpc('set_y_factors', [this.projectID, this.activeParset, this.parlist])
+          rpcs.rpc('set_y_factors', [this.projectID, this.activeParset, this.parlist, this.$globaltool])
             .then(response => {
               this.loadParTable()
                 .then(response2 => {
                   status.succeed(this, 'Parameters updated')
+                  this.manualCalibration(this.projectID)
                   resolve(response2)
                 })
               resolve(response)
@@ -455,6 +439,11 @@ Last update: 2018-09-06
               reject(error)
             })
         })
+      },
+
+      applyParametersFilter(parlist) {
+        return parlist.filter(par => ((par.parcategory.toLowerCase().indexOf(this.filterText.toLowerCase()) !== -1)
+                                      || (par.parlabel.toLowerCase().indexOf(this.filterText.toLowerCase()) !== -1)))
       },
 
       renameParsetModal() {
@@ -571,6 +560,18 @@ Last update: 2018-09-06
           .catch(error => {
             console.log(error.message)
             status.fail(this, 'Could not run automatic calibration', error)
+          })
+      },
+
+      reconcile() {
+        console.log('reconcile() called for ' + this.activeParset)
+        status.start(this)
+        rpcs.download('reconcile', [this.projectID, this.activeParset]) // Have the server copy the project, giving it a new name.
+          .then(response => { // Indicate success.
+            status.succeed(this, '')  // No green popup message.
+          })
+          .catch(error => {
+            status.fail(this, 'Could not reconcile program set', error)
           })
       },
     }

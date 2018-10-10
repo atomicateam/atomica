@@ -2,8 +2,8 @@
  * Graphing functions (shared between calibration, scenarios, and optimization)
  */
 
-import utils from '@/js/utils'
-import rpcs from '@/js/rpc-service'
+import utils  from '@/js/utils'
+import rpcs   from '@/js/rpc-service'
 import status from '@/js/status-service'
 
 function getPlotOptions(vm, project_id) {
@@ -17,7 +17,7 @@ function getPlotOptions(vm, project_id) {
         resolve(response)
       })
       .catch(error => {
-        status.fail(vm, 'Could not get plot options: ' + error.message)
+        status.fail(vm, 'Could not get plot options', error)
         reject(error)
       })
   })
@@ -139,7 +139,7 @@ function reloadGraphs(vm, project_id, cache_id, showNoCacheError, iscalibration,
   console.log('reloadGraphs() called')
   utils.validateYears(vm)  // Make sure the start end years are in the right range.
   status.start(vm)
-  rpcs.rpc('plot_results_cache_entry', [project_id, cache_id, vm.plotOptions],
+  rpcs.rpc('plot_results', [project_id, cache_id, vm.plotOptions],
     {tool:vm.$globaltool, 'cascade':null, plotyear:vm.endYear, pops:vm.activePop, calibration:iscalibration, plotbudget:plotbudget})
     .then(response => {
       vm.table = response.data.table

@@ -9,7 +9,7 @@ Version: 2018jul30
 import sciris as sc
 from .system import AtomicaException, logger, AtomicaInputError
 from .utils import NamedItem
-from numpy import array, exp, ones, prod, minimum, inf
+from numpy import array, exp, minimum, inf
 from .structure import TimeSeries
 from .excel import standard_formats, AtomicaSpreadsheet, apply_widths, update_widths, read_tables, TimeDependentValuesEntry
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
@@ -19,7 +19,7 @@ import io
 import numpy as np
 
 class ProgramInstructions(object):
-    def __init__(self,alloc=None,start_year=None,stop_year=None):
+    def __init__(self,alloc=None,start_year=None,stop_year=None, coverage=None):
         """ Set up a structure that stores instructions for a model on how to use programs. """
         # Instantiate a new ProgramInstructions instance. ProgramInstructions specify how to use programs
         # - specifically, which years the programs are applied from, and any funding overwrites from the
@@ -33,6 +33,9 @@ class ProgramInstructions(object):
         #             spending onto the program start year. This is a shortcut to ensure that budget scenarios and optimizations
         #             where spending is specified in future years ramp correctly from the program start year (and not the last year
         #             that data was entered for)
+        # - coverage : Overwrites to proportion coverage. It can be
+        #           - A dict keyed by program name, containing a scalar coverage or a TimeSeries of coverage values
+        #   Note that coverage overwrites have no effect
 
         self.start_year = start_year if start_year else 2018.
         self.stop_year = stop_year if stop_year else inf
@@ -46,10 +49,18 @@ class ProgramInstructions(object):
                 self.alloc[prog.name] = TimeSeries(t=self.start_year, vals=prog.spend_data.interpolate(self.start_year))
         elif alloc:
             for prog_name,spending in alloc.items():
-                if isinstance(spending,TimeSeries):
+                if isinstance(spending,TimeSeries) and spending.has_data:
                     self.alloc[prog_name] = sc.dcp(spending)
-                else:
+                elif spending is not None:
                     self.alloc[prog_name] = TimeSeries(t=self.start_year,vals=spending)
+
+        self.coverage = sc.odict() # Dict keyed by program name that stores a time series of coverages
+        if coverage:
+            for prog_name,cov_values in coverage.items():
+                if isinstance(cov_values,TimeSeries):
+                    self.coverage[prog_name] = sc.dcp(cov_values)
+                else:
+                    self.coverage[prog_name] = TimeSeries(t=self.start_year,vals=cov_values)
 
 #--------------------------------------------------------------------
 # ProgramSet class
@@ -217,22 +228,36 @@ class ProgramSet(NamedItem):
             if is_impact == 'y' and y_format == 'number':
                 self.num_pars[name] = label
 
+    @staticmethod
+    def validate_inputs(framework, data, project):
+        # To load a spreadsheet or make a new ProgramSet, people can pass in
+        # framework, data, and/or a project. If the framework and data are not explicitly specified,
+        # they get drawn from the project
+        if (framework is None and project is None) or (data is None and project is None):
+            errormsg = 'To read in a ProgramSet, please supply one of the following sets of inputs: (a) a Framework and a ProjectData, (b) a Project.'
+            raise AtomicaException(errormsg)
+
+        if framework is None:
+            if project.framework is None:
+                errormsg = 'A Framework was not provided, and the Project has not been initialized with a Framework'
+                raise AtomicaException(errormsg)
+            else:
+                framework = project.framework
+
+        if data is None:
+            if project.data is None:
+                errormsg = 'Project data has not been loaded yet'
+                raise AtomicaException(errormsg)
+            else:
+                data = project.data
+
+        return framework, data
 
     @staticmethod
     def from_spreadsheet(spreadsheet=None, framework=None, data=None, project=None):
         '''Make a program set by loading in a spreadsheet.'''
 
-        # Check framework/data requirements - people can EITHER provide:
-        #  - a data and framework
-        #  - a project containing data and a framework
-        # Try to get them from the data/framework
-        if data is None or framework is None:
-            if project is None:
-                errormsg = 'To read in a ProgramSet, please supply one of the following sets of inputs: (a) a Framework and a ProjectData, (b) a Project.'
-                raise AtomicaException(errormsg)
-            else:
-                data = project.data
-                framework = project.framework
+        framework, data = ProgramSet.validate_inputs(framework,data,project)
 
         # Populate the available pops, comps, and pars based on the framework and data provided at this step
         self = ProgramSet()
@@ -277,10 +302,12 @@ class ProgramSet(NamedItem):
         # Return the spreadsheet
         return spreadsheet
 
-    def save(self,fname):
+    def save(self, filename=None, folder=None):
         # Shortcut for saving to disk - FE RPC will probably use `to_spreadsheet()` but BE users will probably use `save()`
+        full_path = sc.makefilepath(filename=filename, folder=folder, default='Programs', ext='xlsx')
         ss = self.to_spreadsheet()
-        ss.save(fname)
+        ss.save(full_path)
+        return full_path
 
     def _read_targeting(self,sheet):
         # This function reads a targeting sheet and instantiates all of the programs with appropriate targets, putting them
@@ -318,10 +345,20 @@ class ProgramSet(NamedItem):
 
             for i in range(pop_start_idx, comp_start_idx):
                 if row[i].value and sc.isstring(row[i].value) and row[i].value.lower().strip() == 'y':
+                    if pop_idx[i] not in pop_codenames:
+                        message = 'There was a mismatch between the populations in the databook and the populations in the program book'
+                        message += '\nThe program book contains population "%s", while the databook contains: %s' % (pop_idx[i],[str(x) for x in pop_codenames.keys()])
+                        raise AtomicaException(message)
+
                     target_pops.append(pop_codenames[pop_idx[i]]) # Append the pop's codename
 
             for i in range(comp_start_idx, len(headers)):
                 if row[i].value and sc.isstring(row[i].value) and row[i].value.lower().strip() == 'y':
+                    if comp_idx[i] not in comp_codenames:
+                        message = 'There was a mismatch between the compartments in the databook and the compartments in the Framework file'
+                        message += '\nThe program book contains compartment "%s", while the Framework contains: %s' % (comp_idx[i],[str(x) for x in comp_codenames.keys()])
+                        raise AtomicaException(message)
+
                     target_comps.append(comp_codenames[comp_idx[i]])  # Append the pop's codename
 
             short_name = row[0].value.strip()
@@ -532,15 +569,15 @@ class ProgramSet(NamedItem):
                     sheet.write(current_row, 1, None, self._formats['unlocked'])
 
                 if covout and covout.cov_interaction is not None:
-                    sheet.write(current_row, 2, covout.cov_interaction,self._formats['not_required'])
+                    sheet.write(current_row, 2, covout.cov_interaction.title(),self._formats['not_required'])
                 else:
-                    sheet.write(current_row, 2, None, self._formats['unlocked'])
+                    sheet.write(current_row, 2, 'Additive', self._formats['unlocked'])
                 sheet.data_validation(xlrc(current_row, 2), {"validate": "list", "source": ["Random","Additive","Nested"]})
 
                 if covout and covout.imp_interaction is not None:
-                    sheet.write(current_row, 3, covout.imp_interaction,self._formats['not_required'])
+                    sheet.write(current_row, 3, covout.imp_interaction.title(),self._formats['not_required'])
                 else:
-                    sheet.write(current_row, 3, None, self._formats['unlocked'])
+                    sheet.write(current_row, 3, 'Best', self._formats['unlocked'])
                 sheet.data_validation(xlrc(current_row, 3), {"validate": "list", "source": ["Synergistic","Best"]})
 
                 if covout and covout.sigma is not None:
@@ -599,11 +636,7 @@ class ProgramSet(NamedItem):
             errormsg = 'Please just supply a number of programs, not "%s"' % (type(progs))
             raise AtomicaException(errormsg)
 
-        # First, assign the data and framework
-        if framework is None and project:
-            framework = project.framework
-        if data is None and project:
-            data = project.data
+        framework, data = ProgramSet.validate_inputs(framework,data,project)
 
         # Assign the pops
         if pops is None:
@@ -717,7 +750,7 @@ class ProgramSet(NamedItem):
 
         return default_budget
 
-    def get_num_covered(self, year=None, alloc=None):
+    def get_num_covered(self, year=None, alloc=None, unit_cost=None, capacity=None,sample='best'):
         ''' Extract the number of people covered by a program, optionally specifying an overwrite for the alloc '''
 
         num_covered = sc.odict() # Initialise outputs
@@ -732,7 +765,7 @@ class ProgramSet(NamedItem):
             else:
                 spending = None
 
-            num_covered[prog.name] = prog.get_num_covered(year=year, budget=spending)
+            num_covered[prog.name] = prog.get_num_covered(year=year, budget=spending, unit_cost=unit_cost, capacity=capacity, sample=sample)
 
         return num_covered
 
@@ -768,7 +801,7 @@ class ProgramSet(NamedItem):
         else:
             return self.get_num_covered(year=year, unit_cost=unit_cost, capacity=capacity, alloc=alloc, sample=sample)
 
-    def get_outcomes(self, num_covered=None, prop_covered=None):
+    def get_outcomes(self,num_covered=None, prop_covered=None, par_covered=None):
         ''' Get a dictionary of parameter values associated with coverage levels'''
         # TODO - add sampling back in once we've decided how to do it
         # INPUTS
@@ -778,16 +811,38 @@ class ProgramSet(NamedItem):
 
         for covkey in prop_covered.keys(): # Ensure coverage level values are arrays
             prop_covered[covkey] = sc.promotetoarray(prop_covered[covkey])
-            num_covered[covkey] = sc.promotetoarray(num_covered[covkey])
             for item in prop_covered[covkey]:
                 if item<0 or item>1:
                     errormsg = 'Expecting coverage to be a proportion, value for entry %s is %s' % (covkey, item)
                     raise AtomicaException(errormsg)
 
+        # TODO - Here is the par/pop disaggregation based on parameter coverage for the parameters actually reached
+        # Note that this does still ignore the compartment targeting
+        # The covout is specific to a par-pop combination
+        # The program coverage needs to be rescaled in the same proportion as the source popsizes
+        # i.e. suppose a program targets pars A and B in pops 1 and 2
+        # If the program has coverage of 100, and par A reaches (200,300) and par B reaches (400,500) then we would allocate:
+        # 100* (200/1400, 300/1400, 400/1400, 500/1400)
+        # So - the denominator is at the _program_ level
+        prog_denominator = dict()
+        for prog in self.programs:
+            for covout in self.covouts.values():
+                if prog in covout.progs:
+                    if prog not in prog_denominator:
+                        prog_denominator[prog] = par_covered[(covout.par,covout.pop)]
+                    else:
+                        prog_denominator[prog] += par_covered[(covout.par,covout.pop)]
+
         # Initialise output
         outcomes = dict()
         for covout in self.covouts.values():
-            outcomes[(covout.par,covout.pop)] = covout.get_outcome(num_covered=num_covered, prop_covered=prop_covered)
+            covout_num_covered = dict()
+            for prog in covout.progs:
+                if not prog_denominator[prog]:
+                    covout_num_covered[prog] = sc.promotetoarray(0.0)
+                else:
+                    covout_num_covered[prog] = sc.promotetoarray(num_covered[prog] * par_covered[(covout.par,covout.pop)]/prog_denominator[prog])
+            outcomes[(covout.par,covout.pop)] = covout.get_outcome(num_covered=covout_num_covered, prop_covered=prop_covered)
         return outcomes
 
 #--------------------------------------------------------------------
@@ -937,9 +992,16 @@ class Covout(object):
            )
     '''
 
-    def __init__(self, par, pop, progs, cov_interaction='additive', imp_interaction='best', uncertainty=0.0, baseline=0.0, is_num_par=False):
-        assert cov_interaction in ['additive','random','nested']
-        assert imp_interaction in ['best','synergistic']
+    def __init__(self, par, pop, progs, cov_interaction=None, imp_interaction=None, uncertainty=0.0, baseline=0.0, is_num_par=False):
+        if cov_interaction is None:
+            cov_interaction = 'additive'
+        else:
+            assert cov_interaction in ['additive','random','nested'], 'Coverage interaction must be set to "additive", "random", or "nested"'
+
+        if imp_interaction is None:
+            imp_interaction = 'best'
+        else:
+            assert imp_interaction in ['best','synergistic'], 'Impact interaction must be "best" or "synergistic"'
 
         self.par = par
         self.pop = pop
@@ -988,7 +1050,7 @@ class Covout(object):
         output += sc.indent('    Programs: ', ', '.join(['%s: %s' % (key,val) for key,val in self.progs.items()]))
         output += '\n'
         return output
-
+        
     def get_outcome(self, num_covered=None, prop_covered=None):
         # num_covered and prop_covered are dicts with {prog_name:coverage} at least containing all of the
         # programs in self.progs.
@@ -1004,13 +1066,13 @@ class Covout(object):
         num_cov = np.array(num_cov)
         outcome = self.baseline # Accumulate the outcome by adding the deltas onto this
 
+#        # If the parameter is in number format, use number covered as the outcome, implicitly treating as additive
+        if self.is_num_par:   
+            return outcome + sum(num_cov*self.deltas)
+
         # If there's only one program, then just use the outcome directly
         if self.n_progs == 1:
             return outcome + cov[0]*self.deltas[0]
-
-        # If the parameter is in number format, use number covered as the outcome, implicitly treating as additive
-        if self.is_num_par:   
-            return outcome + sum(num_cov)
 
         # ADDITIVE CALCULATION
         if self.cov_interaction == 'additive':
@@ -1079,6 +1141,6 @@ class Covout(object):
             idx = np.argmax(abs(tmp))
             return tmp[idx]
         elif self.imp_interaction == 'synergistic':
-            raise NotImplementedError
+            raise NotImplementedError('The "synergistic" impact interaction is not yet implemented. Please use the "best" interaction for now')
         else:
             raise AtomicaInputError('Unknown impact interaction "%s"' % (self.imp_interaction))
