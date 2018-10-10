@@ -554,6 +554,9 @@ Last update: 2018-09-06
             this.table = response.data.table
             this.jsonData = response.data.jsondata
             this.jsonColors = response.data.jsoncolors
+            console.log('TEMPPP debugging')
+            console.log(this.jsonData)
+            console.log(this.jsonColors)
             status.succeed(this, 'Simulation run, graphs now rendering...')
           })
           .catch(error => {
