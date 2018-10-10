@@ -1,7 +1,7 @@
 <!--
 Manage projects page
 
-Last update: 2018-09-12
+Last update: 2018sep23
 -->
 
 <template>
@@ -104,12 +104,12 @@ Last update: 2018-09-12
             </td>
             <td style="text-align:left">
               <button class="btn __blue btn-icon" @click="uploadDatabook(projectSummary.project.id)" data-tooltip="Upload">  <i class="ti-upload"></i></button>
-              <button class="btn btn-icon" @click="downloadDatabook(projectSummary.project.id)"      data-tooltip="Download"><i class="ti-download"></i></button>
+              <button class="btn btn-icon" :disabled="!projectSummary.project.hasData" @click="downloadDatabook(projectSummary.project.id)"      data-tooltip="Download"><i class="ti-download"></i></button>
             </td>
             <td style="white-space: nowrap; text-align:left">
               <button class="btn btn-icon" @click="createProgbookModal(projectSummary.project.id)"   data-tooltip="New">     <i class="ti-plus"></i></button>
               <button class="btn __blue btn-icon" @click="uploadProgbook(projectSummary.project.id)" data-tooltip="Upload">  <i class="ti-upload"></i></button>
-              <button class="btn btn-icon" @click="downloadProgbook(projectSummary.project.id)"      data-tooltip="Download"><i class="ti-download"></i></button>
+              <button class="btn btn-icon" :disabled="!projectSummary.project.hasPrograms" @click="downloadProgbook(projectSummary.project.id)"      data-tooltip="Download"><i class="ti-download"></i></button>
             </td>
           </tr>
           </tbody>
@@ -225,8 +225,8 @@ Last update: 2018-09-12
         </div>
         <!-- ### End: Cascade demo project modal ### -->
 
-      </div>        
-        
+      </div>
+
       <!-- ### Start: TB demo project modal ### -->
       <div v-if="$globaltool=='tb'" class="dialog-content">
         <div class="dialog-c-title">
@@ -280,21 +280,62 @@ Last update: 2018-09-12
         <div class="dialog-c-title">
           Create program book
         </div>
-        <div class="dialog-c-text">
-          Number of programs:<br>
-          <input type="text"
-                 class="txbox"
-                 v-model="num_progs"/><br>
-        </div>
-        <div style="text-align:justify">
-          <button @click="createProgbook()" class='btn __green' style="display:inline-block">
-            Create
-          </button>
 
-          <button @click="$modal.hide('create-progbook')" class='btn __red' style="display:inline-block">
-            Cancel
-          </button>
+        <div class="divTable">
+          <div class="divTableBody">
+            <div class="divTableRow">
+              <div class="divRowContent" style="padding-bottom:10px"><b>Start year: &nbsp;</b></div>
+              <div class="divRowContent" style="padding-bottom:10px"><select v-model="progStartYear"><option v-for='year in simYears'>{{ year }}</option></select></div>
+            </div>
+            <div class="divTableRow">
+              <div class="divRowContent" style="padding-bottom:10px"><b>End year: &nbsp;</b></div>
+              <div class="divRowContent" style="padding-bottom:10px"><select v-model="progEndYear"><option v-for='year in simYears'>{{ year }}</option></select></div>
+            </div>
+          </div>
         </div>
+
+        <div v-if="$globaltool=='cascade'">
+          <div class="dialog-c-text">
+            Number of programs:<br>
+            <input type="text"
+                   class="txbox"
+                   v-model="num_progs"/><br>
+          </div>
+          <div style="text-align:justify">
+            <button @click="createProgbook()" class='btn __green' style="display:inline-block">Create</button>&nbsp;&nbsp;&nbsp;
+            <button @click="$modal.hide('create-progbook')" class='btn __red' style="display:inline-block">Cancel</button>
+          </div>
+        </div>
+
+        <div v-if="$globaltool=='tb'">
+
+          <div class="scrolltable" style="max-height: 70vh;">
+            <table class="table table-bordered table-striped table-hover">
+              <thead>
+              <tr>
+                <th>Program name</th>
+                <th style="text-align: center">Include?</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr v-for="defaultProgram in defaultPrograms">
+                <td>
+                  {{ defaultProgram.name }}
+                </td>
+                <td style="text-align: center">
+                  <input type="checkbox" v-model="defaultProgram.included"/>
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+          <div style="text-align:justify">
+            <br>
+            <button @click="createDefaultProgbook()" class='btn __green' style="display:inline-block">Create</button>&nbsp;&nbsp;&nbsp;
+            <button @click="$modal.hide('create-progbook')" class='btn __red' style="display:inline-block">Cancel</button>
+          </div>
+        </div>
+
       </div>
     </modal>
     <!-- ### End: New progbook modal ### -->
@@ -325,34 +366,45 @@ Last update: 2018-09-12
         proj_name:  'New project', // For creating a new project: number of populations
         num_pops:   5, // For creating a new project: number of populations
         num_progs:  5, // For creating a new project: number of populations
-        data_start: 2000, // For creating a new project: number of populations
-        data_end:   2035, // For creating a new project: number of populations
+        data_start: 2015, // For creating a new project: number of populations
+        data_end:   2018, // For creating a new project: number of populations
         activeuid:  [], // WARNING, kludgy to get create progbook working
         frameworkSummaries: [],
         currentFramework: '',
         demoOptions: [],
         demoOption: '',
+        defaultPrograms: [],
+        progStartYear: [],
+        progEndYear: [],
       }
     },
 
     computed: {
       projectID()    { return utils.projectID(this) },
+      userName()     { return this.$store.state.currentUser.username },
+      simYears()     { return utils.simYears(this) },
       sortedFilteredProjectSummaries() {
         return this.applyNameFilter(this.applySorting(this.projectSummaries))
       },
     },
 
     created() {
-      let projectId = null
+      let projectID = null
       if (this.$store.state.currentUser.displayname === undefined) { // If we have no user logged in, automatically redirect to the login page.
         router.push('/login')
       } else {    // Otherwise...
         if (this.$store.state.activeProject.project !== undefined) { // Get the active project ID if there is an active project.
-          projectId = this.$store.state.activeProject.project.id
+          projectID = this.$store.state.activeProject.project.id
         }
+        this.getDefaultPrograms()
         this.getDemoOptions()
         this.updateFrameworkSummaries()        // Load the frameworks so the new project dialog is populated
-        this.updateProjectSummaries(projectId) // Load the project summaries of the current user.
+        this.updateProjectSummaries(projectID) // Load the project summaries of the current user.
+        utils.sleep(2000) // This can take a surprisingly long time...
+          .then(response => {
+            this.progStartYear = this.simYears[0] // This isn't ideal, but this ensures that the drop-down boxes are actually populated
+            this.progEndYear = this.simYears[this.simYears.length -1]
+          })
       }
     },
 
@@ -389,11 +441,24 @@ Last update: 2018-09-12
           })
       },
 
+      getDefaultPrograms() {
+        console.log('getDefaultPrograms() called')
+        rpcs.rpc('get_default_programs') // Get the current user's framework summaries from the server.
+          .then(response => {
+            this.defaultPrograms = response.data // Set the frameworks to what we received.
+            console.log('Loaded default programs:')
+            console.log(this.defaultPrograms)
+          })
+          .catch(error => {
+            status.fail(this, 'Could not load default programs', error)
+          })
+      },
+
       updateFrameworkSummaries() {
         console.log('updateFrameworkSummaries() called')
 
         // Get the current user's framework summaries from the server.
-        rpcs.rpc('load_current_user_framework_summaries')
+        rpcs.rpc('jsonify_frameworks', [this.userName])
           .then(response => {
             // Set the frameworks to what we received.
             this.frameworkSummaries = response.data.frameworks
@@ -415,7 +480,7 @@ Last update: 2018-09-12
       updateProjectSummaries(setActiveID) {
         console.log('updateProjectSummaries() called')
         status.start(this)
-        rpcs.rpc('load_current_user_project_summaries') // Get the current user's project summaries from the server.
+        rpcs.rpc('jsonify_projects', [this.userName]) // Get the current user's project summaries from the server.
           .then(response => {
             let lastCreationTime = null
             let lastCreatedID = null
@@ -439,7 +504,7 @@ Last update: 2018-09-12
                 this.openProject(setActiveID)
               }
             }
-            status.succeed(this, '')
+            status.succeed(this, '')  // No green popup.
           })
           .catch(error => {
             status.fail(this, 'Could not load projects', error)
@@ -457,9 +522,9 @@ Last update: 2018-09-12
         if (this.$globaltool === 'tb') {
           demoOption = 'default'
         }
-        rpcs.rpc('add_demo_project', [this.$store.state.currentUser.UID, demoOption, this.$globaltool]) // Have the server create a new project.
+        rpcs.rpc('add_demo_project', [this.userName, demoOption, this.$globaltool]) // Have the server create a new project.
           .then(response => {
-            this.updateProjectSummaries(response.data.projectId) // Update the project summaries so the new project shows up on the list.
+            this.updateProjectSummaries(response.data.projectID) // Update the project summaries so the new project shows up on the list.
             status.succeed(this, '') // Already have notification from project
           })
           .catch(error => {
@@ -501,7 +566,7 @@ Last update: 2018-09-12
           frameworkID = null
         }
         rpcs.download('create_new_project',  // Have the server create a new project.
-          [this.$store.state.currentUser.UID, frameworkID, this.proj_name, this.num_pops, this.num_progs, this.data_start, this.data_end], {tool: this.$globaltool})
+          [this.userName, frameworkID, this.proj_name, this.num_pops, this.num_progs, this.data_start, this.data_end], {tool: this.$globaltool})
           .then(response => {
             this.updateProjectSummaries(null) // Update the project summaries so the new project shows up on the list. Note: There's no easy way to get the new project UID to tell the project update to choose the new project because the RPC cannot pass it back.
             status.succeed(this, 'New project "' + this.proj_name + '" created') // Indicate success.
@@ -513,10 +578,10 @@ Last update: 2018-09-12
 
       uploadProjectFromFile() {
         console.log('uploadProjectFromFile() called')
-        rpcs.upload('create_project_from_prj_file', [this.$store.state.currentUser.UID], {}, '.prj') // Have the server upload the project.
+        rpcs.upload('upload_project', [this.userName], {}, '.prj') // Have the server upload the project.
           .then(response => {
             status.start(this)  // This line needs to be here to avoid the spinner being up during the user modal.
-            this.updateProjectSummaries(response.data.projectId) // Update the project summaries so the new project shows up on the list.
+            this.updateProjectSummaries(response.data.projectID) // Update the project summaries so the new project shows up on the list.
             status.succeed(this, 'New project uploaded')
           })
           .catch(error => {
@@ -578,7 +643,7 @@ Last update: 2018-09-12
         status.start(this)
         rpcs.rpc('copy_project', [uid]) // Have the server copy the project, giving it a new name.
           .then(response => {
-            this.updateProjectSummaries(response.data.projectId) // Update the project summaries so the copied program shows up on the list.
+            this.updateProjectSummaries(response.data.projectID) // Update the project summaries so the copied program shows up on the list.
             status.succeed(this, 'Project "'+matchProject.project.name+'" copied')    // Indicate success.
           })
           .catch(error => {
@@ -594,7 +659,7 @@ Last update: 2018-09-12
           let newProjectSummary = _.cloneDeep(projectSummary) // Make a deep copy of the projectSummary object by JSON-stringifying the old object, and then parsing the result back into a new object.
           newProjectSummary.project.name = projectSummary.renaming // Rename the project name in the client list from what's in the textbox.
           status.start(this)
-          rpcs.rpc('update_project_from_summary', [newProjectSummary]) // Have the server change the name of the project by passing in the new copy of the summary.
+          rpcs.rpc('rename_project', [newProjectSummary]) // Have the server change the name of the project by passing in the new copy of the summary.
             .then(response => {
               this.updateProjectSummaries(newProjectSummary.project.id) // Update the project summaries so the rename shows up on the list.
               projectSummary.renaming = '' // Turn off the renaming mode.
@@ -664,7 +729,6 @@ Last update: 2018-09-12
             status.succeed(this, '')
           })
           .catch(error => {
-
             status.fail(this, 'Could not download program book', error)
           })
       },
@@ -672,16 +736,29 @@ Last update: 2018-09-12
       createProgbook() {
         // Find the project that matches the UID passed in.
         let uid = this.activeuid
-        let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
-        console.log('createProgbook() called for ' + matchProject.project.name)
+        console.log('createProgbook() called')
         this.$modal.hide('create-progbook')
         status.start(this, 'Creating program book...')
-        rpcs.download('create_progbook', [uid, this.num_progs])
+        rpcs.download('create_progbook', [uid, this.num_progs, this.progStartYear, this.progEndYear])
           .then(response => {
             status.succeed(this, '')
           })
           .catch(error => {
+            status.fail(this, 'Could not create program book', error)
+          })
+      },
 
+      createDefaultProgbook() {
+        // Find the project that matches the UID passed in.
+        let uid = this.activeuid
+        console.log('createDefaultProgbook() called')
+        this.$modal.hide('create-progbook')
+        status.start(this, 'Creating default program book...')
+        rpcs.download('create_default_progbook', [uid, this.progStartYear, this.progEndYear, this.defaultPrograms]) // TODO: set years
+          .then(response => {
+            status.succeed(this, '')
+          })
+          .catch(error => {
             status.fail(this, 'Could not create program book', error)
           })
       },
@@ -701,13 +778,12 @@ Last update: 2018-09-12
 
       uploadProgbook(uid) {
         // Find the project that matches the UID passed in.
-        let matchProject = this.projectSummaries.find(theProj => theProj.project.id === uid)
-        console.log('uploadProgbook() called for ' + matchProject.project.name)
+        console.log('uploadProgbook() called')
         rpcs.upload('upload_progbook', [uid], {}, '.xlsx')
           .then(response => {
             status.start(this)
             this.updateProjectSummaries(uid) // Update the project summaries so the copied program shows up on the list.
-            status.succeed(this, 'Programs uploaded to project "'+matchProject.project.name+'"')   // Indicate success.
+            status.succeed(this, 'Programs uploaded')   // Indicate success.
           })
           .catch(error => {
             status.fail(this, 'Could not upload program book', error)
@@ -736,7 +812,7 @@ Last update: 2018-09-12
         console.log('deleteSelectedProjects() called for ', selectProjectsUIDs)
         if (selectProjectsUIDs.length > 0) { // Have the server delete the selected projects.
           status.start(this)
-          rpcs.rpc('delete_projects', [selectProjectsUIDs])
+          rpcs.rpc('delete_projects', [selectProjectsUIDs, this.userName])
             .then(response => {
               let activeProjectId = this.$store.state.activeProject.project.id // Get the active project ID.
               if (activeProjectId === undefined) {
@@ -761,7 +837,7 @@ Last update: 2018-09-12
         console.log('downloadSelectedProjects() called for ', selectProjectsUIDs)
         if (selectProjectsUIDs.length > 0) { // Have the server download the selected projects.
           status.start(this)
-          rpcs.download('load_zip_of_prj_files', [selectProjectsUIDs])
+          rpcs.download('download_projects', [selectProjectsUIDs, this.userName])
             .then(response => {
               status.succeed(this, '')
             })

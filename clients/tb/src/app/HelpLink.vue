@@ -54,19 +54,19 @@ Last update: 2018-08-23
         }
       }
       if (this.$globaltool === 'tb') {
-        baseURL = 'https://docs.google.com/document/d/1pfagfdlJQMMofckU85SHu_IWbtGTCn-U04jOd1GKWMU/edit#heading='
+        baseURL = 'https://docs.google.com/document/d/1UGcq-UDQKBsdmPAyYBDsxvOERI-gNF3usSrYrP16tnw/edit#heading='
         linkMap = {
-            'create-projects': 'h.1ksv4uv',
+            'create-projects': 'h.mok29y1bw52s',
             'manage-projects': 'h.3whwml4',
-            'databook-entry': 'h.3whwml4',
-            'progbook-entry': 'h.jae00uzvpx4',
+            'databook-entry': 'h.jf0nllvvnrhi',
+            'progbook-entry': 'h.ruemc46utk6q',
             'bl-overview': 'h.25b2l0r',
-            'parameter-sets': 'h.3hv69ve',
+            'parameter-sets': 'h.kgcv8k',
             'automatic-calibration': 'h.34g0dwd',
             'manual-calibration': 'h.1jlao46',
             'reconciliation': 'h.3mzq4wv',
             'bl-results': 'h.43ky6rz',
-            'define-scenarios': 'h.2250f4o',
+            'define-scenarios': 'h.ijl90xrsiqu2',
             'sc-results': 'h.3ep43zb',
             'define-optimizations': 'h.1tuee74',
             'op-results': 'h.36ei31r'

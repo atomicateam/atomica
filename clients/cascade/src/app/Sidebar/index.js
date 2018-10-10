@@ -3,6 +3,11 @@ import Sidebar from './SideBar.vue'
 const SidebarStore = {
   showSidebar: false,
   sidebarLinks: [
+        {
+          path: '/frameworks',  // CASCADE-TB DIFFERENCE
+          name: 'Frameworks',
+          icon: 'ti-layout',
+        },
     {
       name: 'Projects',
       icon: 'ti-view-grid',

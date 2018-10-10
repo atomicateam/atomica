@@ -199,7 +199,7 @@ def read_tables(worksheet):
     for i,row in enumerate(worksheet.rows):
 
         # Skip any rows starting with '#ignore'
-        if row[0].value and row[0].value.startswith('#ignore'):
+        if row[0].value and sc.isstring(row[0].value) and row[0].value.startswith('#ignore'):
             continue  # Move on to the next row if row skipping is marked True
 
         # Find out whether we need to add the row to the buffer
@@ -356,10 +356,12 @@ class TimeDependentConnections(object):
                 from_pop = vals[0]
                 to_pop = vals[2]
                 units = vals[3].lower().strip() if vals[3] else None
+                if units is None:
+                    raise AtomicaException(str('The units for transfer "%s" ("%s"->"%s") cannot be empty' % (full_name,from_pop,to_pop)))
                 assumption = vals[4] # This is the assumption cell
-                assert vals[5] == 'OR' # Double check we are reading a time-dependent row with the expected shape
+                assert vals[5].strip() == 'OR' # Double check we are reading a time-dependent row with the expected shape
                 ts = TimeSeries(format=units,units=units)
-                if assumption:
+                if assumption is not None:
                     ts.insert(None, assumption)
                 for t, v in zip(tvec, vals[6:]):
                     if v is not None:
@@ -441,7 +443,7 @@ class TimeDependentConnections(object):
                     worksheet.write_formula(current_row, 1, gate_content('--->', entry_cell), formats['center'], value='--->')
                     worksheet.write_formula(current_row, 2, gate_content(references[to_pop], entry_cell), formats['center_bold'], value=to_pop)
                     update_widths(widths, 2, to_pop)
-                    worksheet.write(current_row, 3, ts.format.title())
+                    worksheet.write(current_row, 3, ts.format.title(), format)
                     update_widths(widths, 3, ts.format.title())
 
                     if self.allowed_units:
@@ -454,7 +456,8 @@ class TimeDependentConnections(object):
                     worksheet.write_formula(current_row, 0, gate_content(references[from_pop], entry_cell), formats['center_bold'], value='...')
                     worksheet.write_formula(current_row, 1, gate_content('--->', entry_cell), formats['center'], value='...')
                     worksheet.write_formula(current_row, 2, gate_content(references[to_pop], entry_cell), formats['center_bold'], value='...')
-                    worksheet.write_blank(current_row, 3, '')
+                    worksheet.write_blank(current_row, 3, '', format)
+
                     if self.allowed_units:
                         worksheet.data_validation(xlrc(current_row, 3), {"validate": "list", "source": [x.title() for x in self.allowed_units]})
                     worksheet.write_blank(current_row, 4, '', format)
@@ -486,7 +489,7 @@ class TimeDependentConnections(object):
                 worksheet.conditional_format(xlrc(current_row, 4), {'type': 'formula', 'criteria': '=AND(%s,NOT(ISBLANK(%s)))' % (fcn_empty_times, xlrc(current_row, 4)), 'format': formats['ignored_warning']})
 
                 # Conditional formatting for the row - it has a white background if the gating cell is 'N'
-                worksheet.conditional_format('%s' % (xlrc(current_row, 4)), {'type': 'formula', 'criteria': '=%s<>"Y"' % (entry_cell), 'format': formats['white_bg']})
+                worksheet.conditional_format('%s:%s' % (xlrc(current_row, 3), xlrc(current_row, 4)), {'type': 'formula', 'criteria': '=%s<>"Y"' % (entry_cell), 'format': formats['white_bg']})
                 worksheet.conditional_format('%s:%s' % (xlrc(current_row, offset), xlrc(current_row, offset + idx)), {'type': 'formula', 'criteria': '=%s<>"Y"' % (entry_cell), 'format': formats['white_bg']})
 
         current_row += 2
@@ -548,7 +551,9 @@ class TimeDependentValuesEntry(object):
         vals = [x.value for x in rows[0]]
 
         if vals[0] is None:
-            raise AtomicaException('TDVE table name is missing. This can also happen if extra rows have been added without a "#ignore" entry in the first column')
+            raise AtomicaException('In cell %s of the spreadsheet, the name of the table is missing. This can also happen if extra rows have been added without a "#ignore" entry in the first column' % (rows[0][0].coordinate))
+        elif not sc.isstring(vals[0]):
+            raise AtomicaException('In cell %s of the spreadsheet, the name of the quantity assigned to this table needs to be a string' % rows[0][0].coordinate)
         name = vals[0].strip()
 
         lowered_headings = [x.lower().strip() if sc.isstring(x) else x for x in vals]
@@ -591,9 +596,12 @@ class TimeDependentValuesEntry(object):
         # For each TimeSeries that we will instantiate
         for row in rows[1:]:
             vals = [x.value for x in row]
-            series_name = vals[0]
+            if not sc.isstring(vals[0]):
+                raise AtomicaException('In cell %s of the spreadsheet, the name of the entry was expected to be a string, but it was not. The left-most column is expected to be a name. If you are certain the value is correct, add an single quote character at the start of the cell to ensure it remains as text' % row[0].coordinate)
+            series_name = vals[0].strip()
 
             if units_index is not None:
+                assert sc.isstring(vals[units_index]), "The 'units' quantity needs to be specified as text e.g. 'probability'"
                 units = vals[units_index].lower().strip() if vals[units_index] else None
                 format = units
             else:
@@ -617,7 +625,7 @@ class TimeDependentValuesEntry(object):
                 ts.assumption = None
 
             if constant_index is not None:
-                assert vals[offset - 1] == 'OR', 'Error with validating row in TDVE table "%s"' % (name)  # Check row is as expected
+                assert vals[offset - 1].strip() == 'OR', 'Error with validating row in TDVE table "%s" (did not find the text "OR" in the expected place)' % (name)  # Check row is as expected
 
             data = vals[offset:t_end]
 
@@ -741,3 +749,9 @@ class TimeDependentValuesEntry(object):
             worksheet.conditional_format(xlrc(current_row, 2), {'type': 'formula', 'criteria':'=AND(%s,NOT(ISBLANK(%s)))' % (fcn_empty_times,xlrc(current_row,2)),'format':formats['ignored_warning']})
 
         return current_row+2 # Add two so there is a blank line after this table
+
+def cell_require_string(cell):
+    # Take in an openpyxl Cell instance, if it doesn't contain a string, then throw a helpful error
+    if not sc.isstring(cell.value):
+        raise AtomicaException('Cell %s needs to contain a string (i.e. not a number, date, or other cell type)' % cell.coordinate)
+

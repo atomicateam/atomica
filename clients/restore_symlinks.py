@@ -8,7 +8,6 @@ import os
 dryrun = False
 folders = ['cascade', 'tb']
 links = ['static']
-vueapp = 'src/components/app'
 
 for folder in folders:
     for link in links:
@@ -24,9 +23,4 @@ for folder in folders:
         if not dryrun:
             os.system(cmd2)
 
-for folder in folders:
-    cmd3 = 'ln -s ' + vueapp + ' ' + folder+'/vueapp'
-    print(cmd3)
-    if not dryrun:
-        os.system(cmd3)
-
+print('Symlinks restored.')

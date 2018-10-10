@@ -1,4 +1,4 @@
-$line-height-base:        0.8; // 1.428571429; // 20/14
+$line-height-base:        1.2; // 1.428571429; // 20/14
 $line-height-computed:    floor((14px * $line-height-base)); // ~20px
 
 $table-cell-padding:                 0px;
@@ -14,6 +14,7 @@ $table-bg-active:                    $table-bg-hover;
   width: 100%;
   background-color: $table-bg;
   margin-bottom: $line-height-computed;
+  border: 2px solid #ddd;
 
   thead,
   tbody,
@@ -174,9 +175,20 @@ $table-bg-active:                    $table-bg-hover;
 }
 
 
+.scrolltable {
+  overflow-y: auto;
+}
+
+.scrolltable th {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+
+
+
 // Table cell sizing
-//
-// Reset default table behavior
 
 table col[class*="col-"] {
   position: static; // Prevent border hiding in Firefox and IE9/10 (see https://github.com/twbs/bootstrap/issues/11623)

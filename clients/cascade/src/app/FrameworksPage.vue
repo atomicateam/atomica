@@ -1,24 +1,19 @@
 <!--
 Manage frameworks page
 
-Last update: 2018-08-18
+Last update: 2018sep23
 -->
 
 <template>
-  <div>
-    <!--<div class="PageSection">-->
+  <div class="SitePage">
       <div class="card">
         <help reflink="create-frameworks" label="Create frameworks"></help>
 
         <div class="ControlsRow">
-          <button class="btn __blue" @click="addDemoFrameworkModal">Load framework from library</button>
-          &nbsp; &nbsp;
-          <button class="btn __blue" @click="createNewFrameworkModal">Create new framework</button>
-          &nbsp; &nbsp;
+          <button class="btn __blue" @click="addDemoFrameworkModal">Load framework from library</button>&nbsp; &nbsp;
+          <button class="btn __blue" @click="createNewFrameworkModal">Create new framework</button>&nbsp; &nbsp;
           <button class="btn __blue" @click="uploadFrameworkFromFile">Upload framework from file</button>
-          &nbsp; &nbsp;
         </div>
-      <!--</div>-->
     </div><br>
 
     <div class="card"
@@ -77,8 +72,6 @@ Last update: 2018-08-18
         </tr>
         </thead>
         <tbody>
-<!--        <tr v-for="frameworkSummary in sortedFilteredFrameworkSummaries"
-            :class="{ highlighted: frameworkIsActive(frameworkSummary.framework.id) }">  -->      
         <tr v-for="frameworkSummary in sortedFilteredFrameworkSummaries">
           <td>
             <input type="checkbox" @click="uncheckSelectAll()" v-model="frameworkSummary.selected"/>
@@ -229,7 +222,7 @@ Last update: 2018-08-18
 
     created() {
       // If we have no user logged in, automatically redirect to the login page.
-      if (this.$store.state.currentUser.displayname == undefined) {
+      if (this.$store.state.currentUser.username === undefined) {
         router.push('/login')
       }
 
@@ -272,7 +265,7 @@ Last update: 2018-08-18
 
       updateFrameworkSummaries() {
         console.log('updateFrameworkSummaries() called')
-        rpcs.rpc('load_current_user_framework_summaries') // Get the current user's framework summaries from the server.
+        rpcs.rpc('jsonify_frameworks', [this.$store.state.currentUser.username]) // Get the current user's framework summaries from the server.
         .then(response => {
           this.frameworkSummaries = response.data.frameworks // Set the frameworks to what we received.
           this.frameworkSummaries.forEach(theFrame => { // Preprocess all frameworks.
@@ -292,17 +285,13 @@ Last update: 2018-08-18
         console.log('addDemoFramework() called')
         this.$modal.hide('demo-framework')
         status.start(this) 
-        rpcs.rpc('add_demo_framework', [this.$store.state.currentUser.UID, this.currentFramework]) // Have the server create a new framework.
+        rpcs.rpc('add_demo_framework', [this.$store.state.currentUser.username, this.currentFramework]) // Have the server create a new framework.
         .then(response => {         
-          // Update the framework summaries so the new framework shows up on the list.
-          this.updateFrameworkSummaries()
-          
-          // Indicate success.
-          status.succeed(this, 'Library framework loaded')
+          this.updateFrameworkSummaries() // Update the framework summaries so the new framework shows up on the list.
+          status.succeed(this, 'Library framework loaded') // Indicate success.
         })
         .catch(error => {
-          
-          status.fail(this, 'Could not load framework')  
+          status.fail(this, 'Could not load framework', error)
         })            
       },
 
@@ -322,7 +311,7 @@ Last update: 2018-08-18
         console.log('createNewFramework() called with advanced=' + this.advancedFramework)
         this.$modal.hide('create-framework')
         status.start(this) 
-        rpcs.download('create_new_framework', [this.advancedFramework]) // Have the server create a new framework.
+        rpcs.download('download_new_framework', [this.advancedFramework]) // Have the server create a new framework.
         .then(response => {
           status.succeed(this, '')
         })
@@ -333,7 +322,7 @@ Last update: 2018-08-18
 
       uploadFrameworkFromFile() {
         console.log('uploadFrameworkFromFile() called')
-          rpcs.upload('create_framework_from_file', [this.$store.state.currentUser.UID], {}, '.xlsx') // Have the server upload the framework.
+          rpcs.upload('upload_new_frameworkbook', [this.$store.state.currentUser.username], {}, '.xlsx') // Have the server upload the framework.
           .then(response => {
             status.start(this) 
             this.updateFrameworkSummaries() // Update the framework summaries so the new framework shows up on the list.
@@ -356,13 +345,6 @@ Last update: 2018-08-18
 
       selectAll() {
         console.log('selectAll() called')
-
-        // For each of the frameworks, set the selection of the framework to the
-        // _opposite_ of the state of the all-select checkbox's state.
-        // NOTE: This function depends on it getting called before the
-        // v-model state is updated.  If there are some cases of Vue
-        // implementation where these happen in the opposite order, then
-        // this will not give the desired result.
         this.frameworkSummaries.forEach(theFramework => theFramework.selected = !this.allSelected)
       },
 
@@ -372,19 +354,11 @@ Last update: 2018-08-18
 
       updateSorting(sortColumn) {
         console.log('updateSorting() called')
-
-        // If the active sorting column is clicked...
-        if (this.sortColumn === sortColumn) {
-          // Reverse the sort.
-          this.sortReverse = !this.sortReverse
-        }
-        // Otherwise.
-        else {
-          // Select the new column for sorting.
-          this.sortColumn = sortColumn
-
-          // Set the sorting for non-reverse.
-          this.sortReverse = false
+        if (this.sortColumn === sortColumn) { // If the active sorting column is clicked...
+          this.sortReverse = !this.sortReverse // Reverse the sort.
+        } else { // Otherwise.
+          this.sortColumn = sortColumn // Select the new column for sorting.
+          this.sortReverse = false // Set the sorting for non-reverse.
         }
       },
 
@@ -401,15 +375,9 @@ Last update: 2018-08-18
         return frameworks.slice(0).sort((frw1, frw2) =>
           {
             let sortDir = this.sortReverse ? -1: 1
-            if (this.sortColumn === 'name') {
-              return (frw1.framework.name.toLowerCase() > frw2.framework.name.toLowerCase() ? sortDir: -sortDir)
-            }
-            else if (this.sortColumn === 'creationTime') {
-              return frw1.framework.creationTime > frw2.framework.creationTime ? sortDir: -sortDir
-            }
-            else if (this.sortColumn === 'updatedTime') {
-              return frw1.framework.updatedTime > frw2.framework.updatedTime ? sortDir: -sortDir
-            }
+            if      (this.sortColumn === 'name')         {return (frw1.framework.name.toLowerCase() > frw2.framework.name.toLowerCase() ? sortDir: -sortDir)}
+            else if (this.sortColumn === 'creationTime') {return (frw1.framework.creationTime       > frw2.framework.creationTime ? sortDir: -sortDir)}
+            else if (this.sortColumn === 'updatedTime')  {return (frw1.framework.updatedTime        > frw2.framework.updatedTime ? sortDir: -sortDir)}
           }
         )
       },
@@ -437,7 +405,7 @@ Last update: 2018-08-18
           let newFrameworkSummary = JSON.parse(JSON.stringify(frameworkSummary)) // Make a deep copy of the frameworkSummary object by JSON-stringifying the old object, and then parsing the result back into a new object.
           newFrameworkSummary.framework.name = frameworkSummary.renaming // Rename the framework name in the client list from what's in the textbox.
           status.start(this) 
-          rpcs.rpc('update_framework_from_summary', [newFrameworkSummary]) // Have the server change the name of the framework by passing in the new copy of the summary.
+          rpcs.rpc('rename_framework', [newFrameworkSummary]) // Have the server change the name of the framework by passing in the new copy of the summary.
           .then(response => {
             this.updateFrameworkSummaries() // Update the framework summaries so the rename shows up on the list.
             frameworkSummary.renaming = '' // Turn off the renaming mode.
@@ -458,15 +426,9 @@ Last update: 2018-08-18
       },
 
       downloadFrameworkFile(uid) {
-        // Find the framework that matches the UID passed in.
-        let matchFramework = this.frameworkSummaries.find(theFrame => theFrame.framework.id === uid)
-
-        console.log('downloadFrameworkFile() called for ' + matchFramework.framework.name)
-                
-        status.start(this) 
-      
-        // Make the server call to download the framework to a .prj file.
-        rpcs.download('download_framework', [uid])
+        console.log('downloadFrameworkFile() called')
+        status.start(this)
+        rpcs.download('download_framework', [uid]) // Make the server call to download the framework to a .prj file.
         .then(response => {
           status.succeed(this, '')        
         })
@@ -475,29 +437,10 @@ Last update: 2018-08-18
         })             
       },
 
-      downloadDefaults(uid) {
-        // Find the framework that matches the UID passed in.
-        let matchFramework = this.frameworkSummaries.find(theFrame => theFrame.framework.id === uid)
-
-        console.log('downloadDefaults() called for ' + matchFramework.framework.name)
-
-        // Make the server call to download the framework to a .prj file.
-        rpcs.download('download_defaults', [uid])
-        .catch(error => {
-          status.fail(this, 'Could not download defaults', error)     
-        })        
-      },
-
-      // Confirmation alert
       deleteModal() {
-        // Pull out the names of the frameworks that are selected.
-        let selectFrameworksUIDs = this.frameworkSummaries.filter(theFrame =>
-          theFrame.selected).map(theFrame => theFrame.framework.id)
-          
-        // Only if something is selected...
-        if (selectFrameworksUIDs.length > 0) {
-          // Alert object data
-          var obj = {
+        let selectFrameworksUIDs = this.frameworkSummaries.filter(theFrame => theFrame.selected).map(theFrame => theFrame.framework.id) // Pull out the names of the frameworks that are selected.
+        if (selectFrameworksUIDs.length > 0) { // Only if something is selected...
+          var obj = { // Alert object data
             message: 'Are you sure you want to delete the selected frameworks?',
             useConfirmBtn: true,
             customConfirmBtnClass: 'btn __red',
@@ -509,58 +452,32 @@ Last update: 2018-08-18
       },
 
       deleteSelectedFrameworks() {
-        // Pull out the names of the frameworks that are selected.
-        let selectFrameworksUIDs = this.frameworkSummaries.filter(theFrame =>
-          theFrame.selected).map(theFrame => theFrame.framework.id)
-
+        let selectFrameworksUIDs = this.frameworkSummaries.filter(theFrame => theFrame.selected).map(theFrame => theFrame.framework.id) // Pull out the names of the frameworks that are selected.
         console.log('deleteSelectedFrameworks() called for ', selectFrameworksUIDs)
-              
-        // Have the server delete the selected frameworks.
-        if (selectFrameworksUIDs.length > 0) {
+        if (selectFrameworksUIDs.length > 0) { // Have the server delete the selected frameworks.
           status.start(this)          
-          
-          rpcs.rpc('delete_frameworks', [selectFrameworksUIDs])
+          rpcs.rpc('delete_frameworks', [selectFrameworksUIDs, this.$store.state.currentUser.username])
           .then(response => {
-            // Get the active framework ID.
-/*            let activeFrameworkId = this.$store.state.activeFramework.framework.id
-            if (activeFrameworkId === undefined) {
-              activeFrameworkId = null
-            } 
-          
-            // Update the framework summaries so the deletions show up on the list. 
-            // Make sure it tries to set the framework that was active.
-            // TODO: This will cause problems until we add a check to 
-            // updateFrameworkSummaries() to make sure a framework still exists with 
-            // that ID.
-            this.updateFrameworkSummaries(activeFrameworkId) */
-              
             this.updateFrameworkSummaries(null)
-            
-            status.succeed(this, '')              
+            status.succeed(this, '')
           })
           .catch(error => {
-            status.fail(this, 'Could not delete framework/s', error)      
+            status.fail(this, 'Could not delete framework(s)', error)
           })                    
         }
       },
 
       downloadSelectedFrameworks() {
-        // Pull out the names of the frameworks that are selected.
-        let selectFrameworksUIDs = this.frameworkSummaries.filter(theFrame =>
-          theFrame.selected).map(theFrame => theFrame.framework.id)
-
-        console.log('deleteSelectedFrameworks() called for ', selectFrameworksUIDs)
-                 
-        // Have the server download the selected frameworks.
-        if (selectFrameworksUIDs.length > 0) {
+        let selectFrameworksUIDs = this.frameworkSummaries.filter(theFrame => theFrame.selected).map(theFrame => theFrame.framework.id) // Pull out the names of the frameworks that are selected.
+        console.log('downloadSelectedFrameworks() called for ', selectFrameworksUIDs)
+        if (selectFrameworksUIDs.length > 0) { // Have the server download the selected frameworks.
           status.start(this) 
-          
-          rpcs.download('load_zip_of_frw_files', [selectFrameworksUIDs])
+          rpcs.download('download_frameworks', [selectFrameworksUIDs, this.$store.state.currentUser.username])
           .then(response => {
             status.succeed(this, '')         
           })
           .catch(error => {
-            status.fail(this, 'Could not download framework/s', error) 
+            status.fail(this, 'Could not download framework(s)', error)
           })        
         }           
       }

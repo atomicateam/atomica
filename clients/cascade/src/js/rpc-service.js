@@ -43,18 +43,23 @@ export default {
         kwargs: kwargs
       })
       .then(response => {
-        if (typeof(response.data.error) != 'undefined') { // If there is an error in the POST response.
+        if (typeof(response.data.error) !== 'undefined') { // If there is an error in the POST response.
+          console.log('RPC error: ' + response.data.error)
           reject(Error(response.data.error))
+        } else {
+          console.log('RPC succeeded')
+          resolve(response) // Signal success with the response.
         }
-        resolve(response) // Signal success with the response.
       })
       .catch(error => {
+        console.log('RPC error: ' + error)
         if (error.response) { // If there was an actual response returned from the server...
-          if (typeof(error.response.data.exception) != 'undefined') { // If we have exception information in the response (which indicates an exception on the server side)...
+          if (typeof(error.response.data.exception) !== 'undefined') { // If we have exception information in the response (which indicates an exception on the server side)...
             reject(Error(error.response.data.exception)) // For now, reject with an error message matching the exception.
           }
+        } else {
+          reject(error) // Reject with the error axios got.
         }
-        reject(error) // Reject with the error axios got.
       })
     })
   },
@@ -88,7 +93,7 @@ export default {
         if (error.response) { // If there was an actual response returned from the server...
           readJsonFromBlob(error.response.data)
           .then(responsedata => {
-            if (typeof(responsedata.exception) != 'undefined') { // If we have exception information in the response (which indicates an exception on the server side)...
+            if (typeof(responsedata.exception) !== 'undefined') { // If we have exception information in the response (which indicates an exception on the server side)...
               reject(Error(responsedata.exception)) // For now, reject with an error message matching the exception.
             }
           })

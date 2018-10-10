@@ -38,5 +38,6 @@ setup(
         'six>=1.11.0',
         'xlsxwriter',
         'scipy',
+        'pyswarm',
     ],
 )
