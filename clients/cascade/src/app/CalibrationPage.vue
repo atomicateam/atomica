@@ -170,17 +170,6 @@ Last update: 2018-09-06
                 </div>
                 <!-- ### End: Cascade plot ### -->
 
-                <!-- ### Start: JS Cascade plot ### -->
-                <div style="max-width: 800px; margin: 0 auto;">
-                  <stacked-cascade class="cascade"
-                    :h="400"
-                    :yAxisTitle="'Number of people'"
-                    :cascadeData="jsonData"
-                    :colourScheme="jsonColors"
-                    :legendDisplay="true" />
-                </div>
-                <!-- ### End: Cascade plot ### -->
-
                 <!-- ### Start: cascade table ### -->
                 <div v-if="$globaltool=='cascade' && table" class="calib-tables">
                   <h4>Cascade stage losses</h4>
@@ -250,6 +239,18 @@ Last update: 2018-09-06
 
           </div>  <!-- ### End: card body ### -->
         </div> <!-- ### End: results card ### -->
+
+        <!-- ### Start: JS Cascade plot ### -->
+        <div style="margin: 0 auto;">
+          <stacked-cascade class="cascade"
+            :h="400"
+            :yAxisTitle="'Number of people'"
+            :cascadeData="jsonData"
+            :colourScheme="jsonColors"
+            :legendDisplay="true" />
+        </div>
+        <!-- ### End: Cascade plot ### -->
+        
       </div> <!-- ### End: PageSection/hasGraphs ### -->
     </div> <!-- ### End: v-else project (results) ### -->
 

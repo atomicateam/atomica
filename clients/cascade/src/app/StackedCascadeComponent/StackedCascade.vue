@@ -454,6 +454,7 @@ export default {
   right: 2rem;
   top: 10px;
   font-size: 11px;
+  width: auto;
 }
 .legend-table.table td {
   padding: 3px 5px 2px;
