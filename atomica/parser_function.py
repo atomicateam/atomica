@@ -9,8 +9,8 @@ def to_annual(p,dt):
 
 # Only calls to functions in the dict below will be permitted
 supported_functions = {
-    'max':max,
-    'min': min,
+    'max':np.maximum,
+    'min': np.minimum,
     'exp': np.exp,
     'floor': np.floor,
     'SRC_POP_AVG': None,
