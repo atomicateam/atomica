@@ -999,7 +999,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
     if legend_mode == 'together': 
         render_legend(ax, plot_type='bar', handles=legend_patches)
     elif legend_mode == 'separate': 
-        figs.append(sc.separatelegend(ax, reverse=True))
+        figs.append(sc.separatelegend(handles=legend_patches, reverse=True))
     
     return figs
 
@@ -1243,7 +1243,7 @@ def plot_legend(entries, plot_type='patch', fig=None):
     legendsettings = {'loc': 'center', 'bbox_to_anchor': None, 'frameon': False}  # Settings for separate legend
 
     if fig is None:  # Draw in a new figure
-        sc.separatelegend(None, handles=h)
+        sc.separatelegend(handles=h)
     else:
         existing_legend = fig.findobj(Legend)
         if existing_legend and existing_legend[0].parent is fig:  # If existing legend and this is a separate legend fig
