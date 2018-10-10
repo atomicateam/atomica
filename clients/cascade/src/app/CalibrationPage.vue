@@ -347,7 +347,7 @@ Last update: 2018-09-06
         filterText: '', // Text in the first table filter box
 
         // Cascade plot data
-        jsonData: [],
+        jsonData: null,
         jsonColors: [],
       }
     },
