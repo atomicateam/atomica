@@ -1357,8 +1357,11 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plo
     if plot_budget:
         d = au.PlotData.programs(results, quantity='spending')
         d.interpolate(year)
-        budgetfigs = au.plot_bars(d, stack_outputs='all', legend_mode='together', outer='times', show_all_labels=False, orientation='vertical')
-        figjsons.append(customize_fig(fig=budgetfigs[0], output=None, plotdata=None, xlims=None, figsize=None, is_epi=False))
+        budgetfig = au.plot_bars(d, stack_outputs='all', legend_mode='together', outer='times', show_all_labels=False, orientation='vertical')[0]
+        budgetfig.set_size_inches(10, 4)
+        budgetfig.get_axes()[0].set_position([0.15, 0.2, 0.35, 0.7])
+
+        figjsons.append(customize_fig(fig=budgetfig, output=None, plotdata=None, xlims=None, figsize=None, is_epi=False))
         budgetlegends = [sc.emptyfig()]
         
         ax = budgetfigs[0].axes[0]

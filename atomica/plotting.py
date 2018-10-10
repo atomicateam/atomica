@@ -686,7 +686,6 @@ class Series(object):
             logger.warning('Series has values from %.2f to %.2f so requested time points %s are out of bounds',self.tvec[0],self.tvec[-1],t2[out_of_bounds])
         return f(sc.promotetoarray(t2))
 
-
 def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', legend_mode=None, show_all_labels=False, orientation='vertical'):
     # We have a collection of bars - one for each Result, Pop, Output, and Timepoint.
     # Any aggregations have already been done. But _groupings_ have not. Let's say that we can group
@@ -709,9 +708,6 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
 
     plotdata = sc.dcp(plotdata)
     
-    bar_fig_size = (10,4)
-    default_ax_position = [0.15,0.2,0.35,0.7]
-
     # Note - all of the tvecs must be the same
     tvals, t_labels = plotdata.tvals()  # We have to iterate over these, with offsets, if there is more than one
 
@@ -813,11 +809,9 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
         raise AtomicaException('outer option must be either "times" or "results"')
 
     figs = []
-    fig, ax = plt.subplots(figsize=bar_fig_size)
+    fig, ax = plt.subplots()
     fig.set_label('bars')
     figs.append(fig)
-    if orientation == 'vertical' and legend_mode == 'together':
-        ax.set_position(default_ax_position)
 
     rectangles = defaultdict(list)  # Accumulate the list of rectangles for each colour
     color_legend = sc.odict()
@@ -918,7 +912,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
     block_labels = sorted(block_labels, key=lambda x: x[0])
     if orientation == 'horizontal':
         ax.set_ylim(ymin=-2 * gaps[0], ymax=block_offset + base_offset)
-#        fig.set_figheight(1.5 + 1.5 * (block_offset + base_offset))
+        fig.set_figheight(0.75 + 0.75 * (block_offset + base_offset))
         ax.set_xlim(xmin=0)
         ax.set_yticks([x[0] for x in block_labels])
         ax.set_yticklabels([x[1] for x in block_labels])
@@ -926,12 +920,11 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
 #        set_tick_format(ax.xaxis, "km")
     else:
         ax.set_xlim(xmin=-2 * gaps[0], xmax=block_offset + base_offset)
-#        fig.set_figwidth(1.5 + 1.5 * (block_offset + base_offset))
+        fig.set_figwidth(0.75 + 0.75 * (block_offset + base_offset))
         ax.set_ylim(ymin=0)
         ax.set_xticks([x[0] for x in block_labels])
         ax.set_xticklabels([x[1] for x in block_labels])
 #        set_tick_format(ax.yaxis, "km")
-
 
     # Calculate the units. As all bar patches are shown on the same axis, they are all expected to have the
     # same units. If they do not, the plot could be misleading
@@ -1000,7 +993,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
         ax2.spines['left'].set_visible(False)
         ax2.spines['bottom'].set_visible(False)
 
-#    fig.tight_layout() # Do a final resizing
+    fig.tight_layout() # Do a final resizing
 
     # Do the legend last, so repositioning the axes works properly
     if legend_mode == 'together': 
@@ -1008,7 +1001,6 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
     elif legend_mode == 'separate': 
         figs.append(sc.separatelegend(ax, reverse=True))
     
-    # Decide what to return
     return figs
 
 
