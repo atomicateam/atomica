@@ -1247,6 +1247,10 @@ def make_plots(proj, results, tool=None, year=None, pops=None, cascade=None, plo
 
 
 def customize_fig(fig=None, output=None, plotdata=None, xlims=None, figsize=None, is_legend=False, is_epi=True):
+
+    # Turn on all the axes - otherwise they don't show in mpld3
+    for ax in fig.get_axes(): ax.set_axis_on()
+
     if is_legend:
         pass # Put legend customizations here
     else:
