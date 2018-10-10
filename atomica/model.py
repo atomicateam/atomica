@@ -358,21 +358,25 @@ class Parameter(Variable):
     def constrain(self, ti):
         # NB. Must be an array, so ti must must not be supplied
         if self.limits is not None:
-            self.vals[ti] = max(self.limits[0], self.vals[ti])
-            self.vals[ti] = min(self.limits[1], self.vals[ti])
+            if self.vals[ti] < self.limits[0]:
+                self.vals[ti] = self.limits[0]
+            if self.vals[ti] > self.limits[1]:
+                self.vals[ti] = self.limits[1]
 
     def update(self, ti=None):
-        # Update the value of this Parameter at time index ti
-        # by evaluating its f_stack function using the 
-        # current values of all dependent variables at time index ti
+        # Update the value of this Parameter at time indices ti
+        #
+        # INPUTS
+        # - ti : An int, or a numpy array with index values. If None, all time values will be used
+        #
+        # OUTPUTS
+        # - No outputs, the parameter value is updated in-place
 
         if not self._fcn or self.pop_aggregation:
             return
 
         if ti is None:
             ti = np.arange(0, self.vals.size)  # This corresponds to every time point
-        else:
-            ti = np.array(ti)
 
         dep_vals = dict.fromkeys(self.deps,0.0)
         for dep_name, deps in self.deps.items():
