@@ -1193,16 +1193,16 @@ def get_atomica_plots(proj, results=None, plot_names=None, plot_options=None, po
             if nans_replaced: print('Warning: %s nans were replaced' % nans_replaced)
 
             if calibration:
-               if stacked: figs,legends = au.plot_series(plotdata, axis='pops', plot_type='stacked', legend_mode='separate')
-               else:       figs,legends = au.plot_series(plotdata, axis='pops', data=proj.data, legend_mode='separate') # Only plot data if not stacked
+               if stacked: figs = au.plot_series(plotdata, axis='pops', plot_type='stacked', legend_mode='separate')
+               else:       figs = au.plot_series(plotdata, axis='pops', data=proj.data, legend_mode='separate') # Only plot data if not stacked
             else:
-               if stacked: figs,legends = au.plot_series(plotdata, axis='pops', data=data, plot_type='stacked', legend_mode='separate')
-               else:       figs,legends = au.plot_series(plotdata, axis='results', data=data, legend_mode='separate')
-            for fig,legend in zip(figs, legends):
+               if stacked: figs = au.plot_series(plotdata, axis='pops', data=data, plot_type='stacked', legend_mode='separate')
+               else:       figs = au.plot_series(plotdata, axis='results', data=data, legend_mode='separate')
+            for fig in figs[0:-1]:
                 allfigjsons.append(customize_fig(fig=fig, output=output, plotdata=plotdata, xlims=xlims, figsize=figsize))
-                alllegendjsons.append(customize_fig(fig=legend, output=output, plotdata=plotdata, xlims=xlims, figsize=figsize, is_legend=True))
+                alllegendjsons.append(customize_fig(fig=figs[-1], output=output, plotdata=plotdata, xlims=xlims, figsize=figsize, is_legend=True))
                 allfigs.append(fig)
-                alllegends.append(legend)
+                alllegends.append(figs[-1])
             print('Plot %s succeeded' % (output))
         except Exception as E:
             print('WARNING: plot %s failed (%s)' % (output, repr(E)))
@@ -1247,6 +1247,10 @@ def make_plots(proj, results, tool=None, year=None, pops=None, cascade=None, plo
 
 
 def customize_fig(fig=None, output=None, plotdata=None, xlims=None, figsize=None, is_legend=False, is_epi=True):
+
+    # Turn on all the axes - otherwise they don't show in mpld3
+    for ax in fig.get_axes(): ax.set_axis_on()
+
     if is_legend:
         pass # Put legend customizations here
     else:

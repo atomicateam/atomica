@@ -28,6 +28,7 @@ import scipy.interpolate
 settings = dict()
 settings['legend_mode'] = 'together'  # Possible options are ['together','separate','none']
 settings['bar_width'] = 1.0  # Width of bars in plot_bars()
+settings['line_width'] = 3.0  # Width of bars in plot_bars()
 
 def save_figs(figs, path='.', prefix='', fnames=None):
     # Take in array of figures, and save them to disk
@@ -813,7 +814,6 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
         raise AtomicaException('outer option must be either "times" or "results"')
 
     figs = []
-    legends = []
     fig, ax = plt.subplots(figsize=bar_fig_size)
     fig.set_label('bars')
     figs.append(fig)
@@ -1004,15 +1004,16 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
 #    fig.tight_layout() # Do a final resizing
 
     # Do the legend last, so repositioning the axes works properly
-    if   legend_mode == 'together': render_legend(ax, plot_type='bar', handles=legend_patches)
-    elif legend_mode == 'separate': legends.append(sc.separatelegend(ax, reverse=True))
+    if legend_mode == 'together': 
+        render_legend(ax, plot_type='bar', handles=legend_patches)
+    elif legend_mode == 'separate': 
+        figs.append(sc.separatelegend(ax, reverse=True))
     
     # Decide what to return
-    if legend_mode == 'separate': return figs,legends
-    else:                         return figs
+    return figs
 
 
-def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=None, lw=None, rescale=False):
+def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=None, lw=None):
     # This function plots a time series for a model output quantities
     #
     # INPUTS
@@ -1028,14 +1029,12 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
         legend_mode = settings['legend_mode']
 
     if lw is None:
-        lw = 3
-    
-    reverse_legend = True if plot_type in ['stacked', 'proportion', 'bar'] else False
+        lw = settings['line_width']
+
     if axis is None: axis = 'outputs'
     assert axis in ['outputs', 'results', 'pops']
 
     figs = []
-    legends = [] # For separate mode
     ax = None
 
     plotdata = sc.dcp(plotdata)
@@ -1073,8 +1072,8 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
                         if data is not None and i == 0:
                             render_data(ax, data, plotdata[result, pop, output])
                 apply_series_formatting(ax, plot_type)
-                if legend_mode == 'together':   render_legend(ax, plot_type=plot_type)
-                elif legend_mode == 'separate': legends.append(sc.separatelegend(ax, reverse=reverse_legend))
+                if legend_mode == 'together':
+                    render_legend(ax, plot_type)
 
     elif axis == 'pops':
         plotdata.set_colors(pops=plotdata.pops.keys())
@@ -1107,8 +1106,8 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
                         if data is not None:
                             render_data(ax, data, plotdata[result, pop, output])
                 apply_series_formatting(ax, plot_type)
-                if legend_mode == 'together':   render_legend(ax, plot_type)
-                elif legend_mode == 'separate': legends.append(sc.separatelegend(ax, reverse=reverse_legend))
+                if legend_mode == 'together':
+                    render_legend(ax, plot_type)
 
     elif axis == 'outputs':
         plotdata.set_colors(outputs=plotdata.outputs.keys())
@@ -1143,15 +1142,16 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
                         if data is not None:
                             render_data(ax, data, plotdata[result, pop, output])
                 apply_series_formatting(ax, plot_type)
-                if legend_mode == 'together':   render_legend(ax, plot_type)
-                elif legend_mode == 'separate': legends.append(sc.separatelegend(ax, reverse=reverse_legend))
+                if legend_mode == 'together':
+                    render_legend(ax, plot_type)
     else:
         raise AtomicaException('axis option must be one of "results", "pops" or "outputs"')
 
-    # Return either the figures, or the figures and the legends
-    if legend_mode == 'separate': return figs, legends
-    else:                         return figs
+    if legend_mode == 'separate':
+        reverse_legend = True if plot_type in ['stacked', 'proportion'] else False
+        figs.append(sc.separatelegend(ax, reverse=reverse_legend))
 
+    return figs
 
 def stack_data(ax,data,series):
     # Stack a list of series in order
@@ -1271,7 +1271,7 @@ def plot_legend(entries, plot_type='patch', fig=None):
     return fig
 
 
-def render_legend(ax, plot_type=None, handles=None, ):
+def render_legend(ax, plot_type=None, handles=None):
     # This function renders a legend
     # INPUTS
     # - plot_type - Used to decide whether to reverse the legend order for stackplots
