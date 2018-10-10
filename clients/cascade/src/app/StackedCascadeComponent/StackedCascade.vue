@@ -31,8 +31,8 @@
 
 <script>
 import * as d3 from 'd3'
-import { transformDataForChartRender, transformCascadeData } from '@/modules/data-transform'
-import cascadeStep from '@/modules/cascade-step'
+import { transformDataForChartRender, transformCascadeData } from './data-transform'
+import cascadeStep from './cascade-step'
 
 export default {
   name: 'stacked-cascade',
