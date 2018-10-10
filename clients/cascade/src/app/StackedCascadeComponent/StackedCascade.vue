@@ -30,7 +30,7 @@
 </template>
 
 <script>
-import * as d3 from 'd3'
+import * as d3 from '../../../static/d3.v5.min.js' // CK: Warning, replace with import * as d3 from 'd3'
 import { transformDataForChartRender, transformCascadeData } from './data-transform'
 import cascadeStep from './cascade-step'
 
