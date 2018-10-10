@@ -60,8 +60,7 @@ def save_figs(figs, path='.', prefix='', fnames=None):
     # Add legend figure to the end
     if len(fnames) < len(figs):
         fnames.append('')
-    assert len(fnames) == len(figs), \
-        "Number of figures must match number of specified filenames, or the last figure must be a legend with no label"
+    assert len(fnames) == len(figs), "Number of figures must match number of specified filenames, or the last figure must be a legend with no label"
     assert fnames[0], 'The first figure name cannot be empty'
 
     for i, fig in enumerate(figs):
