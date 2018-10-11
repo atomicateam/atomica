@@ -1,7 +1,8 @@
 function transformCascadeData(response) {
   let data = {}
 
-  const stages = response.stages.main
+  const stageName = response.cascades
+  const stages = response.stages[stageName]
   const pops = response.pops
   const results = response.results
 
@@ -29,7 +30,7 @@ function transformCascadeData(response) {
         })
 
         pops.forEach(p => {
-          const value = response.model[r].main[p][stage][i]
+          const value = response.model[r][stageName][p][stage][i]
           const key = p.replace(/ +/g, '').toLowerCase()
 
           data[r][y][stageIndex][key] = value
