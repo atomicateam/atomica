@@ -7,7 +7,7 @@ Version: 2018jul30
 """
 
 import sciris as sc
-from .system import AtomicaException, logger, AtomicaInputError
+from .system import AtomicaException, logger, AtomicaInputError, reraise_modify
 from .utils import NamedItem
 from numpy import array, exp, minimum, inf
 from .structure import TimeSeries
@@ -437,8 +437,13 @@ class ProgramSet(NamedItem):
         # Read the spending table and populate the program data
         tables, start_rows = read_tables(sheet)
         times = set()
-        for table in tables:
-            tdve = TimeDependentValuesEntry.from_rows(table)
+        for table,start_row in zip(tables,start_rows):
+            try:
+                tdve = TimeDependentValuesEntry.from_rows(table)
+            except Exception as e:
+                message = 'Error on sheet "%s" while trying to read a TDVE table starting on row %d -> ' % (sheet.title, start_row)
+                reraise_modify(e, message)
+
             prog = self.programs[tdve.name]
             prog.spend_data = tdve.ts['Total spend']
             if 'Capacity constraints' in tdve.ts: # This is a compatibility statement around 30/8/18, can probably be removed after a few weeks
