@@ -1,6 +1,7 @@
 # Central file for migrating Projects
 from distutils.version import LooseVersion
 from .system import logger, AtomicaException
+from .version import version
 import sciris as sc
 
 available_migrations = [] # This list stores all of the migrations that are possible
@@ -45,6 +46,7 @@ def migrate(proj):
             continue
         else:
             proj = m.upgrade(proj)
+    proj.version = version # Set project version to the current Atomica version
     return proj
 
 @migration('1.0.5', '1.0.6','Simplify ParameterSet storage')
@@ -58,4 +60,13 @@ def simplify_parset_storage(proj):
                 new_pars[par.name] = par
         parset.pars = new_pars
         del parset.par_ids
+    return proj
+
+@migration('1.0.6', '1.0.7','Add impact interaction support')
+def add_impact_interactions(proj):
+    for progset in proj.progsets.values():
+        for covout in progset.covouts.values():
+            if covout.imp_interaction.strip().lower() in ['best','synergistic']:
+                covout.imp_interaction = None
+            covout.update_progs(covout.progs)
     return proj

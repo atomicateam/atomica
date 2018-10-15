@@ -1059,9 +1059,8 @@ class Covout(object):
         # We need to store it in two forms
         # - An (ordered) vector of outcomes, which is used by additive and random to do the modality interaction in vectorized form
         # - A dict of outcomes, which is used by nested to look up the outcome using a tupled key of program indices
-
-        # TODO - implement solution for more programs
-        self.combinations = np.unpackbits(np.arange(2 ** self.n_progs, dtype=np.uint8).reshape(-1, 1), axis=1)[:, -self.n_progs:]
+        combination_strings = [bin(x)[2:].rjust(self.n_progs,'0') for x in range(2 ** self.n_progs)] # ['00','01','10',...]
+        self.combinations = np.array([list(int(y) for y in x) for x in combination_strings])
         combination_outcomes = []
         for prog_combination in self.combinations.astype(bool):
             combination_outcomes.append(self.compute_impact_interaction(progs=prog_combination))
@@ -1084,7 +1083,10 @@ class Covout(object):
         # Put coverages and deltas into array form
         outcome = self.baseline # Accumulate the outcome by adding the deltas onto this
 
-#        # If the parameter is in number format, use number covered as the outcome, implicitly treating as additive
+        if self.n_progs == 0:
+            return outcome # If there are no programs active, return the baseline value immediately
+
+        # If the parameter is in number format, use number covered as the outcome, implicitly treating as additive
         if self.is_num_par:
             num_cov = []
             for prog in self.progs.keys():
