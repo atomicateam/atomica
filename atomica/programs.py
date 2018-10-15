@@ -1021,11 +1021,6 @@ class Covout(object):
         else:
             assert cov_interaction in ['additive', 'random', 'nested'], 'Coverage interaction must be set to "additive", "random", or "nested"'
 
-        if imp_interaction is None:
-            imp_interaction = 'best'
-        else:
-            assert imp_interaction in ['best','synergistic'], 'Impact interaction must be "best" or "synergistic"'
-
         self.par = par
         self.pop = pop
         self.cov_interaction = cov_interaction
@@ -1034,7 +1029,6 @@ class Covout(object):
         self.baseline = baseline
         self.is_num_par = is_num_par
         self.update_progs(progs)
-
 
     def update_progs(self,progs):
         # Call this function with the program outcomes are changed
@@ -1050,6 +1044,16 @@ class Covout(object):
             self.progs[item[0]] = item[1]
         self.deltas = np.array([x[1]-self.baseline for x in prog_tuple]) # Internally cache the deltas which are used
         self.n_progs = len(progs)
+
+        # Parse any impact interactions that are present
+        self._interactions = dict()
+        if self.imp_interaction and not self.imp_interaction.strip().lower() == 'best': # Check for 'best' to maintain backwards compatibility
+            for interaction in self.imp_interaction.split(','):
+                combo, val = interaction.split('=')
+                combo = frozenset([x.strip() for x in combo.split('+')])
+                for x in combo:
+                    assert x in self.progs, 'The impact interaction refers to a program "%s" which does not appear in the available programs' % (x)
+                self._interactions[combo] = float(val)-self.baseline
 
         # Precompute the combinations and associated modality interaction outcomes - it's computationally expensive otherwise
         # We need to store it in two forms
@@ -1154,20 +1158,19 @@ class Covout(object):
         return outcome
 
     def compute_impact_interaction(self,progs=None):
-        # Takes in boolean array of programs, and deltas for all programs
-        # For the given combination of programs, return the outcome
+        # Takes in boolean array of active programs, which matches the order in
+        # self.progs and self.deltas
 
         if progs is not None and not any(progs):
             return 0.0
+        else:
+            progs_active = frozenset(np.array(self.progs.keys())[progs])
 
-        if self.imp_interaction == 'best':
-            if progs is None:
-                tmp = self.deltas
-            else:
-                tmp = self.deltas[progs]
+        if progs_active in self._interactions:
+            # If the combination of programs has an explicitly specified outcome, then use it
+            return self._interactions[progs_active]
+        else:
+            # Otherwise, do the 'best' interaction and return the delta with the largest magnitude
+            tmp = self.deltas[progs]
             idx = np.argmax(abs(tmp))
             return tmp[idx]
-        elif self.imp_interaction == 'synergistic':
-            raise NotImplementedError('The "synergistic" impact interaction is not yet implemented. Please use the "best" interaction for now')
-        else:
-            raise AtomicaInputError('Unknown impact interaction "%s"' % (self.imp_interaction))
