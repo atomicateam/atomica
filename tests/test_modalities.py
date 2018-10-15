@@ -20,25 +20,25 @@ def run_test(coverage,outcomes,baseline,expected=None):
     covout = Covout(par='testpar',
                     pop='testpop',
                     cov_interaction='additive',
-                    imp_interaction='best',
+                    imp_interaction=None,
                     baseline=baseline,
                     progs={prog: val for prog, val in zip(progs, outcomes)}
                     )
 
     covout.cov_interaction = 'additive'
-    additive = covout.get_outcome(coverage)
+    additive = covout.get_outcome(prop_covered=coverage)
     print('Additive = %.4f, Target = %.4f' % (additive,expected[0]))
     if np.isfinite(expected[0]):
         assert np.isclose(additive,expected[0],1e-4)
 
     covout.cov_interaction = 'random'
-    random = covout.get_outcome(coverage)
+    random = covout.get_outcome(prop_covered=coverage)
     print('Random = %.4f, Target = %.4f' % (random,expected[1]))
     if np.isfinite(expected[1]):
         assert np.isclose(random,expected[1],1e-4)
 
     covout.cov_interaction = 'nested'
-    nested = covout.get_outcome(coverage)
+    nested = covout.get_outcome(prop_covered=coverage)
     print('Nested = %.4f, Target = %.4f' % (nested,expected[2]))
     if np.isfinite(expected[2]):
         assert np.isclose(nested,expected[2],1e-4)
