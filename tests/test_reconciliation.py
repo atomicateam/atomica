@@ -1,12 +1,14 @@
 import atomica.ui as au
 
-which = ['tb','tb_simple'][0]
+which = ['tb','tb_simple','hypertension_dyn'][-1]
 if which == 'tb':
     par_name = 'v_rate'
     pop_name = '0-4'
 elif which == 'tb_simple':
     par_name = 'vac_rate'
     pop_name = 'adults'
+    
+doplot=False
 
 P = au.demo(which=which, do_run=False)
 
@@ -24,9 +26,10 @@ reconciled_result = P.run_sim(parset=P.parsets[0],progset=reconciled_progset,pro
 print(progset_comparison)
 print(parameter_comparison)
 
-for par,pop in [(par_name,pop_name)]:
-    d = au.PlotData([parset_result, original_result, reconciled_result],outputs=par,pops=pop,project=P)
-    au.plot_series(d,axis='results')
+if doplot:
+    for par,pop in [(par_name,pop_name)]:
+        d = au.PlotData([parset_result, original_result, reconciled_result],outputs=par,pops=pop,project=P)
+        au.plot_series(d,axis='results')
 
 reconciled_progset.save('temp/reconciled_progset.xlsx')
 
@@ -46,6 +49,7 @@ reconciled_result = P.run_sim(parset=P.parsets[0],progset=reconciled_progset,pro
 print(progset_comparison)
 print(parameter_comparison)
 
-for par,pop in [(par_name,pop_name)]:
-    d = au.PlotData([parset_result, original_result, reconciled_result],outputs=par,pops=pop,project=P)
-    au.plot_series(d,axis='results')
+if doplot:
+    for par,pop in [(par_name,pop_name)]:
+        d = au.PlotData([parset_result, original_result, reconciled_result],outputs=par,pops=pop,project=P)
+        au.plot_series(d,axis='results')
