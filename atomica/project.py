@@ -349,34 +349,6 @@ class Project(object):
     # Methods to perform major tasks
     #######################################################################################################
 
-    def plot(self, results=None, key=None, outputs=None, pops=None):
-        
-        def get_supported_plots():
-            df = self.framework.sheets['plots'][0]
-            plots = sc.odict()
-            for name,output in zip(df['name'], df['quantities']):
-                plots[name] = evaluate_plot_string(output)
-            return plots
-        
-        if outputs is None:
-            supported_plots = get_supported_plots()
-            outputs = [{plot_name:supported_plots[plot_name]} for plot_name in supported_plots.keys()]
-        if results is None:
-            results = self.result(key)
-        allfigs = []
-        alllegends = []
-        for output in outputs:
-            try: 
-                print('Plotting %s...' % output)
-                if not isinstance(list(output.values())[0],list): output = output.values()[0]
-                plotdata = PlotData(results, outputs=output, project=self, pops=pops)
-                figs,legends = plot_series(plotdata, axis='pops', plot_type='stacked', legend_mode='separate')
-                allfigs += figs
-                alllegends += legends
-            except:
-                print('WARNING, %s failed' % output)
-        return figs,legends
-
     def update_settings(self, sim_start=None, sim_end=None, sim_dt=None):
         """ Modify the project settings, e.g. the simulation time vector. """
         self.settings.update_time_vector(start=sim_start, end=sim_end, dt=sim_dt)
