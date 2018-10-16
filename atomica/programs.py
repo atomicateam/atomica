@@ -223,11 +223,6 @@ class ProgramSet(NamedItem):
             if is_impact == 'y':
                 self.pars[name] = label
 
-        self.num_pars = sc.odict()
-        for name, label, is_impact, y_format in zip(framework.pars.index, framework.pars['display name'], framework.pars['targetable'], framework.pars['format']):
-            if is_impact == 'y' and y_format == 'number':
-                self.num_pars[name] = label
-
     @staticmethod
     def validate_inputs(framework, data, project):
         # To load a spreadsheet or make a new ProgramSet, people can pass in
@@ -528,8 +523,7 @@ class ProgramSet(NamedItem):
                         progs[idx_to_header[i]] = float(x.value)
 
                 if baseline is not None or progs: # Only instantiate covout objects if they have programs associated with them
-                    is_num_par = True if par_name in self.num_pars else False
-                    self.covouts[(par_name,pop_name)] = Covout(par=par_name, pop=pop_name, cov_interaction=cov_interaction, imp_interaction=imp_interaction, uncertainty=uncertainty, baseline=baseline, progs=progs, is_num_par=is_num_par)
+                    self.covouts[(par_name,pop_name)] = Covout(par=par_name, pop=pop_name, cov_interaction=cov_interaction, imp_interaction=imp_interaction, uncertainty=uncertainty, baseline=baseline, progs=progs)
 
     def _write_effects(self):
         # TODO - Use the framework to exclude irrelevant programs and populations
@@ -806,56 +800,18 @@ class ProgramSet(NamedItem):
         else:
             return self.get_num_covered(year=year, unit_cost=unit_cost, capacity=capacity, alloc=alloc, sample=sample)
 
-    def get_outcomes(self,num_covered=None, prop_covered=None, par_covered=None):
+    def get_outcomes(self,prop_covered=None):
         ''' Get a dictionary of parameter values associated with coverage levels'''
         # TODO - add sampling back in once we've decided how to do it
+        # NB. Since the modality interactions in covout.get_outcome assume that the coverage is scalar, this function
+        # will also only work for scalar coverage
+        #
         # INPUTS
-        # - coverage : dict with coverage values {prog_name:np.array}
+        # - coverage : dict with coverage values {prog_name:val}
         # OUTPUTS
-        # - outcomes : a dict {(par,pop):vals}
+        # - outcomes : a dict {(par,pop):val}
+        return {(covout.par,covout.pop):covout.get_outcome(prop_covered) for covout in self.covouts.values()}
 
-        for covkey in prop_covered.keys(): # Ensure coverage level values are arrays
-            prop_covered[covkey] = sc.promotetoarray(prop_covered[covkey])
-            for item in prop_covered[covkey]:
-                if item<0 or item>1:
-                    errormsg = 'Expecting coverage to be a proportion, value for entry %s is %s' % (covkey, item)
-                    raise AtomicaException(errormsg)
-
-        # TODO - Here is the par/pop disaggregation based on parameter coverage for the parameters actually reached
-        # Note that this does still ignore the compartment targeting
-        # The covout is specific to a par-pop combination
-        # The program coverage needs to be rescaled in the same proportion as the source popsizes
-        # i.e. suppose a program targets pars A and B in pops 1 and 2
-        # If the program has coverage of 100, and par A reaches (200,300) and par B reaches (400,500) then we would allocate:
-        # 100* (200/1400, 300/1400, 400/1400, 500/1400)
-        # So - the denominator is at the _program_ level
-
-        prog_denominator = dict.fromkeys(self.programs.keys(),0.0)
-        prog_n_covouts = dict.fromkeys(self.programs.keys(),0)
-        for covout in self.covouts.values():
-            for prog in covout.progs:
-                prog_denominator[prog] += par_covered[(covout.par, covout.pop)]
-                prog_n_covouts[prog] += 1
-
-        # Initialise output
-        outcomes = dict()
-        for covout in self.covouts.values():
-            if covout.is_num_par:
-                covout_num_covered = dict()
-                for prog in covout.progs:
-                    if prog_n_covouts[prog] <= 1:
-                        # If a program only appears in one covout, then that program's coverage does not need to be disaggregated
-                        covout_num_covered[prog] = sc.promotetoarray(num_covered[prog])
-                    else:
-                        # Otherwise, we need to disaggregate the program's coverage across multiple covouts. The number covered will be NaN if the program
-                        # has more than one Covout associated with it, and if any of the parameters that it targets have no source popsize. In that case, it is
-                        # not possible to disaggregate the coverage.
-                        # TODO - do this check more rigorously - plan what to do if programs mix coverage (or else guard against it in pre-validation)
-                        covout_num_covered[prog] = sc.promotetoarray(num_covered[prog] * par_covered[(covout.par, covout.pop)] / prog_denominator[prog])
-            else:
-                covout_num_covered = None
-            outcomes[(covout.par,covout.pop)] = covout.get_outcome(num_covered=covout_num_covered, prop_covered=prop_covered)
-        return outcomes
 
 #--------------------------------------------------------------------
 # Program class
@@ -1004,7 +960,7 @@ class Covout(object):
            )
     '''
 
-    def __init__(self, par, pop, progs, cov_interaction=None, imp_interaction=None, uncertainty=0.0, baseline=0.0, is_num_par=False):
+    def __init__(self, par, pop, progs, cov_interaction=None, imp_interaction=None, uncertainty=0.0, baseline=0.0):
         # Construct new Covout instance
         # INPUTS
         # - par : string with the code name of the parameter being overwritten
@@ -1014,7 +970,6 @@ class Covout(object):
         # - imp_interaction : a parsable string like 'Prog1+Prog2=10,Prog2+Prog3=20' with the interaction outcomes
         # - uncertainty : a scalar standard deviation for the outcomes
         # - baseline : the zero coverage baseline value
-        # - is_num_par : to be deprecated
 
         if cov_interaction is None:
             cov_interaction = 'additive'
@@ -1027,7 +982,6 @@ class Covout(object):
         self.imp_interaction = imp_interaction
         self.sigma = uncertainty
         self.baseline = baseline
-        self.is_num_par = is_num_par
         self.update_progs(progs)
 
     def update_progs(self,progs):
@@ -1075,7 +1029,7 @@ class Covout(object):
         output += '\n'
         return output
         
-    def get_outcome(self, num_covered=None, prop_covered=None):
+    def get_outcome(self, prop_covered=None):
         # num_covered and prop_covered are dicts with {prog_name:coverage} at least containing all of the
         # programs in self.progs.
         # Don't forget that this covout instance is already specific to a (par,pop) combination
@@ -1085,23 +1039,13 @@ class Covout(object):
 
         if self.n_progs == 0:
             return outcome # If there are no programs active, return the baseline value immediately
+        elif self.n_progs == 1:
+            return outcome + prop_covered[self.progs.keys()[0]] * self.deltas[0]
 
-        # If the parameter is in number format, use number covered as the outcome, implicitly treating as additive
-        if self.is_num_par:
-            num_cov = []
-            for prog in self.progs.keys():
-                num_cov.append(num_covered[prog][0])
-            num_cov = np.array(num_cov)
-            return outcome + sum(num_cov*self.deltas)
-        else:
-            cov = []
-            for prog in self.progs.keys():
-                cov.append(prop_covered[prog][0])
-            cov = np.array(cov)
-
-        # If there's only one program, then just use the outcome directly
-        if self.n_progs == 1:
-            return outcome + cov[0]*self.deltas[0]
+        cov = []
+        for prog in self.progs.keys():
+            cov.append(prop_covered[prog])
+        cov = np.array(cov)
 
         # ADDITIVE CALCULATION
         if self.cov_interaction == 'additive':
