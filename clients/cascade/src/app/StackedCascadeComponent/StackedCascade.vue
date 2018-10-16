@@ -1,26 +1,53 @@
 <template>
   <div class="stacked-cascade">
     <div class="selections">
-      <select class="select" v-model="result">
-        <option v-for="option in resultsOptions" :key="option" :value="option">
-          {{ option }}
-        </option>
-      </select>
-      <select class="select" v-model="year">
-        <option v-for="option in yearOptions" :key="option" :value="option">
-          {{ option }}
-        </option>
-      </select>
+      <label v-if="resultsOptions.length > 1">
+        <select class="select" v-model="result">
+          <option v-for="option in resultsOptions" :key="option" :value="option">
+            {{ option }}
+          </option>
+        </select>
+      </label>
+      
+      <label>
+        Year
+        <select class="select" v-model="year">
+          <option v-for="option in yearOptions" :key="option" :value="option">
+            {{ option }}
+          </option>
+        </select>
+      </label>
     </div>
 
     <table class="legend-table table is-narrow" v-if="legendDisplay">
+      <thead>
+        <tr>
+          <th>
+            <div class="check-box">
+              <input type="checkbox" id="totalCheckBox" v-model="allSelected">
+              <label for="totalCheckBox">
+                <span 
+                  class="legend-colour" 
+                  :style="{ 'background-color': legendColour['_total'] }">
+                </span>
+              </label>
+            </div>
+          </th>
+          <th>All Population</th>
+        </tr>
+      </thead>
       <tbody>
         <tr v-for="key in legendKeys" :key="key">
           <td>
-            <span 
-              class="legend-colour" 
-              :style="{ 'background-color': legendColour[key] }">
-            </span>
+            <div class="check-box">
+              <input type="checkbox" :disabled="allSelected" :id="key" v-show="!allSelected" :value="key" v-model="selectedKeys">
+              <label :for="key">
+                <span 
+                  class="legend-colour" 
+                  :style="{ 'background-color': allSelected ? '#eee' : legendColour[key] }">
+                </span>
+              </label>
+            </div>
           </td>
           <td>{{ getLabel(key)}}</td>
         </tr>
@@ -33,6 +60,9 @@
 import * as d3 from '../../../static/d3.v5.min.js' // CK: Warning, replace with import * as d3 from 'd3'
 import { transformDataForChartRender, transformCascadeData } from './data-transform'
 import cascadeStep from './cascade-step'
+
+const TOTAL = '_total'
+const TOTAL_COLOUR = '#00267a'
 
 export default {
   name: 'stacked-cascade',
@@ -49,6 +79,8 @@ export default {
   data() {
     return {
       keys: [],
+      selectedKeys: [],
+      allSelected: true,
       dict: {},
       result: null,
       resultsOptions: [],
@@ -88,6 +120,18 @@ export default {
     keys(newData) {
       this.setupLegend(newData)
     },
+    selectedKeys() {
+      if (this.year) {
+        this.update()
+      }
+    },
+    allSelected(isAllSelected) {
+      if (isAllSelected) {
+        this.selectedKeys = [TOTAL]
+      } else {
+        this.selectedKeys = this.keys
+      }
+    },
     result() {
       this.update()
     },
@@ -97,10 +141,12 @@ export default {
   },
 
   created() {
+    this.setupLegend(this.keys)
+
     if (this.colourScheme && this.colourScheme.length > 0) {
       this.colours = this.colourScheme
     }
-    this.setupLegend(this.keys)
+
     if (this.marginObj) {
       this.margin = this.marginObj
     }
@@ -125,7 +171,10 @@ export default {
         this.legendColour[key] = this.colours[i]
       })
 
+      this.legendColour[TOTAL] = TOTAL_COLOUR
+
       this.legendKeys = keys.slice()
+      this.selectedKeys = this.allSelected ? [TOTAL] : keys.slice()
       // reverse the order of the keys so it is in line with the stacked chart
       this.legendKeys.reverse()
     },
@@ -134,12 +183,29 @@ export default {
       return this.dict ? this.dict[key] : key
     },
 
+    getKeysInOrder(allKeys, selectedKeys) {
+      let keys = []
+
+      if (selectedKeys[0] === TOTAL) {
+        keys = selectedKeys
+      } else {
+        allKeys.forEach(key => {
+          const find = selectedKeys.find(selectedKey => key === selectedKey)
+          if (find) {
+            keys.push(find)
+          }
+        })
+      }
+      
+      return keys
+    },
+
     redraw() {
       // redraw
       this.svg.remove()
       this.setupWidthHeight()
       this.setup()
-      this.updateOptions(this.cascadeData)
+      this.update()
     },
 
     updateOptions(data) {
@@ -223,9 +289,11 @@ export default {
     },
 
     update() {
-      const data = transformDataForChartRender(this.keys, this.currentData[this.result][this.year])
-
-      const keys = this.keys
+      const data = this.allSelected ? 
+        transformDataForChartRender(this.keys, this.currentData[this.result][this.year]) :
+        transformDataForChartRender(this.selectedKeys, this.currentData[this.result][this.year])
+      const keys = this.getKeysInOrder(this.keys, this.selectedKeys)
+      const keyColours = keys.map(key => this.legendColour[key])
       const stack = d3.stack()
 
       stack.keys(keys)
@@ -233,9 +301,7 @@ export default {
       // axis and domain setup
       this.x.domain(data.map(r => r.stage))
       this.y.domain([0, d3.max(data, r => r._total )]).range([this.height, 0]).nice()
-
-      // this.y.domain([0, 90000]).range([this.height, 0])
-      this.z.domain(keys)
+      this.z = d3.scaleOrdinal().range(keyColours).domain(keys)
       
       this.xAxisGroup
         .call(this.xAxis)
@@ -433,17 +499,6 @@ export default {
 .stacked-cascade {
   position: relative;
 }
-.tooltip {	
-  position: absolute;			
-  width: 100px;					
-  height: 30px;					
-  padding: 2px 4px;				
-  font: 12px sans-serif;		
-  background: #fff;	
-  border: 1px solid #eee;		
-  border-radius: 2px;			
-  pointer-events: none;			
-}
 .legend-colour {
   display: block;
   width: 15px;
@@ -451,19 +506,91 @@ export default {
 }
 .legend-table {
   position: absolute;
-  right: 2rem;
-  top: 10px;
+  right: 5rem;
+  top: 6rem;
   font-size: 11px;
   width: auto;
 }
-.legend-table.table td {
-  padding: 3px 5px 2px;
+.legend-table.table {
+  border: none;
+
+  td, th {
+    padding: 3px 5px 2px;
+    text-align: left;
+    border: none;
+    font-size: 1.3rem;
+  }
+
+  thead > tr > th,
+  tbody > tr > td {
+    background: transparent;
+    color: #000;
+    line-height: 1.8rem;
+  }
 }
+.check-box {
+  width: 15px;
+  height: 15px;
+  
+  span.legend-colour {
+    position: absolute;
+    top: 0;
+  }
+
+  label {
+    position: relative;
+
+    &::before {      
+      content: '';
+      display: inline-block;
+      
+      height: 13px;
+      width: 13px;
+      
+      border: 1px solid #999;   
+    }
+
+    &::after {
+      position: absolute;
+      left: 3px;
+      top: 4px;
+
+      content: '';
+      display: inline-block;
+      height: 4px;
+      width: 9px;
+      border-left: 1px solid #fff;
+      border-bottom: 1px solid #fff;
+      
+      transform: rotate(-50deg);
+    }
+  }
+
+  input[type='checkbox'] {
+    display: none;
+  }
+
+  input[type='checkbox']:focus + label::before {
+    outline: rgb(59, 153, 252) auto 5px;
+  }
+
+  /* Hide the checkmark by default */
+  input[type='checkbox'] + label::after {
+      content: none;
+  }
+  /* Unhide the checkmark on the checked state */
+  input[type='checkbox']:checked + label::after {
+      content: '';
+  }
+
+}
+
 .selections {
-  text-align: center;
+  border-bottom: 1px solid #e4ecfc;
+  padding: 1rem;
+  margin-bottom: 1rem;
 
   .select {
-    font-size: 1rem;
     margin-right: 1rem;
   }
 }
