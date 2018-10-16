@@ -62,11 +62,4 @@ def simplify_parset_storage(proj):
         del parset.par_ids
     return proj
 
-@migration('1.0.6', '1.0.7','Add impact interaction support')
-def add_impact_interactions(proj):
-    for progset in proj.progsets.values():
-        for covout in progset.covouts.values():
-            if covout.imp_interaction.strip().lower() in ['best','synergistic']:
-                covout.imp_interaction = None
-            covout.update_progs(covout.progs)
-    return proj
+

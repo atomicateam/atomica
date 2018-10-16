@@ -1001,7 +1001,7 @@ class Covout(object):
 
         # Parse any impact interactions that are present
         self._interactions = dict()
-        if self.imp_interaction and not self.imp_interaction.strip().lower() == 'best': # Check for 'best' to maintain backwards compatibility
+        if self.imp_interaction and not self.imp_interaction.strip().lower() in ['best','synergistic']:
             for interaction in self.imp_interaction.split(','):
                 combo, val = interaction.split('=')
                 combo = frozenset([x.strip() for x in combo.split('+')])
@@ -1115,6 +1115,8 @@ class Covout(object):
         if progs_active in self._interactions:
             # If the combination of programs has an explicitly specified outcome, then use it
             return self._interactions[progs_active]
+        elif self.imp_interaction == 'synergistic':
+            raise NotImplementedError
         else:
             # Otherwise, do the 'best' interaction and return the delta with the largest magnitude
             tmp = self.deltas[progs]
