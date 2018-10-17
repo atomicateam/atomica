@@ -920,7 +920,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
 #        set_tick_format(ax.xaxis, "km")
     else:
         ax.set_xlim(xmin=-2 * gaps[0], xmax=block_offset + base_offset)
-        fig.set_figwidth(0.75 + 0.75 * (block_offset + base_offset))
+        fig.set_figwidth(1.1 + 1.1 * (block_offset + base_offset))
         ax.set_ylim(ymin=0)
         ax.set_xticks([x[0] for x in block_labels])
         ax.set_xticklabels([x[1] for x in block_labels])
