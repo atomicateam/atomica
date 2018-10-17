@@ -5,7 +5,7 @@ from .utils import NamedItem
 import matplotlib.pyplot as plt
 import ast
 from .excel import standard_formats
-from .system import logger
+from .system import logger, AtomicaException
 from zipfile import ZipFile
 import os
 
@@ -53,6 +53,53 @@ class Result(NamedItem):
     @property
     def pop_labels(self):
         return [x.label for x in self.model.pops]
+
+    def get_alloc(self):
+        # Return a dict with time-varying funding allocation at every time point in the simulation
+        if self.model.progset is None:
+            return None
+        else:
+            return self.model.progset.get_alloc(self.model.program_instructions, tvec=self.t)
+
+    def get_coverage(self,quantity='fraction'):
+        # Return program coverage
+        #
+        # INPUTS
+        # - quantity : one of ['number','fraction','denominator']
+        # OUTPUTS
+        # - {prog_name:value}
+
+        if self.model.progset is None:
+            return None
+
+        num_covered = self.model.progset.get_num_covered(year=self.t, alloc=self.get_alloc())
+
+        if quantity == 'number':
+            return num_covered
+        else:
+            # Get the program coverage denominator
+            prop_covered = dict()
+            num_eligible = dict() # This is the coverage denominator, number of people covered by the program
+            for prog in self.model.progset.programs.values(): # For each program
+                for pop_name in prog.target_pops:
+                    for comp_name in prog.target_comps:
+                        if prog.name not in num_eligible:
+                            num_eligible[prog.name] = self.get_variable(pop_name,comp_name)[0].vals.copy()
+                        else:
+                            num_eligible[prog.name] += self.get_variable(pop_name,comp_name)[0].vals
+
+                if prog.name in self.model.program_instructions.coverage:
+                    prop_covered[prog.name] = self.model.program_instructions.coverage[prog.name].interpolate(self.t)
+                else:
+                    prop_covered[prog.name] = np.divide(num_covered[prog.name], num_eligible[prog.name], out=np.zeros_like(num_covered[prog.name]), where=num_eligible[prog.name] != 0)
+                    prop_covered[prog.name] = np.minimum(prop_covered[prog.name],np.ones(self.t.shape))
+
+            if quantity == 'fraction':
+                return prop_covered
+            elif quantity == 'denominator':
+                return num_eligible
+            else:
+                raise AtomicaException('Unknown coverage type requested')
 
     # Methods to list available comps, characs, pars, and links
     # pop_name is required because different populations could have

@@ -1363,10 +1363,10 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plo
         figjsons.append(customize_fig(fig=budgetfig, output=None, plotdata=None, xlims=None, figsize=None, is_epi=False))
         budgetlegends = [sc.emptyfig()]
         
-        ax = budgetfigs[0].axes[0]
+        ax = budgetfig.axes[0]
         ax.set_xlabel('Spending ($/year)')
         
-        figs    += budgetfigs
+        figs.append(budgetfig)
         legends += budgetlegends
         print('Budget plot succeeded')
     

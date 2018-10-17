@@ -464,36 +464,18 @@ class PlotData(object):
         # Because aggregations always occur within a Result object, loop over results
         for result in results:
 
-            alloc = result.model.progset.get_alloc(result.model.program_instructions, tvec=result.t)
-
             if quantity == 'spending':
+                all_vals = result.get_alloc()
                 units = '$/year'
             elif quantity == 'coverage_number':
-                num_covered = result.model.progset.get_num_covered(year=result.t, alloc=alloc) # program coverage based on unit cost and spending
+                all_vals = result.get_coverage('number')
                 units = 'Number of people/year'
-            elif quantity in ['coverage_fraction','coverage_denominator']:
-                num_covered = result.model.progset.get_num_covered(year=result.t, alloc=alloc)  # program coverage based on unit cost and spending
-                # Get the program coverage denominator
-                prop_covered = dict()
-                num_eligible = dict() # This is the coverage denominator, number of people covered by the program
-                for prog in result.model.progset.programs.values(): # For each program
-                    for pop_name in prog.target_pops:
-                        for comp_name in prog.target_comps:
-                            if prog.name not in num_eligible:
-                                num_eligible[prog.name] = result.get_variable(pop_name,comp_name)[0].vals.copy()
-                            else:
-                                num_eligible[prog.name] += result.get_variable(pop_name,comp_name)[0].vals
-
-                    if prog.name in result.model.program_instructions.coverage:
-                        prop_covered[prog.name] = result.model.program_instructions.coverage[prog.name].interpolate(result.t)
-                    else:
-                        prop_covered[prog.name] = np.divide(num_covered[prog.name], num_eligible[prog.name], out=np.zeros_like(num_covered[prog.name]), where=num_eligible[prog.name] != 0)
-                        prop_covered[prog.name] = np.minimum(prop_covered[prog.name],np.ones(result.t.shape))
-
-                if quantity == 'coverage_denominator':
-                    units = 'Number of people'
-                elif quantity == 'coverage_fraction':
-                    units = 'Fraction covered/year'
+            elif quantity == 'coverage_denominator':
+                all_vals = result.get_coverage('denominator')
+                units = 'Number of people'
+            elif quantity == 'coverage_fraction':
+                all_vals = result.get_coverage('fraction')
+                units = 'Fraction covered/year'
             else:
                 raise AtomicaException('Unknown quantity')
 
@@ -505,22 +487,13 @@ class PlotData(object):
 
                         # We only support summation for combining program spending, not averaging
                         # TODO - if/when we track which currency, then should check here that all of the programs have the same currency
-                        vals = sum(alloc[x] for x in labels)*result.dt  # Add together all the outputs
+                        vals = sum(all_vals[x] for x in labels)*result.dt  # Add together all the outputs
                         output_name = output_name
                         data_label = None # No data present for aggregations
                     else:
                         raise NotAllowedError('Cannot use program aggregation for anything other than spending yet')
                 else:
-                    if quantity == 'spending':
-                        vals = alloc[output]
-                    elif quantity == 'coverage_number':
-                        vals = num_covered[output]
-                    elif quantity == 'coverage_fraction':
-                        vals = prop_covered[output]
-                    elif quantity == 'coverage_denominator':
-                        vals = num_eligible[output]
-                    else:
-                        raise AtomicaException('Unknown quantity')
+                    vals = all_vals[output]
                     output_name = output
                     data_label = output # Can look up program spending by the program name
 
@@ -963,16 +936,17 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
                     transform=ax.get_xaxis_transform(), verticalalignment='bottom', horizontalalignment='center')
             offset += result_offset
 
-    # If there is only one block per inner group, then use the inner group string as the bar label
-    if not any([x[1] for x in block_labels]) and len(block_labels) == len(inner_labels) and (show_all_labels or len(set([x for _, x in inner_labels])) > 1):
+    # If there are no block labels (e.g. due to stacking) and the number of inner labels matches the number of bars, then promote the inner group
+    # labels and use them as bar labels
+    if not any([x[1] for x in block_labels]) and len(block_labels) == len(inner_labels):
         if orientation == 'horizontal':
             ax.set_yticks([x[0] for x in inner_labels])
             ax.set_yticklabels([x[1] for x in inner_labels])
         else:
             ax.set_xticks([x[0] for x in inner_labels])
             ax.set_xticklabels([x[1] for x in inner_labels])
-    elif show_all_labels or (len(inner_labels) > 1 and len(set([x for _, x in inner_labels])) > 1):  # Inner group labels are only displayed if there is more than one label
-        # The inner labels span multiple bars, so they need to be constructed in addition to the
+    elif show_all_labels or (len(inner_labels) > 1 and len(set([x for _, x in inner_labels])) > 1):
+        # Otherwise, if there is only one inner group AND there are bar labels, don't show the inner group labels unless show_all_labels is True
         if orientation == 'horizontal':
             ax2 = ax.twinx()  # instantiate a second axes that shares the same y-axis
             ax2.set_yticks([x[0] for x in inner_labels])
