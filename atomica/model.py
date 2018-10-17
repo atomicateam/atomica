@@ -1220,7 +1220,6 @@ class Model(object):
 
             # Compute the updated program values
             prog_vals = self.progset.get_outcomes(prop_covered)
-            print(prog_vals)
 
         for par_name in self._par_list:
             # All of the parameters with this name, across populations.

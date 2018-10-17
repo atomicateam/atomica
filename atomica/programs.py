@@ -513,7 +513,7 @@ class ProgramSet(NamedItem):
                             cov_interaction =  x.value.strip().lower() # additive, nested, etc.
                     elif idx_to_header[i].lower() == 'impact interaction':
                         if x.value:
-                            imp_interaction =  x.value.strip().lower() # additive, nested, etc.
+                            imp_interaction =  x.value.strip() # additive, nested, etc.
                     elif idx_to_header[i].lower() == 'uncertainty':
                         if x.value is not None: # test `is not None` because it might be entered as 0
                             uncertainty = float(x.value)
@@ -574,9 +574,9 @@ class ProgramSet(NamedItem):
                 sheet.data_validation(xlrc(current_row, 2), {"validate": "list", "source": ["Random","Additive","Nested"]})
 
                 if covout and covout.imp_interaction is not None:
-                    sheet.write(current_row, 3, covout.imp_interaction.title(),self._formats['not_required'])
+                    sheet.write(current_row, 3, covout.imp_interaction,self._formats['not_required'])
                 else:
-                    sheet.write(current_row, 3, 'Best', self._formats['unlocked'])
+                    sheet.write(current_row, 3, None, self._formats['unlocked'])
                 sheet.data_validation(xlrc(current_row, 3), {"validate": "list", "source": ["Synergistic","Best"]})
 
                 if covout and covout.sigma is not None:
@@ -1001,7 +1001,7 @@ class Covout(object):
 
         # Parse any impact interactions that are present
         self._interactions = dict()
-        if self.imp_interaction and not self.imp_interaction.strip().lower() in ['best','synergistic']:
+        if self.imp_interaction and not self.imp_interaction.lower() in ['best','synergistic']:
             for interaction in self.imp_interaction.split(','):
                 combo, val = interaction.split('=')
                 combo = frozenset([x.strip() for x in combo.split('+')])
@@ -1115,7 +1115,7 @@ class Covout(object):
         if progs_active in self._interactions:
             # If the combination of programs has an explicitly specified outcome, then use it
             return self._interactions[progs_active]
-        elif self.imp_interaction == 'synergistic':
+        elif self.imp_interaction.lower() == 'synergistic':
             raise NotImplementedError
         else:
             # Otherwise, do the 'best' interaction and return the delta with the largest magnitude
