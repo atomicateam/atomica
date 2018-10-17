@@ -3,6 +3,7 @@ from distutils.version import LooseVersion
 from .system import logger, AtomicaException
 from .version import version
 import sciris as sc
+from .results import Result
 
 available_migrations = [] # This list stores all of the migrations that are possible
 
@@ -62,4 +63,20 @@ def simplify_parset_storage(proj):
         del parset.par_ids
     return proj
 
+@migration('1.0.7', '1.0.8','Add version information to model/results')
+def add_model_version(proj):
+
+    def add_version(res,p):
+        res.model.version = p.version
+        res.model.gitinfo = p.gitinfo
+        res.model.created = p.created
+
+    for result in proj.results.values():
+        if isinstance(result,list):
+            for r in result:
+                add_version(r,proj)
+        elif isinstance(result,Result):
+            add_version(result,proj)
+
+    return proj
 

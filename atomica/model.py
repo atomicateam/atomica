@@ -4,6 +4,7 @@ from .system import AtomicaException, NotFoundError, AtomicaInputError, NotAllow
 from .structure import FrameworkSettings as FS
 from .results import Result
 from .parser_function import parse_function
+from .version import version
 from collections import defaultdict
 import sciris as sc
 import numpy as np
@@ -781,6 +782,12 @@ class Model(object):
     """ A class to wrap up multiple populations within model and handle cross-population transitions. """
 
     def __init__(self, settings, framework, parset, progset=None, program_instructions=None):
+
+        # Record version info for the model run. These are generally NOT updated in migration. Thus, they serve
+        # as a record of which specific version of the code was used to generate the results
+        self.version = version
+        self.gitinfo = sc.gitinfo(__file__)
+        self.created = sc.now()
 
         self.pops = list()  # List of population groups that this model subdivides into.
         self.interactions = sc.odict()

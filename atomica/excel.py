@@ -524,7 +524,7 @@ class TimeDependentValuesEntry(object):
         self.name = name
         self.tvec = tvec
         self.ts = ts
-        self.allowed_units = allowed_units
+        self.allowed_units = [x.title() if x in FS.STANDARD_UNITS else x for x in allowed_units] if allowed_units is not None else None
 
     def __repr__(self):
         output= sc.prepr(self)
@@ -602,7 +602,12 @@ class TimeDependentValuesEntry(object):
 
             if units_index is not None:
                 assert sc.isstring(vals[units_index]), "The 'units' quantity needs to be specified as text e.g. 'probability'"
-                units = vals[units_index].lower().strip() if vals[units_index] else None
+                if vals[units_index]:
+                    units = vals[units_index]
+                    if units.lower().strip() in FS.STANDARD_UNITS:
+                        units = units.lower().strip() # Only lower and strip units if they are standard units
+                else:
+                    units = None
                 format = units
             else:
                 units = None
@@ -702,8 +707,8 @@ class TimeDependentValuesEntry(object):
                 else:
                     worksheet.write(current_row,units_index,FS.DEFAULT_SYMBOL_INAPPLICABLE)
 
-                if self.allowed_units: # Add validation if a list of options is specified
-                    worksheet.data_validation(xlrc(current_row, units_index),{"validate": "list", "source": [x.title() for x in self.allowed_units]})
+                if self.allowed_units: # Add dropdown selection if there is more than one valid choice for the units
+                    worksheet.data_validation(xlrc(current_row, units_index),{"validate": "list", "source": self.allowed_units})
 
             if write_uncertainty:
                 if row_ts.sigma is None:

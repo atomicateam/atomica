@@ -263,7 +263,7 @@ class ProjectData(sc.prettyobj):
                     if not spec['databook page']:
                         logger.warning('A TDVE table for "%s" (%s) was read in and will be used, but the Framework did not mark this quantity as appearing in the databook' % (tdve.name,code_name))
 
-                    tdve.allowed_units = [x.title() for x in framework.get_allowed_units(code_name)]
+                    tdve.allowed_units = [x.title() if x in FS.STANDARD_UNITS else x for x in framework.get_allowed_units(code_name)]
 
                     self.tdve[code_name] = tdve
                     # Store the TDVE on the page it was actually on, rather than the one in the framework. Then, if users move anything around, the change will persist
