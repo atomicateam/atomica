@@ -451,6 +451,8 @@ class ProjectFramework(object):
             message = 'An error was detected on the "Parameters" sheet in the Framework file -> '
             reraise_modify(e, message)
 
+        self.pars['format'] = self.pars['format'].map(lambda x: x.strip() if sc.isstring(x) else x)
+
         if 'calibrate' not in self.pars:
             default_calibrate = self.pars['targetable'] == 'y'
             self.pars['calibrate'] = None
@@ -463,6 +465,10 @@ class ProjectFramework(object):
         defined = set() # Track which parameters have already been defined
         for i,par in self.pars.iterrows():
             defined.add(par.name)
+
+            # Convert case for standard units - this is required for validation
+            if par['format'] and par['format'].lower() in FS.STANDARD_UNITS:
+                par['format'] = par['format'].lower()
 
             if par['function'] is None:
                 # In order to have a value, a transition parameter must either be
@@ -518,7 +524,7 @@ class ProjectFramework(object):
             if self.transitions[par.name]: # If this parameter is associated with transitions
 
                 # Transition parameters must have units defined in the framework
-                if par['format'] is None:
+                if not par['format']:
                     raise InvalidFramework('Parameter %s is a transition parameter, so it needs to have a format specified in the Framework' % par.name)
 
                 from_comps = [x[0] for x in self.transitions[par.name]]
@@ -550,6 +556,10 @@ class ProjectFramework(object):
                 for comp in to_comps:
                     if self.get_comp(comp)['is source']=='y':
                         raise InvalidFramework('Parameter "%s" has an inflow to Compartment "%s" which is a source' % par.name,comp)
+            else:
+                # If this is not a transition parameter...
+                if par['format'] == FS.QUANTITY_TYPE_NUMBER and par['targetable'] == 'y':
+                    raise InvalidFramework('Parameter "%s" is targetable and in number units, but is not a transition parameter. To target a parameter with programs in number units, the parameter must appear in the transition matrix.' % par.name)
 
         ### VALIDATE NAMES - No collisions, no keywords
 
