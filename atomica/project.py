@@ -363,19 +363,17 @@ class Project(object):
             outputs = [{plot_name:supported_plots[plot_name]} for plot_name in supported_plots.keys()]
         if results is None:
             results = self.result(key)
+
         allfigs = []
-        alllegends = []
         for output in outputs:
             try:
-                print('Plotting %s...' % output)
-                if not isinstance(list(output.values())[0],list): output = output.values()[0]
+                if not isinstance(list(output.values())[0],list): output = list(output.values())[0]
                 plotdata = PlotData(results, outputs=output, project=self, pops=pops)
-                figs,legends = plot_series(plotdata, axis='pops', plot_type='stacked', legend_mode='separate')
+                figs = plot_series(plotdata, axis='pops', plot_type='stacked', legend_mode='together')
                 allfigs += figs
-                alllegends += legends
-            except:
-                print('WARNING, %s failed' % output)
-        return figs,legends
+            except Exception as e:
+                print('WARNING, %s failed (%s)' % (output,str(e)))
+        return allfigs
 
     def update_settings(self, sim_start=None, sim_end=None, sim_dt=None):
         """ Modify the project settings, e.g. the simulation time vector. """

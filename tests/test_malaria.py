@@ -17,9 +17,11 @@ P.load_progbook('databooks/progbook_malaria.xlsx')
 
 instructions = au.ProgramInstructions()
 
-P.run_sim('default', 'default', instructions)
+res = P.run_sim('default', 'default', instructions)
 # P.save('malaria')
+P.plot(res)
 
-P.results[-1].plot()
+d = au.PlotData(res,'dalys',accumulate='integrate')
+au.plot_series(d,plot_type='stacked',axis='pops')
+
 plt.show()
-
