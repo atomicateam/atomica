@@ -70,3 +70,6 @@ au.plot_series(d,plot_type='stacked')
 
 d = au.PlotData.programs(result1,quantity='coverage_fraction')
 au.plot_series(d,plot_type='line')
+
+d = au.PlotData.programs(result1,t_bins='all',accumulate='integrate')
+au.plot_series(d,plot_type='stacked')

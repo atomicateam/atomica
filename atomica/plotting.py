@@ -24,6 +24,7 @@ from .parser_function import parse_function
 from .interpolation import interpolate_func
 from .structure import FrameworkSettings as FS
 import scipy.interpolate
+import scipy.integrate
 
 settings = dict()
 settings['legend_mode'] = 'together'  # Possible options are ['together','separate','none']
@@ -79,7 +80,7 @@ class PlotData(object):
     # different views of the same data.
 
     # TODO: Make sure to chuck a useful error when t_bins is greater than sim duration, rather than just crashing.
-    def __init__(self, results, outputs=None, pops=None, output_aggregation=None, pop_aggregation=None, project=None,time_aggregation='sum', t_bins=None):
+    def __init__(self, results, outputs=None, pops=None, output_aggregation=None, pop_aggregation=None, project=None,time_aggregation='sum', t_bins=None,accumulate=None):
         # Construct a PlotData instance from model outputs
         #
         # final_outputs[result][pop][output] = vals
@@ -127,6 +128,9 @@ class PlotData(object):
         #         is >= the lower bin value and < upper bin value.
         #       - A scalar bin size (e.g. 5) which will be expanded to a vector spanning the data
         #       - The string 'all' will maps to bin edges [-inf inf] aggregating over all time
+        # - accumulate - can be 'sum' or 'integrate' to either sum quantities or integrate by multiplying by the timestep. Accumulation happens *after* time aggregation.
+        #                The logic is extremely simple - the quantities in the Series pass through `cumsum`. If 'integrate' is selected, then the quantities are multiplied
+        #                by `dt` and the units are multiplied by `years`
 
         # Validate inputs
         if isinstance(results, sc.odict):
@@ -155,7 +159,6 @@ class PlotData(object):
 
         assert output_aggregation in [None, 'sum', 'average', 'weighted']
         assert pop_aggregation in [None, 'sum', 'average', 'weighted']
-        assert time_aggregation in ['sum', 'average']
 
         # First, get all of the pops and outputs requested by flattening the lists
         pops_required = extract_labels(pops)
@@ -352,12 +355,44 @@ class PlotData(object):
         if t_bins is not None:
             self._time_aggregate(t_bins,time_aggregation)
 
+        if accumulate is not None:
+            self._accumulate(accumulate)
+
+    def _accumulate(self,accumulation_method):
+        # Time accumulation of Series object contained within this instance
+        # Accumulation methods are
+        # - sum : runs `cumsum` on all quantities - should not be used if units are flow rates (so will check for '/year')
+        # - integrate : integrate using trapezoidal rule, assuming initial value of 0
+        # Note that here there is no concept of 'dt' because we might have non-uniform time aggregation bins
+        # Therefore, we need to use the time vector actually contained in the Series object (via cumtrapz())
+        assert accumulation_method in ['sum', 'integrate']
+
+        for s in self.series:
+            if accumulation_method == 'sum':
+                if '/year' in s.units:
+                    raise AtomicaException('Quantity "%s" has units "%s" which means it should be accumulated by integration, not summation' % (s.output,s.units))
+                s.vals = np.cumsum(s.vals)
+            elif accumulation_method == 'integrate':
+                s.vals = scipy.integrate.cumtrapz(s.vals,s.tvec)
+                s.vals = np.insert(s.vals,0,0.0)
+                if '/year' in s.units:
+                    s.units = s.units.replace('/year','')
+                else:
+                    s.units += ' years'
+            else:
+                raise AtomicaException('Unknown accumulation type')
+
+            s.units = 'Cumulative ' + s.units
+
     def _time_aggregate(self, t_bins, time_aggregation):
         # This is an internal method used for time aggregation
         # It is called by __init__() to time-aggregate model outputs, and by
         # `.programs()` to time-aggregate spending values
 
         # If t_bins is a scalar, expand it into a vector of bin edges
+
+        assert time_aggregation in ['sum', 'average']
+
         if not hasattr(t_bins, '__len__'):
             # TODO - here is where the code to handle t_bins > sim duration goes
             if not (self.series[0].tvec[-1] - self.series[0].tvec[0]) % t_bins:
@@ -416,7 +451,7 @@ class PlotData(object):
         return s
 
     @staticmethod
-    def programs(results,outputs=None,t_bins=None,quantity='spending'):
+    def programs(results,outputs=None,t_bins=None,quantity='spending',accumulate=None):
         # This constructs a PlotData instance from spending values
         #
         # INPUTS
@@ -525,6 +560,9 @@ class PlotData(object):
                 plotdata._time_aggregate(t_bins,'average')
             else:
                 raise AtomicaException('Unknown quantity')
+
+        if accumulate is not None:
+            plotdata._accumulate(accumulate)
 
         return plotdata
 
