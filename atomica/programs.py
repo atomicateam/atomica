@@ -904,11 +904,9 @@ class Program(NamedItem):
     def has_budget(self):
         return self.spend_data.has_data()
 
-    def get_num_covered(self, year=None, unit_cost=None, capacity=None, budget=None, sample=False):
+    def get_num_covered(self, year=None, unit_cost=None, capacity=None, budget=None, sample=False, dt=1.0):
         '''Returns number covered for a time/spending vector'''
-        # TODO - implement sampling - might just be replacing 'interpolate' with 'sample'?
-
-        num_covered = 0.
+        # TODO - implement sampling
 
         # Validate inputs
         if budget is None:
@@ -919,21 +917,17 @@ class Program(NamedItem):
             unit_cost = self.unit_cost.interpolate(year)
         unit_cost = sc.promotetoarray(unit_cost)
 
+        num_covered = budget / unit_cost
+
         if capacity is None and self.capacity.has_data:
             capacity = self.capacity.interpolate(year)
 
-        # Use a linear cost function if capacity has not been set
         if capacity is not None:
-            num_covered = 2*capacity/(1+exp(-2*budget/(capacity*unit_cost)))-capacity
-
-        # Use a saturating cost function if capacity has been set
-        else:
-            num_covered = budget/unit_cost
+            num_covered = np.minimum(capacity, num_covered)
 
         return num_covered
 
-
-    def get_prop_covered(self, year=None, denominator=None, unit_cost=None, capacity=None, budget=None, sample='best'):
+    def get_prop_covered(self, year=None, denominator=None, unit_cost=None, capacity=None, budget=None, saturation=None, sample='best', dt=1.0):
         '''Returns proportion covered for a time/spending vector and denominator'''
 
         # Make sure that denominator has been supplied
@@ -943,8 +937,14 @@ class Program(NamedItem):
 
         # TODO: error checking to ensure that the dimension of year is the same as the dimension of the denominator
         # Example: year = [2015,2016], denominator = [30000,40000]
-        num_covered = self.get_num_covered(unit_cost=unit_cost, capacity=capacity, budget=budget, year=year, sample=sample)
+        num_covered = self.get_num_covered(unit_cost=unit_cost, capacity=capacity, budget=budget, year=year, sample=sample, dt=dt)
         prop_covered = minimum(num_covered/denominator, 1.) # Ensure that coverage doesn't go above 1
+
+        if saturation is None and self.saturation.has_data:
+            saturation = self.saturation.interpolate(year)
+        if saturation is not None:
+            prop_covered = 2*saturation/(1+exp(-2*prop_covered/saturation))-saturation
+
         return prop_covered
 
 
