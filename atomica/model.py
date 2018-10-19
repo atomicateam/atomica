@@ -1243,7 +1243,7 @@ class Model(object):
                     if (par.name,par.pop.name) in prog_vals:
                         par.vals[ti] = prog_vals[(par.name,par.pop.name)]
                         if par.units == FS.QUANTITY_TYPE_NUMBER:
-                            par.vals[ti] *= par.source_popsize(ti)
+                            par.vals[ti] *= par.source_popsize(ti)/self.dt # The outcome in the progbook is per person reached, which is a timestep specific value. Thus, need to annualize here
 
             # Handle parameters that aggregate over populations and use interactions in these functions.
             if pars[0].pop_aggregation:

@@ -25,3 +25,20 @@ d = au.PlotData(res,'dalys',accumulate='integrate')
 au.plot_series(d,plot_type='stacked',axis='pops')
 
 plt.show()
+
+
+# Number of treatments
+d = au.PlotData(res,'treated','gp')
+au.plot_series(d)
+
+# Eligibility for treatments
+d = au.PlotData(res,['hinf','himmmls','hwanmls'],'gp')
+au.plot_series(d,plot_type='stacked')
+
+# Flow into treatment eligibility
+d = au.PlotData(res,[':hinf',':himmmls',':hwanmls'],'gp')
+au.plot_series(d,plot_type='stacked')
+
+# Treated actual flow
+d = au.PlotData(res,'treated:flow','gp')
+au.plot_series(d)
