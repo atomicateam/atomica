@@ -360,7 +360,7 @@ class TimeDependentConnections(object):
                     raise AtomicaException(str('The units for transfer "%s" ("%s"->"%s") cannot be empty' % (full_name,from_pop,to_pop)))
                 assumption = vals[4] # This is the assumption cell
                 assert vals[5].strip().lower() == 'or' # Double check we are reading a time-dependent row with the expected shape
-                ts = TimeSeries(format=units,units=units)
+                ts = TimeSeries(units=units)
                 if assumption is not None:
                     ts.insert(None, assumption)
                 for t, v in zip(tvec, vals[6:]):
@@ -443,8 +443,8 @@ class TimeDependentConnections(object):
                     worksheet.write_formula(current_row, 1, gate_content('--->', entry_cell), formats['center'], value='--->')
                     worksheet.write_formula(current_row, 2, gate_content(references[to_pop], entry_cell), formats['center_bold'], value=to_pop)
                     update_widths(widths, 2, to_pop)
-                    worksheet.write(current_row, 3, ts.format.title(), format)
-                    update_widths(widths, 3, ts.format.title())
+                    worksheet.write(current_row, 3, ts.units.title(), format)
+                    update_widths(widths, 3, ts.units.title())
 
                     if self.allowed_units:
                         worksheet.data_validation(xlrc(current_row, 3), {"validate": "list", "source": [x.title() for x in self.allowed_units]})
@@ -524,7 +524,7 @@ class TimeDependentValuesEntry(object):
         self.name = name
         self.tvec = tvec
         self.ts = ts
-        self.allowed_units = [x.title() if x in FS.STANDARD_UNITS else x for x in allowed_units] if allowed_units is not None else None
+        self.allowed_units = [x.title() if x in FS.STANDARD_UNITS else x for x in allowed_units] if allowed_units is not None else None # Otherwise, can be an odict with keys corresponding to ts - leave as None for no restriction
 
     def __repr__(self):
         output= sc.prepr(self)
@@ -608,12 +608,10 @@ class TimeDependentValuesEntry(object):
                         units = units.lower().strip() # Only lower and strip units if they are standard units
                 else:
                     units = None
-                format = units
             else:
                 units = None
-                format = None
 
-            ts = TimeSeries(format=format,units=units)
+            ts = TimeSeries(units=units)
 
             if uncertainty_index is not None:
                 ts.sigma = cell_get_number(row[uncertainty_index])
@@ -697,18 +695,25 @@ class TimeDependentValuesEntry(object):
             # Write the units
             if write_units:
 
-                if row_ts.format:
-                    if row_ts.format.lower().strip() in FS.STANDARD_UNITS: # Preserve case if nonstandard unit
-                        unit = row_ts.format.title().strip()
+                if row_ts.units:
+                    if row_ts.units.lower().strip() in FS.STANDARD_UNITS: # Preserve case if nonstandard unit
+                        unit = row_ts.units.title().strip()
                     else:
-                        unit = row_ts.format.strip()
+                        unit = row_ts.units.strip()
                     worksheet.write(current_row,units_index,unit)
                     update_widths(widths, units_index, unit)
                 else:
                     worksheet.write(current_row,units_index,FS.DEFAULT_SYMBOL_INAPPLICABLE)
 
-                if self.allowed_units: # Add dropdown selection if there is more than one valid choice for the units
-                    worksheet.data_validation(xlrc(current_row, units_index),{"validate": "list", "source": self.allowed_units})
+                if self.allowed_units and isinstance(self.allowed_units,dict) and row_name in self.allowed_units: # Add dropdown selection if there is more than one valid choice for the units
+                    allowed = self.allowed_units[row_name]
+                elif self.allowed_units and not isinstance(self.allowed_units,dict):
+                    allowed = self.allowed_units
+                else:
+                    allowed = None
+
+                if allowed:
+                    worksheet.data_validation(xlrc(current_row, units_index),{"validate": "list", "source": allowed})
 
             if write_uncertainty:
                 if row_ts.sigma is None:

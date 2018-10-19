@@ -4,6 +4,7 @@ from .system import logger, AtomicaException
 from .version import version
 import sciris as sc
 from .results import Result
+from .structure import FrameworkSettings as FS
 
 available_migrations = [] # This list stores all of the migrations that are possible
 
@@ -80,3 +81,25 @@ def add_model_version(proj):
 
     return proj
 
+@migration('1.0.8', '1.0.9','Add currency and units to progset quantities')
+def add_model_version(proj):
+
+    def add_units(progset):
+        # Add in the default units
+        progset.currency = '$'
+        for program in progset.programs.values():
+            program.baseline_spend.units = progset.currency + '/year'
+            program.spend_data.units = progset.currency + '/year'
+            program.unit_cost.units = progset.currency + '/person'
+            program.capacity.units = 'people/year'
+            program.saturation.units = FS.DEFAULT_SYMBOL_INAPPLICABLE
+            program.coverage.units = 'people/year'
+
+    for progset in proj.progsets.values():
+        add_units(progset)
+
+    for result in proj.results.values():
+        if result.model.progset is not None:
+            add_units(result.model.progset)
+
+    return proj

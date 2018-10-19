@@ -11,6 +11,7 @@ from .system import AtomicaException, logger, AtomicaInputError, reraise_modify
 from .utils import NamedItem
 from numpy import array, exp, minimum, inf
 from .structure import TimeSeries
+from .structure import FrameworkSettings as FS
 from .excel import standard_formats, AtomicaSpreadsheet, apply_widths, update_widths, read_tables, TimeDependentValuesEntry
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 import openpyxl
@@ -86,6 +87,7 @@ class ProgramSet(NamedItem):
         # Meta data
         self.created    = sc.now()
         self.modified   = sc.now()
+        self.currency   = '$' # The symbol for currency that will be used in the progbook
 
         return None
 
@@ -136,7 +138,7 @@ class ProgramSet(NamedItem):
 
     def add_program(self, code_name, full_name):
         # To add a program, we just need to construct one
-        prog = Program(name=code_name,label=full_name)
+        prog = Program(name=code_name,label=full_name,currency=self.currency)
         self.programs[prog.name] = prog
         return
 
@@ -440,19 +442,28 @@ class ProgramSet(NamedItem):
                 reraise_modify(e, message)
 
             prog = self.programs[tdve.name]
-            prog.spend_data = tdve.ts['Total spend']
-            if 'Capacity constraints' in tdve.ts: # This is a compatibility statement around 30/8/18, can probably be removed after a few weeks
-                prog.capacity = tdve.ts['Capacity constraints']
+
+            def set_ts(prog,field_name,ts):
+                # Set Program timeseries based on TDVE, handling the case where the TDVE has no units
+                if ts.units is None:
+                    ts.units = getattr(prog,field_name).units
+                setattr(prog,field_name, ts)
+
+            if 'Total spend' in tdve.ts: # This is a compatibility statement around 19/10/18, progbooks generated during the WB workshop would have 'Total spend'
+                set_ts(prog,'spend_data',tdve.ts['Total spend'])
             else:
-                prog.capacity = tdve.ts['Capacity']
-            prog.unit_cost = tdve.ts['Unit cost']
-            prog.coverage = tdve.ts['Coverage']
-            if 'Saturation' in tdve.ts: # This is a compatibility statement around 30/8/18, can probably be removed after a few weeks
-                prog.saturation = tdve.ts['Saturation']
-            else:
-                prog.saturation = TimeSeries()
+                set_ts(prog,'spend_data',tdve.ts['Annual spend'])
+
+            set_ts(prog,'capacity',tdve.ts['Capacity'])
+            set_ts(prog,'unit_cost',tdve.ts['Unit cost'])
+            set_ts(prog,'coverage',tdve.ts['Coverage'])
+            set_ts(prog,'saturation',tdve.ts['Saturation'])
+
+            if '/year' in prog.unit_cost.units and '/year' in prog.coverage.units:
+                logger.warning('Typically ')
             times.update(set(tdve.tvec))
-        self.tvec = array(sorted(list(times)))
+
+        self.tvec = array(sorted(list(times))) # NB. This means that the ProgramSet's tvec (used when writing new programs) is based on the last Program to be read in
 
     def _write_spending(self):
         sheet = self._book.add_worksheet("Spending data")
@@ -463,16 +474,21 @@ class ProgramSet(NamedItem):
             # Make a TDVE table for
             tdve = TimeDependentValuesEntry(prog.name,self.tvec)
             prog = self.programs[tdve.name]
-            tdve.ts['Total spend'] = prog.spend_data
+            tdve.ts['Annual spend'] = prog.spend_data
             tdve.ts['Unit cost'] = prog.unit_cost
             tdve.ts['Capacity'] = prog.capacity
             tdve.ts['Saturation'] = prog.saturation
             tdve.ts['Coverage'] = prog.coverage
 
+            tdve.allowed_units = {
+                'Unit cost':[self.currency + '/person', self.currency + '/person/year'],
+                'Capacity':['people/year', 'people']
+            }
+
             # NOTE - If the ts contains time values that aren't in the ProgramSet's tvec, then an error will be thrown
             # However, if the ProgramSet's tvec contains values that the ts does not, then that's fine, there
             # will just be an empty cell in the spreadsheet
-            next_row = tdve.write(sheet, next_row, self._formats, self._references, widths,assumption_heading='Assumption',write_units=False,write_uncertainty=True)
+            next_row = tdve.write(sheet, next_row, self._formats, self._references, widths,assumption_heading='Assumption',write_units=True,write_uncertainty=True)
 
         apply_widths(sheet,widths)
 
@@ -819,8 +835,8 @@ class ProgramSet(NamedItem):
 class Program(NamedItem):
     ''' Defines a single program.'''
 
-    def __init__(self, name=None, label=None, target_pops=None, target_pars=None, target_comps=None):
-        '''Initialize'''
+    def __init__(self, name=None, label=None, target_pops=None, target_pars=None, target_comps=None, currency='$'):
+        '''Instantiate a new deafult program'''
         NamedItem.__init__(self,name)
         assert name is not None, 'You must supply a name for a program'
         self.name               = name # Short name of program
@@ -828,12 +844,12 @@ class Program(NamedItem):
         self.target_pars        = [] if target_pars is None else target_pars # Dict of parameters targeted by program, in form {'param': par.short, 'pop': pop} # TODO - remove this, this info is in the Covout
         self.target_pops        = [] if target_pops is None else target_pops # List of populations targeted by the program
         self.target_comps       = [] if target_comps is None else target_comps # Compartments targeted by the program - used for calculating coverage denominators
-        self.baseline_spend     = TimeSeries(assumption=0.0) # A TimeSeries with any baseline spending data - currently not exposed in progbook
-        self.spend_data         = TimeSeries() # TimeSeries with spending data
-        self.unit_cost          = TimeSeries() # TimeSeries with unit cost of program
-        self.capacity           = TimeSeries() # TimeSeries with capacity of program - optional - if not supplied, cost function is assumed to be linear
-        self.saturation = TimeSeries()
-        self.coverage           = TimeSeries() # TimeSeries with capacity of program - optional - if not supplied, cost function is assumed to be linear
+        self.baseline_spend     = TimeSeries(assumption=0.0,units=currency+'/year') # A TimeSeries with any baseline spending data - currently not exposed in progbook
+        self.spend_data         = TimeSeries(units=currency+'/year') # TimeSeries with spending data
+        self.unit_cost          = TimeSeries(units=currency+'/person') # TimeSeries with unit cost of program
+        self.capacity           = TimeSeries(units='people/year') # TimeSeries with capacity of program - optional - if not supplied, cost function is assumed to be linear
+        self.saturation         = TimeSeries(units=FS.DEFAULT_SYMBOL_INAPPLICABLE)
+        self.coverage           = TimeSeries(units='people/year') # TimeSeries with capacity of program - optional - if not supplied, cost function is assumed to be linear
         return None
 
     def __repr__(self):
