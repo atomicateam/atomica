@@ -72,7 +72,7 @@ class Result(NamedItem):
         if self.model.progset is None:
             return None
 
-        num_covered = self.model.progset.get_num_covered(year=self.t, alloc=self.get_alloc())
+        num_covered = self.model.progset.get_num_covered(year=self.t, alloc=self.get_alloc(),dt=self.dt)
 
         if quantity == 'number':
             return num_covered

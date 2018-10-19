@@ -861,7 +861,7 @@ class Model(object):
                 self._program_cache['pars'][target_par['param']][target_par['pop']] = self.get_pop(target_par['pop']).get_par(target_par['param'])
 
             self._program_cache['alloc'] = self.progset.get_alloc(self.program_instructions, self.t)
-            self._program_cache['num_coverage'] = self.progset.get_num_covered(year=self.t, alloc=self._program_cache['alloc'])
+            self._program_cache['num_coverage'] = self.progset.get_num_covered(year=self.t, alloc=self._program_cache['alloc'],dt=self.dt)
 
             self._program_cache['prop_coverage'] = dict()
             for prog_name, coverage_ts in self.program_instructions.coverage.items():
@@ -870,7 +870,6 @@ class Model(object):
             self.progset.prepare_cache()
         else:
             self.programs_active = False
-
 
 
     def set_vars_by_pop(self):

@@ -191,11 +191,11 @@ class ParameterSet(NamedItem):
                 tvec, yvec = ts.get_arrays()
                 par.t[pop_name] = tvec
                 par.y[pop_name] = yvec
-                if ts.format is not None and ts.format.upper().strip() != FS.DEFAULT_SYMBOL_INAPPLICABLE:
-                    if ts.format.lower().strip() in FS.STANDARD_UNITS:
-                        par.y_format[pop_name] = ts.format.lower().strip()
+                if ts.units is not None and ts.units.upper().strip() != FS.DEFAULT_SYMBOL_INAPPLICABLE:
+                    if ts.units.lower().strip() in FS.STANDARD_UNITS:
+                        par.y_format[pop_name] = ts.units.lower().strip()
                     else:
-                        par.y_format[pop_name] = ts.format.strip() # Preserve the case if it's not a standard unit
+                        par.y_format[pop_name] = ts.units.strip() # Preserve the case if it's not a standard unit
                 else:
                     par.y_format[pop_name] = None
                 par.y_factor[pop_name] = 1.0
@@ -234,7 +234,7 @@ class ParameterSet(NamedItem):
                 tvec, yvec = ts.get_arrays()
                 item_storage[name][source_pop].t[target_pop] = tvec
                 item_storage[name][source_pop].y[target_pop] = yvec
-                item_storage[name][source_pop].y_format[target_pop] = ts.format
+                item_storage[name][source_pop].y_format[target_pop] = ts.units
                 item_storage[name][source_pop].y_factor[target_pop] = 1.0
 
         return

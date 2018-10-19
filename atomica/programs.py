@@ -765,8 +765,9 @@ class ProgramSet(NamedItem):
 
         return default_budget
 
-    def get_num_covered(self, year=None, alloc=None, unit_cost=None, capacity=None,sample='best'):
+    def get_num_covered(self, dt, year=None, alloc=None, unit_cost=None, capacity=None,sample='best'):
         ''' Extract the number of people covered by a program, optionally specifying an overwrite for the alloc '''
+        # dt *must* be provided, otherwise cannot be certain that the output will be as intended
 
         num_covered = sc.odict() # Initialise outputs
 
@@ -780,11 +781,11 @@ class ProgramSet(NamedItem):
             else:
                 spending = None
 
-            num_covered[prog.name] = prog.get_num_covered(year=year, budget=spending, unit_cost=unit_cost, capacity=capacity, sample=sample)
+            num_covered[prog.name] = prog.get_num_covered(year=year, budget=spending, unit_cost=unit_cost, capacity=capacity, sample=sample, dt=dt)
 
         return num_covered
 
-    def get_prop_covered(self, year=None, denominator=None, unit_cost=None, capacity=None, alloc=None, sample='best'):
+    def get_prop_covered(self, dt, year=None, denominator=None, unit_cost=None, capacity=None, alloc=None, sample='best'):
         '''Returns proportion covered for a time/spending vector and denominator.
         Denominator is expected to be a dictionary.'''
         # INPUT
@@ -803,7 +804,7 @@ class ProgramSet(NamedItem):
             else:
                 spending = None
 
-            num = prog.get_num_covered(year=year, unit_cost=unit_cost, capacity=capacity, budget=spending, sample=sample)
+            num = prog.get_num_covered(year=year, unit_cost=unit_cost, capacity=capacity, budget=spending, sample=sample, dt=dt)
             denom = denominator[prog.name]
             prop_covered[prog.name] = minimum(num/denom, 1.) # Ensure that coverage doesn't go above 1
 
@@ -912,10 +913,15 @@ class Program(NamedItem):
         if budget is None:
             budget = self.spend_data.interpolate(year)
         budget = sc.promotetoarray(budget)
+        if '/year' not in self.unit_cost.units:
+            # The budget is $/year, and the /year gets eliminated if the unit cost is also per year. If that's not the case, then
+            # we need to multiply the budget by the timestep to get the correct units
+            budget *= dt
 
         if unit_cost is None:
             unit_cost = self.unit_cost.interpolate(year)
         unit_cost = sc.promotetoarray(unit_cost)
+
 
         num_covered = budget / unit_cost
 
@@ -923,6 +929,9 @@ class Program(NamedItem):
             capacity = self.capacity.interpolate(year)
 
         if capacity is not None:
+            if '/year' in self.capacity.units:
+                # The capacity constraint is applied to a number of people. If it is /year, then it must be multiplied by the timestep first
+                capacity *= dt
             num_covered = np.minimum(capacity, num_covered)
 
         return num_covered
