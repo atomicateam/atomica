@@ -72,13 +72,12 @@ class Result(NamedItem):
         if self.model.progset is None:
             return None
 
-        num_covered = self.model.progset.get_num_coverage(tvec=self.t, dt=self.dt, instructions=self.model.program_instructions)
+        num_coverage = self.model.progset.get_num_coverage(tvec=self.t, dt=self.dt, instructions=self.model.program_instructions)
 
         if quantity == 'number':
-            return num_covered
+            return num_coverage
         else:
             # Get the program coverage denominator
-            prop_covered = dict()
             num_eligible = dict() # This is the coverage denominator, number of people covered by the program
             for prog in self.model.progset.programs.values(): # For each program
                 for pop_name in prog.target_pops:
@@ -87,15 +86,10 @@ class Result(NamedItem):
                             num_eligible[prog.name] = self.get_variable(pop_name,comp_name)[0].vals.copy()
                         else:
                             num_eligible[prog.name] += self.get_variable(pop_name,comp_name)[0].vals
-
-                if prog.name in self.model.program_instructions.coverage:
-                    prop_covered[prog.name] = self.model.program_instructions.coverage[prog.name].interpolate(self.t)
-                else:
-                    prop_covered[prog.name] = np.divide(num_covered[prog.name], num_eligible[prog.name], out=np.zeros_like(num_covered[prog.name]), where=num_eligible[prog.name] != 0)
-                    prop_covered[prog.name] = np.minimum(prop_covered[prog.name],np.ones(self.t.shape))
+            prop_coverage = self.model.progset.get_prop_coverage(tvec=self.t, num_coverage=num_coverage,denominator=num_eligible,instructions=self.model.program_instructions, sample=False)
 
             if quantity == 'fraction':
-                return prop_covered
+                return prop_coverage
             elif quantity == 'denominator':
                 return num_eligible
             else:
