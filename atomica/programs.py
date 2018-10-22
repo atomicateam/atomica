@@ -7,7 +7,7 @@ Version: 2018jul30
 """
 
 import sciris as sc
-from .system import AtomicaException, logger, AtomicaInputError, reraise_modify
+from .system import AtomicaException, logger, reraise_modify
 from .utils import NamedItem
 from numpy import array, exp, minimum, inf
 from .structure import TimeSeries
@@ -460,7 +460,7 @@ class ProgramSet(NamedItem):
             set_ts(prog,'saturation',tdve.ts['Saturation'])
 
             if '/year' in prog.unit_cost.units and '/year' in prog.coverage.units:
-                logger.warning('Typically ')
+                logger.warning('Program %s: Typically if the unit cost is `/year` then the coverage would not be `/year`' % (prog.label))
             times.update(set(tdve.tvec))
 
         self.tvec = array(sorted(list(times))) # NB. This means that the ProgramSet's tvec (used when writing new programs) is based on the last Program to be read in
@@ -707,7 +707,11 @@ class ProgramSet(NamedItem):
         return newps
 
     def validate(self):
-        # Some basic validation checks
+        """ Perform basic validation checks
+
+        :raises AtomicaException is anything is invalid
+        :return: None
+        """
         for prog in self.programs.values():
             if not prog.target_comps:
                 raise AtomicaException('Program "%s" does not target any compartments' % (prog.name))
@@ -717,118 +721,87 @@ class ProgramSet(NamedItem):
     #######################################################################################################
     # Methods for getting core response summaries: budget, allocations, coverages, outcomes, etc
     #######################################################################################################
-    def get_alloc(self,instructions=None,tvec=None):
-        # Get time-varying alloc for each program
-        # Input
-        # - instructions : program instructions
-        # - t : np.array vector of time values (years)
-        #
-        # Returns a dict where the key is the program name and
-        # the value is an array of spending values the same size as t
-        # Spending will be drawn from the instructions if it exists. The `instructions.alloc`
-        # can either be:
-        # - None
-        # - A dict in which a program may or may not appear
-        # - A dict in which a program appears and has a TimeSeries of spending but has no associated data
-        #
-        # Validate inputs
-        if tvec is None:
-            tvec = instructions.start_year
+
+    def get_alloc(self, tvec, instructions=None):
+        """ Return the spending allocation for each program
+
+        :param tvec: array of times (in years) - this is required to interpolate time-varying spending values
+        :param instructions: optionally specify instructions, which can supply a spending overwrite
+        :return: Dict like {prog_name: np.array()} with spending on each program (in units of $/year or currency equivalent)
+        """
+
         tvec = sc.promotetoarray(tvec)
 
-        if instructions is None: # If no instructions provided, just return the default budget
-            return self.get_budgets(year=tvec)
-        else:
-            if instructions.alloc is None:
-                return self.get_budgets(year=tvec)
+        alloc = sc.odict()
+        for prog in self.programs.values():
+            if instructions is None or prog.name not in instructions.alloc:
+                alloc[prog.name] = prog.get_spend(tvec)
             else:
-                alloc = sc.odict()
-                for prog in self.programs.values():
-                    if prog.name in instructions.alloc:
-                        alloc[prog.name] = instructions.alloc[prog.name].interpolate(tvec)
-                    else:
-                        alloc[prog.name] = prog.get_spend(tvec)
-                return alloc
+                alloc[prog.name] = instructions.alloc[prog.name].interpolate(tvec)
 
-    def get_budgets(self, year=None, optimizable=None):
-        ''' Extract the budget if cost data has been provided; if optimizable is True, then only return optimizable programs '''
+        return alloc
 
-        default_budget = sc.odict() # Initialise outputs
+    def get_num_coverage(self, tvec, dt, instructions=None, sample=False):
+        """ Return the number coverage of each program
 
-        # Validate inputs
-        if year is not None: year = sc.promotetoarray(year)
-        if optimizable is None: optimizable = False # Return only optimizable indices
-
-        # Get cost data for each program
-        for prog in self.programs.values():
-            default_budget[prog.name] = prog.get_spend(year)
-
-        return default_budget
-
-    def get_num_covered(self, dt, year=None, alloc=None, unit_cost=None, capacity=None,sample='best'):
-        ''' Extract the number of people covered by a program, optionally specifying an overwrite for the alloc '''
-        # dt *must* be provided, otherwise cannot be certain that the output will be as intended
-
-        num_covered = sc.odict() # Initialise outputs
+        :param tvec: array of times (in years) - this is required to interpolate time-varying unit costs and capacity constraints
+        :param dt: scalar timestep size - this is required to adjust spending on incidence-type programs
+        :param instructions: optionally specify instructions, which can supply a spending overwrite
+        :param sample: TODO implement sampling
+        :return: Dict like {prog_name: np.array()} with number of people covered at each timestep (in units of people)
+        """
 
         # Validate inputs
-        if year is not None: year = sc.promotetoarray(year)
+        tvec = sc.promotetoarray(tvec)
+        alloc = self.get_alloc(tvec, instructions)
 
-        # Get cost data for each program
+        # Get number covered for each program
+        num_coverage = sc.odict() # Initialise outputs
         for prog in self.programs.values():
-            if alloc and prog.name in alloc:
+            if prog.name in alloc:
                 spending = alloc[prog.name]
             else:
                 spending = None
+            num_coverage[prog.name] = prog.get_num_covered(self, tvec, dt, spending, sample=False)
 
-            num_covered[prog.name] = prog.get_num_covered(year=year, budget=spending, unit_cost=unit_cost, capacity=capacity, sample=sample, dt=dt)
+        return num_coverage
 
-        return num_covered
+    def get_prop_coverage(self, tvec, num_coverage, denominator, instructions = None, sample=False):
+        """ Return the fractional coverage of each program
 
-    def get_prop_covered(self, dt, year=None, denominator=None, unit_cost=None, capacity=None, alloc=None, sample='best'):
-        '''Returns proportion covered for a time/spending vector and denominator.
-        Denominator is expected to be a dictionary.'''
-        # INPUT
-        # denominator - dict of denominator values keyed by program name
-        # alloc - dict of spending values (arrays) keyed by program name (same thing returned by self.get_alloc)
-        prop_covered = sc.odict() # Initialise outputs
+        Note the evaluating the proportion coverage for a ProgramSet is not a straight division because
+        - instructions can override the coverage (for coverage scenarios)
+        - Programs can contain saturation constraints
 
-        # Make sure that denominator has been supplied
-        if denominator is None:
-            errormsg = 'Must provide denominators to calculate proportion covered.'
-            raise AtomicaException(errormsg)
+        :param tvec: array of times (in years) - this is required to interpolate time-varying saturation values
+        :param num_coverage: dict of program coverages, should match the available programs (typically the output of ProgramSet.get_num_coverage()
+        :param denominator: dict of number of people covered by each program, computed externally and with one entry for each program
+        :param instructions: optionally specify instructions, which can supply a coverage overwrite
+        :param sample: TODO implement sampling
+        :return: Dict like {prog_name: np.array()} with fractional coverage values (dimensionless)
+        """
 
+        prop_coverage = sc.odict() # Initialise outputs
         for prog in self.programs.values():
-            if alloc and prog.name in alloc:
-                spending = alloc[prog.name]
+            if prog.name in instructions.coverage:
+                prop_coverage[prog.name] = instructions.coverage[prog.name].interpolate(tvec)
             else:
-                spending = None
+                prop_coverage[prog.name] = prog.get_prop_covered(tvec, num_coverage[prog.name], denominator[prog.name], sample=sample)
+        return prop_coverage
 
-            num = prog.get_num_covered(year=year, unit_cost=unit_cost, capacity=capacity, budget=spending, sample=sample, dt=dt)
-            denom = denominator[prog.name]
-            prop_covered[prog.name] = minimum(num/denom, 1.) # Ensure that coverage doesn't go above 1
+    def get_outcomes(self,prop_coverage=None, sample=False):
+        """ Get a dictionary of parameter values associated with coverage levels (at a single point in time)
 
-        return prop_covered
+        Since the modality interactions in Covout.get_outcome() assume that the coverage is scalar, this function
+        will also only work for scalar coverage. Therefore, the prop coverage would normally come from
+        ProgramSet.get_prop_coverage(tvec,...) where tvec was only one year
 
-    def get_coverage(self, year=None, denominator=None, unit_cost=None, capacity=None, alloc=None, sample='best'):
-        '''Returns proportion OR number covered for a time/spending vector. Returns proportion if denominator is provided'''
-        if denominator is not None:
-            return self.get_prop_covered(year=year, denominator=denominator, unit_cost=unit_cost, capacity=capacity, alloc=alloc, sample=sample)
-        else:
-            return self.get_num_covered(year=year, unit_cost=unit_cost, capacity=capacity, alloc=alloc, sample=sample)
+        :param prop_coverage: dict with coverage values {prog_name:val}
+        :param sample: TODO implement sampling
+        :return: dict {(par,pop):val} containing parameter value overwrites
+        """
 
-    def get_outcomes(self,prop_covered=None):
-        ''' Get a dictionary of parameter values associated with coverage levels'''
-        # TODO - add sampling back in once we've decided how to do it
-        # NB. Since the modality interactions in covout.get_outcome assume that the coverage is scalar, this function
-        # will also only work for scalar coverage
-        #
-        # INPUTS
-        # - coverage : dict with coverage values {prog_name:val}
-        # OUTPUTS
-        # - outcomes : a dict {(par,pop):val}
-        return {(covout.par,covout.pop):covout.get_outcome(prop_covered) for covout in self.covouts.values()}
-
+        return {(covout.par,covout.pop):covout.get_outcome(prop_coverage,sample=sample) for covout in self.covouts.values()}
 
 #--------------------------------------------------------------------
 # Program class
@@ -871,64 +844,28 @@ class Program(NamedItem):
         else:
             return self.spend_data.interpolate(year)
 
-    def get_unit_cost(self, year=None):
-        return self.unit_cost.interpolate(year)
-
-    def optimizable(self, doprint=False, partial=False):
-        '''
-        Return whether or not a program can be optimized.
-
-        Arguments:
-            doprint = whether or not to print out why a program can't be optimized
-            partial = flag programs that are only partially ready for optimization (some data entered), skipping those that have no data entered
-        '''
-        valid = True # Assume the best
-        tests = {}
-        try:
-            tests['target_pops invalid'] = len(self.target_pops)<1
-            tests['target_pars invalid'] = len(self.target_pars)<1
-            tests['unit_cost invalid']   = not(sc.isnumber(self.get_unit_cost()))
-            tests['capacity invalid']   = self.capacity is None
-            if any(tests.values()):
-                valid = False # It's looking like it can't be optimized
-                if partial and all(tests.values()): valid = True # ...but it's probably just an other program, so skip it
-                if not valid and doprint:
-                    print('Program not optimizable for the following reasons: %s' % '\n'.join([key for key,val in tests.items() if val]))
-
-        except Exception as E:
-            valid = False
-            if doprint:
-                print('Program not optimizable because an exception was encountered: %s' % E.message)
-
-        return valid
-
-    def has_budget(self):
-        return self.spend_data.has_data()
-
-    def get_num_covered(self, year=None, unit_cost=None, capacity=None, budget=None, sample=False, dt=1.0):
+    def get_num_covered(self, tvec, spending, dt, sample=False):
         '''Returns number covered for a time/spending vector'''
+        # INPUTS
+        # - tvec : scalar tvec
+        # - dt : timestep (to adjust spending)
+        # - num_covered : scalar num covered e.g. from `Prog.get_num_coverage(tvec,dt)`
+        # - denominator : scalar denominator (computed from a model object/Result)
         # TODO - implement sampling
 
         # Validate inputs
-        if budget is None:
-            budget = self.spend_data.interpolate(year)
-        budget = sc.promotetoarray(budget)
+        spending = sc.promotetoarray(spending)
+
+        unit_cost = self.unit_cost.interpolate(tvec)
         if '/year' not in self.unit_cost.units:
-            # The budget is $/year, and the /year gets eliminated if the unit cost is also per year. If that's not the case, then
-            # we need to multiply the budget by the timestep to get the correct units
-            budget *= dt
+            # The spending is $/tvec, and the /tvec gets eliminated if the unit cost is also per tvec. If that's not the case, then
+            # we need to multiply the spending by the timestep to get the correct units
+            spending *= dt
 
-        if unit_cost is None:
-            unit_cost = self.unit_cost.interpolate(year)
-        unit_cost = sc.promotetoarray(unit_cost)
+        num_covered = spending/unit_cost
 
-
-        num_covered = budget / unit_cost
-
-        if capacity is None and self.capacity.has_data:
-            capacity = self.capacity.interpolate(year)
-
-        if capacity is not None:
+        if self.capacity.has_data:
+            capacity = self.capacity.interpolate(tvec)
             if '/year' in self.capacity.units:
                 # The capacity constraint is applied to a number of people. If it is /year, then it must be multiplied by the timestep first
                 capacity *= dt
@@ -936,39 +873,25 @@ class Program(NamedItem):
 
         return num_covered
 
-    def get_prop_covered(self, year=None, denominator=None, unit_cost=None, capacity=None, budget=None, saturation=None, sample='best', dt=1.0):
-        '''Returns proportion covered for a time/spending vector and denominator'''
+    def get_prop_covered(self, tvec, num_covered, denominator, sample=False):
+        '''Returns proportion covered for a time/spending vector and denominator, taking into account any coverage saturation contained within this program'''
+        # INPUTS
+        # - tvec : scalar tvec
+        # - num_covered : scalar num covered e.g. from `Prog.get_num_coverage(tvec,dt)`
+        # - denominator : scalar denominator (computed from a model object/Result)
+        # TODO - implement sampling
 
-        # Make sure that denominator has been supplied
-        if denominator is None:
-            errormsg = 'Must provide denominators to calculate proportion covered.'
-            raise AtomicaException(errormsg)
+        tvec = sc.promotetoarray(tvec)
+        denominator = sc.promotetoarray(denominator)
+        num_covered = sc.promotetoarray(num_covered)
 
-        # TODO: error checking to ensure that the dimension of year is the same as the dimension of the denominator
-        # Example: year = [2015,2016], denominator = [30000,40000]
-        num_covered = self.get_num_covered(unit_cost=unit_cost, capacity=capacity, budget=budget, year=year, sample=sample, dt=dt)
-        prop_covered = minimum(num_covered/denominator, 1.) # Ensure that coverage doesn't go above 1
+        prop_covered = num_covered/denominator
 
-        if saturation is None and self.saturation.has_data:
-            saturation = self.saturation.interpolate(year)
-        if saturation is not None:
+        if self.saturation.has_data:
+            saturation = self.saturation.interpolate(tvec)
             prop_covered = 2*saturation/(1+exp(-2*prop_covered/saturation))-saturation
 
-        return prop_covered
-
-
-    def get_coverage(self, year=None, as_proportion=False, denominator=None, unit_cost=None, capacity=None, budget=None, sample='best'):
-        '''Returns proportion OR number covered for a time/spending vector.'''
-
-        if as_proportion and denominator is None:
-            print('Can''t return proportions because denominators not supplied. Returning numbers instead.')
-            as_proportion = False
-
-        if as_proportion:
-            return self.get_prop_covered(year=year, denominator=denominator, unit_cost=unit_cost, capacity=capacity, budget=budget, sample=sample)
-        else:
-            return self.get_num_covered(year=year, unit_cost=unit_cost, capacity=capacity, budget=budget, sample=sample)
-
+        return minimum(prop_covered, 1.) # Ensure that coverage doesn't go above 1
 
 #--------------------------------------------------------------------
 # Covout
@@ -1054,7 +977,7 @@ class Covout(object):
         output += '\n'
         return output
         
-    def get_outcome(self, prop_covered=None):
+    def get_outcome(self, prop_covered, sample=False):
         # num_covered and prop_covered are dicts with {prog_name:coverage} at least containing all of the
         # programs in self.progs.
         # Don't forget that this covout instance is already specific to a (par,pop) combination

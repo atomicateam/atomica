@@ -59,7 +59,7 @@ class Result(NamedItem):
         if self.model.progset is None:
             return None
         else:
-            return self.model.progset.get_alloc(self.model.program_instructions, tvec=self.t)
+            return self.model.progset.get_alloc(tvec=self.t, self.model.program_instructions)
 
     def get_coverage(self,quantity='fraction'):
         # Return program coverage
@@ -72,7 +72,7 @@ class Result(NamedItem):
         if self.model.progset is None:
             return None
 
-        num_covered = self.model.progset.get_num_covered(year=self.t, alloc=self.get_alloc(),dt=self.dt)
+        num_covered = self.model.progset.get_num_coverage(year=self.t, alloc=self.get_alloc(), dt=self.dt)
 
         if quantity == 'number':
             return num_covered
@@ -357,7 +357,7 @@ class Result(NamedItem):
         else:
             if year is None:
                 year = self.t
-            return self.model.progset.get_alloc(self.model.program_instructions, tvec=year)
+            return self.model.progset.get_alloc(tvec=year, self.model.program_instructions)
 
     def coverage(self,year=None,quantity='coverage_fraction'):
         # Other supported quantities - 'coverage_number' or 'coverage_denominator'
