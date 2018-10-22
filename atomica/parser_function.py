@@ -13,6 +13,7 @@ supported_functions = {
     'min': np.minimum,
     'exp': np.exp,
     'floor': np.floor,
+    'cumsum': np.cumsum,
     'SRC_POP_AVG': None,
     'TGT_POP_AVG': None,
     'SRC_POP_SUM': None,
