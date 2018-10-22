@@ -828,7 +828,6 @@ class Program(NamedItem):
         output += '          Program name: %s\n'    % self.name
         output += '         Program label: %s\n'    % self.label
         output += '  Targeted populations: %s\n'    % self.target_pops
-        output += '   Targeted parameters: %s\n'    % self.target_pars
         output += ' Targeted compartments: %s\n'    % self.target_comps
         output += '\n'
         return output

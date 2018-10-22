@@ -848,8 +848,9 @@ class Model(object):
             self.programs_active = True
             self._program_cache = dict()
 
-            self._program_cache['comps'] = dict.fromkeys(self.progset.programs,[])
+            self._program_cache['comps'] = dict()
             for prog in self.progset.programs.values():
+                self._program_cache['comps'][prog.name] = []
                 for pop_name in prog.target_pops:
                     for comp_name in prog.target_comps:
                         self._program_cache['comps'][prog.name].append(self.get_pop(pop_name).get_comp(comp_name))
