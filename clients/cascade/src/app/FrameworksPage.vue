@@ -1,7 +1,7 @@
 <!--
 Manage frameworks page
 
-Last update: 2018sep23
+Last update: 2018oct04
 -->
 
 <template>
@@ -78,7 +78,7 @@ Last update: 2018sep23
           </td>
           <td v-if="frameworkSummary.renaming !== ''">
             <input type="text"
-                   class="txbox"
+                   class="txbox renamebox"
                    @keyup.enter="renameFramework(frameworkSummary)"
                    v-model="frameworkSummary.renaming"/>
           </td>
@@ -203,6 +203,7 @@ Last update: 2018sep23
         filterPlaceholder: 'Type here to filter frameworks', // Placeholder text for table filter box
         filterText: '',  // Text in the table filter box
         allSelected: false, // Are all of the frameworks selected?
+        frameworkToRename: null, // What framework is being renamed?
         sortColumn: 'name',  // Column of table used for sorting the frameworks: name, country, creationTime, updatedTime, dataUploadTime
         sortReverse: false, // Sort in reverse order?
         frameworkSummaries: [], // List of summary objects for frameworks the user has
@@ -268,6 +269,7 @@ Last update: 2018sep23
         rpcs.rpc('jsonify_frameworks', [this.$store.state.currentUser.username]) // Get the current user's framework summaries from the server.
         .then(response => {
           this.frameworkSummaries = response.data.frameworks // Set the frameworks to what we received.
+          this.frameworkToRename = null  // Unset the link to a framework being renamed.
           this.frameworkSummaries.forEach(theFrame => { // Preprocess all frameworks.
             theFrame.selected = false // Set to not selected.
             theFrame.renaming = '' // Set to not being renamed.
@@ -396,12 +398,30 @@ Last update: 2018sep23
         })       
       },
 
+      finishRename(event) {
+        // Grab the element of the open textbox for the framework name to be renamed.
+        let renameboxElem = document.querySelector('.renamebox')
+
+        // If the click is outside the textbox, rename the remembered framework.
+        if (!renameboxElem.contains(event.target)) {
+          this.renameFramework(this.frameworkToRename)
+        }
+      },
+
       renameFramework(frameworkSummary) {
         console.log('renameFramework() called for ' + frameworkSummary.framework.name)
         if (frameworkSummary.renaming === '') { // If the framework is not in a mode to be renamed, make it so.
           frameworkSummary.renaming = frameworkSummary.framework.name
+          // Add a click listener to run the rename when outside the input box is click, and remember
+          // which framework needs to be renamed.
+          window.addEventListener('click', this.finishRename)
+          this.frameworkToRename = frameworkSummary
         }
         else { // Otherwise (it is to be renamed)...
+          // Remove the listener for reading the clicks outside the input box, and null out the framework
+          // to be renamed.
+          window.removeEventListener('click', this.finishRename)
+          this.frameworkToRename = null
           let newFrameworkSummary = JSON.parse(JSON.stringify(frameworkSummary)) // Make a deep copy of the frameworkSummary object by JSON-stringifying the old object, and then parsing the result back into a new object.
           newFrameworkSummary.framework.name = frameworkSummary.renaming // Rename the framework name in the client list from what's in the textbox.
           status.start(this) 
