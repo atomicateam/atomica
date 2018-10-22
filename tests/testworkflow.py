@@ -8,6 +8,9 @@ import sciris as sc
 import pylab as pl
 import matplotlib.pyplot as plt
 from atomica.optimization import optimize
+import numpy as np
+
+np.seterr(all='raise')
 
 test = "sir"
 #test = "tb"

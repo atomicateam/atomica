@@ -84,18 +84,10 @@ class ProgramSet(NamedItem):
         self.comps      = sc.odict()
         self.pars       = sc.odict()
 
-        # Meta data
+        # Metadata
         self.created    = sc.now()
         self.modified   = sc.now()
         self.currency   = '$' # The symbol for currency that will be used in the progbook
-
-        return None
-
-    def prepare_cache(self):
-        # This function is called once at the start of model.py, which allows various checks to be
-        # performed once at the start of the simulation rather than at every timestep
-        # TODO - deprecate fully if this ends up being unused (it used to do something)
-        return
 
     def __repr__(self):
         ''' Print out useful information'''
@@ -105,7 +97,6 @@ class ProgramSet(NamedItem):
         output += '        Date created: %s\n'    % sc.getdate(self.created)
         output += '       Date modified: %s\n'    % sc.getdate(self.modified)
         output += '============================================================\n'
-
         return output
 
     #######################################################################################################
@@ -762,7 +753,7 @@ class ProgramSet(NamedItem):
                 spending = alloc[prog.name]
             else:
                 spending = None
-            num_coverage[prog.name] = prog.get_num_covered(self, tvec, dt, spending, sample=False)
+            num_coverage[prog.name] = prog.get_num_covered(tvec=tvec, dt=dt, spending=spending, sample=False)
 
         return num_coverage
 
@@ -809,13 +800,19 @@ class ProgramSet(NamedItem):
 class Program(NamedItem):
     ''' Defines a single program.'''
 
-    def __init__(self, name=None, label=None, target_pops=None, target_pars=None, target_comps=None, currency='$'):
-        '''Instantiate a new deafult program'''
+    def __init__(self, name, label=None, target_pops=None, target_comps=None, currency='$'):
+        """ Instantiate a new Program
+
+        :param name: Short name of the program
+        :param label: Full name of the program
+        :param target_pops: List of population code names for pops targeted by the program
+        :param target_comps: List of compartment code names for compartments targeted by the program
+        :param currency: The currency to use (for display purposes only) - normally this would be set to `ProgramSet.currency` by `ProgramSet.add_program()`
+        """
+
         NamedItem.__init__(self,name)
-        assert name is not None, 'You must supply a name for a program'
         self.name               = name # Short name of program
         self.label              = name if label is None else label # Full name of the program
-        self.target_pars        = [] if target_pars is None else target_pars # Dict of parameters targeted by program, in form {'param': par.short, 'pop': pop} # TODO - remove this, this info is in the Covout
         self.target_pops        = [] if target_pops is None else target_pops # List of populations targeted by the program
         self.target_comps       = [] if target_comps is None else target_comps # Compartments targeted by the program - used for calculating coverage denominators
         self.baseline_spend     = TimeSeries(assumption=0.0,units=currency+'/year') # A TimeSeries with any baseline spending data - currently not exposed in progbook
@@ -824,7 +821,6 @@ class Program(NamedItem):
         self.capacity           = TimeSeries(units='people/year') # TimeSeries with capacity of program - optional - if not supplied, cost function is assumed to be linear
         self.saturation         = TimeSeries(units=FS.DEFAULT_SYMBOL_INAPPLICABLE)
         self.coverage           = TimeSeries(units='people/year') # TimeSeries with capacity of program - optional - if not supplied, cost function is assumed to be linear
-        return None
 
     def __repr__(self):
         ''' Print out useful info'''
@@ -885,13 +881,17 @@ class Program(NamedItem):
         denominator = sc.promotetoarray(denominator)
         num_covered = sc.promotetoarray(num_covered)
 
-        prop_covered = num_covered/denominator
-
         if self.saturation.has_data:
+            # If the denominator is 0, then we need to use the saturation value
+            prop_covered = np.divide(num_covered, denominator, out=np.full(num_covered.shape,np.inf), where=denominator != 0)
             saturation = self.saturation.interpolate(tvec)
             prop_covered = 2*saturation/(1+exp(-2*prop_covered/saturation))-saturation
+            prop_covered = minimum(prop_covered, 1.)  # Ensure that coverage doesn't go above 1 (if saturation is < 1)
+        else:
+            # The division below means that 0/0 is treated as returning 1
+            prop_covered = np.divide(num_covered, denominator, out=np.ones_like(num_covered), where=denominator >= num_covered)
 
-        return minimum(prop_covered, 1.) # Ensure that coverage doesn't go above 1
+        return prop_covered
 
 #--------------------------------------------------------------------
 # Covout

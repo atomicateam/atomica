@@ -103,3 +103,17 @@ def add_model_version(proj):
             add_units(result.model.progset)
 
     return proj
+
+@migration('1.0.9', '1.0.10','Remove target_pars from Programs')
+def remove_target_pars(proj):
+
+    def remove_pars(progset):
+        for program in progset.programs.values():
+            del program.target_pars
+
+    for progset in proj.progsets.values():
+        remove_pars(progset)
+
+    for result in proj.results.values():
+        if result.model.progset is not None:
+            remove_pars(result.model.progset)
