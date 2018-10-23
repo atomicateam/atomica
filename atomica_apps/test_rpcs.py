@@ -9,10 +9,10 @@ Version:
 torun = [
 #'slack',
 #'project_io',
-'get_default_programs',
+#'get_default_programs',
 #'get_cascade_plot',
 #'get_cascade_json',
-#'make_plots',
+'make_plots',
 #'get_y_factors',
 #'autocalibration',
 #'run_scenarios',
@@ -24,8 +24,8 @@ torun = [
 ]
 
 # Set defaults
-tool = ['tb','cascade'][1] # Change this to change between TB and Cascade
-default_which = 'udt' # {'tb':'tb', 'cascade':'hypertension'}[tool]
+tool = ['tb','cascade'][0] # Change this to change between TB and Cascade
+default_which = {'tb':'tb', 'cascade':'hypertension'}[tool]
 
 # Imports
 import sciris as sc

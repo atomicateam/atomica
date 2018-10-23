@@ -358,21 +358,25 @@ class Parameter(Variable):
     def constrain(self, ti):
         # NB. Must be an array, so ti must must not be supplied
         if self.limits is not None:
-            self.vals[ti] = max(self.limits[0], self.vals[ti])
-            self.vals[ti] = min(self.limits[1], self.vals[ti])
+            if self.vals[ti] < self.limits[0]:
+                self.vals[ti] = self.limits[0]
+            if self.vals[ti] > self.limits[1]:
+                self.vals[ti] = self.limits[1]
 
     def update(self, ti=None):
-        # Update the value of this Parameter at time index ti
-        # by evaluating its f_stack function using the 
-        # current values of all dependent variables at time index ti
+        # Update the value of this Parameter at time indices ti
+        #
+        # INPUTS
+        # - ti : An int, or a numpy array with index values. If None, all time values will be used
+        #
+        # OUTPUTS
+        # - No outputs, the parameter value is updated in-place
 
         if not self._fcn or self.pop_aggregation:
             return
 
         if ti is None:
             ti = np.arange(0, self.vals.size)  # This corresponds to every time point
-        else:
-            ti = np.array(ti)
 
         dep_vals = dict.fromkeys(self.deps,0.0)
         for dep_name, deps in self.deps.items():
@@ -693,12 +697,10 @@ class Population(object):
             # Look up the characteristic value
             par = parset.get_par(c.name)
             b[i] = par.interpolate(tvec=np.array([t_init]), pop_name=self.name)[0]*par.y_factor[self.name]*par.meta_y_factor
-            # Run exception clauses for compartment logic.
             if isinstance(c,Characteristic):
                 if c.denominator is not None:
-                    denom_par = parset.pars['characs'][parset.par_ids['characs'][c.denominator.name]]
+                    denom_par = parset.get_par(c.denominator.name)
                     b[i] *= denom_par.interpolate(tvec=np.array([t_init]), pop_name=self.name)[0]*denom_par.y_factor[self.name]*denom_par.meta_y_factor
-
                 for inc in c.get_included_comps():
                     A[i, comp_indices[inc.name]] = 1.0
             else:
@@ -917,16 +919,14 @@ class Model(object):
                     self.interactions[name][parset.pop_names.index(from_pop), parset.pop_names.index(to_pop), :] = par.interpolate(self.t, to_pop)*par.y_factor[to_pop]*par.meta_y_factor
 
         # Insert values from parset into model objects
-        for cascade_par in parset.pars['cascade']:
-            for pop_name in parset.pop_names:
-                pop = self.get_pop(pop_name)
-                par = pop.get_par(cascade_par.name)  # Find the parameter with the requested name
-                # If parameter has an f-stack then vals will be calculated during/after integration.
-                # This is opposed to values being supplied from databook.
-                par.units = cascade_par.y_format[pop_name]
-                par.scale_factor = cascade_par.y_factor[pop_name]*cascade_par.meta_y_factor
-                if not par.fcn_str:
-                    par.vals = cascade_par.interpolate(tvec=self.t, pop_name=pop_name)*par.scale_factor
+        for pop in self.pops:
+            for par in pop.pars:
+                if par.name in parset.pars:
+                    cascade_par = parset.get_par(par.name)
+                    par.units = cascade_par.y_format[pop_name]
+                    par.scale_factor = cascade_par.y_factor[pop_name]*cascade_par.meta_y_factor
+                    if not par.fcn_str and cascade_par.has_values(pop.name):
+                        par.vals = cascade_par.interpolate(tvec=self.t, pop_name=pop.name)*par.scale_factor
 
         # Propagating transfer parameter parset values into Model object.
         # For each population pair, instantiate a Parameter with the values from the databook
@@ -951,7 +951,6 @@ class Model(object):
                         par.vals = transfer_parameter.interpolate(tvec=self.t, pop_name=pop_target)*par.scale_factor
                         par.units = transfer_parameter.y_format[pop_target]
                         pop.pars.append(par)
-                        # TODO: Reconsider manual lookup hack if Transfers are implemented differently.
                         pop.par_lookup[par_name] = par
 
                         target_pop_obj = self.get_pop(pop_target)
