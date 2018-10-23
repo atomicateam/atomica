@@ -489,7 +489,7 @@ def upload_project(prj_filename, username):
     '''
     print(">> create_project_from_prj_file '%s'" % prj_filename) # Display the call information.
     try: # Try to open the .prj file, and return an error message if this fails.
-        proj = sc.loadobj(prj_filename)
+        proj = au.Project.load(prj_filename) # NB. load via Project() method which automatically calls migration
     except Exception:
         return { 'error': 'BadFileFormatError' }
     key,proj = save_new_project(proj, username) # Save the new project in the DataStore.
@@ -760,39 +760,38 @@ def get_y_factors(project_id, parsetname=-1, tool=None, verbose=False):
     proj = load_project(project_id, die=True)
     parset = proj.parsets[parsetname]
     count = -1
-    for par_type in ["cascade", "comps", "characs"]:
-        for par in parset.pars[par_type]:
-            parname = par.name
-            this_par = parset.get_par(parname)
-            this_spec = proj.framework.get_variable(parname)[0]
-            if 'calibrate' in this_spec and this_spec['calibrate'] is not None:
-                count += 1
-                parlabel = this_spec['display name']
-                parcategory = this_spec['calibrate']
-                y_factors.append({'index':count, 'parname':parname, 'parlabel':parlabel, 'parcategory':parcategory, 'meta_y_factor':this_par.meta_y_factor, 'pop_y_factors':[]}) 
-                for p,popname,y_factor in this_par.y_factor.enumitems():
-                    popindex = parset.pop_names.index(popname)
-                    poplabel = parset.pop_labels[popindex]
+    for par in parset.pars.values():
+        parname = par.name
+        this_par = parset.get_par(parname)
+        this_spec = proj.framework.get_variable(parname)[0]
+        if 'calibrate' in this_spec and this_spec['calibrate'] is not None:
+            count += 1
+            parlabel = this_spec['display name']
+            parcategory = this_spec['calibrate']
+            y_factors.append({'index':count, 'parname':parname, 'parlabel':parlabel, 'parcategory':parcategory, 'meta_y_factor':this_par.meta_y_factor, 'pop_y_factors':[]})
+            for p,popname,y_factor in this_par.y_factor.enumitems():
+                popindex = parset.pop_names.index(popname)
+                poplabel = parset.pop_labels[popindex]
 
-                    if tool == 'cascade':
-                        dispvalue = from_number(y_factor)
+                if tool == 'cascade':
+                    dispvalue = from_number(y_factor)
+                else:
+                    if not this_par.has_values(popname):
+                        interp_val = 1.0
                     else:
-                        if not this_par.has_values(popname):
+                        try:
+                            interp_val = this_par.interpolate([TEMP_YEAR],popname)[0]
+                            if not np.isfinite(interp_val):
+                                print('NUMBER WARNING, value for %s %s is not finite' % (parlabel, poplabel))
+                                interp_val = 1.0
+                            if sc.approx(interp_val, 0):
+                                interp_val = 0.0
+                        except Exception as E:
+                            print('NUMBER WARNING, value for %s %s is not convertible: %s' % (parlabel, poplabel, str(E)))
                             interp_val = 1.0
-                        else:
-                            try:
-                                interp_val = this_par.interpolate([TEMP_YEAR],popname)[0]
-                                if not np.isfinite(interp_val):
-                                    print('NUMBER WARNING, value for %s %s is not finite' % (parlabel, poplabel))
-                                    interp_val = 1
-                                if sc.approx(interp_val, 0):
-                                    interp_val = 0.0
-                            except Exception as E:
-                                print('NUMBER WARNING, value for %s %s is not convertible: %s' % (parlabel, poplabel, str(E)))
-                                interp_val = 1
-                        dispvalue = from_number(interp_val*y_factor)
-                    thisdict = {'popcount':p, 'popname':popname, 'dispvalue':dispvalue, 'origdispvalue':dispvalue, 'poplabel':poplabel}
-                    y_factors[-1]['pop_y_factors'].append(thisdict)
+                    dispvalue = from_number(interp_val*y_factor)
+                thisdict = {'popcount':p, 'popname':popname, 'dispvalue':dispvalue, 'origdispvalue':dispvalue, 'poplabel':poplabel}
+                y_factors[-1]['pop_y_factors'].append(thisdict)
     if verbose: sc.pp(y_factors)
     print('Returning %s y-factors for %s' % (len(y_factors), parsetname))
     return {'parlist':y_factors, 'poplabels':parset.pop_labels}

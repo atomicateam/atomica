@@ -39,6 +39,7 @@ from .cascade import get_cascade_outputs
 from .utils import NDict
 from .plotting import PlotData, plot_series
 from .results import Result, evaluate_plot_string
+from .migration import migrate
 import sciris as sc
 import numpy as np
 from .excel import AtomicaSpreadsheet
@@ -521,6 +522,7 @@ class Project(object):
         """ Convenience class method for loading a project in the absence of an instance. """
         P = sc.loadobj(filepath)
         assert isinstance(P,Project)
+        P = migrate(P)
         return P
 
     def demo_scenarios(self, dorun=False, doadd=True):
