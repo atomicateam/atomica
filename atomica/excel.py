@@ -13,7 +13,7 @@ import openpyxl
 from openpyxl.comments import Comment
 import numpy as np
 from .structure import FrameworkSettings as FS
-from .system import logger
+from .system import logger, reraise_modify
 
 def standard_formats(workbook):
     # Add standard formatting to a workbook and return the set of format objects
@@ -359,7 +359,7 @@ class TimeDependentConnections(object):
                 if units is None:
                     raise AtomicaException(str('The units for transfer "%s" ("%s"->"%s") cannot be empty' % (full_name,from_pop,to_pop)))
                 assumption = vals[4] # This is the assumption cell
-                assert vals[5].strip() == 'OR' # Double check we are reading a time-dependent row with the expected shape
+                assert vals[5].strip().lower() == 'or' # Double check we are reading a time-dependent row with the expected shape
                 ts = TimeSeries(format=units,units=units)
                 if assumption is not None:
                     ts.insert(None, assumption)
@@ -611,27 +611,23 @@ class TimeDependentValuesEntry(object):
             ts = TimeSeries(format=format,units=units)
 
             if uncertainty_index is not None:
-                sigma = vals[uncertainty_index]
-                if sigma is not None and sigma != FS.DEFAULT_SYMBOL_INAPPLICABLE.title():
-                    ts.sigma = float(sigma)
+                ts.sigma = cell_get_number(row[uncertainty_index])
             else:
                 ts.sigma = None
 
             if constant_index is not None:
-                constant = vals[constant_index]
-                if constant is not None and constant != FS.DEFAULT_SYMBOL_INAPPLICABLE.title():
-                    ts.assumption = float(constant)
+                ts.assumption = cell_get_number(row[constant_index])
             else:
                 ts.assumption = None
 
             if constant_index is not None:
-                assert vals[offset - 1].strip() == 'OR', 'Error with validating row in TDVE table "%s" (did not find the text "OR" in the expected place)' % (name)  # Check row is as expected
+                assert vals[offset - 1].strip().lower() == 'or', 'Error with validating row in TDVE table "%s" (did not find the text "OR" in the expected place)' % (name)  # Check row is as expected
 
-            data = vals[offset:t_end]
+            data_cells = row[offset:t_end]
 
-            for t,v in zip(tvec,data):
-                if np.isfinite(t) and v is not None: # Ignore any times that are NaN - this happens if the cell was empty and casted to a float
-                    ts.insert(t,v)
+            for t,cell in zip(tvec,data_cells):
+                if np.isfinite(t): # Ignore any times that are NaN - this happens if the cell was empty and casted to a float
+                    ts.insert(t,cell_get_number(cell)) # If cell_get_number returns None, this gets handled accordingly by ts.insert()
             ts_entries[series_name] = ts
 
         tvec = tvec[np.isfinite(tvec)] # Remove empty entries from the array
@@ -755,3 +751,18 @@ def cell_require_string(cell):
     if not sc.isstring(cell.value):
         raise AtomicaException('Cell %s needs to contain a string (i.e. not a number, date, or other cell type)' % cell.coordinate)
 
+def cell_get_number(cell,dtype=float):
+    # This function is to guard against accidentally having strings.
+    # If a cell contains a formula that has evaluated to a number, then the type should be numeric
+    if cell.value is None:
+        return None
+    elif cell.data_type == 'n': # Numeric type
+        return dtype(cell.value)
+    elif cell.data_type == 's': # Only do relatively expensive string processing if it's actually a string type
+        s = cell.value.lower().strip()
+        if s == FS.DEFAULT_SYMBOL_INAPPLICABLE:
+            return None
+        elif not s.replace('-',''):
+            return None
+
+    raise AtomicaException('Cell %s needs to contain a number' % cell.coordinate)
