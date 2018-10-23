@@ -4,6 +4,7 @@ from .system import AtomicaException, NotFoundError, AtomicaInputError, NotAllow
 from .structure import FrameworkSettings as FS
 from .results import Result
 from .parser_function import parse_function
+from .version import version
 from collections import defaultdict
 import sciris as sc
 import numpy as np
@@ -393,15 +394,18 @@ class Parameter(Variable):
     def source_popsize(self, ti):
         # Get the total number of people covered by this program
         # i.e. the sum of the source compartments of all links that
-        # derive from this program
-        # If impact_names is specified, it must be a list of link names
-        # Then only links whose name is in that list will be included
+        # derive from this program. If the parameter has no links, return NaN
+        # which disambiguates between a parameter whose source compartments are all
+        # empty, vs a parameter that has no source compartments
         if ti == self.source_popsize_cache_time:
             return self.source_popsize_cache_val
         else:
-            n = 0
-            for link in self.links:
-                n += link.source.vals[ti]
+            if self.links:
+                n = 0
+                for link in self.links:
+                    n += link.source.vals[ti]
+            else:
+                n = np.nan
             self.source_popsize_cache_time = ti
             self.source_popsize_cache_val = n
             return n
@@ -778,6 +782,12 @@ class Model(object):
     """ A class to wrap up multiple populations within model and handle cross-population transitions. """
 
     def __init__(self, settings, framework, parset, progset=None, program_instructions=None):
+
+        # Record version info for the model run. These are generally NOT updated in migration. Thus, they serve
+        # as a record of which specific version of the code was used to generate the results
+        self.version = version
+        self.gitinfo = sc.gitinfo(__file__)
+        self.created = sc.now()
 
         self.pops = list()  # List of population groups that this model subdivides into.
         self.interactions = sc.odict()
@@ -1202,7 +1212,6 @@ class Model(object):
 
         if do_program_overwrite:
             # Compute the fraction covered
-            num_covered  = sc.odict([(k,v[ti]) for k,v in self._program_cache['num_coverage'].iteritems()])
             prop_covered = sc.odict.fromkeys(self._program_cache['comps'], 0.0)
             for k,comp_list in self._program_cache['comps'].items():
                 if k in self._program_cache['prop_coverage']:
@@ -1216,21 +1225,8 @@ class Model(object):
                     else:
                         prop_covered[k] = 1.
 
-            # TODO - Note that if a program has a coverage overwrite (in proportion units) but then targets
-            # a number parameter, the coverage overwrite will have no effect. This is kind of fitting in the
-            # sense that for number parameters, at the moment
-            # - the proportion coverage is ignored
-            # - the targeting sheet is ignored
-            # so it is consistent to have (fraction) coverage overwrites also be ignored. This may change if the
-            # design of number coverage programs is modified
-            par_covered = dict()
-            for par_name in self.progset.pars:
-                for pop in self.pops:
-                    par = pop.get_par(par_name)
-                    par_covered[(par_name,pop.name)] = par.source_popsize(ti)
-
             # Compute the updated program values
-            prog_vals = self.progset.get_outcomes(num_covered=num_covered, prop_covered=prop_covered, par_covered=par_covered)
+            prog_vals = self.progset.get_outcomes(prop_covered)
 
         for par_name in self._par_list:
             # All of the parameters with this name, across populations.
@@ -1247,6 +1243,8 @@ class Model(object):
                 for par in pars:
                     if (par.name,par.pop.name) in prog_vals:
                         par.vals[ti] = prog_vals[(par.name,par.pop.name)]
+                        if par.units == FS.QUANTITY_TYPE_NUMBER:
+                            par.vals[ti] *= par.source_popsize(ti)
 
             # Handle parameters that aggregate over populations and use interactions in these functions.
             if pars[0].pop_aggregation:

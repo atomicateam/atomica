@@ -223,11 +223,6 @@ class ProgramSet(NamedItem):
             if is_impact == 'y':
                 self.pars[name] = label
 
-        self.num_pars = sc.odict()
-        for name, label, is_impact, y_format in zip(framework.pars.index, framework.pars['display name'], framework.pars['targetable'], framework.pars['format']):
-            if is_impact == 'y' and y_format == 'number':
-                self.num_pars[name] = label
-
     @staticmethod
     def validate_inputs(framework, data, project):
         # To load a spreadsheet or make a new ProgramSet, people can pass in
@@ -518,7 +513,7 @@ class ProgramSet(NamedItem):
                             cov_interaction =  x.value.strip().lower() # additive, nested, etc.
                     elif idx_to_header[i].lower() == 'impact interaction':
                         if x.value:
-                            imp_interaction =  x.value.strip().lower() # additive, nested, etc.
+                            imp_interaction =  x.value.strip() # additive, nested, etc.
                     elif idx_to_header[i].lower() == 'uncertainty':
                         if x.value is not None: # test `is not None` because it might be entered as 0
                             uncertainty = float(x.value)
@@ -528,8 +523,7 @@ class ProgramSet(NamedItem):
                         progs[idx_to_header[i]] = float(x.value)
 
                 if baseline is not None or progs: # Only instantiate covout objects if they have programs associated with them
-                    is_num_par = True if par_name in self.num_pars else False
-                    self.covouts[(par_name,pop_name)] = Covout(par=par_name, pop=pop_name, cov_interaction=cov_interaction, imp_interaction=imp_interaction, uncertainty=uncertainty, baseline=baseline, progs=progs, is_num_par=is_num_par)
+                    self.covouts[(par_name,pop_name)] = Covout(par=par_name, pop=pop_name, cov_interaction=cov_interaction, imp_interaction=imp_interaction, uncertainty=uncertainty, baseline=baseline, progs=progs)
 
     def _write_effects(self):
         # TODO - Use the framework to exclude irrelevant programs and populations
@@ -580,9 +574,9 @@ class ProgramSet(NamedItem):
                 sheet.data_validation(xlrc(current_row, 2), {"validate": "list", "source": ["Random","Additive","Nested"]})
 
                 if covout and covout.imp_interaction is not None:
-                    sheet.write(current_row, 3, covout.imp_interaction.title(),self._formats['not_required'])
+                    sheet.write(current_row, 3, covout.imp_interaction,self._formats['not_required'])
                 else:
-                    sheet.write(current_row, 3, 'Best', self._formats['unlocked'])
+                    sheet.write(current_row, 3, None, self._formats['unlocked'])
                 sheet.data_validation(xlrc(current_row, 3), {"validate": "list", "source": ["Synergistic","Best"]})
 
                 if covout and covout.sigma is not None:
@@ -806,49 +800,18 @@ class ProgramSet(NamedItem):
         else:
             return self.get_num_covered(year=year, unit_cost=unit_cost, capacity=capacity, alloc=alloc, sample=sample)
 
-    def get_outcomes(self,num_covered=None, prop_covered=None, par_covered=None):
+    def get_outcomes(self,prop_covered=None):
         ''' Get a dictionary of parameter values associated with coverage levels'''
         # TODO - add sampling back in once we've decided how to do it
+        # NB. Since the modality interactions in covout.get_outcome assume that the coverage is scalar, this function
+        # will also only work for scalar coverage
+        #
         # INPUTS
-        # - coverage : dict with coverage values {prog_name:np.array}
+        # - coverage : dict with coverage values {prog_name:val}
         # OUTPUTS
-        # - outcomes : a dict {(par,pop):vals}
+        # - outcomes : a dict {(par,pop):val}
+        return {(covout.par,covout.pop):covout.get_outcome(prop_covered) for covout in self.covouts.values()}
 
-        for covkey in prop_covered.keys(): # Ensure coverage level values are arrays
-            prop_covered[covkey] = sc.promotetoarray(prop_covered[covkey])
-            for item in prop_covered[covkey]:
-                if item<0 or item>1:
-                    errormsg = 'Expecting coverage to be a proportion, value for entry %s is %s' % (covkey, item)
-                    raise AtomicaException(errormsg)
-
-        # TODO - Here is the par/pop disaggregation based on parameter coverage for the parameters actually reached
-        # Note that this does still ignore the compartment targeting
-        # The covout is specific to a par-pop combination
-        # The program coverage needs to be rescaled in the same proportion as the source popsizes
-        # i.e. suppose a program targets pars A and B in pops 1 and 2
-        # If the program has coverage of 100, and par A reaches (200,300) and par B reaches (400,500) then we would allocate:
-        # 100* (200/1400, 300/1400, 400/1400, 500/1400)
-        # So - the denominator is at the _program_ level
-        prog_denominator = dict()
-        for prog in self.programs:
-            for covout in self.covouts.values():
-                if prog in covout.progs:
-                    if prog not in prog_denominator:
-                        prog_denominator[prog] = par_covered[(covout.par,covout.pop)]
-                    else:
-                        prog_denominator[prog] += par_covered[(covout.par,covout.pop)]
-
-        # Initialise output
-        outcomes = dict()
-        for covout in self.covouts.values():
-            covout_num_covered = dict()
-            for prog in covout.progs:
-                if not prog_denominator[prog]:
-                    covout_num_covered[prog] = sc.promotetoarray(0.0)
-                else:
-                    covout_num_covered[prog] = sc.promotetoarray(num_covered[prog] * par_covered[(covout.par,covout.pop)]/prog_denominator[prog])
-            outcomes[(covout.par,covout.pop)] = covout.get_outcome(num_covered=covout_num_covered, prop_covered=prop_covered)
-        return outcomes
 
 #--------------------------------------------------------------------
 # Program class
@@ -997,16 +960,21 @@ class Covout(object):
            )
     '''
 
-    def __init__(self, par, pop, progs, cov_interaction=None, imp_interaction=None, uncertainty=0.0, baseline=0.0, is_num_par=False):
+    def __init__(self, par, pop, progs, cov_interaction=None, imp_interaction=None, uncertainty=0.0, baseline=0.0):
+        # Construct new Covout instance
+        # INPUTS
+        # - par : string with the code name of the parameter being overwritten
+        # - pop : string with the code name of the population being overwritten
+        # - progs : a dict containing {prog_name:outcome} with the single program outcomes
+        # - cov_interaction: one of 'additive', 'random', 'nested'
+        # - imp_interaction : a parsable string like 'Prog1+Prog2=10,Prog2+Prog3=20' with the interaction outcomes
+        # - uncertainty : a scalar standard deviation for the outcomes
+        # - baseline : the zero coverage baseline value
+
         if cov_interaction is None:
             cov_interaction = 'additive'
         else:
-            assert cov_interaction in ['additive','random','nested'], 'Coverage interaction must be set to "additive", "random", or "nested"'
-
-        if imp_interaction is None:
-            imp_interaction = 'best'
-        else:
-            assert imp_interaction in ['best','synergistic'], 'Impact interaction must be "best" or "synergistic"'
+            assert cov_interaction in ['additive', 'random', 'nested'], 'Coverage interaction must be set to "additive", "random", or "nested"'
 
         self.par = par
         self.pop = pop
@@ -1014,9 +982,7 @@ class Covout(object):
         self.imp_interaction = imp_interaction
         self.sigma = uncertainty
         self.baseline = baseline
-        self.is_num_par = is_num_par
         self.update_progs(progs)
-
 
     def update_progs(self,progs):
         # Call this function with the program outcomes are changed
@@ -1030,21 +996,28 @@ class Covout(object):
         self.progs = sc.odict()
         for item in prog_tuple:
             self.progs[item[0]] = item[1]
-        self.deltas = np.array([x[1]-self.baseline for x in prog_tuple])
+        self.deltas = np.array([x[1]-self.baseline for x in prog_tuple]) # Internally cache the deltas which are used
         self.n_progs = len(progs)
 
-        # Precompute the combinations and associated modality interaction outcomes
-        # Computationally expensive otherwise
-        # Note that the programs need to be ordered correctly - the order must match the self.progs odict
-        # which is the same sort order as self.deltas. So note that 'additive' and 'random' need to use this order.
-        # Nested reorders them according to coverage, which is why it has to call self.compute_impact_interaction each time
-        #
-        # Building this isn't prohibitively expensive, so doesn't really matter that we construct it regardless of what the coverage interaction is
-        # This way we don't need to worry about updating these if the coverage interaction is changed later
-        self.combinations = np.unpackbits(np.arange(2 ** self.n_progs, dtype=np.uint8).reshape(-1, 1), axis=1)[:, -self.n_progs:]
+        # Parse any impact interactions that are present
+        self._interactions = dict()
+        if self.imp_interaction and not self.imp_interaction.lower() in ['best','synergistic']:
+            for interaction in self.imp_interaction.split(','):
+                combo, val = interaction.split('=')
+                combo = frozenset([x.strip() for x in combo.split('+')])
+                for x in combo:
+                    assert x in self.progs, 'The impact interaction refers to a program "%s" which does not appear in the available programs' % (x)
+                self._interactions[combo] = float(val)-self.baseline
+
+        # Precompute the combinations and associated modality interaction outcomes - it's computationally expensive otherwise
+        # We need to store it in two forms
+        # - An (ordered) vector of outcomes, which is used by additive and random to do the modality interaction in vectorized form
+        # - A dict of outcomes, which is used by nested to look up the outcome using a tupled key of program indices
+        combination_strings = [bin(x)[2:].rjust(self.n_progs,'0') for x in range(2 ** self.n_progs)] # ['00','01','10',...]
+        self.combinations = np.array([list(int(y) for y in x) for x in combination_strings])
         combination_outcomes = []
-        for progs in self.combinations.astype(bool):
-            combination_outcomes.append(self.compute_impact_interaction(deltas=self.deltas,progs=progs))
+        for prog_combination in self.combinations.astype(bool):
+            combination_outcomes.append(self.compute_impact_interaction(progs=prog_combination))
         self.combination_outcomes = np.array(combination_outcomes) # Reshape to column vector, since that's the shape of combination_coverage
 
     def __repr__(self):
@@ -1056,28 +1029,23 @@ class Covout(object):
         output += '\n'
         return output
         
-    def get_outcome(self, num_covered=None, prop_covered=None):
+    def get_outcome(self, prop_covered=None):
         # num_covered and prop_covered are dicts with {prog_name:coverage} at least containing all of the
         # programs in self.progs.
         # Don't forget that this covout instance is already specific to a (par,pop) combination
 
         # Put coverages and deltas into array form
-        cov = []
-        num_cov = []
-        for prog in self.progs.keys():
-            cov.append(prop_covered[prog][0])
-            num_cov.append(num_covered[prog][0])
-        cov = np.array(cov)
-        num_cov = np.array(num_cov)
         outcome = self.baseline # Accumulate the outcome by adding the deltas onto this
 
-#        # If the parameter is in number format, use number covered as the outcome, implicitly treating as additive
-        if self.is_num_par:   
-            return outcome + sum(num_cov*self.deltas)
+        if self.n_progs == 0:
+            return outcome # If there are no programs active, return the baseline value immediately
+        elif self.n_progs == 1:
+            return outcome + prop_covered[self.progs.keys()[0]] * self.deltas[0]
 
-        # If there's only one program, then just use the outcome directly
-        if self.n_progs == 1:
-            return outcome + cov[0]*self.deltas[0]
+        cov = []
+        for prog in self.progs.keys():
+            cov.append(prop_covered[prog])
+        cov = np.array(cov)
 
         # ADDITIVE CALCULATION
         if self.cov_interaction == 'additive':
@@ -1112,14 +1080,18 @@ class Covout(object):
         elif self.cov_interaction == 'nested':
             # Outcome += c3*max(delta_out1,delta_out2,delta_out3) + (c2-c3)*max(delta_out1,delta_out2) + (c1 -c2)*delta_out1, where c3<c2<c1.
             idx = np.argsort(cov)
-            cov = cov[idx]
-            deltas = self.deltas[idx]
+            prog_mask = np.full(cov.shape,fill_value=True)
+            combination_coverage = np.zeros((self.combinations.shape[0],))
+
             for i in range(0,len(cov)):
+                combination_index = int('0b' + ''.join(['1' if x else '0' for x in prog_mask]),2)
                 if i == 0:
-                    c1 = cov[i]
+                    combination_coverage[combination_index] = cov[idx[i]]
                 else:
-                    c1 = cov[i]-cov[i-1]
-                outcome += c1 * self.compute_impact_interaction(deltas[i:])
+                    combination_coverage[combination_index] = cov[idx[i]]-cov[idx[i-1]]
+                prog_mask[idx[i]] = False # Disable this program at the next iteration
+
+            outcome += np.sum(combination_coverage * self.combination_outcomes.ravel())
 
         # RANDOM CALCULATION
         elif self.cov_interaction == 'random':
@@ -1131,21 +1103,22 @@ class Covout(object):
 
         return outcome
 
-    def compute_impact_interaction(self,deltas,progs=None):
-        # Takes in boolean array of programs, and deltas for all programs
-        # For the given combination of programs, return the outcome
+    def compute_impact_interaction(self,progs=None):
+        # Takes in boolean array of active programs, which matches the order in
+        # self.progs and self.deltas
 
         if progs is not None and not any(progs):
             return 0.0
+        else:
+            progs_active = frozenset(np.array(self.progs.keys())[progs])
 
-        if self.imp_interaction == 'best':
-            if progs is None:
-                tmp = deltas
-            else:
-                tmp = deltas[progs]
+        if progs_active in self._interactions:
+            # If the combination of programs has an explicitly specified outcome, then use it
+            return self._interactions[progs_active]
+        elif self.imp_interaction.lower() == 'synergistic':
+            raise NotImplementedError
+        else:
+            # Otherwise, do the 'best' interaction and return the delta with the largest magnitude
+            tmp = self.deltas[progs]
             idx = np.argmax(abs(tmp))
             return tmp[idx]
-        elif self.imp_interaction == 'synergistic':
-            raise NotImplementedError('The "synergistic" impact interaction is not yet implemented. Please use the "best" interaction for now')
-        else:
-            raise AtomicaInputError('Unknown impact interaction "%s"' % (self.imp_interaction))

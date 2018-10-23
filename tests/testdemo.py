@@ -8,18 +8,18 @@ import numpy as np
 import sciris as sc
 import atomica.ui as au
 
-to_run = ['quick','full'][0] 
+to_run = ['quick','full'][0]
 run_scens = True
 run_optim = True
 maxtime   = 10
 txtcolor  = 'blue'
 
 T = sc.tic()
-# np.seterr(all='raise') # We don't expect numerical warnings in any of the demos - but TB currently has some
+np.seterr(all='raise') # We don't expect numerical warnings in any of the demos - but TB currently has some
 
 #%%
 if to_run == 'quick':
-    P = au.demo(which='tb')
+    P = au.demo(which='hypertension_dyn')
     if run_scens:
             if len(P.scens): P.run_scenarios()
             else:             sc.colorize('green', 'No scenarios found')
