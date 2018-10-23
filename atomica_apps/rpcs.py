@@ -131,19 +131,37 @@ def from_number(raw, sf=3, die=False):
 
 @RPC()
 def run_query(token, query):
-    output = None
+    globalsdict = globals()
+    localsdict  = locals()
+    localsdict['output'] = 'Output not specified'
     if sc.sha(token).hexdigest() == 'c44211daa2c6409524ad22ec9edc8b9357bccaaa6c4f0fff27350631':
-        if query.find('output')<0:
-            raise Exception('You must define "output" in your query')
-        else:
-            print('Executing:\n%s, stand back!' % query)
-            exec(query)
-            output = str(output)
-            return output
+        print('Executing:\n%s, stand back!' % query)
+        exec(query, globalsdict, localsdict)
+        localsdict['output'] = str(localsdict['output'])
+        return localsdict['output']
     else:
-        errormsg = 'Authentication failed; this incident has been reported'
+        errormsg = 'Authentication "%s" failed; this incident has been reported and your account access will be removed.' % token
         raise Exception(errormsg)
         return None
+
+
+def admin_grab_projects(username1, username2):
+    ''' For use with run_query '''
+    user1 = datastore.loaduser(username1)
+    for projectkey in user1.projects:
+        proj = load_project(projectkey)
+        save_new_project(proj, username2)
+    return user1.projects
+
+
+def admin_reset_projects(username):
+    user = datastore.loaduser(username)
+    for projectkey in user.projects:
+        try:    datastore.delete(projectkey)
+        except: pass
+    user.projects = []
+    output = datastore.saveuser(user)
+    return output
     
 
 
