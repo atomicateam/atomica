@@ -46,7 +46,7 @@ def get_path(filename=None, username=None):
 def get_version_info():
 	''' Return the information about the running environment '''
 	gitinfo = sc.gitinfo(__file__)
-	version_info = {
+	version_info = sc.odict({
 	       'version':   au.version,
 	       'date':      au.versiondate,
 	       'gitbranch': gitinfo['branch'],
@@ -54,7 +54,7 @@ def get_version_info():
 	       'gitdate':   gitinfo['date'],
             'server':    socket.gethostname(),
             'cpu':       '%0.1f%%' % psutil.cpu_percent(),
-	}
+	})
 	return version_info
       
 
@@ -131,19 +131,37 @@ def from_number(raw, sf=3, die=False):
 
 @RPC()
 def run_query(token, query):
-    output = None
+    globalsdict = globals()
+    localsdict  = locals()
+    localsdict['output'] = 'Output not specified'
     if sc.sha(token).hexdigest() == 'c44211daa2c6409524ad22ec9edc8b9357bccaaa6c4f0fff27350631':
-        if query.find('output')<0:
-            raise Exception('You must define "output" in your query')
-        else:
-            print('Executing:\n%s, stand back!' % query)
-            exec(query)
-            output = str(output)
-            return output
+        print('Executing:\n%s, stand back!' % query)
+        exec(query, globalsdict, localsdict)
+        localsdict['output'] = str(localsdict['output'])
+        return localsdict['output']
     else:
-        errormsg = 'Authentication failed; this incident has been reported'
+        errormsg = 'Authentication "%s" failed; this incident has been reported and your account access will be removed.' % token
         raise Exception(errormsg)
         return None
+
+
+def admin_grab_projects(username1, username2):
+    ''' For use with run_query '''
+    user1 = datastore.loaduser(username1)
+    for projectkey in user1.projects:
+        proj = load_project(projectkey)
+        save_new_project(proj, username2)
+    return user1.projects
+
+
+def admin_reset_projects(username):
+    user = datastore.loaduser(username)
+    for projectkey in user.projects:
+        try:    datastore.delete(projectkey)
+        except: pass
+    user.projects = []
+    output = datastore.saveuser(user)
+    return output
     
 
 
@@ -340,7 +358,7 @@ def jsonify_project(project_id, verbose=False):
         n_pops = 'N/A'
         pop_pairs = []
     json = {
-        'project': {
+        'project': sc.odict({
                 'id':           str(proj.uid),
                 'name':         proj.name,
                 'username':     proj.webapp.username,
@@ -357,7 +375,7 @@ def jsonify_project(project_id, verbose=False):
                 'pops':         pop_pairs,
                 'n_results':    len(proj.results),
                 'n_tasks':      len(proj.webapp.tasks)
-            }
+            })
     }
     if verbose: sc.pp(json)
     return json
@@ -593,13 +611,13 @@ def jsonify_framework(framework_id, verbose=False):
     ''' Return the framework json, given the framework UID. ''' 
     frame = load_framework(framework_id) # Load the framework record matching the UID of the framework passed in.
     json = {
-        'framework': {
+        'framework': sc.odict({
             'id':           str(frame.uid),
             'name':         frame.name,
             'username':     frame.webapp.username,
             'creationTime': frame.created,
             'updatedTime':  frame.modified,
-        }
+        })
     }
     if verbose: sc.pp(json)
     return json
@@ -1172,7 +1190,7 @@ def get_atomica_plots(proj, results=None, plot_names=None, plot_options=None, po
             plot_names = supported_plots.keys()
     plot_names = sc.promotetolist(plot_names)
     if outputs is None:
-        outputs = [{plot_name:supported_plots[plot_name]} for plot_name in plot_names]
+        outputs = [{plot_name:supported_plots[plot_name]} for plot_name in plot_names] # Warning, implicit dict definition
     allfigs = []
     alllegends = []
     allfigjsons = []
@@ -1180,7 +1198,7 @@ def get_atomica_plots(proj, results=None, plot_names=None, plot_options=None, po
     data = proj.data if do_plot_data is True else None # Plot data unless asked not to
     for output in outputs:
         try:
-            plotdata = au.PlotData(results, outputs=output.values()[0], project=proj, pops=pops)
+            plotdata = au.PlotData(results, outputs=list(output.values())[0], project=proj, pops=pops)
             nans_replaced = 0
             for series in plotdata.series:
                 if replace_nans and any(np.isnan(series.vals)):
@@ -1190,7 +1208,7 @@ def get_atomica_plots(proj, results=None, plot_names=None, plot_options=None, po
                             series.vals[nan_ind] = series.vals[nan_ind-1]
                             nans_replaced += 1
             if nans_replaced: print('Warning: %s nans were replaced' % nans_replaced)
-
+    
             if calibration:
                if stacked: figs = au.plot_series(plotdata, axis='pops', plot_type='stacked', legend_mode='separate')
                else:       figs = au.plot_series(plotdata, axis='pops', data=proj.data, legend_mode='separate') # Only plot data if not stacked
@@ -1224,7 +1242,7 @@ def make_plots(proj, results, tool=None, year=None, pops=None, cascade=None, plo
     elif pops.lower() == 'all':
         pops = 'total' # make sure it's lowercase
     else:
-        pop_labels = {y:x for x,y in zip(results[0].pop_names,results[0].pop_labels)}
+        pop_labels = sc.odict({y:x for x,y in zip(results[0].pop_names,results[0].pop_labels)})
         pops = pop_labels[pops]
 
     cascadeoutput,cascadefigs,cascadelegends = get_cascade_plot(proj, results, year=year, pops=pops, cascade=cascade, plot_budget=plot_budget)
@@ -1259,7 +1277,7 @@ def customize_fig(fig=None, output=None, plotdata=None, xlims=None, figsize=None
             if figsize is None: figsize = (5,3)
             fig.set_size_inches(figsize)
             ax.set_position([0.25,0.18,0.70,0.72])
-            ax.set_title(output.keys()[0]) # This is in a loop over outputs, so there should only be one output present
+            ax.set_title(list(output.keys())[0]) # This is in a loop over outputs, so there should only be one output present
         y_max = ax.get_ylim()[1]
         labelpad = 7
         if y_max < 1e-3: labelpad = 15
