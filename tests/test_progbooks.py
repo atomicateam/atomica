@@ -53,7 +53,7 @@ for covout in pset.covouts.values():
 P.run_sim(parset='default',progset='default',progset_instructions=instructions)
 
 # THIS DOES VERSIONING
-# which = ['tb','malaria' ,'hypertension','hypertension_dyn','hiv','hiv_dyn','diabetes','cervicalcancer','udt','udt_dyn','usdt','sir']
+# which = ['tb','tb_simple','tb_simple_dyn','malaria' ,'hypertension','hypertension_dyn','hiv','hiv_dyn','diabetes','cervicalcancer','udt','udt_dyn','usdt','sir']
 # for a in which:
 #     F = au.ProjectFramework("./frameworks/framework_%s.xlsx" % (a))
 #     D = au.ProjectData.from_spreadsheet("./databooks/databook_%s.xlsx" % (a),framework=F)
