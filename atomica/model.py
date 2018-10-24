@@ -782,15 +782,17 @@ class Model(object):
     """ A class to wrap up multiple populations within model and handle cross-population transitions. """
 
     def __init__(self, settings, framework, parset, progset=None, program_instructions=None):
-
+        #
+        # Note that if a progset is provided and program instructions are not, then programs will not be
+        # turned on. However, the progset is still available so that the coverage can still be probed
+        # (in particular, the coverage denominator from Result.get_coverage('denominator') is used
+        # for reconciliation
+        #
         # Record version info for the model run. These are generally NOT updated in migration. Thus, they serve
         # as a record of which specific version of the code was used to generate the results
         self.version = version
         self.gitinfo = sc.gitinfo(__file__)
         self.created = sc.now()
-
-        if (progset is None) != (program_instructions is None):
-            raise AtomicaException('If specifying a progset, instructions must also be provided')
 
         self.pops = list()  # List of population groups that this model subdivides into.
         self.interactions = sc.odict()

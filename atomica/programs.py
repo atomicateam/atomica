@@ -774,10 +774,10 @@ class ProgramSet(NamedItem):
 
         prop_coverage = sc.odict() # Initialise outputs
         for prog in self.programs.values():
-            if prog.name in instructions.coverage:
-                prop_coverage[prog.name] = instructions.coverage[prog.name].interpolate(tvec)
-            else:
+            if instructions is None or prog.name not in instructions.coverage:
                 prop_coverage[prog.name] = prog.get_prop_covered(tvec, num_coverage[prog.name], denominator[prog.name], sample=sample)
+            else:
+                prop_coverage[prog.name] = instructions.coverage[prog.name].interpolate(tvec)
         return prop_coverage
 
     def get_outcomes(self,prop_coverage=None, sample=False):
