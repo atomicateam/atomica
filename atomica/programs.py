@@ -601,6 +601,11 @@ class ProgramSet(NamedItem):
                     sheet.conditional_format(xlrc(current_row, prog_col[prog.name]), {'type': 'formula', 'criteria': '=AND(%s,NOT(ISBLANK(%s)))' % (fcn_pop_not_reached, xlrc(current_row, prog_col[prog.name])), 'format': self._formats['ignored_warning']})
                     sheet.conditional_format(xlrc(current_row, prog_col[prog.name]), {'type': 'formula', 'criteria':  '=' + fcn_pop_not_reached, 'format': self._formats['ignored_not_required']})
 
+                # Conditional formatting for the impact interaction - hatched out if no single-program outcomes
+                fcn_empty_outcomes = 'COUNTIF(%s:%s,"<>" & "")<2' % (xlrc(current_row, 5), xlrc(current_row, 5 + len(applicable_progs)))
+                sheet.conditional_format(xlrc(current_row, 3), {'type': 'formula', 'criteria': '=' + fcn_empty_outcomes, 'format': self._formats['ignored']})
+                sheet.conditional_format(xlrc(current_row, 3), {'type': 'formula', 'criteria': '=AND(%s,NOT(ISBLANK(%s)))' % (fcn_empty_outcomes, xlrc(current_row, 3)), 'format': self._formats['ignored_warning']})
+
                 current_row += 1
 
             current_row += 1
@@ -1062,7 +1067,7 @@ class Covout(object):
         if progs_active in self._interactions:
             # If the combination of programs has an explicitly specified outcome, then use it
             return self._interactions[progs_active]
-        elif self.imp_interaction.lower() == 'synergistic':
+        elif self.imp_interaction is not None and self.imp_interaction.lower() == 'synergistic':
             raise NotImplementedError
         else:
             # Otherwise, do the 'best' interaction and return the delta with the largest magnitude
