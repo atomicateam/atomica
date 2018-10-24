@@ -405,7 +405,7 @@ class Parameter(Variable):
                 for link in self.links:
                     n += link.source.vals[ti]
             else:
-                n = np.nan
+                raise AtomicaException('Cannot retrieve source popsize for a non-transition parameter')
             self.source_popsize_cache_time = ti
             self.source_popsize_cache_val = n
             return n

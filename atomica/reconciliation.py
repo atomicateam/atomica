@@ -1,6 +1,7 @@
 import numpy as np
 import sciris as sc
 from .system import logger
+from .structure import FrameworkSettings as FS
 import pandas as pd
 
 def _extract_targets(result, progset, ti, eval_pars=None):
@@ -18,9 +19,17 @@ def _extract_targets(result, progset, ti, eval_pars=None):
     # Get the parameter outcomes - assumes simulation end year was the reconciliation year (hence -1 index)
     target_vals = dict()
     for covout in progset.covouts.values():
-        par,pop = covout.par,covout.pop
-        if (eval_pars is None and result.framework.get_par(par)['targetable'] == 'y') or (par,pop) in eval_pars:
-            target_vals[(par,pop)] = result.get_variable(pop, par)[0].vals[ti]
+        par_name,pop_name = covout.par,covout.pop
+        if (eval_pars is None and result.framework.get_par(par_name)['targetable'] == 'y') or (par_name,pop_name) in eval_pars:
+            par = result.get_variable(pop_name, par_name)[0]
+
+            if par.links and par.units == FS.QUANTITY_TYPE_NUMBER:
+                # If a transition parameter in number units is being targeted, then the program outcome is in units of per person reached
+                # at each timestep, while the parameter units are people/year. Thus, we need to convert the model parameter into the program
+                # output units prior to reconciling
+                target_vals[(par_name,pop_name)] = par.vals[ti]*result.dt/np.array([par.source_popsize(x) for x in ti])
+            else:
+                target_vals[(par_name,pop_name)] = par.vals[ti]
 
     # Get the coverage denominator in the reconciliation year (it's always the same, so can do it once here)
     coverage_denominator = {x: y[ti] for x, y in result.get_coverage('denominator').items()}
