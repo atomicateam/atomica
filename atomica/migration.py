@@ -1,7 +1,10 @@
 # Central file for migrating Projects
 from distutils.version import LooseVersion
 from .system import logger, AtomicaException
+from .version import version
 import sciris as sc
+from .results import Result
+from .structure import FrameworkSettings as FS
 
 available_migrations = [] # This list stores all of the migrations that are possible
 
@@ -45,6 +48,7 @@ def migrate(proj):
             continue
         else:
             proj = m.upgrade(proj)
+    proj.version = version # Set project version to the current Atomica version
     return proj
 
 @migration('1.0.5', '1.0.6','Simplify ParameterSet storage')
@@ -59,3 +63,57 @@ def simplify_parset_storage(proj):
         parset.pars = new_pars
         del parset.par_ids
     return proj
+
+@migration('1.0.7', '1.0.8','Add version information to model/results')
+def add_model_version(proj):
+
+    def add_version(res,p):
+        res.model.version = p.version
+        res.model.gitinfo = p.gitinfo
+        res.model.created = p.created
+
+    for result in proj.results.values():
+        if isinstance(result,list):
+            for r in result:
+                add_version(r,proj)
+        elif isinstance(result,Result):
+            add_version(result,proj)
+
+    return proj
+
+@migration('1.0.8', '1.0.9','Add currency and units to progset quantities')
+def add_model_version(proj):
+
+    def add_units(progset):
+        # Add in the default units
+        progset.currency = '$'
+        for program in progset.programs.values():
+            program.baseline_spend.units = progset.currency + '/year'
+            program.spend_data.units = progset.currency + '/year'
+            program.unit_cost.units = progset.currency + '/person'
+            program.capacity.units = 'people/year'
+            program.saturation.units = FS.DEFAULT_SYMBOL_INAPPLICABLE
+            program.coverage.units = 'people/year'
+
+    for progset in proj.progsets.values():
+        add_units(progset)
+
+    for result in proj.results.values():
+        if result.model.progset is not None:
+            add_units(result.model.progset)
+
+    return proj
+
+@migration('1.0.9', '1.0.10','Remove target_pars from Programs')
+def remove_target_pars(proj):
+
+    def remove_pars(progset):
+        for program in progset.programs.values():
+            del program.target_pars
+
+    for progset in proj.progsets.values():
+        remove_pars(progset)
+
+    for result in proj.results.values():
+        if result.model.progset is not None:
+            remove_pars(result.model.progset)

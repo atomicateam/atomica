@@ -4,6 +4,7 @@ from .system import AtomicaException, NotFoundError, AtomicaInputError, NotAllow
 from .structure import FrameworkSettings as FS
 from .results import Result
 from .parser_function import parse_function
+from .version import version
 from collections import defaultdict
 import sciris as sc
 import numpy as np
@@ -393,15 +394,18 @@ class Parameter(Variable):
     def source_popsize(self, ti):
         # Get the total number of people covered by this program
         # i.e. the sum of the source compartments of all links that
-        # derive from this program
-        # If impact_names is specified, it must be a list of link names
-        # Then only links whose name is in that list will be included
+        # derive from this program. If the parameter has no links, return NaN
+        # which disambiguates between a parameter whose source compartments are all
+        # empty, vs a parameter that has no source compartments
         if ti == self.source_popsize_cache_time:
             return self.source_popsize_cache_val
         else:
-            n = 0
-            for link in self.links:
-                n += link.source.vals[ti]
+            if self.links:
+                n = 0
+                for link in self.links:
+                    n += link.source.vals[ti]
+            else:
+                raise AtomicaException('Cannot retrieve source popsize for a non-transition parameter')
             self.source_popsize_cache_time = ti
             self.source_popsize_cache_val = n
             return n
@@ -778,6 +782,17 @@ class Model(object):
     """ A class to wrap up multiple populations within model and handle cross-population transitions. """
 
     def __init__(self, settings, framework, parset, progset=None, program_instructions=None):
+        #
+        # Note that if a progset is provided and program instructions are not, then programs will not be
+        # turned on. However, the progset is still available so that the coverage can still be probed
+        # (in particular, the coverage denominator from Result.get_coverage('denominator') is used
+        # for reconciliation
+        #
+        # Record version info for the model run. These are generally NOT updated in migration. Thus, they serve
+        # as a record of which specific version of the code was used to generate the results
+        self.version = version
+        self.gitinfo = sc.gitinfo(__file__)
+        self.created = sc.now()
 
         self.pops = list()  # List of population groups that this model subdivides into.
         self.interactions = sc.odict()
@@ -835,32 +850,22 @@ class Model(object):
             self.programs_active = True
             self._program_cache = dict()
 
-            self._program_cache['comps'] = {}
-            self._program_cache['pars'] = {}
+            self._program_cache['comps'] = dict()
             for prog in self.progset.programs.values():
                 self._program_cache['comps'][prog.name] = []
-
                 for pop_name in prog.target_pops:
                     for comp_name in prog.target_comps:
                         self._program_cache['comps'][prog.name].append(self.get_pop(pop_name).get_comp(comp_name))
 
-            for target_par in prog.target_pars:
-                if target_par['param'] not in self._program_cache['pars']:
-                    self._program_cache['pars'][target_par['param']] = {}
+            self._program_cache['num_coverage'] = self.progset.get_num_coverage(tvec=self.t, dt=self.dt, instructions=self.program_instructions)
 
-                self._program_cache['pars'][target_par['param']][target_par['pop']] = self.get_pop(target_par['pop']).get_par(target_par['param'])
-
-            self._program_cache['alloc'] = self.progset.get_alloc(self.program_instructions, self.t)
-            self._program_cache['num_coverage'] = self.progset.get_num_covered(year=self.t, alloc=self._program_cache['alloc'])
-
+            # Cache the proportion coverage for coverage scenarios so that we don't call interpolate() every timestep
             self._program_cache['prop_coverage'] = dict()
             for prog_name, coverage_ts in self.program_instructions.coverage.items():
                 self._program_cache['prop_coverage'][prog_name] = coverage_ts.interpolate(self.t)
 
-            self.progset.prepare_cache()
         else:
             self.programs_active = False
-
 
 
     def set_vars_by_pop(self):
@@ -871,7 +876,6 @@ class Model(object):
         self._vars_by_pop = dict(self._vars_by_pop) # Stop new entries from appearing in here by accident
 
     def __getstate__(self):
-        # The combination of
         self.unlink()
         d = sc.dcp(self.__dict__)  # Pickling to string results in a copy
         self.relink()  # Relink, otherwise the original object gets unlinked
@@ -1181,56 +1185,25 @@ class Model(object):
 
         ti = self._t_index
 
-        # The output list maintains the order in which characteristics and parameters appear in the
-        # settings, and also puts characteristics before parameters. So iterating through that list
-        # will automatically compute them in the correct order
-
         # First, compute dependent characteristics, as parameters might depend on them
         for pop in self.pops:
             for charac in pop.characs:
                 if charac.dependency:
                     charac.update(ti)
 
-        # 1st:  Update parameters if they have an f_stack variable
-        # 2nd:  Any parameter that is overwritten by a program-based cost-coverage-impact transformation.
-        # 3rd:  Any parameter that is overwritten by a special rule, e.g. averaging across populations.
-        # 4th:  Any parameter that is restricted within a range of values, i.e. by min/max values.
-        # Looping through populations must be internal.
-        # This allows all values to be calculated before special inter-population rules are applied.
-        # We resolve one parameter at a time, in dependency order
         do_program_overwrite = self.programs_active and self.program_instructions.start_year <= self.t[ti] <= self.program_instructions.stop_year
 
         if do_program_overwrite:
-            # Compute the fraction covered
-            num_covered  = sc.odict([(k,v[ti]) for k,v in self._program_cache['num_coverage'].iteritems()])
-            prop_covered = sc.odict.fromkeys(self._program_cache['comps'], 0.0)
+            prop_coverage = sc.odict.fromkeys(self._program_cache['comps'], 0.0)
             for k,comp_list in self._program_cache['comps'].items():
                 if k in self._program_cache['prop_coverage']:
-                    prop_covered[k] = self._program_cache['prop_coverage'][k][ti]
+                    prop_coverage[k] = self._program_cache['prop_coverage'][k][ti]
                 else:
                     n = 0.0
                     for comp in comp_list:
                         n += comp.vals[ti]
-                    if n:
-                        prop_covered[k] = np.minimum(self._program_cache['num_coverage'][k][ti] / n, 1.)
-                    else:
-                        prop_covered[k] = 1.
-
-            # TODO - Note that if a program has a coverage overwrite (in proportion units) but then targets
-            # a number parameter, the coverage overwrite will have no effect. This is kind of fitting in the
-            # sense that for number parameters, at the moment
-            # - the proportion coverage is ignored
-            # - the targeting sheet is ignored
-            # so it is consistent to have (fraction) coverage overwrites also be ignored. This may change if the
-            # design of number coverage programs is modified
-            par_covered = dict()
-            for par_name in self.progset.pars:
-                for pop in self.pops:
-                    par = pop.get_par(par_name)
-                    par_covered[(par_name,pop.name)] = par.source_popsize(ti)
-
-            # Compute the updated program values
-            prog_vals = self.progset.get_outcomes(num_covered=num_covered, prop_covered=prop_covered, par_covered=par_covered)
+                    prop_coverage[k] = self.progset.programs[k].get_prop_covered(self.t[ti], self._program_cache['num_coverage'][k][ti], n, sample=False)[0]
+            prog_vals = self.progset.get_outcomes(prop_coverage)
 
         for par_name in self._par_list:
             # All of the parameters with this name, across populations.
@@ -1247,6 +1220,8 @@ class Model(object):
                 for par in pars:
                     if (par.name,par.pop.name) in prog_vals:
                         par.vals[ti] = prog_vals[(par.name,par.pop.name)]
+                        if par.units == FS.QUANTITY_TYPE_NUMBER:
+                            par.vals[ti] *= par.source_popsize(ti)/self.dt # The outcome in the progbook is per person reached, which is a timestep specific value. Thus, need to annualize here
 
             # Handle parameters that aggregate over populations and use interactions in these functions.
             if pars[0].pop_aggregation:

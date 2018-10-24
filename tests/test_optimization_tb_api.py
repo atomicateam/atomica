@@ -77,8 +77,8 @@ d = au.PlotData([unoptimized_result, optimized_result], outputs=['alive','ddis']
 au.plot_series(d, axis="results")
 
 # Retrieve the original and optimized budgets using the contents stored within the Results themselves
-print(unoptimized_result.model.progset.get_alloc(unoptimized_result.model.program_instructions,start_year))
-print(optimized_result.model.progset.get_alloc(optimized_result.model.program_instructions,start_year))
+print(unoptimized_result.model.progset.get_alloc(start_year,unoptimized_result.model.program_instructions))
+print(optimized_result.model.progset.get_alloc(start_year,optimized_result.model.program_instructions))
 
 
 

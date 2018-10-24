@@ -170,7 +170,7 @@ class ProjectData(sc.prettyobj):
             if 'default value' in spec and spec['default value']:
                 for from_pop in interpop.pops:
                     for to_pop in interpop.pops:
-                        ts = TimeSeries(format=interpop.allowed_units[0],units=interpop.allowed_units[0])
+                        ts = TimeSeries(units=interpop.allowed_units[0])
                         ts.insert(None,spec['default value'])
                         interpop.ts[(from_pop,to_pop)] = ts
 
@@ -263,7 +263,7 @@ class ProjectData(sc.prettyobj):
                     if not spec['databook page']:
                         logger.warning('A TDVE table for "%s" (%s) was read in and will be used, but the Framework did not mark this quantity as appearing in the databook' % (tdve.name,code_name))
 
-                    tdve.allowed_units = [x.title() for x in framework.get_allowed_units(code_name)]
+                    tdve.allowed_units = [x.title() if x in FS.STANDARD_UNITS else x for x in framework.get_allowed_units(code_name)]
 
                     self.tdve[code_name] = tdve
                     # Store the TDVE on the page it was actually on, rather than the one in the framework. Then, if users move anything around, the change will persist
@@ -319,7 +319,6 @@ class ProjectData(sc.prettyobj):
                             location = 'Error in TDVE table "%s" on sheet "%s"' % (tdve.name,tdve_sheet)
                             assert name in self.pops, '%s. Population "%s" not recognized. Should be one of: %s' % (location,name,self.pops.keys())
                             assert ts.has_data, '%s. Data values missing for %s (%s)' % (location,self.tdve[spec.name].name, name)
-                            assert ts.format is not None, '%s. Formats missing for %s (%s)' % (location,self.tdve[spec.name].name, name)
                             assert ts.units is not None, '%s. Units missing for %s (%s)' % (location,self.tdve[spec.name].name, name)
                             if allowed_units:
                                 assert ts.units in allowed_units, '%s. Unit "%s" for %s (%s) do not match allowed units (%s)' % (location,ts.units,self.tdve[spec.name].name, name,allowed_units)
@@ -387,7 +386,7 @@ class ProjectData(sc.prettyobj):
             interaction.pops.append(code_name)
         for tdve in self.tdve.values():
             default_unit = tdve.allowed_units[0] if tdve.allowed_units else None
-            tdve.ts[code_name] = TimeSeries(format=default_unit,units=default_unit)
+            tdve.ts[code_name] = TimeSeries(units=default_unit)
 
     def rename_pop(self,existing_code_name,new_code_name,new_full_name):
         # Rename an existing pop

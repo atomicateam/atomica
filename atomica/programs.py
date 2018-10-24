@@ -7,10 +7,11 @@ Version: 2018jul30
 """
 
 import sciris as sc
-from .system import AtomicaException, logger, AtomicaInputError, reraise_modify
+from .system import AtomicaException, logger, reraise_modify
 from .utils import NamedItem
 from numpy import array, exp, minimum, inf
 from .structure import TimeSeries
+from .structure import FrameworkSettings as FS
 from .excel import standard_formats, AtomicaSpreadsheet, apply_widths, update_widths, read_tables, TimeDependentValuesEntry
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 import openpyxl
@@ -83,17 +84,10 @@ class ProgramSet(NamedItem):
         self.comps      = sc.odict()
         self.pars       = sc.odict()
 
-        # Meta data
+        # Metadata
         self.created    = sc.now()
         self.modified   = sc.now()
-
-        return None
-
-    def prepare_cache(self):
-        # This function is called once at the start of model.py, which allows various checks to be
-        # performed once at the start of the simulation rather than at every timestep
-        # TODO - deprecate fully if this ends up being unused (it used to do something)
-        return
+        self.currency   = '$' # The symbol for currency that will be used in the progbook
 
     def __repr__(self):
         ''' Print out useful information'''
@@ -103,7 +97,6 @@ class ProgramSet(NamedItem):
         output += '        Date created: %s\n'    % sc.getdate(self.created)
         output += '       Date modified: %s\n'    % sc.getdate(self.modified)
         output += '============================================================\n'
-
         return output
 
     #######################################################################################################
@@ -136,7 +129,7 @@ class ProgramSet(NamedItem):
 
     def add_program(self, code_name, full_name):
         # To add a program, we just need to construct one
-        prog = Program(name=code_name,label=full_name)
+        prog = Program(name=code_name,label=full_name,currency=self.currency)
         self.programs[prog.name] = prog
         return
 
@@ -222,11 +215,6 @@ class ProgramSet(NamedItem):
         for name, label, is_impact in zip(framework.pars.index, framework.pars['display name'],framework.pars['targetable']):
             if is_impact == 'y':
                 self.pars[name] = label
-
-        self.num_pars = sc.odict()
-        for name, label, is_impact, y_format in zip(framework.pars.index, framework.pars['display name'], framework.pars['targetable'], framework.pars['format']):
-            if is_impact == 'y' and y_format == 'number':
-                self.num_pars[name] = label
 
     @staticmethod
     def validate_inputs(framework, data, project):
@@ -445,19 +433,28 @@ class ProgramSet(NamedItem):
                 reraise_modify(e, message)
 
             prog = self.programs[tdve.name]
-            prog.spend_data = tdve.ts['Total spend']
-            if 'Capacity constraints' in tdve.ts: # This is a compatibility statement around 30/8/18, can probably be removed after a few weeks
-                prog.capacity = tdve.ts['Capacity constraints']
+
+            def set_ts(prog,field_name,ts):
+                # Set Program timeseries based on TDVE, handling the case where the TDVE has no units
+                if ts.units is None:
+                    ts.units = getattr(prog,field_name).units
+                setattr(prog,field_name, ts)
+
+            if 'Total spend' in tdve.ts: # This is a compatibility statement around 19/10/18, progbooks generated during the WB workshop would have 'Total spend'
+                set_ts(prog,'spend_data',tdve.ts['Total spend'])
             else:
-                prog.capacity = tdve.ts['Capacity']
-            prog.unit_cost = tdve.ts['Unit cost']
-            prog.coverage = tdve.ts['Coverage']
-            if 'Saturation' in tdve.ts: # This is a compatibility statement around 30/8/18, can probably be removed after a few weeks
-                prog.saturation = tdve.ts['Saturation']
-            else:
-                prog.saturation = TimeSeries()
+                set_ts(prog,'spend_data',tdve.ts['Annual spend'])
+
+            set_ts(prog,'capacity',tdve.ts['Capacity'])
+            set_ts(prog,'unit_cost',tdve.ts['Unit cost'])
+            set_ts(prog,'coverage',tdve.ts['Coverage'])
+            set_ts(prog,'saturation',tdve.ts['Saturation'])
+
+            if '/year' in prog.unit_cost.units and '/year' in prog.coverage.units:
+                logger.warning('Program %s: Typically if the unit cost is `/year` then the coverage would not be `/year`' % (prog.label))
             times.update(set(tdve.tvec))
-        self.tvec = array(sorted(list(times)))
+
+        self.tvec = array(sorted(list(times))) # NB. This means that the ProgramSet's tvec (used when writing new programs) is based on the last Program to be read in
 
     def _write_spending(self):
         sheet = self._book.add_worksheet("Spending data")
@@ -468,16 +465,21 @@ class ProgramSet(NamedItem):
             # Make a TDVE table for
             tdve = TimeDependentValuesEntry(prog.name,self.tvec)
             prog = self.programs[tdve.name]
-            tdve.ts['Total spend'] = prog.spend_data
+            tdve.ts['Annual spend'] = prog.spend_data
             tdve.ts['Unit cost'] = prog.unit_cost
             tdve.ts['Capacity'] = prog.capacity
             tdve.ts['Saturation'] = prog.saturation
             tdve.ts['Coverage'] = prog.coverage
 
+            tdve.allowed_units = {
+                'Unit cost':[self.currency + '/person (one-off)', self.currency + '/person/year'],
+                'Capacity':['people/year', 'people']
+            }
+
             # NOTE - If the ts contains time values that aren't in the ProgramSet's tvec, then an error will be thrown
             # However, if the ProgramSet's tvec contains values that the ts does not, then that's fine, there
             # will just be an empty cell in the spreadsheet
-            next_row = tdve.write(sheet, next_row, self._formats, self._references, widths,assumption_heading='Assumption',write_units=False,write_uncertainty=True)
+            next_row = tdve.write(sheet, next_row, self._formats, self._references, widths,assumption_heading='Assumption',write_units=True,write_uncertainty=True)
 
         apply_widths(sheet,widths)
 
@@ -518,7 +520,7 @@ class ProgramSet(NamedItem):
                             cov_interaction =  x.value.strip().lower() # additive, nested, etc.
                     elif idx_to_header[i].lower() == 'impact interaction':
                         if x.value:
-                            imp_interaction =  x.value.strip().lower() # additive, nested, etc.
+                            imp_interaction =  x.value.strip() # additive, nested, etc.
                     elif idx_to_header[i].lower() == 'uncertainty':
                         if x.value is not None: # test `is not None` because it might be entered as 0
                             uncertainty = float(x.value)
@@ -528,8 +530,7 @@ class ProgramSet(NamedItem):
                         progs[idx_to_header[i]] = float(x.value)
 
                 if baseline is not None or progs: # Only instantiate covout objects if they have programs associated with them
-                    is_num_par = True if par_name in self.num_pars else False
-                    self.covouts[(par_name,pop_name)] = Covout(par=par_name, pop=pop_name, cov_interaction=cov_interaction, imp_interaction=imp_interaction, uncertainty=uncertainty, baseline=baseline, progs=progs, is_num_par=is_num_par)
+                    self.covouts[(par_name,pop_name)] = Covout(par=par_name, pop=pop_name, cov_interaction=cov_interaction, imp_interaction=imp_interaction, uncertainty=uncertainty, baseline=baseline, progs=progs)
 
     def _write_effects(self):
         # TODO - Use the framework to exclude irrelevant programs and populations
@@ -580,9 +581,9 @@ class ProgramSet(NamedItem):
                 sheet.data_validation(xlrc(current_row, 2), {"validate": "list", "source": ["Random","Additive","Nested"]})
 
                 if covout and covout.imp_interaction is not None:
-                    sheet.write(current_row, 3, covout.imp_interaction.title(),self._formats['not_required'])
+                    sheet.write(current_row, 3, covout.imp_interaction,self._formats['not_required'])
                 else:
-                    sheet.write(current_row, 3, 'Best', self._formats['unlocked'])
+                    sheet.write(current_row, 3, None, self._formats['unlocked'])
                 sheet.data_validation(xlrc(current_row, 3), {"validate": "list", "source": ["Synergistic","Best"]})
 
                 if covout and covout.sigma is not None:
@@ -599,6 +600,11 @@ class ProgramSet(NamedItem):
                     fcn_pop_not_reached = '%s<>"Y"' % (self._references['reach_pop'][(prog.name, pop_name)])  # Excel formula returns FALSE if pop was 'N' (or blank)
                     sheet.conditional_format(xlrc(current_row, prog_col[prog.name]), {'type': 'formula', 'criteria': '=AND(%s,NOT(ISBLANK(%s)))' % (fcn_pop_not_reached, xlrc(current_row, prog_col[prog.name])), 'format': self._formats['ignored_warning']})
                     sheet.conditional_format(xlrc(current_row, prog_col[prog.name]), {'type': 'formula', 'criteria':  '=' + fcn_pop_not_reached, 'format': self._formats['ignored_not_required']})
+
+                # Conditional formatting for the impact interaction - hatched out if no single-program outcomes
+                fcn_empty_outcomes = 'COUNTIF(%s:%s,"<>" & "")<2' % (xlrc(current_row, 5), xlrc(current_row, 5 + len(applicable_progs)))
+                sheet.conditional_format(xlrc(current_row, 3), {'type': 'formula', 'criteria': '=' + fcn_empty_outcomes, 'format': self._formats['ignored']})
+                sheet.conditional_format(xlrc(current_row, 3), {'type': 'formula', 'criteria': '=AND(%s,NOT(ISBLANK(%s)))' % (fcn_empty_outcomes, xlrc(current_row, 3)), 'format': self._formats['ignored_warning']})
 
                 current_row += 1
 
@@ -697,7 +703,11 @@ class ProgramSet(NamedItem):
         return newps
 
     def validate(self):
-        # Some basic validation checks
+        """ Perform basic validation checks
+
+        :raises AtomicaException is anything is invalid
+        :return: None
+        """
         for prog in self.programs.values():
             if not prog.target_comps:
                 raise AtomicaException('Program "%s" does not target any compartments' % (prog.name))
@@ -707,148 +717,87 @@ class ProgramSet(NamedItem):
     #######################################################################################################
     # Methods for getting core response summaries: budget, allocations, coverages, outcomes, etc
     #######################################################################################################
-    def get_alloc(self,instructions=None,tvec=None):
-        # Get time-varying alloc for each program
-        # Input
-        # - instructions : program instructions
-        # - t : np.array vector of time values (years)
-        #
-        # Returns a dict where the key is the program name and
-        # the value is an array of spending values the same size as t
-        # Spending will be drawn from the instructions if it exists. The `instructions.alloc`
-        # can either be:
-        # - None
-        # - A dict in which a program may or may not appear
-        # - A dict in which a program appears and has a TimeSeries of spending but has no associated data
-        #
-        # Validate inputs
-        if tvec is None:
-            tvec = instructions.start_year
+
+    def get_alloc(self, tvec, instructions=None):
+        """ Return the spending allocation for each program
+
+        :param tvec: array of times (in years) - this is required to interpolate time-varying spending values
+        :param instructions: optionally specify instructions, which can supply a spending overwrite
+        :return: Dict like {prog_name: np.array()} with spending on each program (in units of $/year or currency equivalent)
+        """
+
         tvec = sc.promotetoarray(tvec)
 
-        if instructions is None: # If no instructions provided, just return the default budget
-            return self.get_budgets(year=tvec)
-        else:
-            if instructions.alloc is None:
-                return self.get_budgets(year=tvec)
+        alloc = sc.odict()
+        for prog in self.programs.values():
+            if instructions is None or prog.name not in instructions.alloc:
+                alloc[prog.name] = prog.get_spend(tvec)
             else:
-                alloc = sc.odict()
-                for prog in self.programs.values():
-                    if prog.name in instructions.alloc:
-                        alloc[prog.name] = instructions.alloc[prog.name].interpolate(tvec)
-                    else:
-                        alloc[prog.name] = prog.get_spend(tvec)
-                return alloc
+                alloc[prog.name] = instructions.alloc[prog.name].interpolate(tvec)
 
-    def get_budgets(self, year=None, optimizable=None):
-        ''' Extract the budget if cost data has been provided; if optimizable is True, then only return optimizable programs '''
+        return alloc
 
-        default_budget = sc.odict() # Initialise outputs
+    def get_num_coverage(self, tvec, dt, instructions=None, sample=False):
+        """ Return the number coverage of each program
 
-        # Validate inputs
-        if year is not None: year = sc.promotetoarray(year)
-        if optimizable is None: optimizable = False # Return only optimizable indices
-
-        # Get cost data for each program
-        for prog in self.programs.values():
-            default_budget[prog.name] = prog.get_spend(year)
-
-        return default_budget
-
-    def get_num_covered(self, year=None, alloc=None, unit_cost=None, capacity=None,sample='best'):
-        ''' Extract the number of people covered by a program, optionally specifying an overwrite for the alloc '''
-
-        num_covered = sc.odict() # Initialise outputs
+        :param tvec: array of times (in years) - this is required to interpolate time-varying unit costs and capacity constraints
+        :param dt: scalar timestep size - this is required to adjust spending on incidence-type programs
+        :param instructions: optionally specify instructions, which can supply a spending overwrite
+        :param sample: TODO implement sampling
+        :return: Dict like {prog_name: np.array()} with number of people covered at each timestep (in units of people)
+        """
 
         # Validate inputs
-        if year is not None: year = sc.promotetoarray(year)
+        tvec = sc.promotetoarray(tvec)
+        alloc = self.get_alloc(tvec, instructions)
 
-        # Get cost data for each program
+        # Get number covered for each program
+        num_coverage = sc.odict() # Initialise outputs
         for prog in self.programs.values():
-            if alloc and prog.name in alloc:
+            if prog.name in alloc:
                 spending = alloc[prog.name]
             else:
                 spending = None
+            num_coverage[prog.name] = prog.get_num_covered(tvec=tvec, dt=dt, spending=spending, sample=False)
 
-            num_covered[prog.name] = prog.get_num_covered(year=year, budget=spending, unit_cost=unit_cost, capacity=capacity, sample=sample)
+        return num_coverage
 
-        return num_covered
+    def get_prop_coverage(self, tvec, num_coverage, denominator, instructions = None, sample=False):
+        """ Return the fractional coverage of each program
 
-    def get_prop_covered(self, year=None, denominator=None, unit_cost=None, capacity=None, alloc=None, sample='best'):
-        '''Returns proportion covered for a time/spending vector and denominator.
-        Denominator is expected to be a dictionary.'''
-        # INPUT
-        # denominator - dict of denominator values keyed by program name
-        # alloc - dict of spending values (arrays) keyed by program name (same thing returned by self.get_alloc)
-        prop_covered = sc.odict() # Initialise outputs
+        Note the evaluating the proportion coverage for a ProgramSet is not a straight division because
+        - instructions can override the coverage (for coverage scenarios)
+        - Programs can contain saturation constraints
 
-        # Make sure that denominator has been supplied
-        if denominator is None:
-            errormsg = 'Must provide denominators to calculate proportion covered.'
-            raise AtomicaException(errormsg)
+        :param tvec: array of times (in years) - this is required to interpolate time-varying saturation values
+        :param num_coverage: dict of program coverages, should match the available programs (typically the output of ProgramSet.get_num_coverage()
+        :param denominator: dict of number of people covered by each program, computed externally and with one entry for each program
+        :param instructions: optionally specify instructions, which can supply a coverage overwrite
+        :param sample: TODO implement sampling
+        :return: Dict like {prog_name: np.array()} with fractional coverage values (dimensionless)
+        """
 
+        prop_coverage = sc.odict() # Initialise outputs
         for prog in self.programs.values():
-            if alloc and prog.name in alloc:
-                spending = alloc[prog.name]
+            if instructions is None or prog.name not in instructions.coverage:
+                prop_coverage[prog.name] = prog.get_prop_covered(tvec, num_coverage[prog.name], denominator[prog.name], sample=sample)
             else:
-                spending = None
+                prop_coverage[prog.name] = instructions.coverage[prog.name].interpolate(tvec)
+        return prop_coverage
 
-            num = prog.get_num_covered(year=year, unit_cost=unit_cost, capacity=capacity, budget=spending, sample=sample)
-            denom = denominator[prog.name]
-            prop_covered[prog.name] = minimum(num/denom, 1.) # Ensure that coverage doesn't go above 1
+    def get_outcomes(self,prop_coverage=None, sample=False):
+        """ Get a dictionary of parameter values associated with coverage levels (at a single point in time)
 
-        return prop_covered
+        Since the modality interactions in Covout.get_outcome() assume that the coverage is scalar, this function
+        will also only work for scalar coverage. Therefore, the prop coverage would normally come from
+        ProgramSet.get_prop_coverage(tvec,...) where tvec was only one year
 
-    def get_coverage(self, year=None, denominator=None, unit_cost=None, capacity=None, alloc=None, sample='best'):
-        '''Returns proportion OR number covered for a time/spending vector. Returns proportion if denominator is provided'''
-        if denominator is not None:
-            return self.get_prop_covered(year=year, denominator=denominator, unit_cost=unit_cost, capacity=capacity, alloc=alloc, sample=sample)
-        else:
-            return self.get_num_covered(year=year, unit_cost=unit_cost, capacity=capacity, alloc=alloc, sample=sample)
+        :param prop_coverage: dict with coverage values {prog_name:val}
+        :param sample: TODO implement sampling
+        :return: dict {(par,pop):val} containing parameter value overwrites
+        """
 
-    def get_outcomes(self,num_covered=None, prop_covered=None, par_covered=None):
-        ''' Get a dictionary of parameter values associated with coverage levels'''
-        # TODO - add sampling back in once we've decided how to do it
-        # INPUTS
-        # - coverage : dict with coverage values {prog_name:np.array}
-        # OUTPUTS
-        # - outcomes : a dict {(par,pop):vals}
-
-        for covkey in prop_covered.keys(): # Ensure coverage level values are arrays
-            prop_covered[covkey] = sc.promotetoarray(prop_covered[covkey])
-            for item in prop_covered[covkey]:
-                if item<0 or item>1:
-                    errormsg = 'Expecting coverage to be a proportion, value for entry %s is %s' % (covkey, item)
-                    raise AtomicaException(errormsg)
-
-        # TODO - Here is the par/pop disaggregation based on parameter coverage for the parameters actually reached
-        # Note that this does still ignore the compartment targeting
-        # The covout is specific to a par-pop combination
-        # The program coverage needs to be rescaled in the same proportion as the source popsizes
-        # i.e. suppose a program targets pars A and B in pops 1 and 2
-        # If the program has coverage of 100, and par A reaches (200,300) and par B reaches (400,500) then we would allocate:
-        # 100* (200/1400, 300/1400, 400/1400, 500/1400)
-        # So - the denominator is at the _program_ level
-        prog_denominator = dict()
-        for prog in self.programs:
-            for covout in self.covouts.values():
-                if prog in covout.progs:
-                    if prog not in prog_denominator:
-                        prog_denominator[prog] = par_covered[(covout.par,covout.pop)]
-                    else:
-                        prog_denominator[prog] += par_covered[(covout.par,covout.pop)]
-
-        # Initialise output
-        outcomes = dict()
-        for covout in self.covouts.values():
-            covout_num_covered = dict()
-            for prog in covout.progs:
-                if not prog_denominator[prog]:
-                    covout_num_covered[prog] = sc.promotetoarray(0.0)
-                else:
-                    covout_num_covered[prog] = sc.promotetoarray(num_covered[prog] * par_covered[(covout.par,covout.pop)]/prog_denominator[prog])
-            outcomes[(covout.par,covout.pop)] = covout.get_outcome(num_covered=covout_num_covered, prop_covered=prop_covered)
-        return outcomes
+        return {(covout.par,covout.pop):covout.get_outcome(prop_coverage,sample=sample) for covout in self.covouts.values()}
 
 #--------------------------------------------------------------------
 # Program class
@@ -856,22 +805,27 @@ class ProgramSet(NamedItem):
 class Program(NamedItem):
     ''' Defines a single program.'''
 
-    def __init__(self, name=None, label=None, target_pops=None, target_pars=None, target_comps=None):
-        '''Initialize'''
+    def __init__(self, name, label=None, target_pops=None, target_comps=None, currency='$'):
+        """ Instantiate a new Program
+
+        :param name: Short name of the program
+        :param label: Full name of the program
+        :param target_pops: List of population code names for pops targeted by the program
+        :param target_comps: List of compartment code names for compartments targeted by the program
+        :param currency: The currency to use (for display purposes only) - normally this would be set to `ProgramSet.currency` by `ProgramSet.add_program()`
+        """
+
         NamedItem.__init__(self,name)
-        assert name is not None, 'You must supply a name for a program'
         self.name               = name # Short name of program
         self.label              = name if label is None else label # Full name of the program
-        self.target_pars        = [] if target_pars is None else target_pars # Dict of parameters targeted by program, in form {'param': par.short, 'pop': pop} # TODO - remove this, this info is in the Covout
         self.target_pops        = [] if target_pops is None else target_pops # List of populations targeted by the program
         self.target_comps       = [] if target_comps is None else target_comps # Compartments targeted by the program - used for calculating coverage denominators
-        self.baseline_spend     = TimeSeries(assumption=0.0) # A TimeSeries with any baseline spending data - currently not exposed in progbook
-        self.spend_data         = TimeSeries() # TimeSeries with spending data
-        self.unit_cost          = TimeSeries() # TimeSeries with unit cost of program
-        self.capacity           = TimeSeries() # TimeSeries with capacity of program - optional - if not supplied, cost function is assumed to be linear
-        self.saturation = TimeSeries()
-        self.coverage           = TimeSeries() # TimeSeries with capacity of program - optional - if not supplied, cost function is assumed to be linear
-        return None
+        self.baseline_spend     = TimeSeries(assumption=0.0,units=currency+'/year') # A TimeSeries with any baseline spending data - currently not exposed in progbook
+        self.spend_data         = TimeSeries(units=currency+'/year') # TimeSeries with spending data
+        self.unit_cost          = TimeSeries(units=currency+'/person (one-off)') # TimeSeries with unit cost of program
+        self.capacity           = TimeSeries(units='people/year') # TimeSeries with capacity of program - optional - if not supplied, cost function is assumed to be linear
+        self.saturation         = TimeSeries(units=FS.DEFAULT_SYMBOL_INAPPLICABLE)
+        self.coverage           = TimeSeries(units='people/year') # TimeSeries with capacity of program - optional - if not supplied, cost function is assumed to be linear
 
     def __repr__(self):
         ''' Print out useful info'''
@@ -879,7 +833,6 @@ class Program(NamedItem):
         output += '          Program name: %s\n'    % self.name
         output += '         Program label: %s\n'    % self.label
         output += '  Targeted populations: %s\n'    % self.target_pops
-        output += '   Targeted parameters: %s\n'    % self.target_pars
         output += ' Targeted compartments: %s\n'    % self.target_comps
         output += '\n'
         return output
@@ -891,96 +844,58 @@ class Program(NamedItem):
         else:
             return self.spend_data.interpolate(year)
 
-    def get_unit_cost(self, year=None):
-        return self.unit_cost.interpolate(year)
-
-    def optimizable(self, doprint=False, partial=False):
-        '''
-        Return whether or not a program can be optimized.
-
-        Arguments:
-            doprint = whether or not to print out why a program can't be optimized
-            partial = flag programs that are only partially ready for optimization (some data entered), skipping those that have no data entered
-        '''
-        valid = True # Assume the best
-        tests = {}
-        try:
-            tests['target_pops invalid'] = len(self.target_pops)<1
-            tests['target_pars invalid'] = len(self.target_pars)<1
-            tests['unit_cost invalid']   = not(sc.isnumber(self.get_unit_cost()))
-            tests['capacity invalid']   = self.capacity is None
-            if any(tests.values()):
-                valid = False # It's looking like it can't be optimized
-                if partial and all(tests.values()): valid = True # ...but it's probably just an other program, so skip it
-                if not valid and doprint:
-                    print('Program not optimizable for the following reasons: %s' % '\n'.join([key for key,val in tests.items() if val]))
-
-        except Exception as E:
-            valid = False
-            if doprint:
-                print('Program not optimizable because an exception was encountered: %s' % E.message)
-
-        return valid
-
-    def has_budget(self):
-        return self.spend_data.has_data()
-
-    def get_num_covered(self, year=None, unit_cost=None, capacity=None, budget=None, sample=False):
+    def get_num_covered(self, tvec, spending, dt, sample=False):
         '''Returns number covered for a time/spending vector'''
-        # TODO - implement sampling - might just be replacing 'interpolate' with 'sample'?
-
-        num_covered = 0.
+        # INPUTS
+        # - tvec : scalar tvec
+        # - dt : timestep (to adjust spending)
+        # - num_covered : scalar num covered e.g. from `Prog.get_num_coverage(tvec,dt)`
+        # - denominator : scalar denominator (computed from a model object/Result)
+        # TODO - implement sampling
 
         # Validate inputs
-        if budget is None:
-            budget = self.spend_data.interpolate(year)
-        budget = sc.promotetoarray(budget)
+        spending = sc.promotetoarray(spending)
 
-        if unit_cost is None:
-            unit_cost = self.unit_cost.interpolate(year)
-        unit_cost = sc.promotetoarray(unit_cost)
+        unit_cost = self.unit_cost.interpolate(tvec)
+        if '/year' not in self.unit_cost.units:
+            # The spending is $/tvec, and the /tvec gets eliminated if the unit cost is also per tvec. If that's not the case, then
+            # we need to multiply the spending by the timestep to get the correct units
+            spending *= dt
 
-        if capacity is None and self.capacity.has_data:
-            capacity = self.capacity.interpolate(year)
+        num_covered = spending/unit_cost
 
-        # Use a linear cost function if capacity has not been set
-        if capacity is not None:
-            num_covered = 2*capacity/(1+exp(-2*budget/(capacity*unit_cost)))-capacity
-
-        # Use a saturating cost function if capacity has been set
-        else:
-            num_covered = budget/unit_cost
+        if self.capacity.has_data:
+            capacity = self.capacity.interpolate(tvec)
+            if '/year' in self.capacity.units:
+                # The capacity constraint is applied to a number of people. If it is /year, then it must be multiplied by the timestep first
+                capacity *= dt
+            num_covered = np.minimum(capacity, num_covered)
 
         return num_covered
 
+    def get_prop_covered(self, tvec, num_covered, denominator, sample=False):
+        '''Returns proportion covered for a time/spending vector and denominator, taking into account any coverage saturation contained within this program'''
+        # INPUTS
+        # - tvec : scalar tvec
+        # - num_covered : scalar num covered e.g. from `Prog.get_num_coverage(tvec,dt)`
+        # - denominator : scalar denominator (computed from a model object/Result)
+        # TODO - implement sampling
 
-    def get_prop_covered(self, year=None, denominator=None, unit_cost=None, capacity=None, budget=None, sample='best'):
-        '''Returns proportion covered for a time/spending vector and denominator'''
+        tvec = sc.promotetoarray(tvec)
+        denominator = sc.promotetoarray(denominator)
+        num_covered = sc.promotetoarray(num_covered)
 
-        # Make sure that denominator has been supplied
-        if denominator is None:
-            errormsg = 'Must provide denominators to calculate proportion covered.'
-            raise AtomicaException(errormsg)
-
-        # TODO: error checking to ensure that the dimension of year is the same as the dimension of the denominator
-        # Example: year = [2015,2016], denominator = [30000,40000]
-        num_covered = self.get_num_covered(unit_cost=unit_cost, capacity=capacity, budget=budget, year=year, sample=sample)
-        prop_covered = minimum(num_covered/denominator, 1.) # Ensure that coverage doesn't go above 1
-        return prop_covered
-
-
-    def get_coverage(self, year=None, as_proportion=False, denominator=None, unit_cost=None, capacity=None, budget=None, sample='best'):
-        '''Returns proportion OR number covered for a time/spending vector.'''
-
-        if as_proportion and denominator is None:
-            print('Can''t return proportions because denominators not supplied. Returning numbers instead.')
-            as_proportion = False
-
-        if as_proportion:
-            return self.get_prop_covered(year=year, denominator=denominator, unit_cost=unit_cost, capacity=capacity, budget=budget, sample=sample)
+        if self.saturation.has_data:
+            # If the denominator is 0, then we need to use the saturation value
+            prop_covered = np.divide(num_covered, denominator, out=np.full(num_covered.shape,np.inf), where=denominator != 0)
+            saturation = self.saturation.interpolate(tvec)
+            prop_covered = 2*saturation/(1+exp(-2*prop_covered/saturation))-saturation
+            prop_covered = minimum(prop_covered, 1.)  # Ensure that coverage doesn't go above 1 (if saturation is < 1)
         else:
-            return self.get_num_covered(year=year, unit_cost=unit_cost, capacity=capacity, budget=budget, sample=sample)
+            # The division below means that 0/0 is treated as returning 1
+            prop_covered = np.divide(num_covered, denominator, out=np.ones_like(num_covered), where=denominator > num_covered)
 
+        return prop_covered
 
 #--------------------------------------------------------------------
 # Covout
@@ -997,16 +912,21 @@ class Covout(object):
            )
     '''
 
-    def __init__(self, par, pop, progs, cov_interaction=None, imp_interaction=None, uncertainty=0.0, baseline=0.0, is_num_par=False):
+    def __init__(self, par, pop, progs, cov_interaction=None, imp_interaction=None, uncertainty=0.0, baseline=0.0):
+        # Construct new Covout instance
+        # INPUTS
+        # - par : string with the code name of the parameter being overwritten
+        # - pop : string with the code name of the population being overwritten
+        # - progs : a dict containing {prog_name:outcome} with the single program outcomes
+        # - cov_interaction: one of 'additive', 'random', 'nested'
+        # - imp_interaction : a parsable string like 'Prog1+Prog2=10,Prog2+Prog3=20' with the interaction outcomes
+        # - uncertainty : a scalar standard deviation for the outcomes
+        # - baseline : the zero coverage baseline value
+
         if cov_interaction is None:
             cov_interaction = 'additive'
         else:
-            assert cov_interaction in ['additive','random','nested'], 'Coverage interaction must be set to "additive", "random", or "nested"'
-
-        if imp_interaction is None:
-            imp_interaction = 'best'
-        else:
-            assert imp_interaction in ['best','synergistic'], 'Impact interaction must be "best" or "synergistic"'
+            assert cov_interaction in ['additive', 'random', 'nested'], 'Coverage interaction must be set to "additive", "random", or "nested"'
 
         self.par = par
         self.pop = pop
@@ -1014,9 +934,7 @@ class Covout(object):
         self.imp_interaction = imp_interaction
         self.sigma = uncertainty
         self.baseline = baseline
-        self.is_num_par = is_num_par
         self.update_progs(progs)
-
 
     def update_progs(self,progs):
         # Call this function with the program outcomes are changed
@@ -1030,21 +948,28 @@ class Covout(object):
         self.progs = sc.odict()
         for item in prog_tuple:
             self.progs[item[0]] = item[1]
-        self.deltas = np.array([x[1]-self.baseline for x in prog_tuple])
+        self.deltas = np.array([x[1]-self.baseline for x in prog_tuple]) # Internally cache the deltas which are used
         self.n_progs = len(progs)
 
-        # Precompute the combinations and associated modality interaction outcomes
-        # Computationally expensive otherwise
-        # Note that the programs need to be ordered correctly - the order must match the self.progs odict
-        # which is the same sort order as self.deltas. So note that 'additive' and 'random' need to use this order.
-        # Nested reorders them according to coverage, which is why it has to call self.compute_impact_interaction each time
-        #
-        # Building this isn't prohibitively expensive, so doesn't really matter that we construct it regardless of what the coverage interaction is
-        # This way we don't need to worry about updating these if the coverage interaction is changed later
-        self.combinations = np.unpackbits(np.arange(2 ** self.n_progs, dtype=np.uint8).reshape(-1, 1), axis=1)[:, -self.n_progs:]
+        # Parse any impact interactions that are present
+        self._interactions = dict()
+        if self.imp_interaction and not self.imp_interaction.lower() in ['best','synergistic']:
+            for interaction in self.imp_interaction.split(','):
+                combo, val = interaction.split('=')
+                combo = frozenset([x.strip() for x in combo.split('+')])
+                for x in combo:
+                    assert x in self.progs, 'The impact interaction refers to a program "%s" which does not appear in the available programs' % (x)
+                self._interactions[combo] = float(val)-self.baseline
+
+        # Precompute the combinations and associated modality interaction outcomes - it's computationally expensive otherwise
+        # We need to store it in two forms
+        # - An (ordered) vector of outcomes, which is used by additive and random to do the modality interaction in vectorized form
+        # - A dict of outcomes, which is used by nested to look up the outcome using a tupled key of program indices
+        combination_strings = [bin(x)[2:].rjust(self.n_progs,'0') for x in range(2 ** self.n_progs)] # ['00','01','10',...]
+        self.combinations = np.array([list(int(y) for y in x) for x in combination_strings])
         combination_outcomes = []
-        for progs in self.combinations.astype(bool):
-            combination_outcomes.append(self.compute_impact_interaction(deltas=self.deltas,progs=progs))
+        for prog_combination in self.combinations.astype(bool):
+            combination_outcomes.append(self.compute_impact_interaction(progs=prog_combination))
         self.combination_outcomes = np.array(combination_outcomes) # Reshape to column vector, since that's the shape of combination_coverage
 
     def __repr__(self):
@@ -1056,28 +981,23 @@ class Covout(object):
         output += '\n'
         return output
         
-    def get_outcome(self, num_covered=None, prop_covered=None):
+    def get_outcome(self, prop_covered, sample=False):
         # num_covered and prop_covered are dicts with {prog_name:coverage} at least containing all of the
         # programs in self.progs.
         # Don't forget that this covout instance is already specific to a (par,pop) combination
 
         # Put coverages and deltas into array form
-        cov = []
-        num_cov = []
-        for prog in self.progs.keys():
-            cov.append(prop_covered[prog][0])
-            num_cov.append(num_covered[prog][0])
-        cov = np.array(cov)
-        num_cov = np.array(num_cov)
         outcome = self.baseline # Accumulate the outcome by adding the deltas onto this
 
-#        # If the parameter is in number format, use number covered as the outcome, implicitly treating as additive
-        if self.is_num_par:   
-            return outcome + sum(num_cov*self.deltas)
+        if self.n_progs == 0:
+            return outcome # If there are no programs active, return the baseline value immediately
+        elif self.n_progs == 1:
+            return outcome + prop_covered[self.progs.keys()[0]] * self.deltas[0]
 
-        # If there's only one program, then just use the outcome directly
-        if self.n_progs == 1:
-            return outcome + cov[0]*self.deltas[0]
+        cov = []
+        for prog in self.progs.keys():
+            cov.append(prop_covered[prog])
+        cov = np.array(cov)
 
         # ADDITIVE CALCULATION
         if self.cov_interaction == 'additive':
@@ -1112,14 +1032,18 @@ class Covout(object):
         elif self.cov_interaction == 'nested':
             # Outcome += c3*max(delta_out1,delta_out2,delta_out3) + (c2-c3)*max(delta_out1,delta_out2) + (c1 -c2)*delta_out1, where c3<c2<c1.
             idx = np.argsort(cov)
-            cov = cov[idx]
-            deltas = self.deltas[idx]
+            prog_mask = np.full(cov.shape,fill_value=True)
+            combination_coverage = np.zeros((self.combinations.shape[0],))
+
             for i in range(0,len(cov)):
+                combination_index = int('0b' + ''.join(['1' if x else '0' for x in prog_mask]),2)
                 if i == 0:
-                    c1 = cov[i]
+                    combination_coverage[combination_index] = cov[idx[i]]
                 else:
-                    c1 = cov[i]-cov[i-1]
-                outcome += c1 * self.compute_impact_interaction(deltas[i:])
+                    combination_coverage[combination_index] = cov[idx[i]]-cov[idx[i-1]]
+                prog_mask[idx[i]] = False # Disable this program at the next iteration
+
+            outcome += np.sum(combination_coverage * self.combination_outcomes.ravel())
 
         # RANDOM CALCULATION
         elif self.cov_interaction == 'random':
@@ -1131,21 +1055,22 @@ class Covout(object):
 
         return outcome
 
-    def compute_impact_interaction(self,deltas,progs=None):
-        # Takes in boolean array of programs, and deltas for all programs
-        # For the given combination of programs, return the outcome
+    def compute_impact_interaction(self,progs=None):
+        # Takes in boolean array of active programs, which matches the order in
+        # self.progs and self.deltas
 
         if progs is not None and not any(progs):
             return 0.0
+        else:
+            progs_active = frozenset(np.array(self.progs.keys())[progs])
 
-        if self.imp_interaction == 'best':
-            if progs is None:
-                tmp = deltas
-            else:
-                tmp = deltas[progs]
+        if progs_active in self._interactions:
+            # If the combination of programs has an explicitly specified outcome, then use it
+            return self._interactions[progs_active]
+        elif self.imp_interaction is not None and self.imp_interaction.lower() == 'synergistic':
+            raise NotImplementedError
+        else:
+            # Otherwise, do the 'best' interaction and return the delta with the largest magnitude
+            tmp = self.deltas[progs]
             idx = np.argmax(abs(tmp))
             return tmp[idx]
-        elif self.imp_interaction == 'synergistic':
-            raise NotImplementedError('The "synergistic" impact interaction is not yet implemented. Please use the "best" interaction for now')
-        else:
-            raise AtomicaInputError('Unknown impact interaction "%s"' % (self.imp_interaction))
