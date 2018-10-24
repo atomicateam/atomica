@@ -12,12 +12,12 @@ import numpy as np
 
 np.seterr(all='raise')
 
-test = "sir"
+#test = "sir"
 #test = "tb"
 #test = "tb_simple_dyn"
 #test = "tb_simple"
 #test = "hypertension"
-#test = "hypertension_dyn"
+test = "hypertension_dyn"
 #test = "dt"
 #test = "udt"
 #test = "usdt"
@@ -39,13 +39,13 @@ torun = [
 #"makeblankprogbook",
 # "writeprogbook",
 #"testprograms",
-# "runsim_programs",
+"runsim_programs",
 #"makeplots",
 #"export",
 # "manualcalibrate",
 #"autocalibrate",
 #"parameterscenario",
-"coveragescenario",
+#"coveragescenario",
 #'budgetscenarios',
 #'optimization',
 # "saveproject",
