@@ -888,7 +888,7 @@ class Program(NamedItem):
             prop_covered = minimum(prop_covered, 1.)  # Ensure that coverage doesn't go above 1 (if saturation is < 1)
         else:
             # The division below means that 0/0 is treated as returning 1
-            prop_covered = np.divide(num_covered, denominator, out=np.ones_like(num_covered), where=denominator >= num_covered)
+            prop_covered = np.divide(num_covered, denominator, out=np.ones_like(num_covered), where=denominator > num_covered)
 
         return prop_covered
 
