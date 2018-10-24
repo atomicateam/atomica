@@ -22,8 +22,7 @@ def _extract_targets(result, progset, ti, eval_pars=None):
         par_name,pop_name = covout.par,covout.pop
         if (eval_pars is None and result.framework.get_par(par_name)['targetable'] == 'y') or (par_name,pop_name) in eval_pars:
             par = result.get_variable(pop_name, par_name)[0]
-
-            if par.links and par.units == FS.QUANTITY_TYPE_NUMBER:
+            if par.units == FS.QUANTITY_TYPE_NUMBER:
                 # If a transition parameter in number units is being targeted, then the program outcome is in units of per person reached
                 # at each timestep, while the parameter units are people/year. Thus, we need to convert the model parameter into the program
                 # output units prior to reconciling
