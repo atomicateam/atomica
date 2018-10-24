@@ -472,7 +472,7 @@ class ProgramSet(NamedItem):
             tdve.ts['Coverage'] = prog.coverage
 
             tdve.allowed_units = {
-                'Unit cost':[self.currency + '/person', self.currency + '/person/year'],
+                'Unit cost':[self.currency + '/person (one-off)', self.currency + '/person/year'],
                 'Capacity':['people/year', 'people']
             }
 
@@ -822,7 +822,7 @@ class Program(NamedItem):
         self.target_comps       = [] if target_comps is None else target_comps # Compartments targeted by the program - used for calculating coverage denominators
         self.baseline_spend     = TimeSeries(assumption=0.0,units=currency+'/year') # A TimeSeries with any baseline spending data - currently not exposed in progbook
         self.spend_data         = TimeSeries(units=currency+'/year') # TimeSeries with spending data
-        self.unit_cost          = TimeSeries(units=currency+'/person') # TimeSeries with unit cost of program
+        self.unit_cost          = TimeSeries(units=currency+'/person (one-off)') # TimeSeries with unit cost of program
         self.capacity           = TimeSeries(units='people/year') # TimeSeries with capacity of program - optional - if not supplied, cost function is assumed to be linear
         self.saturation         = TimeSeries(units=FS.DEFAULT_SYMBOL_INAPPLICABLE)
         self.coverage           = TimeSeries(units='people/year') # TimeSeries with capacity of program - optional - if not supplied, cost function is assumed to be linear
