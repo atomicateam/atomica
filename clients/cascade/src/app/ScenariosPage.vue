@@ -192,6 +192,16 @@ Last update: 2018-09-09
 
           </div>  <!-- ### End: card body ### -->
         </div> <!-- ### End: results card ### -->
+
+        <!-- ### Start: JS Cascade plot ### -->
+        <div style="margin: 0 auto;">
+          <multibar-view class="cascade"
+            :scenariosData="jsonData"
+            :colourScheme="jsonColors"
+          />
+        </div>
+        <!-- ### End: Cascade plot ### -->
+
       </div> <!-- ### End: PageSection/hasGraphs ### -->
     </div> <!-- ### End: v-else project (results) ### -->
 
@@ -283,9 +293,14 @@ Last update: 2018-09-09
   import shared from '@/js/shared'
   import rpcs   from '@/js/rpc-service'
   import status from '@/js/status-service'
+  import MultibarView from './Vis/Multibar/MultibarView.vue'
 
   export default {
     name: 'ScenariosPage',
+
+    components: {
+      MultibarView,
+    },
 
     data() {
       return {
@@ -322,6 +337,10 @@ Last update: 2018-09-09
           origName: '',
           mode: 'add'
         },
+
+        // Cascade plot data
+        jsonData: null,
+        jsonColors: [],
       }
     },
 
@@ -527,6 +546,8 @@ Last update: 2018-09-09
               .then(response => {
                 this.table = response.data.table
                 this.makeGraphs(response.data)
+                this.jsonData = response.data.jsondata
+                this.jsonColors = response.data.jsoncolors
                 status.succeed(this, '') // Success message in graphs function
               })
               .catch(error => {

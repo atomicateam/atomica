@@ -33,7 +33,7 @@
 </template>
 
 <script>
-import { transformCascadeData } from './data-transform'
+import { transformCascadeData } from '../data-transform'
 import StackedCascade from './StackedCascade.vue'
 
 export default {
@@ -61,6 +61,9 @@ export default {
       if (newData) {
         this.updateCascadeData(newData)
       }
+    },
+    colourScheme(newData) {
+      this.colours = newData
     }
   },
   mounted() {

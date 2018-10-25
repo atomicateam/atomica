@@ -39,9 +39,9 @@
 </template>
 
 <script>
-import * as d3 from '../../../static/d3.v5.min.js' // CK: Warning, replace with import * as d3 from 'd3'
-import { transformDataForChartRender } from './data-transform'
-import cascadeStep from './cascade-step'
+import * as d3 from '../../../../static/d3.v5.min.js' // CK: Warning, replace with import * as d3 from 'd3'
+import { transformDataForChartRender } from '../data-transform'
+import cascadeStep from '../cascade-step'
 
 const TOTAL = '_total'
 const TOTAL_COLOUR = '#00267a'
@@ -117,12 +117,15 @@ export default {
     },
     scenario() {
       this.update()
+    },
+    colourScheme(newData) {
+      this.colours = newData
+      this.setupLegend(this.keys)
+      this.update()
     }
   },
 
   created() {
-    this.setupLegend(this.keys)
-
     if (this.colourScheme && this.colourScheme.length > 0) {
       this.colours = this.colourScheme
     }
@@ -130,6 +133,8 @@ export default {
     if (this.marginObj) {
       this.margin = this.marginObj
     }
+
+    this.setupLegend(this.keys)
   },
 
   mounted() {

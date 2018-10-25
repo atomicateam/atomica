@@ -300,7 +300,7 @@ Last update: 2018-09-06
   import shared from '@/js/shared'
   import rpcs   from '@/js/rpc-service'
   import status from '@/js/status-service'
-  import StackedCascadeView from './StackedCascadeComponent/StackedCascadeView'
+  import StackedCascadeView from './Vis/StackedCascadeComponent/StackedCascadeView'
 
   export default {
     name: 'CalibrationPage',
