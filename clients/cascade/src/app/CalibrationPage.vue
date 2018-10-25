@@ -238,17 +238,18 @@ Last update: 2018-10-05
 
           </div>  <!-- ### End: card body ### -->
         </div> <!-- ### End: results card ### -->
-
-        <!-- ### Start: JS Cascade plot ### -->
-        <div style="margin: 0 auto;">
-          <stacked-cascade-view class="cascade"
-            :cascadeData="jsonData"
-            :colourScheme="jsonColors"
-          />
-        </div>
-        <!-- ### End: Cascade plot ### -->
         
       </div> <!-- ### End: PageSection/hasGraphs ### -->
+
+      <!-- ### Start: JS Cascade plot ### -->
+      <div style="margin: 0 auto;">
+        <stacked-cascade-view class="cascade"
+          :cascadeData="jsonData"
+          :colourScheme="jsonColors"
+        />
+      </div>
+      <!-- ### End: Cascade plot ### -->
+      
     </div> <!-- ### End: v-else project (results) ### -->
 
 
@@ -404,7 +405,11 @@ Last update: 2018-10-05
       clearGraphs()              { return graphs.clearGraphs(this) },
       togglePlotControls()       { return graphs.togglePlotControls(this) },
       getPlotOptions(project_id) { return graphs.getPlotOptions(this, project_id) },
-      makeGraphs(graphdata)      { return graphs.makeGraphs(this, graphdata, '/calibration') },
+      makeGraphs(graphdata)      {
+        this.jsonData = graphdata.jsondata
+        this.jsonColors = graphdata.jsoncolors
+        return graphs.makeGraphs(this, graphdata, '/calibration') 
+      },
       reloadGraphs(showErr)      { return graphs.reloadGraphs(this, this.projectID, this.serverDatastoreId, showErr, true) }, // Set to calibration=true
       maximize(legend_id)        { return graphs.maximize(this, legend_id) },
       minimize(legend_id)        { return graphs.minimize(this, legend_id) },
