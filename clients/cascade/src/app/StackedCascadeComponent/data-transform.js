@@ -80,7 +80,45 @@ function transformDataForChartRender(keys, data) {
   return transformed
 }
 
+function getTotal(stage, data) {
+  const stageData = data.find(d => d.stage === stage)
+  let total = stageData._total
+  return total
+}
+
+function transformMultiData(keys, cascadeData, year) {
+  const scenarios = []
+  const multiData = []
+  let stages = []
+
+  keys.forEach((key, index) => {
+    const currentData = cascadeData.data[key][year]
+    scenarios[key] = transformDataForChartRender(cascadeData.keys, currentData)
+    if (index === 0) {
+      stages = currentData.map(d => d.stage)
+    }
+  })
+
+  stages.forEach(stage => {
+    multiData.push({stage})
+    const index = multiData.length - 1
+    let highest = 0
+
+    keys.forEach(key => {
+      const total = getTotal(stage, scenarios[key])
+      
+      highest = total > highest ? total : highest
+
+      multiData[index][key] = total
+      multiData[index].highest = highest
+    })
+  })
+
+  return multiData
+}
+
 export {
   transformCascadeData,
-  transformDataForChartRender
+  transformDataForChartRender,
+  transformMultiData
 } 

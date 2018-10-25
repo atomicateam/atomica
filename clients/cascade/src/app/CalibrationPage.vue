@@ -242,12 +242,10 @@ Last update: 2018-09-06
 
         <!-- ### Start: JS Cascade plot ### -->
         <div style="margin: 0 auto;">
-          <stacked-cascade class="cascade"
-            :h="400"
-            :yAxisTitle="'Number of people'"
+          <stacked-cascade-view class="cascade"
             :cascadeData="jsonData"
             :colourScheme="jsonColors"
-            :legendDisplay="true" />
+          />
         </div>
         <!-- ### End: Cascade plot ### -->
         
@@ -302,13 +300,13 @@ Last update: 2018-09-06
   import shared from '@/js/shared'
   import rpcs   from '@/js/rpc-service'
   import status from '@/js/status-service'
-  import StackedCascade from './StackedCascadeComponent/StackedCascade'
+  import StackedCascadeView from './StackedCascadeComponent/StackedCascadeView'
 
   export default {
     name: 'CalibrationPage',
 
     components: {
-      StackedCascade,
+      StackedCascadeView,
     },
 
     data() {
