@@ -18,7 +18,9 @@ RUN apt-get clean -y
 
 # Install sciris
 RUN git clone https://github.com/sciris/sciris.git
-RUN cd sciris && python setup.py develop && python setup-web.py develop
+RUN cd sciris && python setup.py develop
+RUN git clone https://github.com/sciris/scirisweb.git
+RUN cd scirisweb && python setup.py develop
 
 # Install mpld3
 RUN git clone https://github.com/sciris/mpld3.git

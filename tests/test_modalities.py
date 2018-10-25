@@ -6,7 +6,7 @@ import numpy as np
 
 np.seterr(all='raise')
 
-def run_test(coverage,outcomes,baseline,expected=None):
+def run_test(coverage,outcomes,baseline,expected=None,imp_interaction=None):
     # cov - 1D vector of coverages
     # outcomes - 1D vector of outcomes
     # baseline - The baseline value
@@ -20,25 +20,25 @@ def run_test(coverage,outcomes,baseline,expected=None):
     covout = Covout(par='testpar',
                     pop='testpop',
                     cov_interaction='additive',
-                    imp_interaction='best',
+                    imp_interaction=imp_interaction,
                     baseline=baseline,
                     progs={prog: val for prog, val in zip(progs, outcomes)}
                     )
 
     covout.cov_interaction = 'additive'
-    additive = covout.get_outcome(coverage)
+    additive = covout.get_outcome(prop_covered=coverage)
     print('Additive = %.4f, Target = %.4f' % (additive,expected[0]))
     if np.isfinite(expected[0]):
         assert np.isclose(additive,expected[0],1e-4)
 
     covout.cov_interaction = 'random'
-    random = covout.get_outcome(coverage)
+    random = covout.get_outcome(prop_covered=coverage)
     print('Random = %.4f, Target = %.4f' % (random,expected[1]))
     if np.isfinite(expected[1]):
         assert np.isclose(random,expected[1],1e-4)
 
     covout.cov_interaction = 'nested'
-    nested = covout.get_outcome(coverage)
+    nested = covout.get_outcome(prop_covered=coverage)
     print('Nested = %.4f, Target = %.4f' % (nested,expected[2]))
     if np.isfinite(expected[2]):
         assert np.isclose(nested,expected[2],1e-4)
@@ -79,5 +79,19 @@ for coverage in coverages:
 base = run_test([0.4,0.3,0.2,0.1],[0.8,0.9,0.4,0.35],0.3,[0.705,0.63008,0.53])
 improved = run_test([0.4,0.31,0.2,0.1],[0.8,0.9,0.4,0.35],0.3,[0.7105,0.633936,0.531]) # Crossing the threshold increases coverage (whereas it decreased it before)
 assert base[0]<improved[0]
+
+# Test effect of overriding the interaction
+base = run_test([0.25,0.25,0.25,0.25],[0.8,0.9,0.4,0.35],0.3) # Baseline result
+better = run_test([0.25,0.25,0.25,0.25],[0.8,0.9,0.4,0.35],0.3,imp_interaction='P1+P2=0.95')
+assert better[1]>base[1]
+worse = run_test([0.25,0.25,0.25,0.25],[0.8,0.9,0.4,0.35],0.3,imp_interaction='P1+P2=0.85')
+assert worse[1]<base[1]
+same = run_test([0.25,0.25,0.25,0.25],[0.8,0.9,0.4,0.35],0.3,imp_interaction='P1+P2=0.90')
+assert same[1]==base[1]
+better = run_test([0.25,0.25,0.25,0.25],[0.8,0.9,0.4,0.35],0.3,imp_interaction='P1+P2=0.9,P1+P2+P3=1.0')
+assert better[1]>base[1]
+better = run_test([0.25,0.25,0.25,0.25],[0.8,0.9,0.4,0.35],0.3,imp_interaction='P0+P1+P2+P3=1.0')
+assert better[2] == (0.25*1.0+0.75*0.3) # Check that the nested interaction matches known result
+
 
 print('All tests completed successfully')

@@ -64,11 +64,14 @@ class ProjectFramework(object):
                 # Get a dataframe
                 df = pd.DataFrame.from_records(table).applymap(lambda x: x.value.strip() if sc.isstring(x.value) else x.value)
                 df.dropna(axis=1, how='all', inplace=True) # If a column is completely empty, including the header, ignore it. Helps avoid errors where blank cells are loaded by openpyxl due to extra non-value content
-                if sheet_title == 'cascades' or sheet_title == 'transitions':
+                if sheet_title == 'cascades':
                     # On the cascades sheet, the user-entered name appears in the header row. We must preserve case for this
                     # name so that things like 'TB cascade' don't become 'tb cascade'. Same for compartment names so that
                     # any capitals in the compartment name are preserved
                     df.columns = [df.iloc[0, 0]] + list(df.iloc[0,1:].str.lower())
+                elif sheet_title == 'transitions':
+                    # On the transitions sheet, don't make the compartment code names lowercase
+                    df.columns = df.iloc[0]
                 else:
                     df.columns = df.iloc[0].str.lower()
                 df = df[1:]
@@ -293,6 +296,7 @@ class ProjectFramework(object):
             'databook page':None,
             'default value':None,
             'databook order':None, # Default is for it to be randomly ordered if the databook page is not None
+            'guidance':None
         }
         valid_content = {
             'display name':None, # Valid content being `None` means that it just cannot be empty
@@ -357,6 +361,7 @@ class ProjectFramework(object):
             'default value':None,
             'databook page': None,
             'databook order':None,
+            'guidance': None
         }
         valid_content = {
             'display name': None,
@@ -435,6 +440,7 @@ class ProjectFramework(object):
             'databook page':None,
             'databook order':None,
             'targetable':'n',
+            'guidance': None
         }
         valid_content = {
             'display name': None,
@@ -448,8 +454,7 @@ class ProjectFramework(object):
             message = 'An error was detected on the "Parameters" sheet in the Framework file -> '
             reraise_modify(e, message)
 
-        # Make sure all units are lowercase
-        self.pars['format'] = self.pars['format'].map(lambda x: x.lower() if sc.isstring(x) else x)
+        self.pars['format'] = self.pars['format'].map(lambda x: x.strip() if sc.isstring(x) else x)
 
         if 'calibrate' not in self.pars:
             default_calibrate = self.pars['targetable'] == 'y'
@@ -464,7 +469,15 @@ class ProjectFramework(object):
         for i,par in self.pars.iterrows():
             defined.add(par.name)
 
+            # Convert case for standard units - this is required for validation
+            if par['format'] and par['format'].lower() in FS.STANDARD_UNITS:
+                par['format'] = par['format'].lower()
+
             if par['function'] is None:
+                # In order to have a value, a transition parameter must either be
+                # - have a function
+                # - appear in the databook
+                # - TODO: be targetable, in which case, the simulation must be run with programs active AND the progbook must have an outcome defined by at least one program in each population
                 if not par['databook page']:
                     message = 'Parameter "%s" does not have a function OR a databook page. It must have at least one of these entries.' % (par.name)
                     raise InvalidFramework(message)
@@ -513,9 +526,9 @@ class ProjectFramework(object):
 
             if self.transitions[par.name]: # If this parameter is associated with transitions
 
-                # Units must be specified if this is a function parameter (in which case the databook does not specify the units)
-                if (par['function'] is not None) and (par['format'] is None):
-                    raise InvalidFramework('Parameter %s has a custom function and is a transition parameter, so needs to have a format specified in the Framework' % par.name)
+                # Transition parameters must have units defined in the framework
+                if not par['format']:
+                    raise InvalidFramework('Parameter %s is a transition parameter, so it needs to have a format specified in the Framework' % par.name)
 
                 from_comps = [x[0] for x in self.transitions[par.name]]
                 to_comps = [x[1] for x in self.transitions[par.name]]
@@ -546,7 +559,10 @@ class ProjectFramework(object):
                 for comp in to_comps:
                     if self.get_comp(comp)['is source']=='y':
                         raise InvalidFramework('Parameter "%s" has an inflow to Compartment "%s" which is a source' % par.name,comp)
-
+            else:
+                # If this is not a transition parameter...
+                if par['format'] == FS.QUANTITY_TYPE_NUMBER and par['targetable'] == 'y':
+                    raise InvalidFramework('Parameter "%s" is targetable and in number units, but is not a transition parameter. To target a parameter with programs in number units, the parameter must appear in the transition matrix.' % par.name)
 
         ### VALIDATE NAMES - No collisions, no keywords
 
@@ -658,15 +674,11 @@ class ProjectFramework(object):
                 allowed_units = [FS.QUANTITY_TYPE_NUMBER]
 
         # Modeller's choice for parameters
-        elif item_type in [FS.KEY_PARAMETER] and 'format' in item_spec and item_spec['format'] is not None:
+        elif item_type in [FS.KEY_PARAMETER] and item_spec['format']:
             allowed_units = [item_spec['format']]
+
         else:
-            # User choice if a transfer or a transition parameter.
-            if item_type in [FS.KEY_TRANSFER] or (item_spec.name in self.transitions and self.transitions[item_spec.name]):
-                allowed_units = [FS.QUANTITY_TYPE_NUMBER, FS.QUANTITY_TYPE_PROBABILITY]
-            # If not a transition, the format of this parameter is meaningless but can still be used when plotting
-            else:
-                allowed_units = []
+            allowed_units = []
 
         return allowed_units
 

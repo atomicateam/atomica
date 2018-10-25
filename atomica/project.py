@@ -39,6 +39,7 @@ from .cascade import get_cascade_outputs
 from .utils import NDict
 from .plotting import PlotData, plot_series
 from .results import Result, evaluate_plot_string
+from .migration import migrate
 import sciris as sc
 import numpy as np
 from .excel import AtomicaSpreadsheet
@@ -349,32 +350,30 @@ class Project(object):
     #######################################################################################################
 
     def plot(self, results=None, key=None, outputs=None, pops=None):
-        
+
         def get_supported_plots():
             df = self.framework.sheets['plots'][0]
             plots = sc.odict()
             for name,output in zip(df['name'], df['quantities']):
                 plots[name] = evaluate_plot_string(output)
             return plots
-        
+
         if outputs is None:
             supported_plots = get_supported_plots()
             outputs = [{plot_name:supported_plots[plot_name]} for plot_name in supported_plots.keys()]
         if results is None:
             results = self.result(key)
+
         allfigs = []
-        alllegends = []
         for output in outputs:
-            try: 
-                print('Plotting %s...' % output)
-                if not isinstance(list(output.values())[0],list): output = output.values()[0]
+            try:
+                if not isinstance(list(output.values())[0],list): output = list(output.values())[0]
                 plotdata = PlotData(results, outputs=output, project=self, pops=pops)
-                figs,legends = plot_series(plotdata, axis='pops', plot_type='stacked', legend_mode='separate')
+                figs = plot_series(plotdata, axis='pops', plot_type='stacked', legend_mode='together')
                 allfigs += figs
-                alllegends += legends
-            except:
-                print('WARNING, %s failed' % output)
-        return figs,legends
+            except Exception as e:
+                print('WARNING, %s failed (%s)' % (output,str(e)))
+        return allfigs
 
     def update_settings(self, sim_start=None, sim_end=None, sim_dt=None):
         """ Modify the project settings, e.g. the simulation time vector. """
@@ -521,6 +520,7 @@ class Project(object):
         """ Convenience class method for loading a project in the absence of an instance. """
         P = sc.loadobj(filepath)
         assert isinstance(P,Project)
+        P = migrate(P)
         return P
 
     def demo_scenarios(self, dorun=False, doadd=True):
@@ -530,7 +530,7 @@ class Project(object):
         json1['progsetname'] = -1
         json1['start_year']  = self.data.end_year # This allows the tests to run on the BE where this default never gets modified e.g. by set_scen_info()
         json1['alloc_year']  = self.data.end_year
-        json1['alloc']       = self.progset(json1['progsetname']).get_budgets(year=json1['alloc_year'])
+        json1['alloc']       = self.progset(json1['progsetname']).get_alloc(tvec=json1['alloc_year'])
         json1['active']      = True
 
         json2 = sc.dcp(json1)

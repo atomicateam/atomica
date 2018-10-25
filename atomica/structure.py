@@ -81,7 +81,7 @@ class FrameworkSettings(object):
 #     return value
 
 class TimeSeries(object):
-    def __init__(self, t=None, vals=None, format=None, units=None,assumption=None):
+    def __init__(self, t=None, vals=None, units=None,assumption=None):
 
         t = sc.promotetoarray(t) if t is not None else list()
         vals = sc.promotetoarray(vals) if vals is not None else list()
@@ -90,7 +90,6 @@ class TimeSeries(object):
 
         self.t = []
         self.vals = []
-        self.format = format # TODO - differentiate between format and unit. The format specifies how to scale, while the unit specifies the dimensions. For example, format='number' but unit='Number of people'
         self.units = units
         self.assumption = assumption
         self.sigma = None # Uncertainty value

@@ -31,3 +31,4 @@ from .cascade import *
 if _debug: print('Importing results...')
 from .results import *
 if _debug: print('Done importing Atomica.')
+from .migration import *

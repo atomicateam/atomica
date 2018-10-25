@@ -94,7 +94,7 @@ class SpendingAdjustment(Adjustment):
             if adjustable.initial_value:
                 initialization.append(adjustable.initial_value)
             else:
-                alloc = progset.get_alloc(instructions,t)
+                alloc = progset.get_alloc(t, instructions)
                 initialization.append(alloc[self.prog_name][0]) # The Adjustable's name corresponds to the name of the program being overwritten.
         return initialization
 
@@ -205,7 +205,7 @@ class Measurable(object):
             t_filter = (model.t >= self.t[0]) & (model.t < self.t[1]) # Don't include upper bound, so [2018,2019] will include exactly one year
 
         if self.measurable_name in model.progset.programs:
-            alloc = model.progset.get_alloc(model.program_instructions,model.t)
+            alloc = model.progset.get_alloc(model.t, model.program_instructions)
             val =  np.sum(alloc[self.measurable_name][t_filter])
         else: # If the measurable is a model output...
             val = 0.0
@@ -546,7 +546,7 @@ class OptimInstructions(NamedItem):
         # Add a spending adjustment in the start/optimization year for every program in the progset, using the lower/upper bounds
         # passed in as arguments to this function
         adjustments = []
-        default_spend = progset.get_alloc(instructions=progset_instructions,tvec=adjustment_year) # Record the default spend for scale-up in money minimization
+        default_spend = progset.get_alloc(tvec=adjustment_year, instructions=progset_instructions) # Record the default spend for scale-up in money minimization
         for prog_name in progset.programs:
             limits = prog_spending[prog_name]
             adjustments.append(SpendingAdjustment(prog_name,t=adjustment_year,limit_type='abs',lower=limits[0],upper=limits[1]))

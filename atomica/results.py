@@ -5,7 +5,7 @@ from .utils import NamedItem
 import matplotlib.pyplot as plt
 import ast
 from .excel import standard_formats
-from .system import logger
+from .system import logger, AtomicaException
 from zipfile import ZipFile
 import os
 
@@ -53,6 +53,47 @@ class Result(NamedItem):
     @property
     def pop_labels(self):
         return [x.label for x in self.model.pops]
+
+    def get_alloc(self):
+        # Return a dict with time-varying funding allocation at every time point in the simulation
+        if self.model.progset is None:
+            return None
+        else:
+            return self.model.progset.get_alloc(self.t, self.model.program_instructions)
+
+    def get_coverage(self,quantity='fraction'):
+        # Return program coverage
+        #
+        # INPUTS
+        # - quantity : one of ['number','fraction','denominator']
+        # OUTPUTS
+        # - {prog_name:value}
+
+        if self.model.progset is None:
+            return None
+
+        num_coverage = self.model.progset.get_num_coverage(tvec=self.t, dt=self.dt, instructions=self.model.program_instructions)
+
+        if quantity == 'number':
+            return num_coverage
+        else:
+            # Get the program coverage denominator
+            num_eligible = dict() # This is the coverage denominator, number of people covered by the program
+            for prog in self.model.progset.programs.values(): # For each program
+                for pop_name in prog.target_pops:
+                    for comp_name in prog.target_comps:
+                        if prog.name not in num_eligible:
+                            num_eligible[prog.name] = self.get_variable(pop_name,comp_name)[0].vals.copy()
+                        else:
+                            num_eligible[prog.name] += self.get_variable(pop_name,comp_name)[0].vals
+            prop_coverage = self.model.progset.get_prop_coverage(tvec=self.t, num_coverage=num_coverage,denominator=num_eligible,instructions=self.model.program_instructions, sample=False)
+
+            if quantity == 'fraction':
+                return prop_coverage
+            elif quantity == 'denominator':
+                return num_eligible
+            else:
+                raise AtomicaException('Unknown coverage type requested')
 
     # Methods to list available comps, characs, pars, and links
     # pop_name is required because different populations could have
@@ -310,7 +351,7 @@ class Result(NamedItem):
         else:
             if year is None:
                 year = self.t
-            return self.model.progset.get_alloc(self.model.program_instructions, tvec=year)
+            return self.model.progset.get_alloc(year, self.model.program_instructions)
 
     def coverage(self,year=None,quantity='coverage_fraction'):
         # Other supported quantities - 'coverage_number' or 'coverage_denominator'

@@ -13,7 +13,7 @@ import openpyxl
 from openpyxl.comments import Comment
 import numpy as np
 from .structure import FrameworkSettings as FS
-from .system import logger
+from .system import logger, reraise_modify
 
 def standard_formats(workbook):
     # Add standard formatting to a workbook and return the set of format objects
@@ -359,8 +359,8 @@ class TimeDependentConnections(object):
                 if units is None:
                     raise AtomicaException(str('The units for transfer "%s" ("%s"->"%s") cannot be empty' % (full_name,from_pop,to_pop)))
                 assumption = vals[4] # This is the assumption cell
-                assert vals[5].strip() == 'OR' # Double check we are reading a time-dependent row with the expected shape
-                ts = TimeSeries(format=units,units=units)
+                assert vals[5].strip().lower() == 'or' # Double check we are reading a time-dependent row with the expected shape
+                ts = TimeSeries(units=units)
                 if assumption is not None:
                     ts.insert(None, assumption)
                 for t, v in zip(tvec, vals[6:]):
@@ -443,8 +443,8 @@ class TimeDependentConnections(object):
                     worksheet.write_formula(current_row, 1, gate_content('--->', entry_cell), formats['center'], value='--->')
                     worksheet.write_formula(current_row, 2, gate_content(references[to_pop], entry_cell), formats['center_bold'], value=to_pop)
                     update_widths(widths, 2, to_pop)
-                    worksheet.write(current_row, 3, ts.format.title(), format)
-                    update_widths(widths, 3, ts.format.title())
+                    worksheet.write(current_row, 3, ts.units.title(), format)
+                    update_widths(widths, 3, ts.units.title())
 
                     if self.allowed_units:
                         worksheet.data_validation(xlrc(current_row, 3), {"validate": "list", "source": [x.title() for x in self.allowed_units]})
@@ -498,11 +498,19 @@ class TimeDependentConnections(object):
 
 
 class TimeDependentValuesEntry(object):
-    """
-    Template table requesting time-dependent values, with each instantiation iterating over an item type.
-    Argument 'value_attribute' specifies which attribute within item specs should contain the parsed values.
-    If argument 'iterate_over_links' is True, table rows are actually for links between items of the iterated type.
-    Self connections are not included by default, but can be turned on by an optional argument.
+
+    """ Table for time-dependent data entry
+
+    This class is Databooks and Program books to enter potentially time-varying data.
+    Conceptually, it maps a set of TimeSeries object to a single name and table in the
+    spreadsheet. For example, a Characteristic might contain a TimeSeries for each population,
+    and the resulting TimeDependentValuesEntry (TDVE) table would have a `name` matching the
+    population, and TimeSeries for each population.
+
+    The TDVE class optionally allows the specification of units, assumptions, and uncertainty,
+    which each map to properties on the underlying TimeSeries objects. It also contains a
+    time vector corresponding to the time values that appear or will appear in the spreadsheet.
+
     """
 
     # A TDVE table is used for representing Characteristics and Parameters that appear in the Parset, a quantity
@@ -513,7 +521,16 @@ class TimeDependentValuesEntry(object):
     # - A time axis (e.g. np.arange(2000,2019)) - all TimeSeries time values must exactly match one of the values here
     #   i.e. you cannot try to write a TimeSeries that has a time value that doesn't appear as a table heading
 
-    def __init__(self, name, tvec, ts = None, allowed_units = None):
+    def __init__(self, name, tvec, ts=None, allowed_units=None, comment=None):
+        """ Instantiate a new TimeDepedentValuesEntry table object
+
+        :param name: The name/title for this table
+        :param tvec: Specify the time values for this table. All TimeSeries in the ts dict should have corresponding time values
+        :param ts: Optionally specify an odict() of TimeSeries objects populating the rows. Could be populated after
+        :param allowed_units: Optionally specify a list of allowed units that will appear as a dropdown
+        :param comment: Optionally specify descriptive text that will be added as a comment to the name cell
+        """
+
         # ts - An odict where the key is a population name and the value is a TimeSeries
         # name - This is the name of the quantity i.e. the full name of the characteristic or parameter
         # tvec - The time values that will be written in the headings
@@ -522,9 +539,10 @@ class TimeDependentValuesEntry(object):
             ts = sc.odict()
 
         self.name = name
+        self.comment = comment
         self.tvec = tvec
         self.ts = ts
-        self.allowed_units = allowed_units
+        self.allowed_units = [x.title() if x in FS.STANDARD_UNITS else x for x in allowed_units] if allowed_units is not None else None # Otherwise, can be an odict with keys corresponding to ts - leave as None for no restriction
 
     def __repr__(self):
         output= sc.prepr(self)
@@ -602,36 +620,35 @@ class TimeDependentValuesEntry(object):
 
             if units_index is not None:
                 assert sc.isstring(vals[units_index]), "The 'units' quantity needs to be specified as text e.g. 'probability'"
-                units = vals[units_index].lower().strip() if vals[units_index] else None
-                format = units
+                if vals[units_index]:
+                    units = vals[units_index]
+                    if units.lower().strip() in FS.STANDARD_UNITS:
+                        units = units.lower().strip() # Only lower and strip units if they are standard units
+                else:
+                    units = None
             else:
                 units = None
-                format = None
 
-            ts = TimeSeries(format=format,units=units)
+            ts = TimeSeries(units=units)
 
             if uncertainty_index is not None:
-                sigma = vals[uncertainty_index]
-                if sigma is not None and sigma != FS.DEFAULT_SYMBOL_INAPPLICABLE.title():
-                    ts.sigma = float(sigma)
+                ts.sigma = cell_get_number(row[uncertainty_index])
             else:
                 ts.sigma = None
 
             if constant_index is not None:
-                constant = vals[constant_index]
-                if constant is not None and constant != FS.DEFAULT_SYMBOL_INAPPLICABLE.title():
-                    ts.assumption = float(constant)
+                ts.assumption = cell_get_number(row[constant_index])
             else:
                 ts.assumption = None
 
             if constant_index is not None:
-                assert vals[offset - 1].strip() == 'OR', 'Error with validating row in TDVE table "%s" (did not find the text "OR" in the expected place)' % (name)  # Check row is as expected
+                assert vals[offset - 1].strip().lower() == 'or', 'Error with validating row in TDVE table "%s" (did not find the text "OR" in the expected place)' % (name)  # Check row is as expected
 
-            data = vals[offset:t_end]
+            data_cells = row[offset:t_end]
 
-            for t,v in zip(tvec,data):
-                if np.isfinite(t) and v is not None: # Ignore any times that are NaN - this happens if the cell was empty and casted to a float
-                    ts.insert(t,v)
+            for t,cell in zip(tvec,data_cells):
+                if np.isfinite(t): # Ignore any times that are NaN - this happens if the cell was empty and casted to a float
+                    ts.insert(t,cell_get_number(cell)) # If cell_get_number returns None, this gets handled accordingly by ts.insert()
             ts_entries[series_name] = ts
 
         tvec = tvec[np.isfinite(tvec)] # Remove empty entries from the array
@@ -681,6 +698,9 @@ class TimeDependentValuesEntry(object):
                 worksheet.write(current_row, i, entry, formats['center_bold'])
             update_widths(widths,i,entry)
 
+            if i == 0 and self.comment:
+                worksheet.write_comment(xlrc(current_row,i), self.comment)
+
         # Now, write the TimeSeries objects - self.ts is an odict and whatever pops are present will be written in whatever order they are in
         for row_name, row_ts in self.ts.items():
             current_row += 1
@@ -696,18 +716,25 @@ class TimeDependentValuesEntry(object):
             # Write the units
             if write_units:
 
-                if row_ts.format:
-                    if row_ts.format.lower().strip() in FS.STANDARD_UNITS: # Preserve case if nonstandard unit
-                        unit = row_ts.format.title().strip()
+                if row_ts.units:
+                    if row_ts.units.lower().strip() in FS.STANDARD_UNITS: # Preserve case if nonstandard unit
+                        unit = row_ts.units.title().strip()
                     else:
-                        unit = row_ts.format.strip()
+                        unit = row_ts.units.strip()
                     worksheet.write(current_row,units_index,unit)
                     update_widths(widths, units_index, unit)
                 else:
                     worksheet.write(current_row,units_index,FS.DEFAULT_SYMBOL_INAPPLICABLE)
 
-                if self.allowed_units: # Add validation if a list of options is specified
-                    worksheet.data_validation(xlrc(current_row, units_index),{"validate": "list", "source": [x.title() for x in self.allowed_units]})
+                if self.allowed_units and isinstance(self.allowed_units,dict) and row_name in self.allowed_units: # Add dropdown selection if there is more than one valid choice for the units
+                    allowed = self.allowed_units[row_name]
+                elif self.allowed_units and not isinstance(self.allowed_units,dict):
+                    allowed = self.allowed_units
+                else:
+                    allowed = None
+
+                if allowed:
+                    worksheet.data_validation(xlrc(current_row, units_index),{"validate": "list", "source": allowed})
 
             if write_uncertainty:
                 if row_ts.sigma is None:
@@ -755,3 +782,18 @@ def cell_require_string(cell):
     if not sc.isstring(cell.value):
         raise AtomicaException('Cell %s needs to contain a string (i.e. not a number, date, or other cell type)' % cell.coordinate)
 
+def cell_get_number(cell,dtype=float):
+    # This function is to guard against accidentally having strings.
+    # If a cell contains a formula that has evaluated to a number, then the type should be numeric
+    if cell.value is None:
+        return None
+    elif cell.data_type == 'n': # Numeric type
+        return dtype(cell.value)
+    elif cell.data_type == 's': # Only do relatively expensive string processing if it's actually a string type
+        s = cell.value.lower().strip()
+        if s == FS.DEFAULT_SYMBOL_INAPPLICABLE:
+            return None
+        elif not s.replace('-',''):
+            return None
+
+    raise AtomicaException('Cell %s needs to contain a number' % cell.coordinate)

@@ -17,9 +17,28 @@ P.load_progbook('databooks/progbook_malaria.xlsx')
 
 instructions = au.ProgramInstructions()
 
-P.run_sim('default', 'default', instructions)
+res = P.run_sim('default', 'default', instructions)
 # P.save('malaria')
+P.plot(res)
 
-P.results[-1].plot()
+d = au.PlotData(res,'dalys',accumulate='integrate')
+au.plot_series(d,plot_type='stacked',axis='pops')
+
 plt.show()
 
+
+# Number of treatments
+d = au.PlotData(res,'treated','gp')
+au.plot_series(d)
+
+# Eligibility for treatments
+d = au.PlotData(res,['hinf','himmmls','hwanmls'],'gp')
+au.plot_series(d,plot_type='stacked')
+
+# Flow into treatment eligibility
+d = au.PlotData(res,[':hinf',':himmmls',':hwanmls'],'gp')
+au.plot_series(d,plot_type='stacked')
+
+# Treated actual flow
+d = au.PlotData(res,'treated:flow','gp')
+au.plot_series(d)

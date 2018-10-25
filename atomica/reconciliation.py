@@ -1,6 +1,7 @@
 import numpy as np
 import sciris as sc
 from .system import logger
+from .structure import FrameworkSettings as FS
 import pandas as pd
 
 def _extract_targets(result, progset, ti, eval_pars=None):
@@ -18,29 +19,21 @@ def _extract_targets(result, progset, ti, eval_pars=None):
     # Get the parameter outcomes - assumes simulation end year was the reconciliation year (hence -1 index)
     target_vals = dict()
     for covout in progset.covouts.values():
-        par,pop = covout.par,covout.pop
-        if (eval_pars is None and result.framework.get_par(par)['targetable'] == 'y') or (par,pop) in eval_pars:
-            target_vals[(par,pop)] = result.get_variable(pop, par)[0].vals[ti]
+        par_name,pop_name = covout.par,covout.pop
+        if (eval_pars is None and result.framework.get_par(par_name)['targetable'] == 'y') or (par_name,pop_name) in eval_pars:
+            par = result.get_variable(pop_name, par_name)[0]
+            if par.units == FS.QUANTITY_TYPE_NUMBER:
+                # If a transition parameter in number units is being targeted, then the program outcome is in units of per person reached
+                # at each timestep, while the parameter units are people/year. Thus, we need to convert the model parameter into the program
+                # output units prior to reconciling
+                target_vals[(par_name,pop_name)] = par.vals[ti]*result.dt/np.array([par.source_popsize(x) for x in ti])
+            else:
+                target_vals[(par_name,pop_name)] = par.vals[ti]
 
-    # Get the coverage denominator (it's always the same, so can do it once here)
-    coverage_denominator = dict()
-    for prog in progset.programs.values():  # For each program
-        for pop_name in prog.target_pops:
-            for comp_name in prog.target_comps:
-                if prog.name not in coverage_denominator:
-                    coverage_denominator[prog.name] = result.get_variable(pop_name, comp_name)[0].vals[ti].copy()
-                else:
-                    coverage_denominator[prog.name] += result.get_variable(pop_name, comp_name)[0].vals[ti]
+    # Get the coverage denominator in the reconciliation year (it's always the same, so can do it once here)
+    coverage_denominator = {x: y[ti] for x, y in result.get_coverage('denominator').items()}
 
-    # TODO - this probably doesn't work for multiple time indexes?
-    # Need to refactor properly
-    par_covered = dict()
-    for par_name in progset.pars:
-        for pop in result.model.pops:
-            par = pop.get_par(par_name)
-            par_covered[(par_name, pop.name)] = par.source_popsize(ti)
-
-    return target_vals, coverage_denominator, par_covered
+    return target_vals, coverage_denominator
 
 def _update_progset(asd_vals,mapping,progset):
     # Updates progset in place, inserting values
@@ -135,15 +128,16 @@ def _prepare_asd_inputs(progset,bounds):
 
     return x0, xmin, xmax, mapping
 
-def _objective(x, mapping, progset, eval_years, target_vals, coverage_denominator, par_covered):
+def _objective(x, mapping, progset, eval_years, target_vals, coverage_denominator, dt):
     _update_progset(x,mapping,progset) # Apply the changes to the progset
-    num_covered = progset.get_coverage(year=eval_years)
-    prop_covered = progset.get_coverage(year=eval_years, denominator=coverage_denominator)
+    num_coverage = progset.get_num_coverage(tvec=eval_years, dt=dt, sample=False) # Get number coverage using latest unit costs but default spending
+    prop_coverage = progset.get_prop_coverage(tvec=eval_years, num_coverage=num_coverage, denominator=coverage_denominator, sample=False)
+
     obj = 0.0
     for i in range(0,len(eval_years)):
-        outcomes = progset.get_outcomes(num_covered={prog:cov[i] for prog,cov in num_covered.items()},par_covered=par_covered,prop_covered={prog:cov[i] for prog,cov in prop_covered.items()}) # Program outcomes for this year
+        outcomes = progset.get_outcomes(prop_coverage=prop_coverage, sample=False)
         for key in target_vals: # Key is a (par,pop) tuple
-            obj += (target_vals[key][i] - outcomes[key]) ** 2  # Add squared difference in parameter value
+            obj += (target_vals[key][i] - outcomes[key][0]) ** 2  # Add squared difference in parameter value
     return obj
 
 def _convert_to_single_year(progset,reconciliation_year):
@@ -228,10 +222,10 @@ def reconcile(project, parset, progset, reconciliation_year, max_time=10, unit_c
         eval_range = [reconciliation_year[0],reconciliation_year[0]+project.settings.sim_dt]
 
     # Do a prerun to get the baseline values and coverage denominator
-    parset_results = project.run_sim(parset=parset, store_results=False)
+    parset_results = project.run_sim(parset=parset, progset=progset, store_results=False)
     ti = np.where((parset_results.model.t >= eval_range[0]) & (parset_results.model.t < eval_range[1]))[0]
     eval_years = parset_results.t[ti]
-    target_vals, coverage_denominator, par_covered = _extract_targets(parset_results,progset,ti,eval_pars)
+    target_vals, coverage_denominator = _extract_targets(parset_results,progset,ti,eval_pars)
 
     # Prepare ASD inputs
     new_progset = _convert_to_single_year(progset,reconciliation_year[0])
@@ -246,7 +240,7 @@ def reconcile(project, parset, progset, reconciliation_year, max_time=10, unit_c
         'eval_years': eval_years,
         'target_vals': target_vals,
         'coverage_denominator': coverage_denominator,
-        'par_covered':par_covered,
+        'dt': project.settings.sim_dt,
     }
 
     optim_args = {
@@ -273,13 +267,13 @@ def reconcile(project, parset, progset, reconciliation_year, max_time=10, unit_c
 
     # Before/after for parameters
     records = []
-    old_num_coverage = progset.get_coverage(year=eval_years)
-    new_num_coverage = new_progset.get_coverage(year=eval_years)
-    old_prop_coverage = progset.get_coverage(year=eval_years, denominator=coverage_denominator)
-    new_prop_coverage = new_progset.get_coverage(year=eval_years, denominator=coverage_denominator)
+    old_num_coverage = progset.get_num_coverage(tvec=eval_years,dt=project.settings.sim_dt)
+    new_num_coverage = new_progset.get_num_coverage(tvec=eval_years,dt=project.settings.sim_dt)
+    old_prop_coverage = progset.get_prop_coverage(tvec=eval_years, num_coverage=old_num_coverage, denominator=coverage_denominator)
+    new_prop_coverage = new_progset.get_prop_coverage(tvec=eval_years, num_coverage=new_num_coverage, denominator=coverage_denominator)
     for i,year in enumerate(eval_years):
-        old_outcomes = progset.get_outcomes(num_covered={prog: cov[i] for prog, cov in old_num_coverage.items()},prop_covered={prog: cov[i] for prog, cov in old_prop_coverage.items()}, par_covered=par_covered)  # Program outcomes for this year
-        new_outcomes = new_progset.get_outcomes(num_covered={prog: cov[i] for prog, cov in new_num_coverage.items()},prop_covered={prog: cov[i] for prog, cov in new_prop_coverage.items()}, par_covered=par_covered)  # Program outcomes for this year
+        old_outcomes = progset.get_outcomes(prop_coverage={prog: cov[i] for prog, cov in old_prop_coverage.items()})  # Program outcomes for this year
+        new_outcomes = new_progset.get_outcomes(prop_coverage={prog: cov[i] for prog, cov in new_prop_coverage.items()})  # Program outcomes for this year
         for (par, pop), target in target_vals.items():
             records.append((par,pop,year,target[0],old_outcomes[(par,pop)],new_outcomes[(par,pop)]))
     parameter_comparison = pd.DataFrame.from_records(records,columns=['Parameter','Population','Year','Target','Before reconciliation','After reconciliation'])

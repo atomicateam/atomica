@@ -8,13 +8,16 @@ import sciris as sc
 import pylab as pl
 import matplotlib.pyplot as plt
 from atomica.optimization import optimize
+import numpy as np
 
-test = "sir"
+np.seterr(all='raise')
+
+#test = "sir"
 #test = "tb"
 #test = "tb_simple_dyn"
 #test = "tb_simple"
 #test = "hypertension"
-#test = "hypertension_dyn"
+test = "hypertension_dyn"
 #test = "dt"
 #test = "udt"
 #test = "usdt"
@@ -36,13 +39,13 @@ torun = [
 #"makeblankprogbook",
 # "writeprogbook",
 #"testprograms",
-# "runsim_programs",
+"runsim_programs",
 #"makeplots",
 #"export",
 # "manualcalibrate",
 #"autocalibrate",
 #"parameterscenario",
-"coveragescenario",
+#"coveragescenario",
 #'budgetscenarios',
 #'optimization',
 # "saveproject",
@@ -176,8 +179,8 @@ if "testprograms" in torun:
             print(P.progsets[0].get_outcomes(coverage)) # NB, calculations don't quite make sense atm, need to work in the impact interactions
 
             # For a single program, demonstrate how to get a vector of number/proportion covered given a time vector, a budget (note, budget is optional!!), and denominators
-            print(P.progsets[0].programs[4].get_num_covered(year=[2014,2015,2016,2017], budget=[1e5,2e5,3e5,4e5]))
-            print(P.progsets[0].programs[4].get_prop_covered(year=[2014,2015,2016,2017], budget=[1e5,2e5,3e5,4e5],denominator = [1e4,1.1e4,1.2e4,1.3e4]))
+            print(P.progsets[0].programs[4].get_num_coverage(year=[2014, 2015, 2016, 2017], budget=[1e5, 2e5, 3e5, 4e5]))
+            print(P.progsets[0].programs[4].get_prop_coverage(year=[2014, 2015, 2016, 2017], budget=[1e5, 2e5, 3e5, 4e5], denominator = [1e4, 1.1e4, 1.2e4, 1.3e4]))
 
             # For a whole parset, demonstrate how to get a dictionary of proportion covered for each program given a time vector and denominators
             denominator = sc.odict([('Risk avoidance',  [1e6,1.1e6,1.2e6,1.3e6]),
@@ -186,8 +189,8 @@ if "testprograms" in torun:
                                  ('Treatment 1',        [3e4,3.1e4,3.2e4,3.3e4]),
                                  ('Treatment 2',        [4e4,4.1e4,4.2e4,4.3e4])])
 
-            print(P.progsets[0].get_num_covered(year=[2014,2015,2016,2017]))
-            print(P.progsets[0].get_prop_covered(year=[2014,2015,2016,2017],denominator = denominator))
+            print(P.progsets[0].get_num_coverage(year=[2014, 2015, 2016, 2017]))
+            print(P.progsets[0].get_prop_coverage(year=[2014, 2015, 2016, 2017], denominator = denominator))
 
         elif test =="tb":      
 
@@ -222,8 +225,8 @@ if "testprograms" in torun:
                                     ('PCF-HIV-',        [9e6]),
                                     ('PCF-HIV+',        [9e6])])
 
-            print(P.progsets[0].get_num_covered(year=[2017]))
-            print(P.progsets[0].get_prop_covered(year=[2017],denominator = denominator))
+            print(P.progsets[0].get_num_coverage(year=[2017]))
+            print(P.progsets[0].get_prop_coverage(year=[2017], denominator = denominator))
 
 
 if "runsim_programs" in torun:

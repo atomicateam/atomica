@@ -46,7 +46,7 @@ def get_path(filename=None, username=None):
 def get_version_info():
 	''' Return the information about the running environment '''
 	gitinfo = sc.gitinfo(__file__)
-	version_info = {
+	version_info = sc.odict({
 	       'version':   au.version,
 	       'date':      au.versiondate,
 	       'gitbranch': gitinfo['branch'],
@@ -54,7 +54,7 @@ def get_version_info():
 	       'gitdate':   gitinfo['date'],
             'server':    socket.gethostname(),
             'cpu':       '%0.1f%%' % psutil.cpu_percent(),
-	}
+	})
 	return version_info
       
 
@@ -131,19 +131,37 @@ def from_number(raw, sf=3, die=False):
 
 @RPC()
 def run_query(token, query):
-    output = None
+    globalsdict = globals()
+    localsdict  = locals()
+    localsdict['output'] = 'Output not specified'
     if sc.sha(token).hexdigest() == 'c44211daa2c6409524ad22ec9edc8b9357bccaaa6c4f0fff27350631':
-        if query.find('output')<0:
-            raise Exception('You must define "output" in your query')
-        else:
-            print('Executing:\n%s, stand back!' % query)
-            exec(query)
-            output = str(output)
-            return output
+        print('Executing:\n%s, stand back!' % query)
+        exec(query, globalsdict, localsdict)
+        localsdict['output'] = str(localsdict['output'])
+        return localsdict['output']
     else:
-        errormsg = 'Authentication failed; this incident has been reported'
+        errormsg = 'Authentication "%s" failed; this incident has been reported and your account access will be removed.' % token
         raise Exception(errormsg)
         return None
+
+
+def admin_grab_projects(username1, username2):
+    ''' For use with run_query '''
+    user1 = datastore.loaduser(username1)
+    for projectkey in user1.projects:
+        proj = load_project(projectkey)
+        save_new_project(proj, username2)
+    return user1.projects
+
+
+def admin_reset_projects(username):
+    user = datastore.loaduser(username)
+    for projectkey in user.projects:
+        try:    datastore.delete(projectkey)
+        except: pass
+    user.projects = []
+    output = datastore.saveuser(user)
+    return output
     
 
 
@@ -340,7 +358,7 @@ def jsonify_project(project_id, verbose=False):
         n_pops = 'N/A'
         pop_pairs = []
     json = {
-        'project': {
+        'project': sc.odict({
                 'id':           str(proj.uid),
                 'name':         proj.name,
                 'username':     proj.webapp.username,
@@ -357,7 +375,7 @@ def jsonify_project(project_id, verbose=False):
                 'pops':         pop_pairs,
                 'n_results':    len(proj.results),
                 'n_tasks':      len(proj.webapp.tasks)
-            }
+            })
     }
     if verbose: sc.pp(json)
     return json
@@ -471,7 +489,7 @@ def upload_project(prj_filename, username):
     '''
     print(">> create_project_from_prj_file '%s'" % prj_filename) # Display the call information.
     try: # Try to open the .prj file, and return an error message if this fails.
-        proj = sc.loadobj(prj_filename)
+        proj = au.Project.load(prj_filename) # NB. load via Project() method which automatically calls migration
     except Exception:
         return { 'error': 'BadFileFormatError' }
     key,proj = save_new_project(proj, username) # Save the new project in the DataStore.
@@ -593,13 +611,13 @@ def jsonify_framework(framework_id, verbose=False):
     ''' Return the framework json, given the framework UID. ''' 
     frame = load_framework(framework_id) # Load the framework record matching the UID of the framework passed in.
     json = {
-        'framework': {
+        'framework': sc.odict({
             'id':           str(frame.uid),
             'name':         frame.name,
             'username':     frame.webapp.username,
             'creationTime': frame.created,
             'updatedTime':  frame.modified,
-        }
+        })
     }
     if verbose: sc.pp(json)
     return json
@@ -742,39 +760,38 @@ def get_y_factors(project_id, parsetname=-1, tool=None, verbose=False):
     proj = load_project(project_id, die=True)
     parset = proj.parsets[parsetname]
     count = -1
-    for par_type in ["cascade", "comps", "characs"]:
-        for par in parset.pars[par_type]:
-            parname = par.name
-            this_par = parset.get_par(parname)
-            this_spec = proj.framework.get_variable(parname)[0]
-            if 'calibrate' in this_spec and this_spec['calibrate'] is not None:
-                count += 1
-                parlabel = this_spec['display name']
-                parcategory = this_spec['calibrate']
-                y_factors.append({'index':count, 'parname':parname, 'parlabel':parlabel, 'parcategory':parcategory, 'meta_y_factor':this_par.meta_y_factor, 'pop_y_factors':[]}) 
-                for p,popname,y_factor in this_par.y_factor.enumitems():
-                    popindex = parset.pop_names.index(popname)
-                    poplabel = parset.pop_labels[popindex]
+    for par in parset.pars.values():
+        parname = par.name
+        this_par = parset.get_par(parname)
+        this_spec = proj.framework.get_variable(parname)[0]
+        if 'calibrate' in this_spec and this_spec['calibrate'] is not None:
+            count += 1
+            parlabel = this_spec['display name']
+            parcategory = this_spec['calibrate']
+            y_factors.append({'index':count, 'parname':parname, 'parlabel':parlabel, 'parcategory':parcategory, 'meta_y_factor':this_par.meta_y_factor, 'pop_y_factors':[]})
+            for p,popname,y_factor in this_par.y_factor.enumitems():
+                popindex = parset.pop_names.index(popname)
+                poplabel = parset.pop_labels[popindex]
 
-                    if tool == 'cascade':
-                        dispvalue = from_number(y_factor)
+                if tool == 'cascade':
+                    dispvalue = from_number(y_factor)
+                else:
+                    if not this_par.has_values(popname):
+                        interp_val = 1.0
                     else:
-                        if not this_par.has_values(popname):
+                        try:
+                            interp_val = this_par.interpolate([TEMP_YEAR],popname)[0]
+                            if not np.isfinite(interp_val):
+                                print('NUMBER WARNING, value for %s %s is not finite' % (parlabel, poplabel))
+                                interp_val = 1.0
+                            if sc.approx(interp_val, 0):
+                                interp_val = 0.0
+                        except Exception as E:
+                            print('NUMBER WARNING, value for %s %s is not convertible: %s' % (parlabel, poplabel, str(E)))
                             interp_val = 1.0
-                        else:
-                            try:
-                                interp_val = this_par.interpolate([TEMP_YEAR],popname)[0]
-                                if not np.isfinite(interp_val):
-                                    print('NUMBER WARNING, value for %s %s is not finite' % (parlabel, poplabel))
-                                    interp_val = 1
-                                if sc.approx(interp_val, 0):
-                                    interp_val = 0.0
-                            except Exception as E:
-                                print('NUMBER WARNING, value for %s %s is not convertible: %s' % (parlabel, poplabel, str(E)))
-                                interp_val = 1
-                        dispvalue = from_number(interp_val*y_factor)
-                    thisdict = {'popcount':p, 'popname':popname, 'dispvalue':dispvalue, 'origdispvalue':dispvalue, 'poplabel':poplabel}
-                    y_factors[-1]['pop_y_factors'].append(thisdict)
+                    dispvalue = from_number(interp_val*y_factor)
+                thisdict = {'popcount':p, 'popname':popname, 'dispvalue':dispvalue, 'origdispvalue':dispvalue, 'poplabel':poplabel}
+                y_factors[-1]['pop_y_factors'].append(thisdict)
     if verbose: sc.pp(y_factors)
     print('Returning %s y-factors for %s' % (len(y_factors), parsetname))
     return {'parlist':y_factors, 'poplabels':parset.pop_labels}
@@ -1173,7 +1190,7 @@ def get_atomica_plots(proj, results=None, plot_names=None, plot_options=None, po
             plot_names = supported_plots.keys()
     plot_names = sc.promotetolist(plot_names)
     if outputs is None:
-        outputs = [{plot_name:supported_plots[plot_name]} for plot_name in plot_names]
+        outputs = [{plot_name:supported_plots[plot_name]} for plot_name in plot_names] # Warning, implicit dict definition
     allfigs = []
     alllegends = []
     allfigjsons = []
@@ -1181,7 +1198,7 @@ def get_atomica_plots(proj, results=None, plot_names=None, plot_options=None, po
     data = proj.data if do_plot_data is True else None # Plot data unless asked not to
     for output in outputs:
         try:
-            plotdata = au.PlotData(results, outputs=output.values()[0], project=proj, pops=pops)
+            plotdata = au.PlotData(results, outputs=list(output.values())[0], project=proj, pops=pops)
             nans_replaced = 0
             for series in plotdata.series:
                 if replace_nans and any(np.isnan(series.vals)):
@@ -1191,18 +1208,18 @@ def get_atomica_plots(proj, results=None, plot_names=None, plot_options=None, po
                             series.vals[nan_ind] = series.vals[nan_ind-1]
                             nans_replaced += 1
             if nans_replaced: print('Warning: %s nans were replaced' % nans_replaced)
-
+    
             if calibration:
-               if stacked: figs,legends = au.plot_series(plotdata, axis='pops', plot_type='stacked', legend_mode='separate')
-               else:       figs,legends = au.plot_series(plotdata, axis='pops', data=proj.data, legend_mode='separate') # Only plot data if not stacked
+               if stacked: figs = au.plot_series(plotdata, axis='pops', plot_type='stacked', legend_mode='separate')
+               else:       figs = au.plot_series(plotdata, axis='pops', data=proj.data, legend_mode='separate') # Only plot data if not stacked
             else:
-               if stacked: figs,legends = au.plot_series(plotdata, axis='pops', data=data, plot_type='stacked', legend_mode='separate')
-               else:       figs,legends = au.plot_series(plotdata, axis='results', data=data, legend_mode='separate')
-            for fig,legend in zip(figs, legends):
+               if stacked: figs = au.plot_series(plotdata, axis='pops', data=data, plot_type='stacked', legend_mode='separate')
+               else:       figs = au.plot_series(plotdata, axis='results', data=data, legend_mode='separate')
+            for fig in figs[0:-1]:
                 allfigjsons.append(customize_fig(fig=fig, output=output, plotdata=plotdata, xlims=xlims, figsize=figsize))
-                alllegendjsons.append(customize_fig(fig=legend, output=output, plotdata=plotdata, xlims=xlims, figsize=figsize, is_legend=True))
+                alllegendjsons.append(customize_fig(fig=figs[-1], output=output, plotdata=plotdata, xlims=xlims, figsize=figsize, is_legend=True))
                 allfigs.append(fig)
-                alllegends.append(legend)
+                alllegends.append(figs[-1])
             print('Plot %s succeeded' % (output))
         except Exception as E:
             print('WARNING: plot %s failed (%s)' % (output, repr(E)))
@@ -1225,7 +1242,7 @@ def make_plots(proj, results, tool=None, year=None, pops=None, cascade=None, plo
     elif pops.lower() == 'all':
         pops = 'total' # make sure it's lowercase
     else:
-        pop_labels = {y:x for x,y in zip(results[0].pop_names,results[0].pop_labels)}
+        pop_labels = sc.odict({y:x for x,y in zip(results[0].pop_names,results[0].pop_labels)})
         pops = pop_labels[pops]
 
     cascadeoutput,cascadefigs,cascadelegends = get_cascade_plot(proj, results, year=year, pops=pops, cascade=cascade, plot_budget=plot_budget)
@@ -1260,7 +1277,7 @@ def customize_fig(fig=None, output=None, plotdata=None, xlims=None, figsize=None
             if figsize is None: figsize = (5,3)
             fig.set_size_inches(figsize)
             ax.set_position([0.25,0.18,0.70,0.72])
-            ax.set_title(output.keys()[0]) # This is in a loop over outputs, so there should only be one output present
+            ax.set_title(list(output.keys())[0]) # This is in a loop over outputs, so there should only be one output present
         y_max = ax.get_ylim()[1]
         labelpad = 7
         if y_max < 1e-3: labelpad = 15
@@ -1357,14 +1374,17 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plo
     if plot_budget:
         d = au.PlotData.programs(results, quantity='spending')
         d.interpolate(year)
-        budgetfigs = au.plot_bars(d, stack_outputs='all', legend_mode='together', outer='times', show_all_labels=False, orientation='vertical')
-        figjsons.append(customize_fig(fig=budgetfigs[0], output=None, plotdata=None, xlims=None, figsize=None, is_epi=False))
+        budgetfig = au.plot_bars(d, stack_outputs='all', legend_mode='together', outer='times', show_all_labels=False, orientation='vertical')[0]
+        budgetfig.set_size_inches(10, 4)
+        budgetfig.get_axes()[0].set_position([0.15, 0.2, 0.35, 0.7])
+
+        figjsons.append(customize_fig(fig=budgetfig, output=None, plotdata=None, xlims=None, figsize=None, is_epi=False))
         budgetlegends = [sc.emptyfig()]
         
-        ax = budgetfigs[0].axes[0]
+        ax = budgetfig.axes[0]
         ax.set_xlabel('Spending ($/year)')
-        
-        figs    += budgetfigs
+
+        figs.append(budgetfig)
         legends += budgetlegends
         print('Budget plot succeeded')
     
