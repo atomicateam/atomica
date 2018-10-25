@@ -699,7 +699,7 @@ class TimeDependentValuesEntry(object):
             update_widths(widths,i,entry)
 
             if i == 0 and self.comment:
-                worksheet.write_comment(xlrc(current_row,1), self.comment)
+                worksheet.write_comment(xlrc(current_row,i), self.comment)
 
         # Now, write the TimeSeries objects - self.ts is an odict and whatever pops are present will be written in whatever order they are in
         for row_name, row_ts in self.ts.items():
