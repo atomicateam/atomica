@@ -13,6 +13,7 @@
 
     <div class="scenarios-vis">
       <div class="multi-bar-vis">
+        <h4>Scenarios</h4>
         <multibar
           :h="300"
           :yAxisTitle="'Number of people'"
@@ -105,10 +106,21 @@ export default {
   display: flex;
 
   .multi-bar-vis {
-    width: 50%
+    width: 50%;
   }
   .stacked-cascade-vis {
-    width: 50%
+    width: 50%;
+    
+    .chart {
+      margin-bottom: 1rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid #e4ecfc;
+    }
+  }
+
+  h4 {
+    font-size: 16px;
+    font-weight: bold;
   }
 }
 </style>
