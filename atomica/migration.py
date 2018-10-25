@@ -11,17 +11,22 @@ available_migrations = [] # This list stores all of the migrations that are poss
 class Migration:
     # This class stores a migration function together with all required metadata. It would
     # normally be instantiated using the `migration` decorator below
-    def __init__(self, original_version, new_version, description, fcn, date=None):
+    def __init__(self, original_version, new_version, description, fcn, date=None,changes_results=False):
         self.original_version = original_version
         self.new_version = new_version
         self.description = description
+        self.changes_results = changes_results
         self.date = date
         self.fcn = fcn
 
     def upgrade(self, proj):
         logger.debug('MIGRATION: Upgrading %s -> %s (%s)' % (self.original_version,self.new_version,self.description))
         proj = self.fcn(proj) # Run the migration function
+        if proj is None:
+            raise AtomicaException('Migration "%s" returned None, it is likely missing a return statement' % (str(self)))
         proj.version = self.new_version # Update the version
+        if self.changes_results:
+            proj._result_update_required = True
         return proj
 
     def __repr__(self):
@@ -48,6 +53,7 @@ def migrate(proj):
             continue
         else:
             proj = m.upgrade(proj)
+
     proj.version = version # Set project version to the current Atomica version
     return proj
 
@@ -99,7 +105,11 @@ def add_model_version(proj):
         add_units(progset)
 
     for result in proj.results.values():
-        if result.model.progset is not None:
+        if isinstance(result,list):
+            for r in result:
+                if r.model.progset is not None:
+                    add_units(r.model.progset)
+        elif isinstance(result,Result) and result.model.progset is not None:
             add_units(result.model.progset)
 
     return proj
@@ -115,5 +125,16 @@ def remove_target_pars(proj):
         remove_pars(progset)
 
     for result in proj.results.values():
-        if result.model.progset is not None:
+        if isinstance(result,list):
+            for r in result:
+                if r.model.progset is not None:
+                    remove_pars(r.model.progset)
+        elif isinstance(result,Result) and result.model.progset is not None:
             remove_pars(result.model.progset)
+
+    return proj
+
+@migration('1.0.10', '1.0.11', 'Add result update flag to Project')
+def remove_target_pars(proj):
+    proj._result_update_required = False
+    return proj
