@@ -498,11 +498,19 @@ class TimeDependentConnections(object):
 
 
 class TimeDependentValuesEntry(object):
-    """
-    Template table requesting time-dependent values, with each instantiation iterating over an item type.
-    Argument 'value_attribute' specifies which attribute within item specs should contain the parsed values.
-    If argument 'iterate_over_links' is True, table rows are actually for links between items of the iterated type.
-    Self connections are not included by default, but can be turned on by an optional argument.
+
+    """ Table for time-dependent data entry
+
+    This class is Databooks and Program books to enter potentially time-varying data.
+    Conceptually, it maps a set of TimeSeries object to a single name and table in the
+    spreadsheet. For example, a Characteristic might contain a TimeSeries for each population,
+    and the resulting TimeDependentValuesEntry (TDVE) table would have a `name` matching the
+    population, and TimeSeries for each population.
+
+    The TDVE class optionally allows the specification of units, assumptions, and uncertainty,
+    which each map to properties on the underlying TimeSeries objects. It also contains a
+    time vector corresponding to the time values that appear or will appear in the spreadsheet.
+
     """
 
     # A TDVE table is used for representing Characteristics and Parameters that appear in the Parset, a quantity
@@ -513,7 +521,16 @@ class TimeDependentValuesEntry(object):
     # - A time axis (e.g. np.arange(2000,2019)) - all TimeSeries time values must exactly match one of the values here
     #   i.e. you cannot try to write a TimeSeries that has a time value that doesn't appear as a table heading
 
-    def __init__(self, name, tvec, ts = None, allowed_units = None):
+    def __init__(self, name, tvec, ts=None, allowed_units=None, comment=None):
+        """ Instantiate a new TimeDepedentValuesEntry table object
+
+        :param name: The name/title for this table
+        :param tvec: Specify the time values for this table. All TimeSeries in the ts dict should have corresponding time values
+        :param ts: Optionally specify an odict() of TimeSeries objects populating the rows. Could be populated after
+        :param allowed_units: Optionally specify a list of allowed units that will appear as a dropdown
+        :param comment: Optionally specify descriptive text that will be added as a comment to the name cell
+        """
+
         # ts - An odict where the key is a population name and the value is a TimeSeries
         # name - This is the name of the quantity i.e. the full name of the characteristic or parameter
         # tvec - The time values that will be written in the headings
@@ -522,6 +539,7 @@ class TimeDependentValuesEntry(object):
             ts = sc.odict()
 
         self.name = name
+        self.comment = comment
         self.tvec = tvec
         self.ts = ts
         self.allowed_units = [x.title() if x in FS.STANDARD_UNITS else x for x in allowed_units] if allowed_units is not None else None # Otherwise, can be an odict with keys corresponding to ts - leave as None for no restriction
@@ -679,6 +697,9 @@ class TimeDependentValuesEntry(object):
             else:
                 worksheet.write(current_row, i, entry, formats['center_bold'])
             update_widths(widths,i,entry)
+
+            if i == 0 and self.comment:
+                worksheet.write_comment(xlrc(current_row,1), self.comment)
 
         # Now, write the TimeSeries objects - self.ts is an odict and whatever pops are present will be written in whatever order they are in
         for row_name, row_ts in self.ts.items():
