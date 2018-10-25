@@ -296,6 +296,7 @@ class ProjectFramework(object):
             'databook page':None,
             'default value':None,
             'databook order':None, # Default is for it to be randomly ordered if the databook page is not None
+            'guidance':None
         }
         valid_content = {
             'display name':None, # Valid content being `None` means that it just cannot be empty
@@ -360,6 +361,7 @@ class ProjectFramework(object):
             'default value':None,
             'databook page': None,
             'databook order':None,
+            'guidance': None
         }
         valid_content = {
             'display name': None,
@@ -438,6 +440,7 @@ class ProjectFramework(object):
             'databook page':None,
             'databook order':None,
             'targetable':'n',
+            'guidance': None
         }
         valid_content = {
             'display name': None,

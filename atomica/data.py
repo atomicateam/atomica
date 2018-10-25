@@ -147,7 +147,7 @@ class ProjectData(sc.prettyobj):
                     else:
                         order = databook_order
                     pages[databook_page].append((full_name,order))
-                    data.tdve[full_name] = TimeDependentValuesEntry(full_name,tvec,allowed_units=framework.get_allowed_units(full_name))
+                    data.tdve[full_name] = TimeDependentValuesEntry(full_name,tvec,allowed_units=framework.get_allowed_units(full_name),comment=spec['guidance'])
 
         # Now convert pages to full names and sort them into the correct order
         for _,spec in framework.sheets['databook pages'][0].iterrows():
@@ -264,6 +264,7 @@ class ProjectData(sc.prettyobj):
                         logger.warning('A TDVE table for "%s" (%s) was read in and will be used, but the Framework did not mark this quantity as appearing in the databook' % (tdve.name,code_name))
 
                     tdve.allowed_units = [x.title() if x in FS.STANDARD_UNITS else x for x in framework.get_allowed_units(code_name)]
+                    tdve.comment = spec['guidance']
 
                     self.tdve[code_name] = tdve
                     # Store the TDVE on the page it was actually on, rather than the one in the framework. Then, if users move anything around, the change will persist
