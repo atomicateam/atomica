@@ -92,18 +92,7 @@ def migrate(proj):
 
     """
 
-    migrations = sorted(available_migrations, key=lambda m: LooseVersion(m.original_version))
-    logger.info('Migrating Project "%s" from %s->%s' % (proj.name, proj.version, migrations[-1].new_version))
-    for m in migrations: # Run the migrations in increasing version order
-        if proj.version > m.original_version:
-            continue
-        else:
-            proj = m.upgrade(proj)
 
-    proj.version = version # Set project version to the current Atomica version
-    if proj._result_update_required:
-        logger.warning('Caution: due to migration, project results may be different if re-run.')
-    return proj
 
 def all_results(proj):
     """ Helper generator to iterate over all results in a project
@@ -121,7 +110,21 @@ def all_results(proj):
     Example usage:
 
     for result in all_results(proj):
-        do_stuff(result)
+    migrations = sorted(available_migrations, key=lambda m: LooseVersion(m.original_version))
+    if LooseVersion(proj.version) >= LooseVersion(version):
+        return
+    else:
+        logger.info('Migrating Project "%s" from %s->%s' % (proj.name, proj.version, version))
+    for m in migrations: # Run the migrations in increasing version order
+        if LooseVersion(proj.version) > LooseVersion(m.original_version):
+            continue
+        else:
+            proj = m.upgrade(proj)
+
+    proj.version = version # Set project version to the current Atomica version
+    if proj._result_update_required:
+        logger.warning('Caution: due to migration, project results may be different if re-run.')
+    return proj        do_stuff(result)
 
     """
 
