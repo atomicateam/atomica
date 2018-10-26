@@ -922,7 +922,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
     _turn_off_border(ax)
     block_labels = sorted(block_labels, key=lambda x: x[0])
     if orientation == 'horizontal':
-        ax.set_ylim(ymin=-2 * gaps[0], ymax=block_offset + base_offset)
+        ax.set_ylim(bottom=-2 * gaps[0], top=block_offset + base_offset)
         fig.set_figheight(0.75 + 0.75 * (block_offset + base_offset))
         ax.set_xlim(xmin=0)
         ax.set_yticks([x[0] for x in block_labels])
@@ -932,7 +932,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
     else:
         ax.set_xlim(xmin=-2 * gaps[0], xmax=block_offset + base_offset)
         fig.set_figwidth(1.1 + 1.1 * (block_offset + base_offset))
-        ax.set_ylim(ymin=0)
+        ax.set_ylim(bottom=0)
         ax.set_xticks([x[0] for x in block_labels])
         ax.set_xticklabels([x[1] for x in block_labels])
 #        set_tick_format(ax.yaxis, "km")
@@ -1217,13 +1217,13 @@ def apply_series_formatting(ax, plot_type):
     # (irrespective of the 'axis' setting)
     ax.autoscale(enable=True, axis='x', tight=True)
     ax.set_xlabel('Year')
-    ax.set_ylim(ymin=0)
+    ax.set_ylim(bottom=0)
     _turn_off_border(ax)
     if plot_type == 'proportion':
-        ax.set_ylim(ymax=1)
+        ax.set_ylim(top=1)
         ax.set_ylabel('Proportion ' + ax.get_ylabel())
     else:
-        ax.set_ylim(ymax=ax.get_ylim()[1] * 1.05)
+        ax.set_ylim(top=ax.get_ylim()[1] * 1.05)
 
     set_tick_format(ax.yaxis, "km")
 
