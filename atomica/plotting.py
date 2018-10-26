@@ -924,13 +924,13 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
     if orientation == 'horizontal':
         ax.set_ylim(bottom=-2 * gaps[0], top=block_offset + base_offset)
         fig.set_figheight(0.75 + 0.75 * (block_offset + base_offset))
-        ax.set_xlim(xmin=0)
+        ax.set_xlim(left=0)
         ax.set_yticks([x[0] for x in block_labels])
         ax.set_yticklabels([x[1] for x in block_labels])
         ax.invert_yaxis()
 #        set_tick_format(ax.xaxis, "km")
     else:
-        ax.set_xlim(xmin=-2 * gaps[0], xmax=block_offset + base_offset)
+        ax.set_xlim(left=-2 * gaps[0], right=block_offset + base_offset)
         fig.set_figwidth(1.1 + 1.1 * (block_offset + base_offset))
         ax.set_ylim(bottom=0)
         ax.set_xticks([x[0] for x in block_labels])
