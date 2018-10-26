@@ -569,7 +569,7 @@ class TimeDependentValuesEntry(object):
         vals = [x.value for x in rows[0]]
 
         if vals[0] is None:
-            raise AtomicaException('In cell %s of the spreadsheet, the name of the table is missing. This can also happen if extra rows have been added without a "#ignore" entry in the first column' % (rows[0][0].coordinate))
+            raise AtomicaException('The name of the table is missing. This can also happen if extra rows have been added without a "#ignore" entry in the first column')
         elif not sc.isstring(vals[0]):
             raise AtomicaException('In cell %s of the spreadsheet, the name of the quantity assigned to this table needs to be a string' % rows[0][0].coordinate)
         name = vals[0].strip()

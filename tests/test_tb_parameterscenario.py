@@ -17,4 +17,3 @@ par_results.name = 'Baseline'
 scen_results.name = 'Scenario'
 d = au.PlotData([par_results,scen_results],outputs=scen_par,pops=scen_pop)
 au.plot_series(d,axis='results')
-plt.show()

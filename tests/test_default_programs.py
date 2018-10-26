@@ -136,4 +136,4 @@ new_data.save('temp/user_data.xlsx')
 new_progset.save('temp/user_progset.xlsx')
 
 progs = get_default_programs()
-print progs
+print(progs)

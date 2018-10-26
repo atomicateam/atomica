@@ -65,6 +65,3 @@ plot_calibration(adjustables,measurables,"children objective")
 adjustables = [("transpercontact", 'children', 0.1, 1.9)]  # Absolute scaling factor limits.
 measurables = [("ch_prev", 'children', 1.0, "fractional")]  # Weight and type of metric.
 plot_calibration(adjustables,measurables,"children only")
-
-import matplotlib.pyplot as plt
-plt.show()

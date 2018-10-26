@@ -104,6 +104,3 @@ calibrated_parset = au.perform_autofit(P, P.parsets[0], pars_to_adjust, output_q
 calibrated_results = P.run_sim(calibrated_parset)
 d = au.PlotData([P.results[0],calibrated_results], outputs=['ch_prev'])
 au.plot_series(d, axis='results', data=P.data)
-
-import matplotlib.pyplot as plt
-plt.show()

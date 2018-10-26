@@ -12,6 +12,7 @@ logger = logging.getLogger()
 ## Setting DEBUG level before importing Atomica will display the structure warnings occurring during import
 # logger.setLevel('DEBUG')
 
+
 import atomica.ui as au
 import sciris as sc
 import numpy as np
@@ -25,6 +26,8 @@ test='sir'
 # test='diabetes'
 # test='hypertension'
 #test='usdt'
+
+np.seterr(all='raise')
 
 torun = [
 "standard",
@@ -46,6 +49,7 @@ torun = [
 P = au.demo(which=test,do_plot=0)
 filename = "databooks/progbook_"+test+".xlsx"
 P.load_progbook(progbook_path=filename)
+P.update_settings(sim_end=2030.0)
 
 def run_optimization(proj,optimization,instructions):
     unoptimized_result = proj.run_sim(parset=proj.parsets["default"], progset=proj.progsets['default'], progset_instructions=instructions, result_name="unoptimized")

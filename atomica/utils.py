@@ -44,5 +44,9 @@ class NDict(sc.odict):
         sc.odict.append(self, key=key, value=value)
         return None
 
-
+    def copy(self,old,new):
+        sc.odict.copy(self,old,new)
+        if isinstance(self[new],NamedItem):
+            self[new].name=new
+        return None
 
