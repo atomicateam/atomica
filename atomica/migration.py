@@ -1,10 +1,10 @@
 # Central file for migrating Projects
-from distutils.version import LooseVersion
 from .system import logger, AtomicaException
 from .version import version
 import sciris as sc
 from .results import Result
 from .structure import FrameworkSettings as FS
+from distutils.version import LooseVersion
 
 available_migrations = [] # This list stores all of the migrations that are possible
 
@@ -92,6 +92,21 @@ def migrate(proj):
 
     """
 
+    migrations = sorted(available_migrations, key=lambda m: LooseVersion(m.original_version))
+    if sc.compareversions(proj.version,version) > 0:
+        return
+    else:
+        logger.info('Migrating Project "%s" from %s->%s' % (proj.name, proj.version, version))
+    for m in migrations: # Run the migrations in increasing version order
+        if sc.compareversions(proj.version,m.original_version) > 0:
+            continue
+        else:
+            proj = m.upgrade(proj)
+
+    proj.version = version # Set project version to the current Atomica version
+    if proj._result_update_required:
+        logger.warning('Caution: due to migration, project results may be different if re-run.')
+    return proj
 
 
 def all_results(proj):
@@ -110,21 +125,7 @@ def all_results(proj):
     Example usage:
 
     for result in all_results(proj):
-    migrations = sorted(available_migrations, key=lambda m: LooseVersion(m.original_version))
-    if LooseVersion(proj.version) >= LooseVersion(version):
-        return
-    else:
-        logger.info('Migrating Project "%s" from %s->%s' % (proj.name, proj.version, version))
-    for m in migrations: # Run the migrations in increasing version order
-        if LooseVersion(proj.version) > LooseVersion(m.original_version):
-            continue
-        else:
-            proj = m.upgrade(proj)
-
-    proj.version = version # Set project version to the current Atomica version
-    if proj._result_update_required:
-        logger.warning('Caution: due to migration, project results may be different if re-run.')
-    return proj        do_stuff(result)
+        do_stuff(result)
 
     """
 
