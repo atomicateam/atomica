@@ -93,8 +93,8 @@ def migrate(proj):
     """
 
     migrations = sorted(available_migrations, key=lambda m: LooseVersion(m.original_version))
-    if sc.compareversions(proj.version,version) > 0:
-        return
+    if sc.compareversions(proj.version,version) >= 0:
+        return proj
     else:
         logger.info('Migrating Project "%s" from %s->%s' % (proj.name, proj.version, version))
     for m in migrations: # Run the migrations in increasing version order
