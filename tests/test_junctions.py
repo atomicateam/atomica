@@ -1,20 +1,20 @@
 ## This script checks that the junction update is correct
 
 import numpy as np
-from atomica.ui import ProjectFramework, Project, ProjectData, PlotData, plot_series
+import atomica.ui as au
 
-F_path = "./frameworks/framework_junction_test.xlsx"
-D_path = './temp/databook_junction_test.xlsx'
+F_path = au.atomica_path('tests') + "framework_junction_test.xlsx"
+D_path = au.atomica_path(['tests','temp']) + "databook_junction_test.xlsx"
 
-F = ProjectFramework(F_path)
-D = ProjectData.new(F,np.arange(2000,2001),pops={'pop1':'Population 1'},transfers=0)
+F = au.ProjectFramework(F_path)
+D = au.ProjectData.new(F,np.arange(2000,2001),pops={'pop1':'Population 1'},transfers=0)
 D.save(D_path)
 
-P = Project(name="test", framework=F, do_run=False)
+P = au.Project(name="test", framework=F, do_run=False)
 P.load_databook(databook_path=D_path, make_default_parset=True, do_run=True)
 
-d = PlotData(P.results[0],[':ca',':cb','cb:',':cc',':ce','ce'],project=P)
-plot_series(d,axis='pops')
+d = au.PlotData(P.results[0],[':ca',':cb','cb:',':cc',':ce','ce'],project=P)
+au.plot_series(d,axis='pops')
 
 # Do some validation checks
 pop = P.results[0].model.pops[0]

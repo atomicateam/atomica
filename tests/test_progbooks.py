@@ -2,29 +2,30 @@ import atomica.ui as au
 import numpy as np
 import sciris as sc
 
-F = au.ProjectFramework("./frameworks/framework_tb.xlsx")
-D = au.ProjectData.from_spreadsheet("./databooks/databook_tb.xlsx",framework=F)
-pset = au.ProgramSet.from_spreadsheet("./databooks/progbook_tb.xlsx",F,D)
-pset.save('temp/progbook_test.xlsx')
-pset = au.ProgramSet.from_spreadsheet("temp/progbook_test.xlsx",F,D)
-pset.save('temp/progbook_test2.xlsx')
+tmpdir = au.atomica_path(['tests','temp'])
+F = au.ProjectFramework(au.atomica_path('library')+'tb_framework.xlsx')
+D = au.ProjectData.from_spreadsheet(au.atomica_path('library')+'tb_databook.xlsx',framework=F)
+pset = au.ProgramSet.from_spreadsheet(au.atomica_path('library')+'tb_progbook.xlsx',F,D)
+pset.save(tmpdir + 'progbook_test.xlsx')
+pset = au.ProgramSet.from_spreadsheet(tmpdir + 'progbook_test.xlsx',F,D)
+pset.save(tmpdir + 'progbook_test2.xlsx')
 
 # Test adding things
 pset.add_program('newprog','New Program')
 pset.add_par('newpar','New Parameter')
 pset.add_pop('newpop','New Pop')
-pset.save('temp/progbook_test3.xlsx')
+pset.save(tmpdir + 'progbook_test3.xlsx')
 
 # Test removing things
 pset.remove_pop('Prisoners')
 pset.remove_comp('Susceptible')
 pset.remove_par('v_num')
 pset.remove_par('LTBI treatment average duration of full course')
-pset.save('temp/progbook_test4.xlsx')
+pset.save(tmpdir + 'progbook_test4.xlsx')
 
 # Test making a new one
 pset = au.ProgramSet.new(tvec=np.arange(2015,2018),progs=2,framework=F,data=D)
-pset.save("temp/progbook_test5.xlsx")
+pset.save(tmpdir + 'progbook_test5.xlsx')
 
 progs = sc.odict()
 progs['BCG'] = 'BCG vaccination'
@@ -41,11 +42,11 @@ progs['PrisDS'] = 'Prisoner treatment (DS)'
 progs['PrisMDR'] = 'Prisoner treatment (MD)'
 progs['PrisXDR'] = 'Prisoner treatment (XDR)'
 pset = au.ProgramSet.new(tvec=np.arange(2015,2018),progs=progs,framework=F,data=D)
-pset.save("temp/progbook_test6.xlsx")
+pset.save(tmpdir + 'progbook_test6.xlsx')
 
 # Test performance of a random coverage interaction simulation
-P = au.Project(framework="./frameworks/framework_tb.xlsx",databook_path="./databooks/databook_tb.xlsx",do_run=False)
-P.load_progbook("./databooks/progbook_tb.xlsx")
+P = au.Project(framework=au.atomica_path('library')+'tb_framework.xlsx',databook_path=au.atomica_path('library')+'tb_databook.xlsx',do_run=False)
+P.load_progbook(au.atomica_path('library')+'tb_progbook.xlsx')
 instructions = au.ProgramInstructions(start_year=2018)
 pset = P.progsets[0]
 for covout in pset.covouts.values():
@@ -55,10 +56,10 @@ P.run_sim(parset='default',progset='default',progset_instructions=instructions)
 # THIS DOES VERSIONING
 # which = ['tb','tb_simple','tb_simple_dyn','malaria' ,'hypertension','hypertension_dyn','hiv','hiv_dyn','diabetes','cervicalcancer','udt','udt_dyn','usdt','sir']
 # for a in which:
-#     F = au.ProjectFramework("./frameworks/framework_%s.xlsx" % (a))
-#     D = au.ProjectData.from_spreadsheet("./databooks/databook_%s.xlsx" % (a),framework=F)
-#     pset = au.ProgramSet.from_spreadsheet("./databooks/progbook_%s.xlsx" % (a),F,D)
+#     F = au.ProjectFramework(au.atomica_path('library')+'framework_%s.xlsx' % (a))
+#     D = au.ProjectData.from_spreadsheet(au.atomica_path('library')+'databook_%s.xlsx' % (a),framework=F)
+#     pset = au.ProgramSet.from_spreadsheet(au.atomica_path('library')+'progbook_%s.xlsx' % (a),F,D)
 #     for covout in pset.covouts.values():
 #         if sc.isstring(covout.imp_interaction) and covout.imp_interaction.lower().strip() == 'best':
 #             covout.imp_interaction = None
-#     pset.save("./databooks/progbook_%s.xlsx" % (a))
+#     pset.save(au.atomica_path('library')+'progbook_%s.xlsx' % (a))

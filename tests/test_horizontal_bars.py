@@ -2,9 +2,10 @@ import atomica.ui as au
 from atomica.ui import ProjectFramework, Project
 
 # Get a Result
-F = ProjectFramework("./frameworks/framework_sir_dynamic.xlsx")
+
+F = ProjectFramework(au.atomica_path('tests') + "framework_sir_dynamic.xlsx")
 P = Project(name="test", framework=F, do_run=False)
-P.load_databook(databook_path="./databooks/databook_sir_dynamic.xlsx", make_default_parset=True, do_run=True)
+P.load_databook(databook_path=au.atomica_path('tests') + "databook_sir_dynamic.xlsx", make_default_parset=True, do_run=True)
 result = P.results[0]
 
 # # Do a scenario to get a second set of results
@@ -21,8 +22,6 @@ scen = P.make_scenario(which='parameter',name="Increased mortality", instruction
 scen_results = scen.run(P,P.parsets['default'])
 par_results.name = 'Baseline'
 scen_results.name = 'Scenario'
-
-
 
 d = au.PlotData([par_results,scen_results],outputs=['sus','inf','rec'],t_bins=10)
 au.plot_bars(d,stack_outputs=[['sus','inf']],orientation='horizontal')

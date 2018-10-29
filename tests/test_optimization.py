@@ -47,8 +47,6 @@ torun = [
 
 # Load the SIR demo and associated programs
 P = au.demo(which=test,do_plot=0)
-filename = "databooks/progbook_"+test+".xlsx"
-P.load_progbook(progbook_path=filename)
 P.update_settings(sim_end=2030.0)
 
 def run_optimization(proj,optimization,instructions):

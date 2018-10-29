@@ -1,5 +1,7 @@
 import atomica.ui as au
 
+tmpdir = au.atomica_path(['tests','temp'])
+
 which = ['tb','tb_simple','hypertension_dyn'][-1]
 if which == 'tb':
     par_name = 'v_rate'
@@ -31,7 +33,7 @@ if doplot:
         d = au.PlotData([parset_result, original_result, reconciled_result],outputs=par,pops=pop,project=P)
         au.plot_series(d,axis='results')
 
-reconciled_progset.save('temp/reconciled_progset.xlsx')
+reconciled_progset.save(tmpdir + 'reconciled_progset.xlsx')
 
 # Test multi year reconciliation
 
