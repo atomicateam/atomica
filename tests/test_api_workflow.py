@@ -12,7 +12,7 @@ plot_initial = True
 test = "sir" # This test workflow only works with the SIR model
 
 testdir = au.parent_dir()
-tmpdir = os.path.join('temp','')
+tmpdir = os.path.join(testdir,'temp','')
 
 F = au.ProjectFramework(au.LIBRARY_PATH + test + '_framework.xlsx')
 P = au.Project(name=test.upper()+" project", framework=F,do_run=False)

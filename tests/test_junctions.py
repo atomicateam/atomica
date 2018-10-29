@@ -5,7 +5,7 @@ import atomica.ui as au
 import os
 
 testdir = au.parent_dir()
-tmpdir = os.path.join('temp','')
+tmpdir = os.path.join(testdir,'temp','')
 
 F_path = testdir + "framework_junction_test.xlsx"
 D_path = tmpdir + "databook_junction_test.xlsx"

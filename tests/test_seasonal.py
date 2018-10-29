@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import os
 
 testdir = au.parent_dir()
-tmpdir = os.path.join('temp','')
+tmpdir = os.path.join(testdir,'temp','')
 
 F_path = testdir + 'framework_seasonal_test.xlsx'
 D_path = tmpdir + 'databook_seasonal_test.xlsx'

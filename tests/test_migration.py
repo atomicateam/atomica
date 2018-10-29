@@ -4,7 +4,7 @@ import os
 au.logger.setLevel('DEBUG')
 
 testdir = au.parent_dir()
-tmpdir = os.path.join('temp','')
+tmpdir = os.path.join(testdir,'temp','')
 
 P = au.Project.load(testdir+'migration_test_with_result.prj')
 results = P.run_sim()

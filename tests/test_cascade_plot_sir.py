@@ -3,7 +3,7 @@ from atomica.ui import ProjectFramework, Project
 import os
 
 testdir = au.parent_dir()
-tmpdir = os.path.join('temp','')
+tmpdir = os.path.join(testdir,'temp','')
 
 # Get a Result
 F = ProjectFramework(testdir + 'framework_sir_dynamic.xlsx')
