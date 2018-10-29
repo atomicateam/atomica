@@ -2,9 +2,13 @@
 
 import numpy as np
 import atomica.ui as au
+import os
 
-F_path = au.atomica_path('tests') + "framework_junction_test.xlsx"
-D_path = au.atomica_path(['tests','temp']) + "databook_junction_test.xlsx"
+testdir = au.parent_dir()
+tmpdir = os.path.join('temp','')
+
+F_path = testdir + "framework_junction_test.xlsx"
+D_path = tmpdir + "databook_junction_test.xlsx"
 
 F = au.ProjectFramework(F_path)
 D = au.ProjectData.new(F,np.arange(2000,2001),pops={'pop1':'Population 1'},transfers=0)

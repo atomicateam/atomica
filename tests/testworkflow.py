@@ -77,7 +77,7 @@ if test == "tb":
     plot_pop = ['5-14', '15-64']
 
 TMPDIR = au.atomica_path(['tests','temp'])
-LIBDIR = au.atomica_path('library')
+LIBDIR = au.LIBRARY_PATH
 TESTDIR = au.atomica_path('tests')
 
 if "loadframework" in torun:

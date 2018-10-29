@@ -2,24 +2,18 @@
 Version:
 """
 
-# Romesh PyCharm commands
-from IPython import get_ipython
-ipython = get_ipython()
-if ipython is not None:
-    ipython.magic('load_ext autoreload')
-    ipython.magic('autoreload 2')
-
 import atomica.ui as au
 import os
-
 plot_initial = True
 
 test = "sir"
-tmpdir = au.atomica_path(['tests','temp'])
 
-F = au.ProjectFramework(au.atomica_path('library') + 'sir_framework.xlsx')
+testdir = au.parent_dir()
+tmpdir = os.path.join('temp','')
+
+F = au.ProjectFramework(au.LIBRARY_PATH + 'sir_framework.xlsx')
 P = au.Project(name=test.upper()+" project", framework=F)
-P.load_databook(databook_path= au.atomica_path('tests') + 'databook_sir_twopop.xlsx', make_default_parset=True, do_run=True)
+P.load_databook(databook_path= testdir + 'databook_sir_twopop.xlsx', make_default_parset=True, do_run=True)
 
 P.results[0].export(tmpdir + test.upper()+" results")
     

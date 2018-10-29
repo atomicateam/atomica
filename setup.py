@@ -39,5 +39,6 @@ setup(
         'xlsxwriter',
         'scipy',
         'pyswarm',
+        'sciris',
     ],
 )

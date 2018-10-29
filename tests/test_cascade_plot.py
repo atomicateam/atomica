@@ -17,26 +17,27 @@ torun = [
 #'mpld3test'
 ]
 
-tmpdir = au.atomica_path(['tests','temp'])
+testdir = au.parent_dir()
+tmpdir = os.path.join('temp','')
 
 # Check validation
 if "validate_cascade" in torun:
     from atomica.cascade import validate_cascade
 
     # First check that all of the library frameworks are OK
-    fnames = os.listdir(au.atomica_path('library'))
+    fnames = os.listdir(au.LIBRARY_PATH)
     # NB. To test a single file, set e.g. `fnames=['framework_tb.xlsx']`
     for fname in fnames:
         if fname.endswith('_framework.xlsx'):
             print("Validating %s" % (fname))
-            F = ProjectFramework(au.atomica_path('library')+fname)
+            F = ProjectFramework(au.LIBRARY_PATH+fname)
 
             # Validate all of the cascades in the framework
             for cascade in F.cascades:
                 validate_cascade(F, cascade)
 
 
-    F = ProjectFramework(au.atomica_path('library') + "tb_framework.xlsx")
+    F = ProjectFramework(au.LIBRARY_PATH + "tb_framework.xlsx")
     try:
         validate_cascade(F,None) # Try running this on the command line to see the error message
     except InvalidCascade:
@@ -44,7 +45,7 @@ if "validate_cascade" in torun:
 
     for fname in ["framework_sir_badcascade1.xlsx","framework_sir_badcascade2.xlsx"]:
         try:
-            F = ProjectFramework(au.atomica_path('tests') + fname)
+            F = ProjectFramework(au.parent_dir() + fname)
         except InvalidCascade:
             print("Correctly raised invalid cascade for %s" % fname)
 
@@ -126,9 +127,6 @@ if "scenplots" in torun:
         au.plot_multi_cascade([par_results,scen_results],cascade=0,pops='all',year=[startyear,endyear])
         au.plot_multi_cascade([par_results],cascade=1,year=[startyear,endyear])
         #au.plot_multi_cascade([par_results,scen_results],cascade=None,pops='all',year=2030)
-
-
-
 
 # # Dynamically create a cascade
 if "cascadefromscratch" in torun:

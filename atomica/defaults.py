@@ -6,7 +6,7 @@ Version: 2018sep24
 import sciris as sc
 from .framework import ProjectFramework
 from .project import Project
-from .system import atomica_path, logger
+from .system import LIBRARY_PATH, logger
 
 
 def default_programs(project, addcostcovpars=False, addcostcovdata=False, filterprograms=None):
@@ -50,7 +50,7 @@ def default_framework(which=None, show_options=False):
         return options
     else:
         if which != 'tb': label = options[which]
-        F = ProjectFramework(name=label, inputs=atomica_path('library')+which+"_framework.xlsx")
+        F = ProjectFramework(name=label, inputs=LIBRARY_PATH+which+"_framework.xlsx")
     return F
 
 
@@ -98,14 +98,14 @@ def default_project(which=None, do_run=True, addprogs=True, verbose=False, show_
     logger.info("Creating a "+which+" project...")
     
     if verbose: print('Loading framework')
-    framework_file = atomica_path('library')+which+'_framework.xlsx'
+    framework_file = LIBRARY_PATH+which+'_framework.xlsx'
     if verbose: print('Loading databook')
-    P = Project(framework=framework_file, databook_path=atomica_path('library')+which+"_databook.xlsx", do_run=False, **kwargs)
+    P = Project(framework=framework_file, databook_path=LIBRARY_PATH+which+"_databook.xlsx", do_run=False, **kwargs)
     P.settings.sim_dt = dtdict[which]
     if do_run: P.run_sim()
     if addprogs:
         if verbose: print('Loading progbook')
-        P.load_progbook(progbook_path=atomica_path('library')+which+"_progbook.xlsx")
+        P.load_progbook(progbook_path=LIBRARY_PATH+which+"_progbook.xlsx")
         if verbose: print('Creating scenarios')
         P.demo_scenarios() # Add example scenarios
         if verbose: print('Creating optimizations')

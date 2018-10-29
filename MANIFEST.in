@@ -1,3 +1,7 @@
+graft atomica
+
+include LICENSE
 include README.md
-recursive-include library *
-recursive-include tests *.py
+include tox.ini
+
+global-exclude *.py[cod] __pycache__ *.so *.dylib

@@ -3,9 +3,9 @@ import numpy as np
 import sciris as sc
 
 tmpdir = au.atomica_path(['tests','temp'])
-F = au.ProjectFramework(au.atomica_path('library')+'tb_framework.xlsx')
-D = au.ProjectData.from_spreadsheet(au.atomica_path('library')+'tb_databook.xlsx',framework=F)
-pset = au.ProgramSet.from_spreadsheet(au.atomica_path('library')+'tb_progbook.xlsx',F,D)
+F = au.ProjectFramework(au.LIBRARY_PATH+'tb_framework.xlsx')
+D = au.ProjectData.from_spreadsheet(au.LIBRARY_PATH+'tb_databook.xlsx',framework=F)
+pset = au.ProgramSet.from_spreadsheet(au.LIBRARY_PATH+'tb_progbook.xlsx',F,D)
 pset.save(tmpdir + 'progbook_test.xlsx')
 pset = au.ProgramSet.from_spreadsheet(tmpdir + 'progbook_test.xlsx',F,D)
 pset.save(tmpdir + 'progbook_test2.xlsx')
@@ -45,8 +45,8 @@ pset = au.ProgramSet.new(tvec=np.arange(2015,2018),progs=progs,framework=F,data=
 pset.save(tmpdir + 'progbook_test6.xlsx')
 
 # Test performance of a random coverage interaction simulation
-P = au.Project(framework=au.atomica_path('library')+'tb_framework.xlsx',databook_path=au.atomica_path('library')+'tb_databook.xlsx',do_run=False)
-P.load_progbook(au.atomica_path('library')+'tb_progbook.xlsx')
+P = au.Project(framework=au.LIBRARY_PATH+'tb_framework.xlsx',databook_path=au.LIBRARY_PATH+'tb_databook.xlsx',do_run=False)
+P.load_progbook(au.LIBRARY_PATH+'tb_progbook.xlsx')
 instructions = au.ProgramInstructions(start_year=2018)
 pset = P.progsets[0]
 for covout in pset.covouts.values():
@@ -56,10 +56,10 @@ P.run_sim(parset='default',progset='default',progset_instructions=instructions)
 # THIS DOES VERSIONING
 # which = ['tb','tb_simple','tb_simple_dyn','malaria' ,'hypertension','hypertension_dyn','hiv','hiv_dyn','diabetes','cervicalcancer','udt','udt_dyn','usdt','sir']
 # for a in which:
-#     F = au.ProjectFramework(au.atomica_path('library')+'framework_%s.xlsx' % (a))
-#     D = au.ProjectData.from_spreadsheet(au.atomica_path('library')+'databook_%s.xlsx' % (a),framework=F)
-#     pset = au.ProgramSet.from_spreadsheet(au.atomica_path('library')+'progbook_%s.xlsx' % (a),F,D)
+#     F = au.ProjectFramework(au.LIBRARY_PATH+'framework_%s.xlsx' % (a))
+#     D = au.ProjectData.from_spreadsheet(au.LIBRARY_PATH+'databook_%s.xlsx' % (a),framework=F)
+#     pset = au.ProgramSet.from_spreadsheet(au.LIBRARY_PATH+'progbook_%s.xlsx' % (a),F,D)
 #     for covout in pset.covouts.values():
 #         if sc.isstring(covout.imp_interaction) and covout.imp_interaction.lower().strip() == 'best':
 #             covout.imp_interaction = None
-#     pset.save(au.atomica_path('library')+'progbook_%s.xlsx' % (a))
+#     pset.save(au.LIBRARY_PATH+'progbook_%s.xlsx' % (a))

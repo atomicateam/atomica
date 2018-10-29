@@ -8,15 +8,15 @@ import sciris as sc
 
 tmpdir = au.atomica_path(['tests','temp'])
 
-F = ProjectFramework(au.atomica_path('library') + 'tb_framework.xlsx')
+F = ProjectFramework(au.LIBRARY_PATH + 'tb_framework.xlsx')
 F.save(tmpdir + 'f_blug.xlsx')
 #
 # Copy a databook by loading and saving it
-data = ProjectData.from_spreadsheet(au.atomica_path('library') + "tb_databook.xlsx",F)
+data = ProjectData.from_spreadsheet(au.LIBRARY_PATH + "tb_databook.xlsx",F)
 data.save(tmpdir + 'd_blug.xlsx')
 
 # Copy comments, using lower-level AtomicaSpreadsheet (for in-memory file operations)
-original_workbook = au.AtomicaSpreadsheet(au.atomica_path('library') + "tb_databook.xlsx")
+original_workbook = au.AtomicaSpreadsheet(au.LIBRARY_PATH + "tb_databook.xlsx")
 new_workbook = data.to_spreadsheet() # This is a AtomicaSpreadsheet that can be stored in the FE database
 transfer_comments(new_workbook,original_workbook)
 new_workbook.save(tmpdir + 'd_blug_formatted.xlsx')
@@ -39,7 +39,7 @@ d = au.PlotData(P.results["parset_default"], pops='0-4')
 au.plot_series(d, plot_type="stacked") # This should look like the usual Optima-TB result
 
 # Change the pops and run it
-data = ProjectData.from_spreadsheet(au.atomica_path('library') + "tb_databook.xlsx",F)
+data = ProjectData.from_spreadsheet(au.LIBRARY_PATH + "tb_databook.xlsx",F)
 data.rename_pop('0-4','0-3','Gen 0-3')
 data.rename_transfer('age','age_up','Age Up')
 data.save(tmpdir + 'd_blug_renamed.xlsx')

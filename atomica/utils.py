@@ -1,5 +1,7 @@
 import sciris as sc
 from .system import NotAllowedError
+import inspect
+import os
 
 class NamedItem(object):
     def __init__(self,name=None):
@@ -50,3 +52,6 @@ class NDict(sc.odict):
             self[new].name=new
         return None
 
+def parent_dir():
+    # Return the parent directory of the file that called this function
+    return os.path.join(os.path.abspath(os.path.join(inspect.stack()[1][1],os.pardir)),'')

@@ -25,6 +25,8 @@ def atomica_path(subdir=None, trailingsep=True):
         path = os.path.join(*tojoin)  # For example: ['/home/atomica', 'tests', '']
     return path
 
+LIBRARY_PATH = atomica_path(['atomica','library'])
+
 # Code for exceptions specific to Atomica
 
 class AtomicaException(Exception):
