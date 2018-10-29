@@ -117,7 +117,7 @@ class AtomicaSpreadsheet(object):
             source.seek(0)
             self.data = source.read()
         else:
-            filepath = sc.makefilepath(filename=source)
+            filepath = sc.makefilepath(filename=source,makedirs=False)
             self.filename = filepath
             self.load_date = sc.now()
             with open(filepath, mode='rb') as f:

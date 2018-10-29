@@ -8,7 +8,7 @@ import numpy as np
 import sciris as sc
 import atomica.ui as au
 
-to_run = ['quick','full'][1]
+to_run = ['quick','full'][0]
 run_scens = True
 run_optim = True
 maxtime   = 10

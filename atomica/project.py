@@ -183,7 +183,7 @@ class Project(object):
         - do_run: If True, a simulation will be run using the new parset
         """
         if sc.isstring(databook_path):
-            full_path = sc.makefilepath(filename=databook_path, default=self.name, ext='xlsx')
+            full_path = sc.makefilepath(filename=databook_path, default=self.name, ext='xlsx',makedirs=False)
             databook_spreadsheet = AtomicaSpreadsheet(full_path)
         else:
             databook_spreadsheet = databook_path
@@ -219,7 +219,7 @@ class Project(object):
         if self.data is None:
             errormsg = 'Please upload a databook before creating a program book. The databook defines which populations will appear in the program book.'
             raise AtomicaException(errormsg)
-        full_path = sc.makefilepath(filename=progbook_path, default=self.name, ext='xlsx')
+        full_path = sc.makefilepath(filename=progbook_path, default=self.name, ext='xlsx',makedirs=False) # Directory will be created later in progset.save()
         if data_start is None:  data_start = self.data.tvec[0]
         if data_end is None:    data_end= self.data.tvec[-1]
         progset = ProgramSet.new(tvec=np.arange(data_start, data_end+1), progs=progs, framework=self.framework, data=self.data)
@@ -235,7 +235,7 @@ class Project(object):
             raise AtomicaException(errormsg)
 
         if sc.isstring(progbook_path):
-            full_path = sc.makefilepath(filename=progbook_path, default=self.name, ext='xlsx')
+            full_path = sc.makefilepath(filename=progbook_path, default=self.name, ext='xlsx',makedirs=False)
             progbook_spreadsheet = AtomicaSpreadsheet(full_path)
         else:
             progbook_spreadsheet = progbook_path

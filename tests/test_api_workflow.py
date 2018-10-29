@@ -10,11 +10,10 @@ import os
 plot_initial = True
 
 test = "sir" # This test workflow only works with the SIR model
-tmpdir = "." + os.sep + "temp" + os.sep
-
-F = au.ProjectFramework("./frameworks/framework_" + test + ".xlsx")
+tmpdir = au.atomica_path(['tests','temp'])
+F = au.ProjectFramework(au.atomica_path('library') + test + '_framework.xlsx')
 P = au.Project(name=test.upper()+" project", framework=F,do_run=False)
-P.load_databook(databook_path="./databooks/databook_" + test + ".xlsx", make_default_parset=True, do_run=True)
+P.load_databook(databook_path=au.atomica_path('library') + test + '_databook.xlsx', make_default_parset=True, do_run=True)
 
 P.results[0].export(test.upper()+" results")
 

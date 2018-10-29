@@ -50,7 +50,7 @@ def default_framework(which=None, show_options=False):
         return options
     else:
         if which != 'tb': label = options[which]
-        F = ProjectFramework(name=label, inputs=atomica_path(['tests', 'frameworks'])+"framework_" + which + ".xlsx")
+        F = ProjectFramework(name=label, inputs=atomica_path('library')+which+"_framework.xlsx")
     return F
 
 
@@ -98,14 +98,14 @@ def default_project(which=None, do_run=True, addprogs=True, verbose=False, show_
     logger.info("Creating a "+which+" project...")
     
     if verbose: print('Loading framework')
-    framework_file = atomica_path(['tests','frameworks'])+'framework_'+which+'.xlsx'
+    framework_file = atomica_path('library')+which+'_framework.xlsx'
     if verbose: print('Loading databook')
-    P = Project(framework=framework_file, databook_path=atomica_path(['tests','databooks'])+"databook_"+which+".xlsx", do_run=False, **kwargs)
+    P = Project(framework=framework_file, databook_path=atomica_path('library')+which+"_databook.xlsx", do_run=False, **kwargs)
     P.settings.sim_dt = dtdict[which]
     if do_run: P.run_sim()
     if addprogs:
         if verbose: print('Loading progbook')
-        P.load_progbook(progbook_path=atomica_path(['tests','databooks'])+"progbook_"+which+".xlsx")
+        P.load_progbook(progbook_path=atomica_path('library')+which+"_progbook.xlsx")
         if verbose: print('Creating scenarios')
         P.demo_scenarios() # Add example scenarios
         if verbose: print('Creating optimizations')

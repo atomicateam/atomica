@@ -2,6 +2,7 @@ import atomica.ui as au
 from atomica.ui import ProjectFramework, Project
 
 # Get a Result
+P = au.demo('')
 F = ProjectFramework("./frameworks/framework_sir_dynamic.xlsx")
 P = Project(name="test", framework=F, do_run=False)
 P.load_databook(databook_path="./databooks/databook_sir_dynamic.xlsx", make_default_parset=True, do_run=True)
