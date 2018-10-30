@@ -40,5 +40,6 @@ setup(
         'scipy',
         'pyswarm',
         'sciris',
+        'git-python',
     ],
 )
