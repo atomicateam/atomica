@@ -1,6 +1,15 @@
 sudo: required
 dist: xenial
-python: "3.7"
 language: python
-install: pip install tox-travis
-script: tox
+python: "3.7"
+
+install:
+  - pip install pytest
+  - pip install pytest-mpl
+  - pip install pytest-xdist
+  - pip install pytest-xvfb
+  - pip install git+https://github.com/sciris/sciris
+  - pip install git+https://github.com/sciris/mpld3
+
+script: pytest
+
