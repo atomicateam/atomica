@@ -8,8 +8,7 @@
 
 import matplotlib
 matplotlib.use('agg')
-import atomica
-import sciris
+
 # -- Path setup --------------------------------------------------------------
 
 # If extensions (or modules to document with autodoc) are in another directory,
@@ -43,7 +42,7 @@ extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
     'sphinx.ext.napoleon',
-    # 'nbsphinx',
+    'nbsphinx',
 ]
 
 autoclass_content = "both"  # include both class docstring and __init__
