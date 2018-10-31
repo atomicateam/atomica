@@ -4,3 +4,7 @@ python: "3.7"
 language: python
 install: pip install tox-travis
 script: tox
+branches:
+    only:
+        - master
+        - develop
