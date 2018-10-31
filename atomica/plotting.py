@@ -70,7 +70,7 @@ def save_figs(figs, path='.', prefix='', fnames=None):
             fnames[i] = fnames[i - 1] + '_legend'
         fname = prefix + fnames[i] + '.png'
         fig.savefig(os.path.join(path, fname), bbox_inches='tight')
-        logger.info('Saved figure "%s"' % fname)
+        logger.info('Saved figure "%s"', fname)
 
 
 class PlotData(object):
@@ -287,11 +287,11 @@ class PlotData(object):
                                 output_aggregation = 'sum'
 
                         if len(units) > 1:
-                            logger.warning("Aggregation for output '{0}' is mixing units, this is almost certainly not desired.".format(output_name))
+                            logger.warning("Aggregation for output '%s' is mixing units, this is almost certainly not desired.", output_name)
                             aggregated_units[output_name] = 'unknown'
                         else:
                             if units[0] in ['', FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY] and output_aggregation == 'sum' and len(labels) > 1:  # Dimensionless, like prevalance
-                                logger.warning("Output '{0}' is not in number units, so output aggregation probably should not be 'sum'.".format(output_name))
+                                logger.warning("Output '%s' is not in number units, so output aggregation probably should not be 'sum'.", output_name)
                             aggregated_units[output_name] = output_units[labels[0]]
 
                         if output_aggregation == 'sum':
@@ -323,7 +323,7 @@ class PlotData(object):
 
                         if pop_aggregation == 'sum':
                             if aggregated_units[output_name] in ['', FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY] and len(pop_labels) > 1:
-                                logger.warning("Output '{0}' is not in number units, so population aggregation probably should not be 'sum'".format(output_name))
+                                logger.warning("Output '%s' is not in number units, so population aggregation probably should not be 'sum'", output_name)
                             vals = sum(aggregated_outputs[x][output_name] for x in pop_labels)  # Add together all the outputs
                         elif pop_aggregation == 'average':
                             vals = sum(aggregated_outputs[x][output_name] for x in pop_labels)  # Add together all the outputs
@@ -682,7 +682,7 @@ class Series(object):
         self.units = units
 
         if np.any(np.isnan(vals)):
-            logger.warning('%s contains NaNs' % (self))
+            logger.warning('%s contains NaNs', self)
 
     def __repr__(self):
         return 'Series(%s,%s,%s)' % (self.result, self.pop, self.output)

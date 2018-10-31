@@ -402,11 +402,9 @@ class Project(object):
             progset = progset if isinstance(progset, ProgramSet) else self.progset(progset)
 
         if progset is None:
-            logger.info("Initiating a standard run of project '{0}' "
-                        "(i.e. without the influence of programs).".format(self.name))
+            logger.info("Initiating a standard run of project '%s' (no programs)", self.name)
         elif progset_instructions is None:
-            logger.info("Program set '{0}' will be ignored while running project '{1}' "
-                        "due to the absence of program set instructions.".format(progset.name, self.name))
+            logger.info("Program set '%s' will be ignored while running project '%s' due to the absence of program set instructions", progset.name, self.name)
 
         if result_name is None:
             base_name = "parset_" + parset.name

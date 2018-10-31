@@ -751,11 +751,11 @@ class Population(object):
                     if isinstance(inc, Characteristic):
                         report_characteristic(inc, n_indent)
                     else:
-                        logger.warning(n_indent * '\t' + 'Compartment %s: Computed value = %f' % (inc.name, x[comp_indices[inc.name]]))
+                        logger.warning(n_indent * '\t' + 'Compartment %s: Computed value = %f', inc.name, x[comp_indices[inc.name]])
 
         for i in range(0, len(comps)):
             if x[i] < -model_settings['tolerance']:
-                logger.warning('Compartment %s %s - Calculated %f' % (self.name, comps[i].name, x[i]))
+                logger.warning('Compartment %s %s - Calculated %f', self.name, comps[i].name, x[i])
                 for charac in characs:
                     try:
                         if comps[i] in charac.get_included_comps():

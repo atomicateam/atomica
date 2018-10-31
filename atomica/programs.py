@@ -466,7 +466,7 @@ class ProgramSet(NamedItem):
             set_ts(prog, 'saturation', tdve.ts['Saturation'])
 
             if '/year' in prog.unit_cost.units and '/year' in prog.coverage.units:
-                logger.warning('Program %s: Typically if the unit cost is `/year` then the coverage would not be `/year`' % (prog.label))
+                logger.warning('Program %s: Typically if the unit cost is `/year` then the coverage would not be `/year`', prog.label)
             times.update(set(tdve.tvec))
 
         self.tvec = array(sorted(list(times)))  # NB. This means that the ProgramSet's tvec (used when writing new programs) is based on the last Program to be read in

@@ -239,7 +239,7 @@ def reconcile(project, parset, progset, reconciliation_year, max_time=10, unit_c
     bounds = _prepare_bounds(new_progset, unit_cost_bounds, baseline_bounds, capacity_bounds, outcome_bounds)  # Convert reconcile() inputs into full detailed bounds
     x0, xmin, xmax, mapping = _prepare_asd_inputs(new_progset, bounds)  # Assemble ASD variables
 
-    logger.info("Reconciling in %.2f, evaluating from %.2f up to %.2f" % (reconciliation_year, eval_range[0], eval_range[1]))
+    logger.info("Reconciling in %.2f, evaluating from %.2f up to %.2f", reconciliation_year, eval_range[0], eval_range[1])
 
     args = {
         'mapping': mapping,

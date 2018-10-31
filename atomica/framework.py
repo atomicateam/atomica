@@ -352,7 +352,7 @@ class ProjectFramework(object):
                 raise InvalidFramework('Compartment "%s" is marked as being eligible for calibration, but it does not appear in the databook' % row.name)
 
             if (row['databook page'] is None) and (row['databook order'] is not None):
-                logger.warning('Compartment "%s" has a databook order, but no databook page' % row.name)
+                logger.warning('Compartment "%s" has a databook order, but no databook page', row.name)
 
         # VALIDATE CHARACTERISTICS
 

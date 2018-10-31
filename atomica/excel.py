@@ -371,7 +371,7 @@ class TimeDependentConnections(object):
                 ts_entries[(from_pop, to_pop)] = ts
 
         if not ts_entries:
-            logger.warning('TDC "%s" did not contain any data - is this intentional?' % (full_name))
+            logger.warning('TDC "%s" did not contain any data - is this intentional?', full_name)
 
         return TimeDependentConnections(code_name, full_name, tvec, pops, interaction_type, ts=ts_entries)
 

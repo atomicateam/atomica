@@ -98,7 +98,7 @@ def migrate(proj):
     if sc.compareversions(proj.version, version) >= 0:
         return proj
     else:
-        logger.info('Migrating Project "%s" from %s->%s' % (proj.name, proj.version, version))
+        logger.info('Migrating Project "%s" from %s->%s', proj.name, proj.version, version)
     for m in migrations:  # Run the migrations in increasing version order
         if sc.compareversions(proj.version, m.original_version) > 0:
             continue

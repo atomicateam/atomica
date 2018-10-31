@@ -263,7 +263,7 @@ class ProjectData(sc.prettyobj):
                     code_name = spec.name
 
                     if not spec['databook page']:
-                        logger.warning('A TDVE table for "%s" (%s) was read in and will be used, but the Framework did not mark this quantity as appearing in the databook' % (tdve.name, code_name))
+                        logger.warning('A TDVE table for "%s" (%s) was read in and will be used, but the Framework did not mark this quantity as appearing in the databook', tdve.name, code_name)
 
                     tdve.allowed_units = [x.title() if x in FS.STANDARD_UNITS else x for x in framework.get_allowed_units(code_name)]
                     tdve.comment = spec['guidance']
