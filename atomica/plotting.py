@@ -31,6 +31,7 @@ settings['legend_mode'] = 'together'  # Possible options are ['together','separa
 settings['bar_width'] = 1.0  # Width of bars in plot_bars()
 settings['line_width'] = 3.0  # Width of bars in plot_bars()
 
+
 def save_figs(figs, path='.', prefix='', fnames=None):
     # Take in array of figures, and save them to disk
     # Path and prefix are appended to the start
@@ -80,7 +81,7 @@ class PlotData(object):
     # different views of the same data.
 
     # TODO: Make sure to chuck a useful error when t_bins is greater than sim duration, rather than just crashing.
-    def __init__(self, results, outputs=None, pops=None, output_aggregation=None, pop_aggregation=None, project=None,time_aggregation='sum', t_bins=None,accumulate=None):
+    def __init__(self, results, outputs=None, pops=None, output_aggregation=None, pop_aggregation=None, project=None, time_aggregation='sum', t_bins=None, accumulate=None):
         # Construct a PlotData instance from model outputs
         #
         # final_outputs[result][pop][output] = vals
@@ -122,7 +123,7 @@ class PlotData(object):
         #   can first sum 'sus'+'vac' within populations, and then take weighted
         #   average across populations)
         # - time_aggregation - Supported methods are 'sum' and 'average' (no weighting). When aggregating
-        #   times, *non-annualized* flow rates will be used. 
+        #   times, *non-annualized* flow rates will be used.
         # - t_bins can be
         #       - A vector of bin edges. Time points are included if the time
         #         is >= the lower bin value and < upper bin value.
@@ -210,7 +211,7 @@ class PlotData(object):
                             output_units[output_label] = vars[0].units + '/year'
                         else:
                             output_units[output_label] = vars[0].units  # If we sum links in a bin, we get a number of people
-                        data_label[output_label] = vars[0].parameter.name if vars[0].parameter.units == FS.QUANTITY_TYPE_NUMBER else None # Only use parameter data points if the units match
+                        data_label[output_label] = vars[0].parameter.name if vars[0].parameter.units == FS.QUANTITY_TYPE_NUMBER else None  # Only use parameter data points if the units match
 
                     elif isinstance(vars[0], Parameter):
                         data_dict[output_label] = vars[0].vals
@@ -245,7 +246,7 @@ class PlotData(object):
                     if not sc.isstring(f_stack_str):
                         continue
 
-                    placeholder_pop = lambda: None
+                    def placeholder_pop(): return None
                     placeholder_pop.name = 'None'
                     par = Parameter(pop=placeholder_pop, name=output_label)
                     fcn, dep_labels = parse_function(f_stack_str)
@@ -280,7 +281,7 @@ class PlotData(object):
 
                         # Set default aggregation method depending on the units of the quantity
                         if output_aggregation is None:
-                            if units[0] in ['',FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY]:
+                            if units[0] in ['', FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY]:
                                 output_aggregation = 'average'
                             else:
                                 output_aggregation = 'sum'
@@ -289,7 +290,7 @@ class PlotData(object):
                             logger.warning("Aggregation for output '{0}' is mixing units, this is almost certainly not desired.".format(output_name))
                             aggregated_units[output_name] = 'unknown'
                         else:
-                            if units[0] in ['',FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY] and output_aggregation == 'sum' and len(labels) > 1:  # Dimensionless, like prevalance
+                            if units[0] in ['', FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY] and output_aggregation == 'sum' and len(labels) > 1:  # Dimensionless, like prevalance
                                 logger.warning("Output '{0}' is not in number units, so output aggregation probably should not be 'sum'.".format(output_name))
                             aggregated_units[output_name] = output_units[labels[0]]
 
@@ -315,13 +316,13 @@ class PlotData(object):
 
                         # Set population aggregation method depending on
                         if pop_aggregation is None:
-                            if aggregated_units[output_name] in ['',FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY]:
+                            if aggregated_units[output_name] in ['', FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY]:
                                 pop_aggregation = 'average'
                             else:
                                 pop_aggregation = 'sum'
 
                         if pop_aggregation == 'sum':
-                            if aggregated_units[output_name] in ['',FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY] and len(pop_labels) > 1:
+                            if aggregated_units[output_name] in ['', FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY] and len(pop_labels) > 1:
                                 logger.warning("Output '{0}' is not in number units, so population aggregation probably should not be 'sum'".format(output_name))
                             vals = sum(aggregated_outputs[x][output_name] for x in pop_labels)  # Add together all the outputs
                         elif pop_aggregation == 'average':
@@ -332,10 +333,10 @@ class PlotData(object):
                             vals /= sum([popsize[x] for x in pop_labels])
                         else:
                             raise AtomicaException('Unknown pop aggregation method')
-                        self.series.append(Series(tvecs[result_label], vals, result_label, pop_name, output_name,data_label[output_name], units=aggregated_units[output_name]))
+                        self.series.append(Series(tvecs[result_label], vals, result_label, pop_name, output_name, data_label[output_name], units=aggregated_units[output_name]))
                     else:
                         vals = aggregated_outputs[pop][output_name]
-                        self.series.append(Series(tvecs[result_label], vals, result_label, pop, output_name, data_label[output_name],units=aggregated_units[output_name]))
+                        self.series.append(Series(tvecs[result_label], vals, result_label, pop, output_name, data_label[output_name], units=aggregated_units[output_name]))
 
         self.results = sc.odict()
         for result in results:
@@ -353,12 +354,12 @@ class PlotData(object):
 
         # Handle time aggregation
         if t_bins is not None:
-            self._time_aggregate(t_bins,time_aggregation)
+            self._time_aggregate(t_bins, time_aggregation)
 
         if accumulate is not None:
             self._accumulate(accumulate)
 
-    def _accumulate(self,accumulation_method):
+    def _accumulate(self, accumulation_method):
         # Time accumulation of Series object contained within this instance
         # Accumulation methods are
         # - sum : runs `cumsum` on all quantities - should not be used if units are flow rates (so will check for '/year')
@@ -370,13 +371,13 @@ class PlotData(object):
         for s in self.series:
             if accumulation_method == 'sum':
                 if '/year' in s.units:
-                    raise AtomicaException('Quantity "%s" has units "%s" which means it should be accumulated by integration, not summation' % (s.output,s.units))
+                    raise AtomicaException('Quantity "%s" has units "%s" which means it should be accumulated by integration, not summation' % (s.output, s.units))
                 s.vals = np.cumsum(s.vals)
             elif accumulation_method == 'integrate':
-                s.vals = scipy.integrate.cumtrapz(s.vals,s.tvec)
-                s.vals = np.insert(s.vals,0,0.0)
+                s.vals = scipy.integrate.cumtrapz(s.vals, s.tvec)
+                s.vals = np.insert(s.vals, 0, 0.0)
                 if '/year' in s.units:
-                    s.units = s.units.replace('/year','')
+                    s.units = s.units.replace('/year', '')
                 else:
                     s.units += ' years'
             else:
@@ -451,7 +452,7 @@ class PlotData(object):
         return s
 
     @staticmethod
-    def programs(results,outputs=None,t_bins=None,quantity='spending',accumulate=None):
+    def programs(results, outputs=None, t_bins=None, quantity='spending', accumulate=None):
         # This constructs a PlotData instance from spending values
         #
         # INPUTS
@@ -489,7 +490,7 @@ class PlotData(object):
         outputs = expand_dict(outputs)
 #        progs_required = extract_labels(outputs)
 
-        assert quantity in ['spending','coverage_number','coverage_denominator','coverage_fraction']
+        assert quantity in ['spending', 'coverage_number', 'coverage_denominator', 'coverage_fraction']
         # Make a new PlotData instance
         # We are using __new__ because this method is to be formally considered an alternate constructor and
         # thus bears responsibility for ensuring this new instance is initialized correctly
@@ -515,38 +516,37 @@ class PlotData(object):
                 raise AtomicaException('Unknown quantity')
 
             for output in outputs:  # For each final output
-                if isinstance(output, dict): # If this is an aggregation over programs
+                if isinstance(output, dict):  # If this is an aggregation over programs
                     if quantity == 'spending':
-                        output_name = list(output.keys())[0] # This is the aggregated name
-                        labels = output[output_name] # These are the quantities being aggregated
+                        output_name = list(output.keys())[0]  # This is the aggregated name
+                        labels = output[output_name]  # These are the quantities being aggregated
 
                         # We only support summation for combining program spending, not averaging
                         # TODO - if/when we track which currency, then should check here that all of the programs have the same currency
-                        vals = sum(all_vals[x] for x in labels)*result.dt  # Add together all the outputs
+                        vals = sum(all_vals[x] for x in labels) * result.dt  # Add together all the outputs
                         output_name = output_name
-                        data_label = None # No data present for aggregations
+                        data_label = None  # No data present for aggregations
                     else:
                         raise NotAllowedError('Cannot use program aggregation for anything other than spending yet')
                 else:
                     vals = all_vals[output]
                     output_name = output
-                    data_label = output # Can look up program spending by the program name
+                    data_label = output  # Can look up program spending by the program name
 
-                if quantity in ['spending','coverage_number'] and t_bins is not None:
+                if quantity in ['spending', 'coverage_number'] and t_bins is not None:
                     # If we are time-aggregating, then the annual quantities which are going to be summed need to be
                     # converted back to timestep values - for both spending and number coverage, this is simply multiplicative
                     vals *= result.dt
-                    units = units.replace('/year','')
+                    units = units.replace('/year', '')
 
                 # Accumulate the Series
-                plotdata.series.append(Series(result.t, vals, result=result.name, pop=FS.DEFAULT_SYMBOL_INAPPLICABLE, output=output_name, data_label=data_label, units=units)) # The program should specify the units for its unit cost
-
+                plotdata.series.append(Series(result.t, vals, result=result.name, pop=FS.DEFAULT_SYMBOL_INAPPLICABLE, output=output_name, data_label=data_label, units=units))  # The program should specify the units for its unit cost
 
         plotdata.results = sc.odict()
         for result in results:
             plotdata.results[result.name] = result.name
 
-        plotdata.pops = sc.odict({FS.DEFAULT_SYMBOL_INAPPLICABLE:FS.DEFAULT_SYMBOL_INAPPLICABLE})
+        plotdata.pops = sc.odict({FS.DEFAULT_SYMBOL_INAPPLICABLE: FS.DEFAULT_SYMBOL_INAPPLICABLE})
 
         plotdata.outputs = sc.odict()
         for output in outputs:
@@ -554,10 +554,10 @@ class PlotData(object):
             plotdata.outputs[key] = results[0].model.progset.programs[key].label if key in results[0].model.progset.programs else key
 
         if t_bins is not None:
-            if quantity in ['spending','coverage_number']:
-                plotdata._time_aggregate(t_bins,'sum')
-            elif quantity in ['coverage_denominator','coverage_fraction']:
-                plotdata._time_aggregate(t_bins,'average')
+            if quantity in ['spending', 'coverage_number']:
+                plotdata._time_aggregate(t_bins, 'sum')
+            elif quantity in ['coverage_denominator', 'coverage_fraction']:
+                plotdata._time_aggregate(t_bins, 'average')
             else:
                 raise AtomicaException('Unknown quantity')
 
@@ -577,7 +577,7 @@ class PlotData(object):
             assert (all(np.equal(self.series[i].tvec, tvec))), 'All series must have the same time points'
         return tvec, t_labels
 
-    def interpolate(self,t2):
+    def interpolate(self, t2):
         # This will interpolate all Series onto a new time axis
         # Note that NaNs will be set anywhere that extrapolation is needed
         t2 = sc.promotetoarray(t2)
@@ -602,18 +602,18 @@ class PlotData(object):
         #
         # There are two usage scenarios
         # - Colour filling, where we want to assign colours to a number of outputs
-        # What if we want to assign *across* pops? Then, we need something a bit more 
+        # What if we want to assign *across* pops? Then, we need something a bit more
         # sophisticated
         #
         # set_colors() - Assign a colour to every output
         # set_colors(outputs=[a,b,c]) - Assign a colour to every output of type a,b,c irrespective of pop
         # set_colors(pops=[a,b,c]) - Assign a colour to each pop irrespective of result/output
         # What if we want to assign a particular one?
-        # 
-        # Or keep the others fixed? 
+        #
+        # Or keep the others fixed?
         #
         # - Specific colour assignment
-        # 
+        #
         # colors can be
         # - None, in which case colours will automatically be added
         # - a colour string that will be applied to filtered things
@@ -628,17 +628,17 @@ class PlotData(object):
         # - At least one of them must not be none
         # - It is a bad idea to manually set colors for more than one dimension because the order is unclear!
 
-        if isinstance(results,dict):
+        if isinstance(results, dict):
             results = results.keys()
         else:
             results = sc.promotetolist(results)
 
-        if isinstance(pops,dict):
+        if isinstance(pops, dict):
             pops = pops.keys()
         else:
             pops = sc.promotetolist(pops)
 
-        if isinstance(outputs,dict):
+        if isinstance(outputs, dict):
             outputs = outputs.keys()
         else:
             outputs = sc.promotetolist(outputs)
@@ -657,7 +657,7 @@ class PlotData(object):
             scalar_map = cmx.ScalarMappable(norm=color_norm, cmap=colors)
             colors = [scalar_map.to_rgba(index) for index in range(len(targets))]
 
-        # Now each of these colors gets assigned 
+        # Now each of these colors gets assigned
         for color, target in zip(colors, targets):
             series = self.series
             series = [x for x in series if (x.result == target[0] or target[0] == 'all')]
@@ -670,7 +670,7 @@ class PlotData(object):
 
 
 class Series(object):
-    def __init__(self, tvec, vals, result='default', pop='default', output='default', data_label='', color=None,units=''):
+    def __init__(self, tvec, vals, result='default', pop='default', output='default', data_label='', color=None, units=''):
         self.tvec = np.copy(tvec)
         self.t_labels = np.copy(self.tvec)  # Iterable array of time labels - could become strings like [2010-2014]
         self.vals = np.copy(vals)
@@ -687,20 +687,21 @@ class Series(object):
     def __repr__(self):
         return 'Series(%s,%s,%s)' % (self.result, self.pop, self.output)
 
-    def interpolate(self,t2):
+    def interpolate(self, t2):
         # Return an np.array() with the values of this series interpolated onto the requested
         # time array t2. To ensure results are not misleading, extrapolation is disabled
         # and will return NaN if t2 contains values outside the original time range
         f = scipy.interpolate.PchipInterpolator(self.tvec, self.vals, axis=0, extrapolate=False)
         out_of_bounds = (t2 < self.tvec[0]) | (t2 > self.tvec[-1])
         if np.any(out_of_bounds):
-            logger.warning('Series has values from %.2f to %.2f so requested time points %s are out of bounds',self.tvec[0],self.tvec[-1],t2[out_of_bounds])
+            logger.warning('Series has values from %.2f to %.2f so requested time points %s are out of bounds', self.tvec[0], self.tvec[-1], t2[out_of_bounds])
         return f(sc.promotetoarray(t2))
+
 
 def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', legend_mode=None, show_all_labels=False, orientation='vertical'):
     # We have a collection of bars - one for each Result, Pop, Output, and Timepoint.
     # Any aggregations have already been done. But _groupings_ have not. Let's say that we can group
-    # pops and outputs but we never want to stack results. At least for now. 
+    # pops and outputs but we never want to stack results. At least for now.
     # But, the quantities could still vary over time. So we will have
     # - A set of arrays where the number of arrays is the number of things being stacked and
     #   the number of values is the number of bars - could be time, or could be results?
@@ -718,7 +719,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
     assert orientation in ['vertical', 'horizontal'], 'Supported orientations are "vertical" or "horizontal"'
 
     plotdata = sc.dcp(plotdata)
-    
+
     # Note - all of the tvecs must be the same
     tvals, t_labels = plotdata.tvals()  # We have to iterate over these, with offsets, if there is more than one
 
@@ -883,7 +884,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
                     series = plotdata[plotdata.results[r_idx], pop, output]
                     y = series.vals[t_idx]
                     if orientation == 'horizontal':
-                        rectangles[series.color].append(Rectangle((y0,base_offset + block_offset), y, width))
+                        rectangles[series.color].append(Rectangle((y0, base_offset + block_offset), y, width))
                     else:
                         rectangles[series.color].append(Rectangle((base_offset + block_offset, y0), width, y))
 
@@ -956,7 +957,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
             # at the particular axis value where the block of bars appear. Also, it would be common that the plot still
             # needs a title in addition to these (these outer labels are essentially tertiary axis ticks, not a title for the plot)
             if orientation == 'horizontal':
-                ax.text(1,offset + (tval_offset - gaps[1] - gaps[2]) / 2, t, transform=ax.get_yaxis_transform(),
+                ax.text(1, offset + (tval_offset - gaps[1] - gaps[2]) / 2, t, transform=ax.get_yaxis_transform(),
                         verticalalignment='center', horizontalalignment='left')
             else:
                 ax.text(offset + (tval_offset - gaps[1] - gaps[2]) / 2, 1, t, transform=ax.get_xaxis_transform(),
@@ -967,11 +968,11 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
         offset = 0.0
         for r in plotdata.results:
             if orientation == 'horizontal':
-                ax.text(1,offset + (result_offset - gaps[1] - gaps[2]) / 2, plotdata.results[r],
+                ax.text(1, offset + (result_offset - gaps[1] - gaps[2]) / 2, plotdata.results[r],
                         transform=ax.get_yaxis_transform(), verticalalignment='center', horizontalalignment='left')
             else:
                 ax.text(offset + (result_offset - gaps[1] - gaps[2]) / 2, 1, plotdata.results[r],
-                    transform=ax.get_xaxis_transform(), verticalalignment='bottom', horizontalalignment='center')
+                        transform=ax.get_xaxis_transform(), verticalalignment='bottom', horizontalalignment='center')
             offset += result_offset
 
     # If there are no block labels (e.g. due to stacking) and the number of inner labels matches the number of bars, then promote the inner group
@@ -1005,14 +1006,14 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
         ax2.spines['left'].set_visible(False)
         ax2.spines['bottom'].set_visible(False)
 
-    fig.tight_layout() # Do a final resizing
+    fig.tight_layout()  # Do a final resizing
 
     # Do the legend last, so repositioning the axes works properly
-    if legend_mode == 'together': 
+    if legend_mode == 'together':
         render_legend(ax, plot_type='bar', handles=legend_patches)
-    elif legend_mode == 'separate': 
+    elif legend_mode == 'separate':
         figs.append(sc.separatelegend(handles=legend_patches, reverse=True))
-    
+
     return figs
 
 
@@ -1034,7 +1035,8 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
     if lw is None:
         lw = settings['line_width']
 
-    if axis is None: axis = 'outputs'
+    if axis is None:
+        axis = 'outputs'
     assert axis in ['outputs', 'results', 'pops']
 
     figs = []
@@ -1069,7 +1071,7 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
                     if plot_type == 'stacked' and data is not None:
                         stack_data(ax, data, [plotdata[result, pop, output] for result in plotdata.results])
                 else:
-                    for i,result in enumerate(plotdata.results):
+                    for i, result in enumerate(plotdata.results):
                         ax.plot(plotdata[result, pop, output].tvec, plotdata[result, pop, output].vals,
                                 color=plotdata[result, pop, output].color, label=plotdata.results[result], lw=lw)
                         if data is not None and i == 0:
@@ -1137,7 +1139,7 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
                                  labels=[plotdata.outputs[x] for x in plotdata.outputs],
                                  colors=[plotdata[result, pop, output].color for output in plotdata.outputs])
                     if plot_type == 'stacked' and data is not None:
-                        stack_data(ax,data,[plotdata[result, pop, output] for output in plotdata.outputs])
+                        stack_data(ax, data, [plotdata[result, pop, output] for output in plotdata.outputs])
                 else:
                     for output in plotdata.outputs:
                         ax.plot(plotdata[result, pop, output].tvec, plotdata[result, pop, output].vals,
@@ -1156,14 +1158,16 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
 
     return figs
 
-def stack_data(ax,data,series):
+
+def stack_data(ax, data, series):
     # Stack a list of series in order
-    baselines = np.cumsum(np.stack([s.vals for s in series]),axis=0)
-    baselines = np.vstack([np.zeros((1,baselines.shape[1])),baselines]) # Insert row of zeros for first data row
-    for i,s in enumerate(series):
-        render_data(ax,data,s,baselines[i,:],True)
-            
-def render_data(ax, data, series,baseline=None,filled=False):
+    baselines = np.cumsum(np.stack([s.vals for s in series]), axis=0)
+    baselines = np.vstack([np.zeros((1, baselines.shape[1])), baselines])  # Insert row of zeros for first data row
+    for i, s in enumerate(series):
+        render_data(ax, data, s, baselines[i, :], True)
+
+
+def render_data(ax, data, series, baseline=None, filled=False):
     # This function renders a scatter plot for a single variable in a single population
     #
     # INPUTS
@@ -1173,7 +1177,7 @@ def render_data(ax, data, series,baseline=None,filled=False):
     # baseline - adds an offset to the data e.g. for stacked plots
     # filled - fill the marker with a solid fill e.g. for stacked plots
 
-    ts = data.get_ts(series.data_label,series.pop)
+    ts = data.get_ts(series.data_label, series.pop)
     if ts is None:
         return
 
@@ -1187,9 +1191,9 @@ def render_data(ax, data, series,baseline=None,filled=False):
         y = y + y_data
 
     if filled:
-        ax.scatter(t,y,marker='o', s=40, linewidths=1, facecolors=series.color,color='k')#label='Data %s %s' % (name(pop,proj),name(output,proj)))
+        ax.scatter(t, y, marker='o', s=40, linewidths=1, facecolors=series.color, color='k')  # label='Data %s %s' % (name(pop,proj),name(output,proj)))
     else:
-        ax.scatter(t,y,marker='o', s=40, linewidths=3, facecolors='none',color=series.color)#label='Data %s %s' % (name(pop,proj),name(output,proj)))
+        ax.scatter(t, y, marker='o', s=40, linewidths=3, facecolors='none', color=series.color)  # label='Data %s %s' % (name(pop,proj),name(output,proj)))
 
 
 def set_tick_format(axis, formatter):
@@ -1197,7 +1201,7 @@ def set_tick_format(axis, formatter):
     # - axis : The axis to format e.g. 'ax.xaxis' or 'ax.yaxis'
     # - formatter : Specify which format to use (scope to expand selection in here, e.g. draw from sciris)
     def km(x, pos):
-        # 
+        #
         if x >= 1e6:
             return '%1.1fM' % (x * 1e-6)
         elif x >= 1e3:
@@ -1368,11 +1372,11 @@ def get_full_name(output_id, proj):
         return output_id
 
     if output_id in proj.data.pops:
-        return proj.data.pops[output_id]['label'] # Convert population
+        return proj.data.pops[output_id]['label']  # Convert population
 
-    full_name = lambda x: proj.framework.get_variable(x)[0]['display name']
+    def full_name(x): return proj.framework.get_variable(x)[0]['display name']
 
-    if ':' in output_id: # We are parsing a link
+    if ':' in output_id:  # We are parsing a link
         # Handle Links specified with colon syntax
         output_tokens = output_id.split(':')
         if len(output_tokens) == 2:
@@ -1425,6 +1429,7 @@ def nested_loop(inputs, loop_order):
         for i in range(len(item)):
             out[loop_order[i]] = item[i]
         yield out
+
 
 def expand_dict(x):
     # If a list contains a dict with multiple keys, expand it into multiple dicts each

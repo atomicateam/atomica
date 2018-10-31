@@ -6,7 +6,8 @@ import sciris as sc
 from .results import Result
 from .structure import FrameworkSettings as FS
 
-available_migrations = [] # This list stores all of the migrations that are possible
+available_migrations = []  # This list stores all of the migrations that are possible
+
 
 class Migration:
     """ Class representation of a migration
@@ -26,17 +27,17 @@ class Migration:
         self.fcn = fcn
 
     def upgrade(self, proj):
-        logger.debug('MIGRATION: Upgrading %s -> %s (%s)' % (self.original_version,self.new_version,self.description))
-        proj = self.fcn(proj) # Run the migration function
+        logger.debug('MIGRATION: Upgrading %s -> %s (%s)' % (self.original_version, self.new_version, self.description))
+        proj = self.fcn(proj)  # Run the migration function
         if proj is None:
             raise AtomicaException('Migration "%s" returned None, it is likely missing a return statement' % (str(self)))
-        proj.version = self.new_version # Update the version
+        proj.version = self.new_version  # Update the version
         if self.changes_results:
             proj._result_update_required = True
         return proj
 
     def __repr__(self):
-        return 'Migration(%s->%s)' % (self.original_version,self.new_version)
+        return 'Migration(%s->%s)' % (self.original_version, self.new_version)
 
 
 def migration(original_version, new_version, description, date=None, changes_results=False):
@@ -70,6 +71,7 @@ def migration(original_version, new_version, description, date=None, changes_res
         return f
     return register
 
+
 def migrate(proj):
     """ Update a project to the latest version
 
@@ -93,17 +95,17 @@ def migrate(proj):
     """
 
     migrations = sorted(available_migrations, key=lambda m: LooseVersion(m.original_version))
-    if sc.compareversions(proj.version,version) >= 0:
+    if sc.compareversions(proj.version, version) >= 0:
         return proj
     else:
         logger.info('Migrating Project "%s" from %s->%s' % (proj.name, proj.version, version))
-    for m in migrations: # Run the migrations in increasing version order
-        if sc.compareversions(proj.version,m.original_version) > 0:
+    for m in migrations:  # Run the migrations in increasing version order
+        if sc.compareversions(proj.version, m.original_version) > 0:
             continue
         else:
             proj = m.upgrade(proj)
 
-    proj.version = version # Set project version to the current Atomica version
+    proj.version = version  # Set project version to the current Atomica version
     if proj._result_update_required:
         logger.warning('Caution: due to migration, project results may be different if re-run.')
     return proj
@@ -130,11 +132,12 @@ def all_results(proj):
     """
 
     for result in proj.results.values():
-        if isinstance(result,list):
+        if isinstance(result, list):
             for r in result:
                 yield r
-        elif isinstance(result,Result):
+        elif isinstance(result, Result):
             yield result
+
 
 def all_progsets(proj):
     """ Helper generator to iterate over all progsets in a project
@@ -159,41 +162,43 @@ def all_progsets(proj):
         yield(progset)
 
     for result in proj.results.values():
-        if isinstance(result,list):
+        if isinstance(result, list):
             for r in result:
                 if r.model.progset is not None:
                     yield r.model.progset
-        elif isinstance(result,Result) and result.model.progset is not None:
+        elif isinstance(result, Result) and result.model.progset is not None:
             yield result.model.progset
 
 
-@migration('1.0.5', '1.0.6','Simplify ParameterSet storage')
+@migration('1.0.5', '1.0.6', 'Simplify ParameterSet storage')
 def simplify_parset_storage(proj):
     # ParameterSets in 1.0.5 store the parameters keyed by the type e.g. 'cascade','comp'
     # In 1.0.6 they are flat
     for parset in proj.parsets.values():
         new_pars = sc.odict()
-        for par_type,par_list in parset.pars.items():
+        for par_type, par_list in parset.pars.items():
             for par in par_list:
                 new_pars[par.name] = par
         parset.pars = new_pars
         del parset.par_ids
     return proj
 
-@migration('1.0.7', '1.0.8','Add version information to model/results')
+
+@migration('1.0.7', '1.0.8', 'Add version information to model/results')
 def add_model_version(proj):
 
-    def add_version(res,p):
+    def add_version(res, p):
         res.model.version = p.version
         res.model.gitinfo = p.gitinfo
         res.model.created = p.created
 
     for result in all_results(proj):
-        add_version(result,proj)
+        add_version(result, proj)
 
     return proj
 
-@migration('1.0.8', '1.0.9','Add currency and units to progset quantities')
+
+@migration('1.0.8', '1.0.9', 'Add currency and units to progset quantities')
 def add_model_version(proj):
 
     def add_units(progset):
@@ -212,7 +217,8 @@ def add_model_version(proj):
 
     return proj
 
-@migration('1.0.9', '1.0.10','Remove target_pars from Programs')
+
+@migration('1.0.9', '1.0.10', 'Remove target_pars from Programs')
 def remove_target_pars(proj):
 
     def remove_pars(progset):
@@ -223,6 +229,7 @@ def remove_target_pars(proj):
         remove_pars(progset)
 
     return proj
+
 
 @migration('1.0.10', '1.0.11', 'Add result update flag to Project')
 def remove_target_pars(proj):

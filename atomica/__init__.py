@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import pandas as pd
+from atomica.version import version as __version__, versiondate as __versiondate__
 """
 Atomica module initialization file.
 
@@ -52,28 +54,27 @@ from datetime import datetime
 import logging
 logger = logging.getLogger('atomica')
 
-if not any([isinstance(h,logging.StreamHandler) and not isinstance(h,logging.FileHandler) for h in logger.handlers]):
+if not any([isinstance(h, logging.StreamHandler) and not isinstance(h, logging.FileHandler) for h in logger.handlers]):
     # Only add handlers if they don't already exist in the module-level logger
-    # User can still add a file handler to the 
+    # User can still add a file handler to the
     h1 = logging.StreamHandler(sys.stdout)
     h2 = logging.StreamHandler(sys.stderr)
     # h2 sends warnings and above to STDERR, while h1 sends everything else to stdout
-    h1.setLevel(0) # Handle all
+    h1.setLevel(0)  # Handle all
     warning_level = logging.WARNING
-    h1.addFilter(type("ThresholdFilter", (object,), {"filter": lambda x,logRecord: logRecord.levelno < warning_level})()) # Display anything less than a warning
+    h1.addFilter(type("ThresholdFilter", (object,), {"filter": lambda x, logRecord: logRecord.levelno < warning_level})())  # Display anything less than a warning
     h2.setLevel(logging.WARNING)
-    
+
     logger.addHandler(h1)
     logger.addHandler(h2)
 
-from atomica.version import version as __version__, versiondate as __versiondate__
-logger.critical('Atomica %s (%s) -- (c) the Atomica development team' % (__version__, __versiondate__)) # Log with the highest level
+logger.critical('Atomica %s (%s) -- (c) the Atomica development team' % (__version__, __versiondate__))  # Log with the highest level
 logger.critical(datetime.now())
 
 try:
     import sciris as sc
     atomica_git = sc.gitinfo(__file__)
-    logger.critical('git branch: %s (%s)' % (atomica_git['branch'],atomica_git['hash']))
+    logger.critical('git branch: %s (%s)' % (atomica_git['branch'], atomica_git['hash']))
     del atomica_git
 except:
     pass
@@ -82,5 +83,4 @@ except:
 logger.setLevel('INFO')
 
 # Increase Framework performance by not calling garbage collection all the time
-import pandas as pd
 pd.set_option('mode.chained_assignment', None)

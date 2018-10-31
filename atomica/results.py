@@ -9,6 +9,7 @@ from .system import logger, AtomicaException
 from zipfile import ZipFile
 import os
 
+
 class Result(NamedItem):
     # A Result stores a single model run
     def __init__(self, model, parset=None, name=None):
@@ -17,7 +18,7 @@ class Result(NamedItem):
                 name = None
             else:
                 name = parset.name
-        NamedItem.__init__(self,name)
+        NamedItem.__init__(self, name)
 
         self.uid = sc.uuid()
 
@@ -61,7 +62,7 @@ class Result(NamedItem):
         else:
             return self.model.progset.get_alloc(self.t, self.model.program_instructions)
 
-    def get_coverage(self,quantity='fraction'):
+    def get_coverage(self, quantity='fraction'):
         # Return program coverage
         #
         # INPUTS
@@ -78,15 +79,15 @@ class Result(NamedItem):
             return num_coverage
         else:
             # Get the program coverage denominator
-            num_eligible = dict() # This is the coverage denominator, number of people covered by the program
-            for prog in self.model.progset.programs.values(): # For each program
+            num_eligible = dict()  # This is the coverage denominator, number of people covered by the program
+            for prog in self.model.progset.programs.values():  # For each program
                 for pop_name in prog.target_pops:
                     for comp_name in prog.target_comps:
                         if prog.name not in num_eligible:
-                            num_eligible[prog.name] = self.get_variable(pop_name,comp_name)[0].vals.copy()
+                            num_eligible[prog.name] = self.get_variable(pop_name, comp_name)[0].vals.copy()
                         else:
-                            num_eligible[prog.name] += self.get_variable(pop_name,comp_name)[0].vals
-            prop_coverage = self.model.progset.get_prop_coverage(tvec=self.t, num_coverage=num_coverage,denominator=num_eligible,instructions=self.model.program_instructions, sample=False)
+                            num_eligible[prog.name] += self.get_variable(pop_name, comp_name)[0].vals
+            prop_coverage = self.model.progset.get_prop_coverage(tvec=self.t, num_coverage=num_coverage, denominator=num_eligible, instructions=self.model.program_instructions, sample=False)
 
             if quantity == 'fraction':
                 return prop_coverage
@@ -127,7 +128,7 @@ class Result(NamedItem):
         # Retrieve a list of variables from a population
         return self.model.get_pop(pops).get_variable(name)
 
-    def export(self,filename=None,plot_names=None,cascade_names=None, include_target_pars=True, include_programs=True):
+    def export(self, filename=None, plot_names=None, cascade_names=None, include_target_pars=True, include_programs=True):
         # This function writes an XLSX file with the data corresponding to any Cascades or Plots
         # that are present. Note that results are exported for every year by selecting integer years.
         # Flow rates are annualized instantaneously. So for example, the flow will have values from
@@ -158,7 +159,7 @@ class Result(NamedItem):
 
         pop_names = sc.odict()
         pop_names['all'] = 'Entire population'
-        for pop_name,pop_label in zip(self.pop_names,self.pop_labels):
+        for pop_name, pop_label in zip(self.pop_names, self.pop_labels):
             pop_names[pop_name] = pop_label
 
         new_tvals = np.arange(np.ceil(self.t[0]), np.floor(self.t[-1]) + 1)
@@ -173,15 +174,15 @@ class Result(NamedItem):
 
             # Now for each plot, we have one output and several populations
             # We will have one dataframe for each output
-            for _,spec in plots_required.iterrows():
+            for _, spec in plots_required.iterrows():
                 if 'type' in spec and spec['type'] == 'bar':
-                    continue # For now, don't do bars - not implemented yet
+                    continue  # For now, don't do bars - not implemented yet
                 data = sc.odict()
-                popdata = PlotData(self,outputs=evaluate_plot_string(spec['quantities']))
+                popdata = PlotData(self, outputs=evaluate_plot_string(spec['quantities']))
                 assert len(popdata.outputs) == 1, 'Framework plot specification should evaluate to exactly one output series - there were %d' % (len(popdata.outputs))
                 popdata.interpolate(new_tvals)
                 for pop in popdata.pops:
-                    data[pop_names[pop]] = popdata[self.name,pop,popdata.outputs[0]].vals
+                    data[pop_names[pop]] = popdata[self.name, pop, popdata.outputs[0]].vals
                 df = pd.DataFrame(data, index=new_tvals)
                 df = df.T
                 df.name = spec['name']
@@ -191,45 +192,45 @@ class Result(NamedItem):
 
         for name in self.framework.cascades.keys():
             if cascade_names is None or name in cascade_names:
-                for pop,label in pop_names.items():
+                for pop, label in pop_names.items():
                     data = sc.odict()
-                    cascade_vals,_ = get_cascade_vals(self,name,pops=pop,year=new_tvals)
-                    for stage,vals in cascade_vals.items():
+                    cascade_vals, _ = get_cascade_vals(self, name, pops=pop, year=new_tvals)
+                    for stage, vals in cascade_vals.items():
                         data[stage] = vals
                     df = pd.DataFrame(data, index=new_tvals)
                     df = df.T
-                    df.name = '%s - %s' % (name,label)
+                    df.name = '%s - %s' % (name, label)
                     cascade_df.append(df)
 
         output_fname = filename + '.xlsx' if not filename.endswith('.xlsx') else filename
-        writer = pd.ExcelWriter(output_fname,engine='xlsxwriter')
+        writer = pd.ExcelWriter(output_fname, engine='xlsxwriter')
         formats = standard_formats(writer.book)
 
         # WRITE THE PLOTS
-        def write_df_list(df_list,sheet_name):
+        def write_df_list(df_list, sheet_name):
             i = 0
             for n, df in enumerate(df_list):
                 df.to_excel(writer, sheet_name, startcol=0, startrow=i)
                 worksheet = writer.sheets[sheet_name]
-                worksheet.write_string(i,0, df.name,formats['center_bold'])
+                worksheet.write_string(i, 0, df.name, formats['center_bold'])
                 i += df.shape[0] + 2
             worksheet = writer.sheets[sheet_name]
 
             required_width = 0.0
             for df in df_list:
-                required_width = max(required_width,len(df.name))
-                if not isinstance(df.index,pd.MultiIndex):
+                required_width = max(required_width, len(df.name))
+                if not isinstance(df.index, pd.MultiIndex):
                     required_width = max(required_width, max(df.index.str.len()))
             worksheet.set_column(0, 0, required_width * 1.1 + 1)
 
         if plot_df:
-            write_df_list(plot_df,'Plot data')
+            write_df_list(plot_df, 'Plot data')
 
         if cascade_df:
-            write_df_list(cascade_df,'Cascades')
+            write_df_list(cascade_df, 'Cascades')
 
         if include_target_pars:
-            targetable_code_names = list(self.framework.pars.index[self.framework.pars['targetable']=='y'])
+            targetable_code_names = list(self.framework.pars.index[self.framework.pars['targetable'] == 'y'])
             if targetable_code_names:
                 par_df = []
 
@@ -253,16 +254,16 @@ class Result(NamedItem):
                 for prog_name in self.model.progset.programs:
                     data = sc.odict()
 
-                    spending = PlotData.programs(self, outputs=prog_name,quantity='spending').interpolate(new_tvals)
+                    spending = PlotData.programs(self, outputs=prog_name, quantity='spending').interpolate(new_tvals)
                     data['Spending ($/year)'] = spending.series[0].vals
 
-                    spending = PlotData.programs(self, outputs=prog_name,quantity='coverage_number').interpolate(new_tvals)
+                    spending = PlotData.programs(self, outputs=prog_name, quantity='coverage_number').interpolate(new_tvals)
                     data['People covered'] = spending.series[0].vals
 
-                    spending = PlotData.programs(self, outputs=prog_name,quantity='coverage_denominator').interpolate(new_tvals)
+                    spending = PlotData.programs(self, outputs=prog_name, quantity='coverage_denominator').interpolate(new_tvals)
                     data['People eligible'] = spending.series[0].vals
 
-                    spending = PlotData.programs(self, outputs=prog_name,quantity='coverage_fraction').interpolate(new_tvals)
+                    spending = PlotData.programs(self, outputs=prog_name, quantity='coverage_fraction').interpolate(new_tvals)
                     data['Proportion covered'] = spending.series[0].vals
 
                     df = pd.DataFrame(data, index=new_tvals)
@@ -310,7 +311,7 @@ class Result(NamedItem):
 
         return df
 
-    def plot(self,plot_name=None,plot_group=None,pops=None,project=None):
+    def plot(self, plot_name=None, plot_group=None, pops=None, project=None):
         # Plot a single Result instance using the plots defined in the framework
         # INPUTS
         # - plot_name : The name of a single plot in the Framework
@@ -326,23 +327,23 @@ class Result(NamedItem):
 
         if plot_group is None and plot_name is None:
             for plot_name in df['name']:
-                self.plot(plot_name,pops=pops,project=project)
+                self.plot(plot_name, pops=pops, project=project)
             return
         elif plot_group is not None:
-            for plot_name in df.loc[df['plot group']==plot_group,'name']:
-                self.plot(plot_name=plot_name,pops=pops,project=project)
+            for plot_name in df.loc[df['plot group'] == plot_group, 'name']:
+                self.plot(plot_name=plot_name, pops=pops, project=project)
             return
 
-        this_plot = df.loc[df['name'] == plot_name, :].iloc[0] # A Series with the row of the 'Plots' sheet corresponding to the plot we want to render
+        this_plot = df.loc[df['name'] == plot_name, :].iloc[0]  # A Series with the row of the 'Plots' sheet corresponding to the plot we want to render
 
         quantities = evaluate_plot_string(this_plot['quantities'])
 
-        d = PlotData(self, outputs=quantities, pops=pops,project=project)
-        h = plot_series(d, axis='pops',data=(project.data if project is not None else None))
+        d = PlotData(self, outputs=quantities, pops=pops, project=project)
+        h = plot_series(d, axis='pops', data=(project.data if project is not None else None))
         plt.title(this_plot['name'])
         return h
 
-    def budget(self,year=None):
+    def budget(self, year=None):
         # Return budget at given year
         # year - a time, or array of times. Returns budget at these times. If `None` then
         #        it will use all simulation times
@@ -353,18 +354,19 @@ class Result(NamedItem):
                 year = self.t
             return self.model.progset.get_alloc(year, self.model.program_instructions)
 
-    def coverage(self,year=None,quantity='coverage_fraction'):
+    def coverage(self, year=None, quantity='coverage_fraction'):
         # Other supported quantities - 'coverage_number' or 'coverage_denominator'
-        from .plotting import PlotData # return
+        from .plotting import PlotData  # return
 
         if self.model.progset is None:
             return None
         else:
             if year is None:
                 year = self.t
-        d = PlotData.programs(self,quantity=quantity)
+        d = PlotData.programs(self, quantity=quantity)
         d.interpolate(year)
         return sc.odict([(s.data_label, s.vals) for s in d.series])
+
 
 def evaluate_plot_string(plot_string):
     # The plots in the framework are specified as strings - for example,
@@ -398,7 +400,7 @@ def evaluate_plot_string(plot_string):
         return plot_string
 
 
-def export_results(results,fname):
+def export_results(results, fname):
     # fname is the output file to write, including path
     # e.g. concatenate downloads_dir.dir_path with 'output.zip'
     results = sc.promotetolist(results)
@@ -411,8 +413,8 @@ def export_results(results,fname):
     # same time with the same filenames?
     result_files = [x.export('temp_export_%s.xlsx' % (x.name)) for x in results]
 
-    with ZipFile(fname,'w') as zipfile:  # Create the zip file, putting all of the .prj files in a projects directory.
+    with ZipFile(fname, 'w') as zipfile:  # Create the zip file, putting all of the .prj files in a projects directory.
         for result_file in result_files:
-            zipfile.write(result_file,result_file.replace('temp_export_',''))
+            zipfile.write(result_file, result_file.replace('temp_export_', ''))
             os.remove(result_file)
     return fname  # Return the server file name.

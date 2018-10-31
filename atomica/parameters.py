@@ -8,6 +8,8 @@ from .system import AtomicaException, logger
 from .utils import NamedItem
 
 # Parameter class that stores one array of values converted from raw project data
+
+
 class Parameter(NamedItem):
     """ Class to hold one set of parameter values disaggregated by populations. """
 
@@ -15,11 +17,16 @@ class Parameter(NamedItem):
         NamedItem.__init__(self, name)
 
         # These ordered dictionaries have population names as keys.
-        if t is None: t = sc.odict()
-        if y is None: y = sc.odict()
-        if y_format is None: y_format = sc.odict()
-        if y_factor is None: y_factor = sc.odict()
-        if autocalibrate is None: autocalibrate = sc.odict()
+        if t is None:
+            t = sc.odict()
+        if y is None:
+            y = sc.odict()
+        if y_format is None:
+            y_format = sc.odict()
+        if y_factor is None:
+            y_factor = sc.odict()
+        if autocalibrate is None:
+            autocalibrate = sc.odict()
         self.t = t  # Time data
         self.y = y  # Value data
         self.y_format = y_format  # Value format data (e.g. Probability, Fraction or Number).
@@ -90,12 +97,12 @@ class Parameter(NamedItem):
                                    "without providing a time vector.".format(self.name))
 
         if not self.has_values(pop_name):
-            raise AtomicaException('Parameter "%s" contains no data for pop "%s", and thus cannot be interpolated' % (self.name,pop_name))
+            raise AtomicaException('Parameter "%s" contains no data for pop "%s", and thus cannot be interpolated' % (self.name, pop_name))
 
         tvec = sc.promotetoarray(tvec)
         if not len(self.t[pop_name]) > 0:
             raise AtomicaException("There are no timepoint values for parameter '{0}', "
-                               "population '{1}'.".format(self.name, pop_name))
+                                   "population '{1}'.".format(self.name, pop_name))
         if not len(self.t[pop_name]) == len(self.y[pop_name]):
             raise AtomicaException("Parameter '{0}', population '{1}', does not have corresponding values "
                                    "and timepoints.".format(self.name, pop_name))
@@ -169,7 +176,7 @@ class ParameterSet(NamedItem):
         par.y_factor[pop_name] = scale
         return None
 
-    def get_scaling_factor(self,par_name,pop_name):
+    def get_scaling_factor(self, par_name, pop_name):
         return self.get_par(par_name).y_factor[pop_name]
 
     def get_par(self, name):
@@ -183,11 +190,11 @@ class ParameterSet(NamedItem):
         self.pop_labels = [pop["label"] for pop in data.pops.values()]
 
         # Cascade parameter and characteristic extraction.
-        for name,tdve in data.tdve.items():
+        for name, tdve in data.tdve.items():
             par = Parameter(name=name)
             self.pars[name] = par
 
-            for pop_name,ts in tdve.ts.items():
+            for pop_name, ts in tdve.ts.items():
                 tvec, yvec = ts.get_arrays()
                 par.t[pop_name] = tvec
                 par.y[pop_name] = yvec
@@ -195,7 +202,7 @@ class ParameterSet(NamedItem):
                     if ts.units.lower().strip() in FS.STANDARD_UNITS:
                         par.y_format[pop_name] = ts.units.lower().strip()
                     else:
-                        par.y_format[pop_name] = ts.units.strip() # Preserve the case if it's not a standard unit
+                        par.y_format[pop_name] = ts.units.strip()  # Preserve the case if it's not a standard unit
                 else:
                     par.y_format[pop_name] = None
                 par.y_factor[pop_name] = 1.0
@@ -203,7 +210,7 @@ class ParameterSet(NamedItem):
         # We have just created Parameter objects for every parameter in the databook
         # However, we also need Parameter objects for dependent parameters not in the databook
         # This allows them to be used in transitions and also for the user to set y-factors for them
-        for _,spec in framework.pars.iterrows():
+        for _, spec in framework.pars.iterrows():
             if spec.name not in self.pars:
                 par = Parameter(name=spec.name)
                 self.pars[spec.name] = par
@@ -222,11 +229,11 @@ class ParameterSet(NamedItem):
             else:
                 raise AtomicaException('Unknown time-dependent connection type')
 
-            name = tdc.code_name # The name of this interaction e.g. 'age'
+            name = tdc.code_name  # The name of this interaction e.g. 'age'
             if name not in item_storage:
                 item_storage[name] = sc.odict()
 
-            for pop_link,ts in tdc.ts.items():
+            for pop_link, ts in tdc.ts.items():
                 source_pop = pop_link[0]
                 target_pop = pop_link[1]
                 if pop_link[0] not in item_storage[name]:
@@ -238,5 +245,3 @@ class ParameterSet(NamedItem):
                 item_storage[name][source_pop].y_factor[target_pop] = 1.0
 
         return
-
-

@@ -43,13 +43,13 @@ def calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, pr
 
     try:
         result = project.run_sim(parset=parset, store_results=False)
-    except BadInitialization: # If the proposed parameters lead to invalid initial compartment sizes
+    except BadInitialization:  # If the proposed parameters lead to invalid initial compartment sizes
         return np.inf
 
     objective = 0.0
 
     for var_label, pop_name, weight, metric in output_quantities:
-        target = project.data.get_ts(var_label,pop_name) # This is the TimeSeries with the data for the requested quantity
+        target = project.data.get_ts(var_label, pop_name)  # This is the TimeSeries with the data for the requested quantity
         if target is None:
             continue
         if not target.has_time_data:     # Only use this output quantity if the user entered time-specific data
@@ -67,8 +67,8 @@ def calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, pr
 
 def _get_fitscore_func(metric):
     """
-    
-    
+
+
     """
     availfns = globals().copy()
     availfns.update(locals())
@@ -80,7 +80,7 @@ def _get_fitscore_func(metric):
 
 def _calculate_fitscore(y_obs, y_fit, metric="meansquare"):
     """
-    
+
 
     """
     return _get_fitscore_func(metric)(y_obs, y_fit)
@@ -89,7 +89,7 @@ def _calculate_fitscore(y_obs, y_fit, metric="meansquare"):
 def _calc_meansquare(y_obs, y_fit):
     """
     Calcs the RMS error. 
-    
+
     Note: could also use implementation from sklearn in future ... 
     """
     return np.sqrt(((y_fit - y_obs) ** 2).mean())
@@ -141,7 +141,7 @@ def perform_autofit(project, parset, pars_to_adjust, output_quantities, max_time
     output_quantities = o2
 
     original_sim_end = project.settings.sim_end
-    project.settings.sim_end = min(project.data.tvec[-1],original_sim_end)
+    project.settings.sim_end = min(project.data.tvec[-1], original_sim_end)
 
     args = {
         'project': project,
@@ -149,7 +149,7 @@ def perform_autofit(project, parset, pars_to_adjust, output_quantities, max_time
         'pars_to_adjust': pars_to_adjust,
         'output_quantities': output_quantities,
     }
-    
+
     x0 = []
     xmin = []
     xmax = []
@@ -208,6 +208,6 @@ def perform_autofit(project, parset, pars_to_adjust, output_quantities, max_time
 
     args['parset'].name = 'calibrated_' + args['parset'].name
 
-    project.settings.sim_end = original_sim_end # Restore the simulation end year
+    project.settings.sim_end = original_sim_end  # Restore the simulation end year
 
     return args['parset']
