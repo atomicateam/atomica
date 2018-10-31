@@ -1,10 +1,10 @@
 # Central file for migrating Projects
+from distutils.version import LooseVersion
 from .system import logger, AtomicaException
 from .version import version
 import sciris as sc
 from .results import Result
 from .structure import FrameworkSettings as FS
-from distutils.version import LooseVersion
 
 available_migrations = [] # This list stores all of the migrations that are possible
 

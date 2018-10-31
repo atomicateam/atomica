@@ -1,5 +1,7 @@
+# Atomica
 
-# About Atomica
+[![Build Status](https://travis-ci.com/atomicateam/atomica.svg?branch=develop)](https://travis-ci.com/atomicateam/atomica)
+[![Documentation Status](https://readthedocs.org/projects/atomica/badge/?version=latest)](https://atomica.readthedocs.io/en/latest/?badge=latest)
 
 Atomica is a simulation engine for compartmental models. It can be used to simulate disease epidemics, health care cascades, and many other things.
 
@@ -12,14 +14,14 @@ Atomica is still under development; please check back regularly for updates.
 * Ensure you have a scientific Python distribution already installed (dependencies include, but are not limited to: `numpy`, `scipy`, and `matplotlib`).
 * Install Sciris:
 ```
-git clone https://github.com/optimamodel/sciris.git
+git clone https://github.com/sciris/sciris.git
 cd sciris
 python setup.py develop
 ```
 * Note that some dependencies might be missing (we are working on this!).
 * Install Atomica:
 ```
-git clone https://github.com/optimamodel/atomica.git
+git clone https://github.com/atomicateam/atomica.git
 cd atomica
 python setup.py develop
 ```
