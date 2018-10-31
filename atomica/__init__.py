@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-import pandas as pd
-from atomica.version import version as __version__, versiondate as __versiondate__
 """
 Atomica module initialization file.
 
@@ -68,7 +66,8 @@ if not any([isinstance(h, logging.StreamHandler) and not isinstance(h, logging.F
     logger.addHandler(h1)
     logger.addHandler(h2)
 
-logger.critical('Atomica %s (%s) -- (c) the Atomica development team' % (__version__, __versiondate__))  # Log with the highest level
+from atomica.version import version as __version__, versiondate as __versiondate__
+logger.critical('Atomica %s (%s) -- (c) the Atomica development team' % (__version__, __versiondate__)) # Log with the highest level
 logger.critical(datetime.now())
 
 try:
@@ -83,4 +82,5 @@ except:
 logger.setLevel('INFO')
 
 # Increase Framework performance by not calling garbage collection all the time
+import pandas as pd
 pd.set_option('mode.chained_assignment', None)
