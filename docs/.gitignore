@@ -1,3 +1,2 @@
 _build
-_static
-atomica # note this folder is generated automatically
+_autosummary

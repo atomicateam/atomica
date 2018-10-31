@@ -3,15 +3,6 @@ This module defines the Program and Programset classes, which are
 used to define a single program/modality (e.g., FSW programs) and a
 set of programs, respectively.
 
-Submodules
-==========
-
-.. autosummary::
-    :toctree: _autosummary
-
-    inner
-
-
 
 Version: 2018jul30
 """
@@ -78,9 +69,20 @@ class ProgramInstructions(object):
 #--------------------------------------------------------------------
 
 class ProgramSet(NamedItem):
+    """ Representation of a single program
 
+    A Program object will be instantiated for every program listed on the 'Program Targeting'
+    sheet in the program book
+
+    """
     def __init__(self, name="default",tvec=None):
-        """ Class to hold all programs and programmatic effects. """
+        """
+
+        :param name: Optionally specify the name of the ProgramSet
+        :param tvec: Optionally specify the years for data entry
+
+        """
+
         NamedItem.__init__(self,name)
 
         self.tvec = tvec # This is the data tvec that will be used when writing the progset to a spreadsheet
@@ -813,11 +815,15 @@ class ProgramSet(NamedItem):
 # Program class
 #--------------------------------------------------------------------
 class Program(NamedItem):
-    ''' Defines a single program.'''
+    """ Representation of a single program
+
+    A Program object will be instantiated for every program listed on the 'Program Targeting'
+    sheet in the program book
+
+    """
 
     def __init__(self, name, label=None, target_pops=None, target_comps=None, currency='$'):
-        """ Instantiate a new Program
-
+        """
         :param name: Short name of the program
         :param label: Full name of the program
         :param target_pops: List of population code names for pops targeted by the program

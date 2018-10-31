@@ -2,38 +2,10 @@ Welcome to Atomica's documentation!
 ===================================
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+    :maxdepth: 1
 
-
-.. autosummary::
-   :toctree: atomica
-
-    atomica
-    atomica.calibration
-    atomica.cascade
-    atomica.data
-    atomica.defaults
-    atomica.excel
-    atomica.framework
-    atomica.interpolation
-    atomica.migration
-    atomica.model
-    atomica.optimization
-    atomica.parameters
-    atomica.parser_function
-    atomica.plotting
-    atomica.programs
-    atomica.project
-    atomica.reconciliation
-    atomica.results
-    atomica.scenarios
-    atomica.structure
-    atomica.system
-    atomica.ui
-    atomica.utils
-    atomica.version
-
+    general/index
+    code_documentation
 
 
 Indices and tables
