@@ -1,0 +1,5 @@
+# Development dependencies
+pytest
+pytest-xdist
+git+https://github.com/sciris/sciris
+git+https://github.com/sciris/mpld3

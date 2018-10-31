@@ -39,7 +39,7 @@ setup(
         'xlsxwriter',
         'scipy',
         'pyswarm',
-        'git+https://github.com/sciris/sciris',
+        'sciris',
         'gitpython',
     ],
 )
