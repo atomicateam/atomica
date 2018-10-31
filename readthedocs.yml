@@ -1,0 +1,4 @@
+build:
+    image: automatic-testing
+python:
+    version: 3.6
