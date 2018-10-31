@@ -39,7 +39,7 @@ extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
     'sphinx.ext.napoleon',
-    'nbsphinx',
+    # 'nbsphinx',
 ]
 
 autoclass_content = "both"  # include both class docstring and __init__
