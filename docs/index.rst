@@ -1,8 +1,3 @@
-.. Atomica documentation master file, created by
-   sphinx-quickstart on Wed Oct 31 08:40:05 2018.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
 Welcome to Atomica's documentation!
 ===================================
 
@@ -10,7 +5,36 @@ Welcome to Atomica's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-   about
+
+.. autosummary::
+   :toctree: atomica
+
+    atomica
+    atomica.calibration
+    atomica.cascade
+    atomica.data
+    atomica.defaults
+    atomica.excel
+    atomica.framework
+    atomica.interpolation
+    atomica.migration
+    atomica.model
+    atomica.optimization
+    atomica.parameters
+    atomica.parser_function
+    atomica.plotting
+    atomica.programs
+    atomica.project
+    atomica.reconciliation
+    atomica.results
+    atomica.scenarios
+    atomica.structure
+    atomica.system
+    atomica.ui
+    atomica.utils
+    atomica.version
+
+
 
 Indices and tables
 ==================

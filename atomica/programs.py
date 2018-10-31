@@ -3,6 +3,16 @@ This module defines the Program and Programset classes, which are
 used to define a single program/modality (e.g., FSW programs) and a
 set of programs, respectively.
 
+Submodules
+==========
+
+.. autosummary::
+    :toctree: _autosummary
+
+    inner
+
+
+
 Version: 2018jul30
 """
 

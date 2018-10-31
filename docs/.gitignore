@@ -1,3 +1,3 @@
 _build
 _static
-_templates
+atomica # note this folder is generated automatically

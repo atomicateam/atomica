@@ -12,10 +12,8 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-# import os
-# import sys
-# sys.path.insert(0, os.path.abspath('.'))
-
+import os
+import sys
 
 # -- Project information -----------------------------------------------------
 
@@ -40,9 +38,29 @@ release = ''
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
+    'sphinx.ext.autosummary',
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
+    'sphinx.ext.napoleon',
 ]
+
+# def run_apidoc(_):
+#     from sphinx.apidoc import main
+#     parentFolder = os.path.join(os.path.dirname(__file__), os.pardir)
+#     cur_dir = os.path.abspath(os.path.dirname(__file__))
+#     sys.path.append(parentFolder)
+#     # change "backend" to your module name
+#     module = os.path.join(parentFolder,'atomica')
+#     output_path = os.path.join(cur_dir, 'atomica')
+#     main(['-e','-f','-o', output_path, module])
+#
+# def setup(app):
+#     # overrides for wide tables in RTD theme
+#     app.add_stylesheet('theme_overrides.css')
+#     # trigger the run_apidoc
+#     app.connect('builder-inited', run_apidoc)
+
+autosummary_generate = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -84,7 +102,7 @@ pygments_style = None
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'alabaster'
+html_theme = 'sphinx_rtd_theme'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
