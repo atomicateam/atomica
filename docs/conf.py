@@ -6,6 +6,8 @@
 # full list see the documentation:
 # http://www.sphinx-doc.org/en/master/config
 
+import matplotlib
+matplotlib.use('agg')
 import atomica
 import sciris
 # -- Path setup --------------------------------------------------------------
