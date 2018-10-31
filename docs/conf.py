@@ -42,23 +42,8 @@ extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
     'sphinx.ext.napoleon',
+    'nbsphinx',
 ]
-
-# def run_apidoc(_):
-#     from sphinx.apidoc import main
-#     parentFolder = os.path.join(os.path.dirname(__file__), os.pardir)
-#     cur_dir = os.path.abspath(os.path.dirname(__file__))
-#     sys.path.append(parentFolder)
-#     # change "backend" to your module name
-#     module = os.path.join(parentFolder,'atomica')
-#     output_path = os.path.join(cur_dir, 'atomica')
-#     main(['-e','-f','-o', output_path, module])
-#
-# def setup(app):
-#     # overrides for wide tables in RTD theme
-#     app.add_stylesheet('theme_overrides.css')
-#     # trigger the run_apidoc
-#     app.connect('builder-inited', run_apidoc)
 
 autoclass_content = "both"  # include both class docstring and __init__
 autodoc_default_flags = [
@@ -69,6 +54,8 @@ autodoc_default_flags = [
         "show-inheritance",
 ]
 autosummary_generate = True
+
+nbsphinx_kernel_name = 'python'
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -99,7 +86,7 @@ language = None
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', '**.ipynb_checkpoints']
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = None

@@ -2,6 +2,7 @@
 
 import itertools
 import os
+import errno
 import textwrap
 from collections import defaultdict
 
@@ -46,7 +47,7 @@ def save_figs(figs, path='.', prefix='', fnames=None):
     try:
         os.makedirs(path)
     except OSError as err:
-        if err.errno != os.errno.EEXIST:
+        if err.errno != errno.EEXIST:
             raise
 
     # Sanitize fig array input

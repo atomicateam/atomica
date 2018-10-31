@@ -5,6 +5,7 @@ Welcome to Atomica's documentation!
     :maxdepth: 1
 
     general/index
+    examples/index
     code_documentation
 
 
