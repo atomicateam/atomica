@@ -83,7 +83,7 @@ def _prepare_bounds(progset, unit_cost_bounds, baseline_bounds, capacity_bounds,
     for prog in progset.programs.values():
         if unit_cost_bounds:
             bounds['unit_cost'][prog.name] = prog.unit_cost.vals * np.array([1 - unit_cost_bounds, 1 + unit_cost_bounds])
-        if capacity_bounds:
+        if capacity_bounds and prog.capacity.has_data:
             bounds['capacity'][prog.name] = prog.capacity.vals * np.array([1 - capacity_bounds, 1 + capacity_bounds])
 
     for covout in progset.covouts.values():
@@ -127,7 +127,7 @@ def _prepare_asd_inputs(progset, bounds):
                 if (covout.par, covout.pop, prog) in bounds['outcome']:
                     x0.append(outcome)
                     xmin.append(bounds['outcome'][(covout.par, covout.pop, prog)][0])
-                    xmax.append(bounds['outcome'][(covout.par, covout.pop)][1])
+                    xmax.append(bounds['outcome'][(covout.par, covout.pop, prog)][1])
                     mapping.append(('outcome', covout.par, covout.pop, prog))
 
     return x0, xmin, xmax, mapping
@@ -142,7 +142,7 @@ def _objective(x, mapping, progset, eval_years, target_vals, coverage_denominato
     for i in range(0, len(eval_years)):
         outcomes = progset.get_outcomes(prop_coverage=prop_coverage, sample=False)
         for key in target_vals:  # Key is a (par,pop) tuple
-            obj += (target_vals[key][i] - outcomes[key][0]) ** 2  # Add squared difference in parameter value
+            obj += (target_vals[key][i] - outcomes[key]) ** 2  # Add squared difference in parameter value
     return obj
 
 
@@ -279,8 +279,8 @@ def reconcile(project, parset, progset, reconciliation_year, max_time=10, unit_c
     old_prop_coverage = progset.get_prop_coverage(tvec=eval_years, num_coverage=old_num_coverage, denominator=coverage_denominator)
     new_prop_coverage = new_progset.get_prop_coverage(tvec=eval_years, num_coverage=new_num_coverage, denominator=coverage_denominator)
     for i, year in enumerate(eval_years):
-        old_outcomes = progset.get_outcomes(prop_coverage={prog: cov[i] for prog, cov in old_prop_coverage.items()})  # Program outcomes for this year
-        new_outcomes = new_progset.get_outcomes(prop_coverage={prog: cov[i] for prog, cov in new_prop_coverage.items()})  # Program outcomes for this year
+        old_outcomes = progset.get_outcomes(prop_coverage={prog: cov[[i]] for prog, cov in old_prop_coverage.items()})  # Program outcomes for this year
+        new_outcomes = new_progset.get_outcomes(prop_coverage={prog: cov[[i]] for prog, cov in new_prop_coverage.items()})  # Program outcomes for this year
         for (par, pop), target in target_vals.items():
             records.append((par, pop, year, target[0], old_outcomes[(par, pop)], new_outcomes[(par, pop)]))
     parameter_comparison = pd.DataFrame.from_records(records, columns=['Parameter', 'Population', 'Year', 'Target', 'Before reconciliation', 'After reconciliation'])

@@ -12,7 +12,7 @@ import numpy as np
 
 np.seterr(all='raise')
 
-test = "sir"
+# test = "sir"
 #test = "tb"
 #test = "tb_simple_dyn"
 #test = "tb_simple"
@@ -24,7 +24,7 @@ test = "sir"
 # test = "cervicalcancer"
 #test = "hiv"
 #test = "hiv_dyn"
-#test = "diabetes"
+test = "diabetes"
 #test = "service"
 
 torun = [

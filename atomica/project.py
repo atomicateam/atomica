@@ -405,6 +405,8 @@ class Project(object):
             logger.info("Initiating a standard run of project '%s' (no programs)", self.name)
         elif progset_instructions is None:
             logger.info("Program set '%s' will be ignored while running project '%s' due to the absence of program set instructions", progset.name, self.name)
+        else:
+            logger.info("Initiating a run of project '%s' with programs", self.name)
 
         if result_name is None:
             base_name = "parset_" + parset.name
@@ -457,9 +459,7 @@ class Project(object):
         Current fitting metrics are: "fractional", "meansquare", "wape"
         Note that scaling limits are absolute, not relative.
         """
-        print('TEMPPPPP')
-        print(max_time)
-        print(type(max_time))
+
         if parset is None:
             parset = -1
         parset = self.parsets[parset]
