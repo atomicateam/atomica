@@ -8,25 +8,28 @@ from .utils import NDict
 from .results import Result
 from .system import logger, AtomicaException
 
-default_figsize = (10,4)
-default_ax_position = [0.15,0.2,0.35,0.7]
+default_figsize = (10, 4)
+default_ax_position = [0.15, 0.2, 0.35, 0.7]
+
 
 class InvalidCascade(AtomicaException):
     # Throw this error if a cascade was not valid. This error should result in the
     # FE printing a persistent diagnosic message
     pass
 
+
 def plot_cascade(results=None, cascade=None, pops=None, year=None, data=None, show_table=None):
-    
-    year    = sc.promotetolist(year)
+
+    year = sc.promotetolist(year)
     results = sc.promotetolist(results)
-    if len(year)>1 or len(results)>1:
+    if len(year) > 1 or len(results) > 1:
         output = plot_multi_cascade(results=results, cascade=cascade, pops=pops, year=year, data=data, show_table=show_table)
     else:
         fig = plot_single_cascade(result=results[0], cascade=cascade, pops=pops, year=year, data=data)
         table = None
-        output = (fig,table)
-    return output # Either fig or (fig,table)
+        output = (fig, table)
+    return output  # Either fig or (fig,table)
+
 
 def sanitize_cascade_inputs(result=None, cascade=None, pops=None, year=None):
     # INPUTS
@@ -43,19 +46,20 @@ def sanitize_cascade_inputs(result=None, cascade=None, pops=None, year=None):
     # - year : A single year, or array of years
 
     # Sanitize based on the first result provided, if it's a list
-    if isinstance(result, list): result = result[0]  # Sanitize input -- if needed
+    if isinstance(result, list):
+        result = result[0]  # Sanitize input -- if needed
 
     # Sanitize cascade input by turning non-names into output dicts
-    cascade = sanitize_cascade(result.framework,cascade)
+    cascade = sanitize_cascade(result.framework, cascade)
 
     # Convert input pops to code names, if they were provided as full names e.g. from the FE
     if pops in [None, 'all', 'All', 'aggregate', 'total']:
-        pops = {'Entire population':result.pop_names} # Use all populations
+        pops = {'Entire population': result.pop_names}  # Use all populations
     else:
         code_names = []
 
         if sc.isstring(pops):
-            pops = [pops] # Use promotetolist()?
+            pops = [pops]  # Use promotetolist()?
 
         for pop in pops:
             if pop not in result.pop_names:
@@ -65,35 +69,36 @@ def sanitize_cascade_inputs(result=None, cascade=None, pops=None, year=None):
                 code_names.append(pop)
 
         if len(code_names) > 1:
-            pops = {'Selected populations':code_names}
+            pops = {'Selected populations': code_names}
         else:
             idx = result.pop_names.index(code_names[0])
-            pops = {result.pop_labels[idx]:code_names}
+            pops = {result.pop_labels[idx]: code_names}
 
     # Sanitize year
     if not year:
-        year = result.t[-1] # Draw cascade for last year
+        year = result.t[-1]  # Draw cascade for last year
     year = sc.promotetoarray(year)
-    
+
     return cascade, pops, year
+
 
 def plot_single_cascade_series(result=None, cascade=None, pops=None, data=None):
     # Plot a stacked timeseries of the cascade. Unlike a normal stacked plot, the shaded areas show losses
     # so for example the overall height of the plot corresponds to the number of people in the first cascade stage
-    from .plotting import PlotData, plot_series # Import here to avoid circular dependencies
+    from .plotting import PlotData, plot_series  # Import here to avoid circular dependencies
 
     cascade, pops, _ = sanitize_cascade_inputs(result=result, cascade=cascade, pops=pops, year=None)
 
-    if isinstance(result,list):
+    if isinstance(result, list):
         figs = []
         for r in result:
-            figs.append(plot_single_cascade(r,cascade,pops,data))
+            figs.append(plot_single_cascade(r, cascade, pops, data))
         return figs
 
     # Now, construct and plot the series
-    assert isinstance(result,Result), 'Input must be a single Result object'
+    assert isinstance(result, Result), 'Input must be a single Result object'
     if sc.isstring(cascade):
-        outputs = get_cascade_outputs(result.framework,cascade)
+        outputs = get_cascade_outputs(result.framework, cascade)
     else:
         outputs = cascade
 
@@ -101,17 +106,17 @@ def plot_single_cascade_series(result=None, cascade=None, pops=None, data=None):
     d.set_colors(outputs=d.outputs)
     assert len(d.pops) == 1, 'Only supports plotting one population at a time'
 
-    figs = plot_series(d,axis='outputs') # 1 result, 1 pop, axis=outputs guarantees 1 plot
+    figs = plot_series(d, axis='outputs')  # 1 result, 1 pop, axis=outputs guarantees 1 plot
     ax = figs[0].axes[0]
 
     if data is not None:
         t = d.tvals()[0]
-        cascade_data,_ = get_cascade_data(data,result.framework,cascade,pops,t)
-        for stage,vals in cascade_data.items():
-            color = d[d.results[0],d.pops[0],stage].color # Get the colour of this quantity
+        cascade_data, _ = get_cascade_data(data, result.framework, cascade, pops, t)
+        for stage, vals in cascade_data.items():
+            color = d[d.results[0], d.pops[0], stage].color  # Get the colour of this quantity
             flt = ~np.isnan(vals)
-            if np.any(flt): # Need to only plot real values, because NaNs show up in mpld3 even though they don't appear in the normal figure
-                ax.scatter(t[flt],vals[flt],marker='o', s=40, linewidths=1, facecolors=color,color='k',zorder=100)
+            if np.any(flt):  # Need to only plot real values, because NaNs show up in mpld3 even though they don't appear in the normal figure
+                ax.scatter(t[flt], vals[flt], marker='o', s=40, linewidths=1, facecolors=color, color='k', zorder=100)
 
 
 def plot_single_cascade(result=None, cascade=None, pops=None, year=None, data=None, title=False):
@@ -128,24 +133,24 @@ def plot_single_cascade(result=None, cascade=None, pops=None, year=None, data=No
     # OUTPUTS
     # figs - a Figure handle
 
-    barcolor  = (0.00, 0.15, 0.48) # Cascade color -- array([0,38,122])/255.
-    diffcolor = (0.85, 0.89, 1.00) # (0.74, 0.82, 1.00) # Original: (0.93,0.93,0.93)
-    losscolor = (0,0,0) # (0.8,0.2,0.2)
+    barcolor = (0.00, 0.15, 0.48)  # Cascade color -- array([0,38,122])/255.
+    diffcolor = (0.85, 0.89, 1.00)  # (0.74, 0.82, 1.00) # Original: (0.93,0.93,0.93)
+    losscolor = (0, 0, 0)  # (0.8,0.2,0.2)
 
     cascade, pops, year = sanitize_cascade_inputs(result=result, cascade=cascade, pops=pops, year=year)
 
-    if isinstance(result,list):
+    if isinstance(result, list):
         figs = []
         for r in result:
-            figs.append(plot_single_cascade(r,cascade,pops,year,data))
+            figs.append(plot_single_cascade(r, cascade, pops, year, data))
         return figs
 
 #    fontsize=14
     assert len(year) == 1
-    assert isinstance(result,Result), 'Input must be a single Result object'
-    cascade_vals,t = get_cascade_vals(result,cascade,pops,year)
+    assert isinstance(result, Result), 'Input must be a single Result object'
+    cascade_vals, t = get_cascade_vals(result, cascade, pops, year)
     if data is not None:
-        cascade_data,_ = get_cascade_data(data,result.framework,cascade,pops,year)
+        cascade_data, _ = get_cascade_data(data, result.framework, cascade, pops, year)
         cascade_data_array = np.hstack(cascade_data.values())
 
     assert len(t) == 1, 'Plot cascade requires time aggregation'
@@ -155,50 +160,49 @@ def plot_single_cascade(result=None, cascade=None, pops=None, year=None, data=No
 #    fig.set_figwidth(fig.get_figwidth()*1.5)
     ax = plt.gca()
     bar_x = np.arange(len(cascade_vals))
-    h = plt.bar(bar_x,cascade_array, width=0.5, color=barcolor)
+    h = plt.bar(bar_x, cascade_array, width=0.5, color=barcolor)
     if data is not None:
         non_nan = np.isfinite(cascade_data_array)
         if np.any(non_nan):
-            plt.scatter(bar_x[non_nan], cascade_data_array[non_nan],s=40,c='#ff9900',marker='s',zorder=100)
+            plt.scatter(bar_x[non_nan], cascade_data_array[non_nan], s=40, c='#ff9900', marker='s', zorder=100)
 
     ax.set_xticks(np.arange(len(cascade_vals)))
-    ax.set_xticklabels([ '\n'.join(textwrap.wrap(x, 15)) for x in cascade_vals.keys()])
+    ax.set_xticklabels(['\n'.join(textwrap.wrap(x, 15)) for x in cascade_vals.keys()])
 
     ylim = ax.get_ylim()
     yticks = ax.get_yticks()
     data_yrange = np.diff(ylim)
-    ax.set_ylim(-data_yrange*0.2,data_yrange*1.1)
+    ax.set_ylim(-data_yrange * 0.2, data_yrange * 1.1)
     ax.set_yticks(yticks)
     for i,val in enumerate(cascade_array):
         plt.text(i, val*1.01, '%s' % sc.sigfig(val, sigfigs=3, sep=True,keepints=True), verticalalignment='bottom', horizontalalignment='center', zorder=200)
 
     bars = h.get_children()
-    conversion = cascade_array[1:]/cascade_array[0:-1] # Fraction not lost
-    conversion_text_height = cascade_array[-1]/2
+    conversion = cascade_array[1:] / cascade_array[0:-1]  # Fraction not lost
+    conversion_text_height = cascade_array[-1] / 2
 
-    for i in range(len(bars)-1):
+    for i in range(len(bars) - 1):
         left_bar = bars[i]
-        right_bar = bars[i+1]
+        right_bar = bars[i + 1]
 
         xy = np.array([
-        (left_bar.get_x() + left_bar.get_width(), 0), # Bottom left corner
-        (left_bar.get_x() + left_bar.get_width(), left_bar.get_y() + left_bar.get_height()), # Top left corner
-        (right_bar.get_x(), right_bar.get_y() + right_bar.get_height()),  # Top right corner
-        (right_bar.get_x(), 0),  # Bottom right corner
+            (left_bar.get_x() + left_bar.get_width(), 0),  # Bottom left corner
+            (left_bar.get_x() + left_bar.get_width(), left_bar.get_y() + left_bar.get_height()),  # Top left corner
+            (right_bar.get_x(), right_bar.get_y() + right_bar.get_height()),  # Top right corner
+            (right_bar.get_x(), 0),  # Bottom right corner
         ])
 
-        p = matplotlib.patches.Polygon(xy, closed=True,facecolor=diffcolor)
+        p = matplotlib.patches.Polygon(xy, closed=True, facecolor=diffcolor)
         ax.add_patch(p)
 
-        bbox_props = dict(boxstyle="rarrow", fc=(0.7, 0.7, 0.7),lw=1)
+        bbox_props = dict(boxstyle="rarrow", fc=(0.7, 0.7, 0.7), lw=1)
 
-        t = ax.text(np.average(xy[1:3,0]), conversion_text_height, '%s%%' % sc.sigfig(conversion[i]*100, sigfigs=3, sep=True), ha="center", va="center", rotation=0, bbox=bbox_props)
-
+        t = ax.text(np.average(xy[1:3, 0]), conversion_text_height, '%s%%' % sc.sigfig(conversion[i] * 100, sigfigs=3, sep=True), ha="center", va="center", rotation=0, bbox=bbox_props)
 
     loss = np.diff(cascade_array)
-    for i,val in enumerate(loss):
+    for i, val in enumerate(loss):
 
-        plt.text(i, -data_yrange[0]*0.02, 'Loss: %s' % sc.sigfig(-val, sigfigs=3, sep=True), verticalalignment='top', horizontalalignment='center', color=losscolor)
+        plt.text(i, -data_yrange[0] * 0.02, 'Loss: %s' % sc.sigfig(-val, sigfigs=3, sep=True), verticalalignment='top', horizontalalignment='center', color=losscolor)
 
     pop_label = list(pops.keys())[0]
     plt.ylabel('Number of people')
@@ -210,8 +214,8 @@ def plot_single_cascade(result=None, cascade=None, pops=None, year=None, data=No
     plt.tight_layout()
 
     return fig
-    
-    
+
+
 def plot_multi_cascade(results=None, cascade=None, pops=None, year=None, data=None, show_table=None):
     # This is a cascade plot that handles multiple results and times
     # Results are grouped by stage/output, which is not possible to do with plot_bars()
@@ -228,7 +232,8 @@ def plot_multi_cascade(results=None, cascade=None, pops=None, year=None, data=No
     # OUTPUTS
     # fig - a figure handle
 
-    if show_table is None: show_table = True
+    if show_table is None:
+        show_table = True
 
     # First, process the cascade into an odict of outputs for PlotData
     if isinstance(results, sc.odict):
@@ -237,43 +242,43 @@ def plot_multi_cascade(results=None, cascade=None, pops=None, year=None, data=No
         results = [results]
     elif isinstance(results, NDict):
         results = list(results)
-        
+
     cascade, pops, year = sanitize_cascade_inputs(result=results[0], cascade=cascade, pops=pops, year=year)
-    
-    if (len(results)>1 and len(year)>1):
-        label_fcn = lambda result,t: '%s (%s)' % (result.name,t)
+
+    if (len(results) > 1 and len(year) > 1):
+        def label_fcn(result, t): return '%s (%s)' % (result.name, t)
     elif len(results) > 1:
-        label_fcn = lambda result,t: '%s' % (result.name)
+        def label_fcn(result, t): return '%s' % (result.name)
     else:
-        label_fcn = lambda result,t: '%s' % (t)
+        def label_fcn(result, t): return '%s' % (t)
 
     # Gather all of the cascade outputs and years
     cascade_vals = sc.odict()
     for result in results:
         for t in year:
-            cascade_vals[label_fcn(result,t)] = get_cascade_vals(result,cascade,pops=pops,year=t)[0]
+            cascade_vals[label_fcn(result, t)] = get_cascade_vals(result, cascade, pops=pops, year=t)[0]
 
     # Determine the number of bars, per stage - based either on result or time point
     n_bars = len(cascade_vals)
-    bar_width = 1. # This is the width of the bars
-    bar_gap = 0.15 # This is the width of the bars
-    block_gap = 1. # This is the gap between blocks
-    block_size = n_bars*(bar_width+bar_gap)
-    x = np.arange(0,len(cascade_vals[0].keys()))*(block_size+block_gap) # One block for each cascade stage
+    bar_width = 1.  # This is the width of the bars
+    bar_gap = 0.15  # This is the width of the bars
+    block_gap = 1.  # This is the gap between blocks
+    block_size = n_bars * (bar_width + bar_gap)
+    x = np.arange(0, len(cascade_vals[0].keys())) * (block_size + block_gap)  # One block for each cascade stage
     colors = sc.gridcolors(n_bars)  # Default colors
     legend_entries = sc.odict()
 
     fig = plt.figure(figsize=default_figsize)
 #    fig.set_figwidth(fig.get_figwidth()*1.5)
 
-    for offset,(bar_label,data) in enumerate(cascade_vals.items()):
+    for offset, (bar_label, data) in enumerate(cascade_vals.items()):
         legend_entries[bar_label] = colors[offset]
         vals = np.hstack(data.values())
-        plt.bar(x+offset*(bar_width+bar_gap),vals,color=colors[offset],width=bar_width)
+        plt.bar(x + offset * (bar_width + bar_gap), vals, color=colors[offset], width=bar_width)
 
-    plot_legend(legend_entries,fig=fig)
+    plot_legend(legend_entries, fig=fig)
     ax = fig.axes[0]
-    ax.set_xticks(x+(block_size-bar_gap-bar_width)/2)
+    ax.set_xticks(x + (block_size - bar_gap - bar_width) / 2)
     ax.set_xticklabels(['\n'.join(textwrap.wrap(k, 15)) for k in cascade_vals[0].keys()])
     if show_table:
         ax.get_xaxis().set_ticks_position('top')
@@ -284,32 +289,33 @@ def plot_multi_cascade(results=None, cascade=None, pops=None, year=None, data=No
         cascade_array = np.hstack(data.values())
         loss = np.diff(cascade_array)
         loss_str = ['%s' % sc.sigfig(-val, sigfigs=3, sep=True) for val in loss]
-        loss_str.append('-') # No loss for final stage
+        loss_str.append('-')  # No loss for final stage
         cell_text.append(loss_str)
 
     # Clean up formatting
     yticks = ax.get_yticks()
-    ax.set_yticks(yticks[1:]) # Remove the first tick at 0 so it doesn't clash with table - TODO: improve table spacing so this isn't needed
+    ax.set_yticks(yticks[1:])  # Remove the first tick at 0 so it doesn't clash with table - TODO: improve table spacing so this isn't needed
     plt.ylabel('Number of people')
     if show_table:
-        plt.subplots_adjust(top=0.8,right=0.75,left=0.2, bottom=0.25)
+        plt.subplots_adjust(top=0.8, right=0.75, left=0.2, bottom=0.25)
     else:
         plt.subplots_adjust(top=0.95, right=0.75, left=0.2, bottom=0.25)
-    
+
     # Reset axes
     plt.tight_layout()
 
     # Add a table at the bottom of the axes
     row_labels = list(cascade_vals.keys())
     if show_table:
-        plt.table(cellText=cell_text,rowLabels=row_labels,rowColours=None,colLabels=None,loc='bottom',cellLoc='center')
+        plt.table(cellText=cell_text, rowLabels=row_labels, rowColours=None, colLabels=None, loc='bottom', cellLoc='center')
         return fig
     else:
         col_labels = [k for k in cascade_vals[0].keys()]
-        table = {'text':cell_text, 'rowlabels':row_labels, 'collabels':col_labels}
-        return fig,table
+        table = {'text': cell_text, 'rowlabels': row_labels, 'collabels': col_labels}
+        return fig, table
 
-def get_cascade_outputs(framework,cascade_name):
+
+def get_cascade_outputs(framework, cascade_name):
     # Given a cascade name, return an outputs dicts corresponding to the cascade stages
     # suitable for use in PlotData
     # INPUTS
@@ -333,7 +339,8 @@ def get_cascade_outputs(framework,cascade_name):
         outputs[stage[0]] = [x.strip() for x in stage[1].split(',')]  # Split the name of the stage and the constituents
     return outputs
 
-def get_cascade_vals(result,cascade,pops=None,year=None):
+
+def get_cascade_vals(result, cascade, pops=None, year=None):
     '''
     Gets values for populating a cascade plot
     '''
@@ -349,19 +356,20 @@ def get_cascade_vals(result,cascade,pops=None,year=None):
     # - cascade_output : odict with {stage_name:vals} where vals is an ndarray the same shape as the 't' output
     # - t : ndarray of time values
 
-    from .plotting import PlotData # Import here to avoid circular dependencies
+    from .plotting import PlotData  # Import here to avoid circular dependencies
 
-    if pops in [None, 'all', 'All']: pops = 'total'
+    if pops in [None, 'all', 'All']:
+        pops = 'total'
 
     # Sanitize the cascade inputs
     cascade = sanitize_cascade(result.framework, cascade)
 
     if sc.isstring(cascade):
-        outputs = get_cascade_outputs(result.framework,cascade)
+        outputs = get_cascade_outputs(result.framework, cascade)
     else:
         outputs = cascade
 
-    validate_cascade(result.framework, outputs) # Check that the requested cascade is valid
+    validate_cascade(result.framework, outputs)  # Check that the requested cascade is valid
 
     if year is None:
         d = PlotData(result, outputs=outputs, pops=pops)
@@ -375,12 +383,13 @@ def get_cascade_vals(result,cascade,pops=None,year=None):
     for result in d.results:
         for pop in d.pops:
             for output in d.outputs:
-                cascade_vals[output] = d[(result,pop,output)].vals # NB. Might want to return the Series here to retain formatting, units etc.
-    t = d.tvals()[0] # nb. first entry in d.tvals() is time values, second entry is time labels
+                cascade_vals[output] = d[(result, pop, output)].vals  # NB. Might want to return the Series here to retain formatting, units etc.
+    t = d.tvals()[0]  # nb. first entry in d.tvals() is time values, second entry is time labels
 
-    return cascade_vals,t
+    return cascade_vals, t
 
-def get_cascade_data(data,framework,cascade,pops=None,year=None):
+
+def get_cascade_data(data, framework, cascade, pops=None, year=None):
     # This function is the counterpart to get_cascade_vals but it returns data
     # instead. Note that the inputs and outputs are slightly different
     # - If year is specified, the output is guaranteed to be the same size as the input year array, the same as get_cascade_vals
@@ -392,54 +401,54 @@ def get_cascade_data(data,framework,cascade,pops=None,year=None):
     # NB - In general, data probably will NOT exist
     # Set the logging level to 'DEBUG' to have messages regarding this printed out
 
-    if pops is None: pops = 'all'
+    if pops is None:
+        pops = 'all'
 
     cascade = sanitize_cascade(framework, cascade)
 
     if sc.isstring(cascade):
-        outputs = get_cascade_outputs(framework,cascade)
+        outputs = get_cascade_outputs(framework, cascade)
     else:
         outputs = cascade
 
-    validate_cascade(framework, outputs) # Check that the requested cascade is valid
+    validate_cascade(framework, outputs)  # Check that the requested cascade is valid
 
     if pops == 'all':
         pops = list(data.pops.keys())
     elif sc.isstring(pops):
         pops = [pops]
-    elif isinstance(pops,dict):
+    elif isinstance(pops, dict):
         assert len(pops) == 1, 'Aggregation should have only one output population'
         pops = list(pops.values())[0]
 
     if year is not None:
-        t = sc.promotetoarray(year) # Output times are guaranteed to be
+        t = sc.promotetoarray(year)  # Output times are guaranteed to be
     else:
-        t = data.tvec # Defaults to data's time vector
+        t = data.tvec  # Defaults to data's time vector
 
     # Now, get the outputs in the given years
     data_values = dict()
     for stage_constituents in outputs.values():
         if sc.isstring(stage_constituents):
-            stage_constituents = [stage_constituents] # Make it a list - this is going to be a common source of errors otherwise
+            stage_constituents = [stage_constituents]  # Make it a list - this is going to be a common source of errors otherwise
         for code_name in stage_constituents:
             if code_name not in data_values:
-                data_values[code_name] = np.zeros(t.shape)* np.nan # data values start out as NaN - this is a fallback in case for some reason pops is empty (the data will be all NaNs then)
+                data_values[code_name] = np.zeros(t.shape) * np.nan  # data values start out as NaN - this is a fallback in case for some reason pops is empty (the data will be all NaNs then)
 
-                for pop_idx,pop in enumerate(pops):
-                    ts = data.get_ts(code_name,pop) # The TimeSeries data for the required variable and population
-                    vals = np.ones(t.shape) * np.nan # preallocate output values coming from this TimeSeries object
+                for pop_idx, pop in enumerate(pops):
+                    ts = data.get_ts(code_name, pop)  # The TimeSeries data for the required variable and population
+                    vals = np.ones(t.shape) * np.nan  # preallocate output values coming from this TimeSeries object
 
                     # Now populate this array
                     if ts is not None:
-                        for i,tval in enumerate(ts.t):
-                            match = np.where(t==tval)[0]
-                            if len(match): # If a time point in the TimeSeries matches the requested time - then match[0] is the index in t
+                        for i, tval in enumerate(ts.t):
+                            match = np.where(t == tval)[0]
+                            if len(match):  # If a time point in the TimeSeries matches the requested time - then match[0] is the index in t
                                 vals[match[0]] = ts.vals[i]
                         if np.any(np.isnan(vals)):
                             logger.debug('Data for %s (%s) did not contain values for some of the requested years' % (code_name, pop))
                     else:
-                        logger.debug('Data not present for %s (%s)' % (code_name,pop))
-
+                        logger.debug('Data not present for %s (%s)' % (code_name, pop))
 
                     if pop_idx == 0:
                         data_values[code_name] = vals  # If at least one TimeSeries was found, use the first one as the data values (it could still be NaN if no times match)
@@ -448,19 +457,20 @@ def get_cascade_data(data,framework,cascade,pops=None,year=None):
 
     # Now, data values contains all of the required quantities in all of the required years. Last step is to aggregate them
     cascade_data = sc.odict()
-    for stage_name,stage_constituents in outputs.items():
+    for stage_name, stage_constituents in outputs.items():
         for code_name in stage_constituents:
             if stage_name not in cascade_data:
                 cascade_data[stage_name] = data_values[code_name]
             else:
                 cascade_data[stage_name] += data_values[code_name]
 
-    return cascade_data,t
+    return cascade_data, t
 
-def sanitize_cascade(framework,cascade):
+
+def sanitize_cascade(framework, cascade):
     # Construct a fallback cascade from all non-normalized characteristics
     if cascade is None:
-        cascade = 0 # Use the first cascade
+        cascade = 0  # Use the first cascade
 
     if isinstance(cascade, list):
         # Assemble cascade from comp/charac names using the display name as the stage name
@@ -474,7 +484,8 @@ def sanitize_cascade(framework,cascade):
         cascade = framework.cascades.keys()[cascade]
     return cascade
 
-def validate_cascade(framework,cascade,fallback_used=False):
+
+def validate_cascade(framework, cascade, fallback_used=False):
     # Check if a cascade is valid
     # INPUTS
     # - framework
@@ -483,9 +494,9 @@ def validate_cascade(framework,cascade,fallback_used=False):
     #
     # Turn whatever form the cascade was provided as into a dict of outputs
 
-    cascade = sanitize_cascade(framework,cascade)
+    cascade = sanitize_cascade(framework, cascade)
     if sc.isstring(cascade):
-        outputs = get_cascade_outputs(framework,cascade)
+        outputs = get_cascade_outputs(framework, cascade)
     else:
         outputs = cascade
 
@@ -494,11 +505,11 @@ def validate_cascade(framework,cascade,fallback_used=False):
         return True
 
     expanded = sc.odict()
-    for stage,includes in outputs.items():
+    for stage, includes in outputs.items():
         expanded[stage] = framework.get_charac_includes(includes)
 
-    for i in range(0,len(expanded)-1):
-        if not (set(expanded[i+1]) <= set(expanded[i])):
+    for i in range(0, len(expanded) - 1):
+        if not (set(expanded[i + 1]) <= set(expanded[i])):
             message = ''
             if fallback_used:
                 message += 'The fallback cascade is not properly nested\n\n'
@@ -507,11 +518,11 @@ def validate_cascade(framework,cascade,fallback_used=False):
             else:
                 message += 'The requested cascade is not properly nested\n\n' % (cascade)
 
-            message += 'Stage "%s" appears after stage "%s" so it must contain a subset of the compartments in "%s"\n\n' % (expanded.keys()[i+1],expanded.keys()[i],expanded.keys()[i])
+            message += 'Stage "%s" appears after stage "%s" so it must contain a subset of the compartments in "%s"\n\n' % (expanded.keys()[i + 1], expanded.keys()[i], expanded.keys()[i])
             message += 'After expansion of any characteristics, the compartments comprising these stages are:\n'
-            message += '"%s" = %s\n' % (expanded.keys()[i],expanded[i])
-            message += '"%s" = %s\n' % (expanded.keys()[i+1],expanded[i+1])
-            message += '\nTo be valid, stage "%s" would need the following compartments added to it: %s' % (expanded.keys()[i],list(set(expanded[i+1])-set(expanded[i])))
+            message += '"%s" = %s\n' % (expanded.keys()[i], expanded[i])
+            message += '"%s" = %s\n' % (expanded.keys()[i + 1], expanded[i + 1])
+            message += '\nTo be valid, stage "%s" would need the following compartments added to it: %s' % (expanded.keys()[i], list(set(expanded[i + 1]) - set(expanded[i])))
             if fallback_used and not framework.cascades:
                 message += '\n\nNote that the framework did not contain a cascade - in many cases, the characteristics do not form a valid cascade. You will likely need to explicitly define a cascade in the framework file'
             if fallback_used and framework.cascades:
@@ -522,6 +533,3 @@ def validate_cascade(framework,cascade,fallback_used=False):
             raise InvalidCascade(message)
 
     return True
-
-
-

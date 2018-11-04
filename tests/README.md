@@ -1,10 +1,8 @@
-### Test instructions
+These tests will automatically be run by tox/pytest
 
-The script `testall.py` will run every script in the `scripts` folder. A report will be printed showing `stdout` for each test, and the traceback for any errors that occurred. 
+We cannot assume that these files are being run directly from the repository, if Atomica has been installed
+via pip. If only installed via pip, then Atomica won't exist in this repo folder and `atomica_path` will refer
+to the `site-packages` directory instead of the repo. Therefore, inside the test, we must do
 
-At the top of the script, some folder paths such as `testdir` and `tempdir` are defined. These can be used in the scripts. The `tempdir` will be deleted at the end of the test run if all tests completed successfully.
-
-Lastly, `testall.py` can take an optional argument of a filename to run only that script. For example
-
-- `python testall.py` will run all tests
-- `python testall.py loadframework.py` will only run `loadframework.py`
+    au.LIBRARY_PATH - to locate the library xlsx files
+    os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir)) - to locate the `tests` directory

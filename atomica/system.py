@@ -13,6 +13,8 @@ import logging
 logger = logging.getLogger('atomica')
 
 # Code for determining module installation directory.
+
+
 def atomica_path(subdir=None, trailingsep=True):
     """ Returns the parent path of the Atomica module. If subdir is not None, include it in the path. """
     path = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
@@ -25,19 +27,26 @@ def atomica_path(subdir=None, trailingsep=True):
         path = os.path.join(*tojoin)  # For example: ['/home/atomica', 'tests', '']
     return path
 
+
+LIBRARY_PATH = atomica_path(['atomica', 'library'])
+
 # Code for exceptions specific to Atomica
+
 
 class AtomicaException(Exception):
     """ A wrapper class to allow for Atomica-specific exceptions. """
     pass
 
+
 class NotFoundError(AtomicaException):
     # Throw this error if a user-specified input was not found
     pass
 
+
 class NotAllowedError(AtomicaException):
     # Throw this error if the user requested an illegal operation
     pass
+
 
 class AtomicaInputError(AtomicaException):
     # Throw this error if the code was not able to understand the user's input
@@ -90,4 +99,4 @@ def reraise_modify(caught_exc, append_msg, prepend=True):
         else:
             arg_list += [last_arg, append_msg]
     caught_exc.args = tuple(arg_list)
-    reraise(ExceptClass,caught_exc,traceback)
+    reraise(ExceptClass, caught_exc, traceback)
