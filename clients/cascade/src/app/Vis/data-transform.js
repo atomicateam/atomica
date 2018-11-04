@@ -86,14 +86,14 @@ function getTotal(stage, data) {
   return total
 }
 
-function transformMultiData(keys, cascadeData, year) {
+function transformMultiData(keys, cascadeData, year, categories) {
   const scenarios = []
   const multiData = []
   let stages = []
 
   keys.forEach((key, index) => {
     const currentData = cascadeData.data[key][year]
-    scenarios[key] = transformDataForChartRender(cascadeData.keys, currentData)
+    scenarios[key] = transformDataForChartRender(categories, currentData)
     if (index === 0) {
       stages = currentData.map(d => d.stage)
     }

@@ -1,8 +1,9 @@
 /* eslint-disable */
 
-function CascadeStep(context) {
+function CascadeStep(context, width) {
   this._context = context;
   this._t = 1;
+  this._bandwidth = width;
 }
 
 CascadeStep.prototype = {
@@ -21,6 +22,7 @@ CascadeStep.prototype = {
       this._context.lineTo(this._x, this._y);
     }
     if (this._line || (this._line !== 0 && this._point === 1)) {
+      this._context.lineTo(this._x, this._y);
       this._context.closePath();
     }
     if (this._line >= 0) {
@@ -45,7 +47,7 @@ CascadeStep.prototype = {
           this._context.lineTo(x2, y);
         } else {
           var x1 = this._x * (1 - this._t) + x * this._t;
-          var x2 = (this._x + x) / 2;
+          var x2 = this._x + this._bandwidth;
           this._context.lineTo(x2, this._y);
           this._context.lineTo(x1, y);
         }
@@ -55,6 +57,6 @@ CascadeStep.prototype = {
   }
 };
 
-export default function(context) {
-  return new CascadeStep(context);
+export default function(context, width) {
+  return new CascadeStep(context, width);
 }
