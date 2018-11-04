@@ -76,7 +76,7 @@ export default {
       tColour: this.totalColour || TOTAL_COLOUR,
       width: 0,
       height: 0,
-      margin: { left: 60, right: 20, top: 10, bottom: 20 },
+      margin: { left: 60, right: 190, top: 10, bottom: 20 },
       t: d3.transition().duration(0),
       svg: null,
       g: null,
@@ -488,15 +488,13 @@ export default {
   height: 15px;
 }
 
-.legend-table {
+.legend-table.table {
+  border: none;
   position: absolute;
   right: 2rem;
   top: 0;
-  width: auto;
-}
-
-.legend-table.table {
-  border: none;
+  width: 160px;
+  border-collapse: collapse;
 
   td, th {
     padding: 3px 2px 2px;
