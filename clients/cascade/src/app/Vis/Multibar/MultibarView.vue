@@ -1,6 +1,7 @@
 <template>
   <div class="multi-bar-view">
-    <div class="selections">      
+    <div class="selections">
+      
       <label>
         Year
         <select class="select" v-model="year">
@@ -13,29 +14,12 @@
 
     <div class="scenarios-vis">
       <div class="multi-bar-vis">
-        <h4>Scenarios</h4>
         <multibar
           :h="300"
           :yAxisTitle="'Number of people'"
           :multiData="cascadeData"
           :year="year"
-          :colourScheme="colours"
         />
-      </div>
-
-      <div class="stacked-cascade-vis">
-        <div class="chart" v-for="option in resultsOptions" :key="option">
-          <h4>{{option}}</h4>
-          <stacked-cascade
-            :h="180"
-            :yAxisTitle="'Number of people'"
-            :cascadeData="cascadeData"
-            :year="year"
-            :scenario="option"
-            :legendDisplay="true"
-            :defaultTotal="true"
-            :colourScheme="colours" />
-        </div>
       </div>
 
     </div>
@@ -45,12 +29,10 @@
 <script>
 import { transformCascadeData } from '../data-transform'
 import Multibar from './Multibar.vue'
-import StackedCascade from '../StackedCascade/StackedCascade.vue'
 
 export default {
   components: {
     Multibar,
-    StackedCascade,
   },
   props: {
     scenariosData: Object,
@@ -63,7 +45,7 @@ export default {
       year: null,
       yearOptions: [],
       cascadeData: {},
-      colours: this.colourScheme || null
+      colorScheme: this.colourScheme || null
     }
   },
   watch: {
@@ -103,24 +85,13 @@ export default {
 }
 
 .scenarios-vis {
-  display: flex;
-
-  .multi-bar-vis {
-    width: 50%;
-  }
   .stacked-cascade-vis {
-    width: 50%;
-    
-    .chart {
-      margin-bottom: 1rem;
-      padding-bottom: 1rem;
-      border-bottom: 1px solid #e4ecfc;
-    }
-  }
+    display: flex;
+    flex-wrap: wrap;
 
-  h4 {
-    font-size: 16px;
-    font-weight: bold;
+    .chart {
+      width: 33%;
+    }
   }
 }
 </style>
