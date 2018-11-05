@@ -30,5 +30,8 @@ if _debug: print('Importing cascade...')
 from .cascade import *
 if _debug: print('Importing results...')
 from .results import *
-if _debug: print('Done importing Atomica.')
+if _debug: print('Importing migration...')
 from .migration import *
+if _debug: print('Importing utils...')
+from .utils import *
+if _debug: print('Done importing Atomica.')

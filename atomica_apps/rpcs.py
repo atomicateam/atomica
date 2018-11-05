@@ -1013,7 +1013,7 @@ def get_default_programs(fulloutput=False, verbose=True):
     if verbose: print('get_default_programs(): Creating project data...')
     D = au.ProjectData.new(F, tvec=np.array([0]), pops=default_pops, transfers=0)
     if verbose: print('get_default_programs(): Loading spreadsheet...')
-    spreadsheetpath = au.atomica_path(['tests', 'databooks']) + "progbook_tb_defaults.xlsx"
+    spreadsheetpath = au.atomica_path(['tests', 'databooks']) + "tb_progbook_defaults.xlsx"
     default_progset = au.ProgramSet.from_spreadsheet(spreadsheetpath, framework=F, data=D)
 
     # Assemble dictionary

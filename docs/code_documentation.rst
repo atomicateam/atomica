@@ -1,0 +1,4 @@
+Code documentation
+===================================
+
+.. automodule:: atomica

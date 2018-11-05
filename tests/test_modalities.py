@@ -15,7 +15,7 @@ def run_test(coverage,outcomes,baseline,expected=None,imp_interaction=None):
         expected = np.full((len(coverage),),np.nan)
 
     progs = ['P%d' % (x) for x in range(0,len(coverage))]
-    coverage = {prog:sc.promotetoarray(val) for prog,val in zip(progs,coverage)}
+    coverage = {prog:val for prog,val in zip(progs,coverage)}
 
     covout = Covout(par='testpar',
                     pop='testpop',
