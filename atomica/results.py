@@ -408,28 +408,221 @@ def evaluate_plot_string(plot_string):
         return plot_string
 
 
-def export_results(results, fname):
-    """ Export results to a file
+def export_results(results, filename=None, plot_names=None, cascade_names=None, include_target_pars=True, include_programs=True,group_results=True):
+    """ Export Result outputs to a file
 
-    :param results: Can be
-    :param fname:
-    :return:
+    This function writes an XLSX file with the data corresponding to any Cascades or Plots
+    that are present. Note that results are exported for every year by selecting integer years.
+    Flow rates are annualized instantaneously. So for example, the flow will have values from
+    2014, 2015, 2016, but the 2015 flow rate is the actual flow at 2015.0 divided by dt, not the
+    time-aggregated flow rate. Time-aggregation isn't appropriate here because many of the quantities
+    plotted are probabilities. Selecting the annualized value at a particular year also means that the
+    data being exported will match up with whatever plots are generated from within Atomica.
+
+    Optionally can specify a list/set of names of the plots/cascades to include in the export
+    Set to an empty list to omit that category e.g.
+
+      plot_names = None # export all plots in framework
+      plot_names = ['a','b'] # export only plots 'a' and 'b'
+      plot_names = [] # don't export any plots e.g. to only export cascades
+
+    :param results: A :py:class:`Result`, or list of `Results`. Results must all have different names. Outputs are drawn from the first result, normally
+                    all results would have the same framework and populations.
+    :param filename: Write an excel file. If 'None', no file will be written (but dataframes will be returned)
+    :param plot_names: Optional list of plot names to export. If 'None', all plots. If '[]', then no plots
+    :param cascade_names: Names of which cascades to plot. If 'None', all cascades
+    :param include_target_pars: If True, include values for impact parameters
+    :param include_programs: If True, programs sheet will be written if any results contains programs
+    :param group_results: If True, results will be grouped by result instead of by pop or cascade stage
+    :return: The name of the file that was written
+
     """
 
-    # fname is the output file to write, including path
-    # e.g. concatenate downloads_dir.dir_path with 'output.zip'
-    results = sc.promotetolist(results)
+    # Local imports to avoid circular dependencies
+    from .plotting import PlotData
+    from .cascade import get_cascade_vals
+
+
+    # Check all results have unique names
+    if isinstance(results, dict):
+        results = list(results.values())
+    else:
+        results = sc.promotetolist(results)
+
     result_names = [x.name for x in results]
-    if len(result_names) != len(set(result_names)):
-        logger.warning('Result names were not all unique, so not all results will be exported')
+    if len(set(result_names)) != len(result_names):
+        raise AtomicaException('Results must have different names (in their result.name property)')
 
-    # TODO - is this OK on the server side in regard to simultaneous
-    # writing? Can two different sets of results be written to disk at the
-    # same time with the same filenames?
-    result_files = [x.export('temp_export_%s.xlsx' % (x.name)) for x in results]
+    # Check all results have the same time range
+    for result in results:
+        if result.t[0] != results[0].t[0] or result.t[-1] != results[0].t[-1]:
+            raise AtomicaException('All results must have the same start and finish years')
 
-    with ZipFile(fname, 'w') as zipfile:  # Create the zip file, putting all of the .prj files in a projects directory.
-        for result_file in result_files:
-            zipfile.write(result_file, result_file.replace('temp_export_', ''))
-            os.remove(result_file)
-    return fname  # Return the server file name.
+        if set(result.pop_names) != set(results[0].pop_names):
+            raise AtomicaException('All results must have the same populations')
+
+    # Open the output file
+    output_fname = filename + '.xlsx' if not filename.endswith('.xlsx') else filename
+    writer = pd.ExcelWriter(output_fname, engine='xlsxwriter')
+    formats = standard_formats(writer.book)
+
+    # Prepare the population names and time values
+    pop_names = sc.odict()
+    pop_names['all'] = 'Entire population'
+    for pop_name, pop_label in zip(results[0].pop_names, results[0].pop_labels):
+        pop_names[pop_name] = pop_label
+    new_tvals = np.arange(np.ceil(results[0].t[0]), np.floor(results[0].t[-1]) + 1)
+
+    # Write the plots sheet
+    if 'plots' in results[0].framework.sheets:
+
+        # Figure out which plots are required
+        plots_required = results[0].framework.sheets['plots'][0]
+        if plot_names is not None:
+            plots_required = plots_required[plots_required['name'].isin(plot_names)]
+        plot_df = []
+
+        # Now for each plot, we have one output and several populations
+        # We will have one dataframe for each output, eventually with a multi-index for each result
+        # The strategy will be to first assemble the dataframe, and then set the index appropriately
+        for _, spec in plots_required.iterrows():
+            if 'type' in spec and spec['type'] == 'bar':
+                continue  # For now, don't do bars - not implemented yet
+            data = sc.odict()
+            popdata = PlotData(results, outputs=evaluate_plot_string(spec['quantities']))
+            assert len(popdata.outputs) == 1, 'Framework plot specification should evaluate to exactly one output series - there were %d' % (len(popdata.outputs))
+            popdata.interpolate(new_tvals)
+            for result in popdata.results:
+                for pop in popdata.pops:
+                    data[(popdata.results[result],pop_names[pop])] = popdata[result, pop, popdata.outputs[0]].vals
+
+            df = pd.DataFrame(data, index=new_tvals)
+            df = df.T
+            if not group_results:
+                df = df.swaplevel().reindex([pop_names[pop] for pop in popdata.pops],level=0)
+            df.name = spec['name']
+            plot_df.append(df)
+
+        _write_df_list(writer, formats, 'Plot data', plot_df)
+
+    cascade_df = list()
+    for name in results[0].framework.cascades.keys():
+        if cascade_names is None or name in cascade_names:
+            for pop, label in pop_names.items():
+                data = sc.odict()
+                for result in results:
+                    cascade_vals, _ = get_cascade_vals(result, name, pops=pop, year=new_tvals)
+                    for stage, vals in cascade_vals.items():
+                        data[(result.name,stage)] = vals
+                df = pd.DataFrame(data, index=new_tvals)
+                df = df.T
+                if not group_results:
+                    df = df.swaplevel().reindex(list(cascade_vals.keys()), level=0)
+                df.name = '%s - %s' % (name, label)
+                cascade_df.append(df)
+    _write_df_list(writer, formats, 'Cascades', cascade_df)
+
+    if include_target_pars:
+        targetable_code_names = list(results[0].framework.pars.index[results[0].framework.pars['targetable'] == 'y'])
+        if targetable_code_names:
+            par_df = []
+            for par_name in targetable_code_names:
+                data = sc.odict()
+                popdata = PlotData(results, outputs=par_name)
+                popdata.interpolate(new_tvals)
+                for result in popdata.results:
+                    for pop in popdata.pops:
+                        data[(popdata.results[result], pop_names[pop])] = popdata[result, pop, popdata.outputs[0]].vals
+                df = pd.DataFrame(data, index=new_tvals)
+                df = df.T
+                if not group_results:
+                    df = df.swaplevel().reindex([pop_names[pop] for pop in popdata.pops], level=0)
+                df.name = results[0].framework.pars.loc[par_name]['display name']
+                par_df.append(df)
+
+            _write_df_list(writer, formats, 'Target parameters', par_df)
+
+    if include_programs and any([x.model.programs_active for x in results]):
+
+        prog_df = []
+
+        # Work out which programs are present
+        prog_names = list()
+        for result in results:
+            if result.model.programs_active:
+                prog_names += list(result.model.progset.programs.keys())
+        prog_names = list(dict.fromkeys(prog_names))
+
+        for prog_name in prog_names:
+            data = sc.odict()
+
+            for result in results:
+                if result.model.programs_active and prog_name in result.model.progset.programs:
+                    programs_active = (result.model.program_instructions.start_year <= new_tvals) & (new_tvals <= result.model.program_instructions.stop_year)
+
+                    vals = PlotData.programs(result, outputs=prog_name, quantity='spending').interpolate(new_tvals)
+                    vals.series[0].vals[~programs_active] = np.nan
+                    data[(result.name,'Spending ($/year)')] = vals.series[0].vals
+
+                    vals = PlotData.programs(result, outputs=prog_name, quantity='coverage_number').interpolate(new_tvals)
+                    vals.series[0].vals[~programs_active] = np.nan
+                    data[(result.name,'People covered')] = vals.series[0].vals
+
+                    vals = PlotData.programs(result, outputs=prog_name, quantity='coverage_denominator').interpolate(new_tvals)
+                    vals.series[0].vals[~programs_active] = np.nan
+                    data[(result.name,'People eligible')] = vals.series[0].vals
+
+                    vals = PlotData.programs(result, outputs=prog_name, quantity='coverage_fraction').interpolate(new_tvals)
+                    vals.series[0].vals[~programs_active] = np.nan
+                    data[(result.name,'Proportion covered')] = vals.series[0].vals
+
+
+            df = pd.DataFrame(data, index=new_tvals)
+            df = df.T
+            if not group_results:
+                df = df.swaplevel().reindex(['Spending ($/year)','People covered','People eligible','Proportion covered'], level=0)
+            df.name = prog_name
+            prog_df.append(df)
+
+        _write_df_list(writer, formats, 'Programs', prog_df)
+
+    writer.save()
+    writer.close()
+
+    return output_fname
+
+def _write_df_list(writer, formats, sheet_name, df_list):
+    """
+    Write a list of DataFrames into a worksheet
+
+    :param writer: A Pandas ExcelWriter instance specifying the file to write into
+    :param formats: The output of `standard_formats(workbook)` specifying the styles embedded in the workbook
+    :param sheet_name: The name of the sheet to create. It is assumed that this sheet will be generated entirely by
+                       this function call (i.e. the sheet is not already present)
+    :param df_list: A list of DataFrames to write. Each dataframe will be written sequentially, separated by empty rows
+    :return: None
+
+    """
+
+    if not df_list:
+        return
+
+    i = 0
+    for n, df in enumerate(df_list):
+        df.to_excel(writer, sheet_name, startcol=0, startrow=i)
+        worksheet = writer.sheets[sheet_name]
+        worksheet.write_string(i, 0, df.name, formats['center_bold'])
+        i += df.shape[0] + 2
+
+    required_width = [0.0,0.0]
+    for df in df_list:
+        required_width[0] = max(required_width[0], len(df.name))
+        if isinstance(df.index,pd.MultiIndex):
+            required_width[0] = max(required_width[0], max(df.index.get_level_values(0).str.len()))
+            required_width[1] = max(required_width[1], max(df.index.get_level_values(1).str.len()))
+        else:
+            required_width[0] = max(required_width[0], max(df.index.str.len()))
+    if required_width[0] > 0:
+        worksheet.set_column(0, 0, required_width[0] * 1.1 + 1)
+    if required_width[1] > 0:
+        worksheet.set_column(1, 1, required_width[1] * 1.1 + 1)
