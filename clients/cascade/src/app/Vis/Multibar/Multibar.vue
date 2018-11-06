@@ -259,12 +259,12 @@ export default {
 
     update() {
       const data = transformMultiData(this.keys, this.multiData, this.year, this.selectedCategories)
-
+      const x1Padding = this.keys.length <= 1 ? 0.4 : 0.1
+      
       // axis and domain setup
       this.x0.domain(data.map(r => r.stage))
-      this.x1.domain(this.keys).rangeRound([0, this.x0.bandwidth()])
+      this.x1.domain(this.keys).rangeRound([0, this.x0.bandwidth()]).padding(x1Padding)
       this.y.domain([0, d3.max(data, r => r.highest )]).range([this.height, 0]).nice()
-
       this.z.domain(this.keys)
       
       this.xAxisGroup
@@ -393,6 +393,7 @@ export default {
         .style('fill', '#00267a')
         .text(d => `${d3.format(',.0f')(d.percent)}%`)
 
+      // Arrow
       categoryText.enter()
         .append('line')
         .style('stroke', '#00267a')
@@ -400,17 +401,17 @@ export default {
         .style('stroke-dasharray', '10,3')
         .style('marker-end','url(#arrow)')
         .style('display', (d, i) => lastDataIndex === i ? 'none' : 'block')
-        .attr('x1', d => this.x1(d.key) + this.x0(d.stage) + this.x0.bandwidth() /2)
+        .attr('x1', d => this.x1(d.key) + this.x0(d.stage) + this.x0.bandwidth() / 2)
         .attr('x2', d => this.x1(d.key) + this.x0(d.stage) + this.x0.bandwidth())
         .attr('y1', () => this.y(0) - 9)
         .attr('y2', () => this.y(0) - 9)
       
       categoryText.enter()
         .append('text')
-        .attr('x', d => this.x1(d.key) + this.x0(d.stage) + this.x0.bandwidth() -10)
+        .attr('x', d => this.x1(d.key) + this.x0(d.stage) + this.x0.bandwidth() / 2)
         .attr('y', () => this.y(0) - 15)
-        .attr('text-anchor', 'end')
-        .style('font-size', '11px')
+        .attr('text-anchor', 'start')
+        .style('font-size', '12px')
         .style('font-weight', 'bold')
         .style('fill', '#00267a')
         .text((d, i) => { return lastDataIndex === i ? '' : `${d3.format('.1f')(d.conversion)}%` })
