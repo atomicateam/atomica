@@ -166,6 +166,10 @@ export default {
       this.legendKeys.reverse()
     },
 
+    getUniqueName(keyString, prependString) {
+      return `${prependString}-${this.keys.indexOf(keyString)}`
+    },
+
     getLabel(key) {
       return this.dict ? this.dict[key] : key
     },
@@ -312,7 +316,7 @@ export default {
           .append('g')
           .attr('class', 'layer')
           .append('path')
-            .attr('class', (d) => `area ${d.key}-area`)
+            .attr('class', (d) => `area ${this.getUniqueName(d.key, 'area')}`)
             .style('opacity', 0)
             .style('fill', (d) => this.z(d.key))
             .attr('d', area)
@@ -325,7 +329,7 @@ export default {
         .data(stack(data))
 
       const stackedFillBar = stackedBar.enter().append('g')
-        .attr('class', (d) => `fill-bar ${d.key}`)
+        .attr('class', (d) => `fill-bar ${this.getUniqueName(d.key, 'bar')}`)
         .attr('fill', (d) => this.z(d.key))
 
       const rects = stackedFillBar.selectAll('rect')
@@ -348,15 +352,19 @@ export default {
           })
 
           if (!this.groupPopulations) {
+            const areaClass = this.getUniqueName(d.key, 'area')
+            const barClass = this.getUniqueName(d.key, 'bar')
+            const textClass = this.getUniqueName(d.key, 'cat-text')
+
             d3.selectAll('.area')
               .style('opacity', 0)
             d3.selectAll('.stage-total-texts')
               .style('opacity', 0)
-            d3.selectAll(`.fill-bar:not(.${d.key})`)
+            d3.selectAll(`.fill-bar:not(.${barClass})`)
               .style('opacity', 0.5)
-            d3.selectAll(`.${d.key}-cat-text`)
+            d3.selectAll(`.${textClass}`)
               .style('display', 'block')
-            d3.selectAll(`.${d.key}-area`)
+            d3.selectAll(`.${areaClass}`)
               .style('opacity', 0.5)
           }
           this.showLegend = true
@@ -364,11 +372,13 @@ export default {
         .on('mouseout', (d) => {
 
           if (!this.groupPopulations) {
+            const textClass = this.getUniqueName(d.key, 'cat-text')
+
             d3.selectAll('.fill-bar')
               .style('opacity', 1)
             d3.selectAll(`.cat-text`)
               .style('display', 'none')
-            d3.selectAll(`.${d.key}-cat-text`)
+            d3.selectAll(`.${textClass}`)
               .style('display', 'none')
             d3.selectAll('.area')
               .style('opacity', 0.3)
@@ -441,7 +451,7 @@ export default {
         })
       
       categoryText.enter().append('text')
-        .attr('class', (d) => `cat-text ${d.key}-cat-text`)
+        .attr('class', (d) => `cat-text ${this.getUniqueName(d.key, 'cat-text')}`)
         .attr('x', (d) => this.x(d.data.stage) + 2)
         .attr('y', (d) => this.y(d[1]) - 2)
         // .attr('y', (d) => { return (this.y(d[1]) - this.y(d[0])) / 2 + this.y(d[0]) })
@@ -452,7 +462,7 @@ export default {
         .text((d) => { return `${d3.format(',.0f')(d[1] - d[0])}` })
       
       categoryText.enter().append('text')
-        .attr('class', (d) => `cat-text ${d.key}-cat-text`)
+        .attr('class', (d) => `cat-text ${this.getUniqueName(d.key, 'cat-text')}`)
         .attr('x', (d) => this.x(d.data.stage) + this.x.bandwidth(d.data.stage) + 2)
         .attr('y', (d) => this.y(d[1]))
         .style('font-size', '10px')
@@ -462,7 +472,7 @@ export default {
         .text((d, i) => { return lastDataIndex === i ? '' : `Loss: ${d3.format(',.0f')(d.loss)}` })
 
       categoryText.enter().append('text')
-        .attr('class', (d) => `cat-text ${d.key}-cat-text`)
+        .attr('class', (d) => `cat-text ${this.getUniqueName(d.key, 'cat-text')}`)
         .attr('x', (d) => this.x(d.data.stage) + this.x.bandwidth(d.data.stage) + this.x.bandwidth(d.data.stage)/2)
         // .attr('y', d => this.y(d[0]) - 2)
         .attr('y', () => this.y(0) + 9)
