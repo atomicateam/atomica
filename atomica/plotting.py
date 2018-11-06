@@ -1,4 +1,10 @@
-# Imports
+"""
+Functions for generating plots from model outputs
+
+This module implements Atomica's plotting library, which is used to
+generate various plots from model outputs.
+
+"""
 
 import itertools
 import os

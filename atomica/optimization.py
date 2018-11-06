@@ -1,6 +1,10 @@
 """
-Functions for running optimizations.
-Version: 2018mar26
+Implements various Optimizations in Atomica
+
+This module implements the :py:class:`Optimization` class, which contains the
+information required to perform an optimization in Atomica. An Optimization
+effectively serves as a mapping from one set of program instructions to another.
+
 """
 
 import sciris as sc

@@ -1,7 +1,11 @@
-# Imports
+"""
+Simple interpolation module
+
+This module implements basic interpolation used in Atomica
+
+"""
 
 import numpy as np
-
 from .system import AtomicaException
 
 

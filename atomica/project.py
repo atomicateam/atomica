@@ -1,7 +1,8 @@
 """
-PROJECT
+Implements the :py:class:`Project` user interface for Atomica
 
-The main project class. Almost all functionality is provided by this class.
+The :py:class:`Project` class serves as the primary user interface for
+Atomica. Almost all functionality can be accessed via this interface.
 
 A project is based around 5 major lists:
     1. parsets -- an odict of parameter sets
@@ -15,13 +16,6 @@ In addition, a project contains:
     2. settings -- timestep, indices, etc.
     3. various kinds of metadata -- project name, creation date, etc.
 
-Methods for structure lists:
-    1. add -- add a new structure to the odict
-    2. remove -- remove a structure from the odict
-    3. copy -- copy a structure in the odict
-    4. rename -- rename a structure in the odict
-
-Version: 2018sep25
 """
 
 from .version import version

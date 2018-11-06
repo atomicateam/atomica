@@ -1,10 +1,10 @@
 """
-This module defines the Program and Programset classes, which are
+Classes for implementing Programs
+
+This module principally defines the Program and ProgramSet classes, which are
 used to define a single program/modality (e.g., FSW programs) and a
 set of programs, respectively.
 
-
-Version: 2018jul30
 """
 
 import sciris as sc

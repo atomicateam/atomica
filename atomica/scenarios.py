@@ -1,7 +1,15 @@
 """
 Define classes and functions for handling scenarios
-Version: 2018mar26
+
+This module implements the classes used to represent the three
+main types of scenarios in Atomica:
+
+* parameter scenarios
+* budget scenarios
+* coverage scenarios
+
 """
+
 
 import numpy as np
 import sciris as sc

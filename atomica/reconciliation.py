@@ -1,3 +1,15 @@
+"""
+Implements the automatic reconciliation algorithm
+
+In any given model run, the parameters calculated by the :py:class:`ProgramSet`
+should ideally match up with the values in the :py:class:`ParameterSet` so that
+there are no discontinuities in parameter value. This may not be the case depending
+on the data gathered and the calibration. Reconciliation aims to adjust the
+internal parameters of the :py:class:`ProgramSet` to best match a :py:class:`ParameterSet`
+in a particular year.
+
+"""
+
 import numpy as np
 import sciris as sc
 from .system import logger

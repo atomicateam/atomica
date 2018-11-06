@@ -1,3 +1,8 @@
+"""
+Define contants and utility classes used throughout Atomica
+
+"""
+
 from .system import AtomicaException
 from bisect import bisect
 import sciris as sc

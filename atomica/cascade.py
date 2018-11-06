@@ -1,3 +1,16 @@
+"""
+Utility functions for working with cascades
+
+Cascades are defined in a :py:class:`ProjectFramework` object. This module
+implements functions that are useful for working with the cascades, including
+
+- Validation
+- Plotting
+- Value extraction
+
+"""
+
+
 from .plotting import plot_legend
 import matplotlib.pyplot as plt
 import numpy as np

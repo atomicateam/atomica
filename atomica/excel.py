@@ -1,7 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-Atomica Excel utilities file.
-Contains functionality specific to Excel input and output.
+Miscellaneous utility functions for Excel files
+
+This module implements utility functions for Excel functionality that is common
+to different kinds of spreadsheets used in Atomica (e.g. Databooks and Program Books).
+For example, Excel formatting, and time-varying data entry tables, are implemented here.
+
 """
 
 from .system import AtomicaException

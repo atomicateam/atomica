@@ -1,3 +1,9 @@
+"""
+Provide single import for main Atomica functions
+
+"""
+
+
 # Set to True to print out as modules are being imported
 _debug = False
 

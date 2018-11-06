@@ -1,3 +1,11 @@
+"""
+Implements interface for working with model outputs
+
+The :py:class:`Result` class is a wrapper for a :py:class:`Model` instance,
+providing methods to conveniently access, plot, and export model outputs.
+
+"""
+
 import numpy as np
 import pandas as pd
 import sciris as sc
@@ -401,6 +409,13 @@ def evaluate_plot_string(plot_string):
 
 
 def export_results(results, fname):
+    """ Export results to a file
+
+    :param results: Can be
+    :param fname:
+    :return:
+    """
+
     # fname is the output file to write, including path
     # e.g. concatenate downloads_dir.dir_path with 'output.zip'
     results = sc.promotetolist(results)

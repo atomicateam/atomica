@@ -1,7 +1,11 @@
-# -*- coding: utf-8 -*-
 """
-Atomica data file.
-Sets out a structure to store context-specific databook-imported values relating to a model.
+Implementation of Databook functionality
+
+This module defines the :py:class:`ProjectData` class, which serves as a
+Python-based representation of the Databook, as well as providing methods for
+reading Databooks into `ProjectData` instances, and saving `ProjectData` back
+to Excel files.
+
 """
 
 from .structure import TimeSeries

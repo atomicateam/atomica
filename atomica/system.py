@@ -1,7 +1,6 @@
-# -*- coding: utf-8 -*-
 """
-Atomica system functionality file.
-Contains important functions that are used throughout Atomica.
+Define internal system constants and functions
+
 """
 
 import os

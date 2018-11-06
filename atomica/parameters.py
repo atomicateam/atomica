@@ -1,4 +1,12 @@
-# Imports
+"""
+Implements data-based model parameters (:py:class:`ParameterSet`)
+
+A :py:class:`ParameterSet` (or 'parset') is an intermediate representation of
+model parameters. The main role of the parset is to store the calibration
+values that are used to scale model parameters. Therefore, every parameter
+in the model appears in the parset, not just the parameters in the databook.
+
+"""
 
 import numpy as np
 import sciris as sc

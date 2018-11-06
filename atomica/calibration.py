@@ -1,3 +1,11 @@
+"""
+Implements automatic calibration
+
+This module defines the `perform_autofit` function, which is the entry-point for
+automatic calibration
+
+"""
+
 import numpy as np
 import sciris as sc
 from .interpolation import interpolate_func

@@ -1,4 +1,13 @@
-# Imports
+"""
+Implements the Atomica computational graph
+
+Fundamentally, models in Atomica can be represented as a graph, with
+nodes corresponding to compartments, and edges corresponding to transitions/links.
+This module implements the graph representation of the Framework in a form that can
+be numerically integrated. It also implements the methods to actually perform the integration.
+
+"""
+
 
 from .system import AtomicaException, NotFoundError, AtomicaInputError, NotAllowedError, logger
 from .structure import FrameworkSettings as FS

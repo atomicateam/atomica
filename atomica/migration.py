@@ -1,4 +1,16 @@
-# Central file for migrating Projects
+"""
+Manage Project versions and migration
+
+Migration refers to updating old :py:class:`Project` instances so that they
+can be run with more recent versions of Atomica. This module defines
+
+- A set of 'migration functions' that each transform a :py:class:`Project` instance from one
+  version to another
+- An entry-point that sequentially calls the migration functions to update a project to
+  the current version used in Atomica
+
+"""
+
 from distutils.version import LooseVersion
 from .system import logger, AtomicaException
 from .version import version

@@ -1,3 +1,8 @@
+"""
+Define utility classes used throughout Atomica
+
+"""
+
 import sciris as sc
 from .system import NotAllowedError
 import inspect
