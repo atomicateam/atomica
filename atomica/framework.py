@@ -471,7 +471,6 @@ class ProjectFramework(object):
         # Now validate each parameter
         defined = set()  # Track which parameters have already been defined
         for i, par in self.pars.iterrows():
-            defined.add(par.name)
 
             # Convert case for standard units - this is required for validation
             if par['format'] and par['format'].lower() in FS.STANDARD_UNITS:
@@ -567,6 +566,8 @@ class ProjectFramework(object):
                 # If this is not a transition parameter...
                 if par['format'] == FS.QUANTITY_TYPE_NUMBER and par['targetable'] == 'y':
                     raise InvalidFramework('Parameter "%s" is targetable and in number units, but is not a transition parameter. To target a parameter with programs in number units, the parameter must appear in the transition matrix.' % par.name)
+
+            defined.add(par.name) # Only add the parameter to the list of definitions after it has finished validating, because parameters cannot depend on themselves
 
         # VALIDATE NAMES - No collisions, no keywords
 
