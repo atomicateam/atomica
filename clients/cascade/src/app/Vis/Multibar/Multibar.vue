@@ -175,8 +175,8 @@ export default {
       this.height = this.svgHeight - this.margin.top - this.margin.bottom
     },
 
-    getId(string) {
-      return string.toLowerCase().replace(/\s/g, '')
+    getUniqueName(keyString, prependString) {
+      return `${prependString}-${this.keys.indexOf(keyString)}`
     },
 
     getLabel(category) {
@@ -298,7 +298,7 @@ export default {
           .append('g')
           .attr('class', 'layer')
           .append('path')
-            .attr('class', d => `area ${this.getId(d.key)}-area`)
+            .attr('class', d => `area ${this.getUniqueName(d.key, 'area')}`)
             .style('opacity', 0)
             .style('fill', d => this.z(d.key))
             .attr('d', d => area(d.stages))
@@ -326,31 +326,36 @@ export default {
         .attr('height', d => this.height - this.y(d.value))
         .attr('fill', d => this.z(d.key))
         .attr('fillOpacity', 0)
-        .attr('class', d => `rect ${this.getId(d.key)}-rect`)
+        .attr('class', d => `rect ${this.getUniqueName(d.key, 'rect')}`)
         // .on('mousedown', d => {
         //   this.$emit('click', d)
         // })
         .on('mouseover', d => {
           this.$emit('mouseover', d)
 
-          const className = this.getId(d.key)
-          d3.selectAll(`.${className}-area`).transition()
+          const areaClass = this.getUniqueName(d.key, 'area')
+          const rectClass = this.getUniqueName(d.key, 'rect')
+          const textClass = this.getUniqueName(d.key, 'cat-text')
+
+          d3.selectAll(`.${areaClass}`).transition()
             .style('opacity', 0.4)
-          d3.selectAll(`.multi-bars rect:not(.${className}-rect)`).transition()
+          d3.selectAll(`.multi-bars rect:not(.${rectClass})`).transition()
             .style('opacity', .1)
-          d3.selectAll(`.${className}-cat-text`)
+          d3.selectAll(`.${textClass}`)
             .style('display', 'block')
 
         })
         .on('mouseout', d => {
           this.$emit('mouseout', d)
 
-          const className = this.getId(d.key)
-          d3.selectAll(`.${className}-area`).transition()
+          const areaClass = this.getUniqueName(d.key, 'area')
+          const textClass = this.getUniqueName(d.key, 'cat-text')
+
+          d3.selectAll(`.${areaClass}`).transition()
             .style('opacity', 0)
           d3.selectAll('.rect').transition()
             .style('opacity', 1)
-          d3.selectAll(`.${className}-cat-text`)
+          d3.selectAll(`.${textClass}`)
             .style('display', 'none')
 
         })
@@ -366,7 +371,7 @@ export default {
         .data(this.areaData(data))
 
       const categoryText = multiBarTexts.enter().append('g')
-        .attr('class', d => `cat-text ${this.getId(d.key)}-cat-text`)
+        .attr('class', d => `cat-text ${this.getUniqueName(d.key, 'cat-text')}`)
         .style('display', 'none')
         .selectAll('text')
         .data((d) => {
