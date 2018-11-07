@@ -21,25 +21,26 @@ from .system import FrameworkSettings as FS
 import atomica
 import types
 
-### MODULE MIGRATIONS
+# MODULE MIGRATIONS
 #
 # In this section, make changes to the Atomica module structure to enable pickle files
 # to be loaded at all
 
 # First, add any placeholder modules that have been subsequently removed
-atomica.structure = types.ModuleType('structure') # Removed 'structure' module in 1.0.12 20181107
+atomica.structure = types.ModuleType('structure')  # Removed 'structure' module in 1.0.12 20181107
 sys.modules['atomica.structure'] = atomica.structure
 
 # Then, remap any required classes
-atomica.structure.TimeSeries = atomica.utils.TimeSeries # Moved 'TimeSeries' in 1.0.12 20181107
+atomica.structure.TimeSeries = atomica.utils.TimeSeries  # Moved 'TimeSeries' in 1.0.12 20181107
 
-### PROJECT MIGRATIONS
+# PROJECT MIGRATIONS
 #
 # The remaining code manages upgrading Project objects and their contents after they
 # have been unpickled and instantiated
 
 # This list stores all of the migrations that are possible
 available_migrations = []
+
 
 class Migration:
     """ Class representation of a migration

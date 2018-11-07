@@ -263,7 +263,7 @@ class PlotData(object):
                         vars = pop.get_variable(dep_label)
                         if t_bins is not None and (isinstance(vars[0], Link) or isinstance(vars[0], Parameter)) and time_aggregation == "sum" and not displayed_annualization_warning:
                             raise Exception("Function includes Parameter/Link so annualized rates are being "
-                                                   "used. Aggregation should use 'average' rather than 'sum'.")
+                                            "used. Aggregation should use 'average' rather than 'sum'.")
                         deps[dep_label] = vars
                     par._fcn = fcn
                     par.deps = deps

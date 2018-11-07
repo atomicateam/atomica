@@ -187,8 +187,8 @@ def plot_single_cascade(result=None, cascade=None, pops=None, year=None, data=No
     data_yrange = np.diff(ylim)
     ax.set_ylim(-data_yrange * 0.2, data_yrange * 1.1)
     ax.set_yticks(yticks)
-    for i,val in enumerate(cascade_array):
-        plt.text(i, val*1.01, '%s' % sc.sigfig(val, sigfigs=3, sep=True,keepints=True), verticalalignment='bottom', horizontalalignment='center', zorder=200)
+    for i, val in enumerate(cascade_array):
+        plt.text(i, val * 1.01, '%s' % sc.sigfig(val, sigfigs=3, sep=True, keepints=True), verticalalignment='bottom', horizontalalignment='center', zorder=200)
 
     bars = h.get_children()
     conversion = cascade_array[1:] / cascade_array[0:-1]  # Fraction not lost

@@ -16,6 +16,7 @@ def parent_dir():
     # Return the parent directory of the file that called this function
     return os.path.join(os.path.abspath(os.path.join(inspect.stack()[1][1], os.pardir)), '')
 
+
 class NamedItem(object):
     def __init__(self, name=None):
         if name is None:
@@ -32,6 +33,7 @@ class NamedItem(object):
 
     def __repr__(self):
         return sc.prepr(self)
+
 
 class NDict(sc.odict):
     def __init__(self, *args, **kwargs):
@@ -187,6 +189,7 @@ class TimeSeries(object):
         # while `ts.sample([2011,2012])` would perturb the values depending on sigma
         # (and perhaps some other distribution information too)
         raise NotImplementedError()
+
 
 def evaluate_plot_string(plot_string):
     # The plots in the framework are specified as strings - for example,

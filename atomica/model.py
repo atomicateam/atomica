@@ -1210,7 +1210,7 @@ class Model(object):
         if do_program_overwrite:
             prop_coverage = sc.odict.fromkeys(self._program_cache['comps'], 0.0)
             for k, comp_list in self._program_cache['comps'].items():
-                if k in self._program_cache['prop_coverage']: # If the coverage was precomputed in a coverage scenario
+                if k in self._program_cache['prop_coverage']:  # If the coverage was precomputed in a coverage scenario
                     prop_coverage[k] = self._program_cache['prop_coverage'][k][[ti]]
                 else:
                     n = 0.0

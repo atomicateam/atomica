@@ -27,7 +27,6 @@ def to_timestep(p, dt):
 
     """
 
-
     return 1. - (1. - p)**dt
 
 

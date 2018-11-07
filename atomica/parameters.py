@@ -99,10 +99,10 @@ class Parameter(NamedItem):
         # Validate input.
         if pop_name not in self.t.keys():
             raise Exception("Cannot interpolate parameter '{0}' "
-                                   "without referring to a proper population name.".format(pop_name))
+                            "without referring to a proper population name.".format(pop_name))
         if tvec is None:
             raise Exception("Cannot interpolate parameter '{0}' "
-                                   "without providing a time vector.".format(self.name))
+                            "without providing a time vector.".format(self.name))
 
         if not self.has_values(pop_name):
             raise Exception('Parameter "%s" contains no data for pop "%s", and thus cannot be interpolated' % (self.name, pop_name))
@@ -110,10 +110,10 @@ class Parameter(NamedItem):
         tvec = sc.promotetoarray(tvec)
         if not len(self.t[pop_name]) > 0:
             raise Exception("There are no timepoint values for parameter '{0}', "
-                                   "population '{1}'.".format(self.name, pop_name))
+                            "population '{1}'.".format(self.name, pop_name))
         if not len(self.t[pop_name]) == len(self.y[pop_name]):
             raise Exception("Parameter '{0}', population '{1}', does not have corresponding values "
-                                   "and timepoints.".format(self.name, pop_name))
+                            "and timepoints.".format(self.name, pop_name))
 
         # if len(self.t[pop_name]) == 1 and not extrapolate_nan:
         #     # Do not bother running interpolation loops if constant. Good for performance.

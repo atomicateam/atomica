@@ -17,6 +17,7 @@ from .system import logger
 from .system import FrameworkSettings as FS
 from .utils import evaluate_plot_string
 
+
 class Result(NamedItem):
     # A Result stores a single model run
     def __init__(self, model, parset=None, name=None):
@@ -222,7 +223,8 @@ class Result(NamedItem):
         d.interpolate(year)
         return sc.odict([(s.data_label, s.vals) for s in d.series])
 
-def export_results(results, filename=None, output_ordering = ('output','result','pop'), cascade_ordering = ('pop','result','stage'), program_ordering = ('program','result','quantity')):
+
+def export_results(results, filename=None, output_ordering=('output', 'result', 'pop'), cascade_ordering=('pop', 'result', 'stage'), program_ordering=('program', 'result', 'quantity')):
     """ Export Result outputs to a file
 
     This function writes an XLSX file with the data corresponding to any Cascades or Plots
@@ -286,13 +288,13 @@ def export_results(results, filename=None, output_ordering = ('output','result',
         for _, spec in plots_available.iterrows():
             if 'type' in spec and spec['type'] == 'bar':
                 continue  # For now, don't do bars - not implemented yet
-            plot_df.append(_output_to_df(results,output_name=spec['name'],output=evaluate_plot_string(spec['quantities']),tvals=new_tvals))
+            plot_df.append(_output_to_df(results, output_name=spec['name'], output=evaluate_plot_string(spec['quantities']), tvals=new_tvals))
         _write_df(writer, formats, 'Plot data', pd.concat(plot_df), output_ordering)
 
     # Write cascades into separate sheets
     cascade_df = []
     for name in results[0].framework.cascades.keys():
-        cascade_df.append(_cascade_to_df(results,name,new_tvals))
+        cascade_df.append(_cascade_to_df(results, name, new_tvals))
     if cascade_df:
         # always split tables by cascade, since different cascades can have different stages or the same stages with different definitions
         # it's thus potentially very confusing if the tables are split by something other than the cascade
@@ -318,7 +320,7 @@ def export_results(results, filename=None, output_ordering = ('output','result',
 
         prog_df = []
         for prog_name in prog_names:
-            prog_df.append(_programs_to_df(results,prog_name,new_tvals))
+            prog_df.append(_programs_to_df(results, prog_name, new_tvals))
         _write_df(writer, formats, 'Programs', pd.concat(prog_df), program_ordering)
 
     writer.save()
@@ -326,7 +328,8 @@ def export_results(results, filename=None, output_ordering = ('output','result',
 
     return output_fname
 
-def _programs_to_df(results,prog_name,tvals):
+
+def _programs_to_df(results, prog_name, tvals):
     """
     Return a DataFrame for program outputs for a group of results
 
@@ -371,7 +374,7 @@ def _programs_to_df(results,prog_name,tvals):
     return df
 
 
-def _cascade_to_df(results,cascade_name,tvals):
+def _cascade_to_df(results, cascade_name, tvals):
     """
     Return a DataFrame for a cascade for a group of results
 
@@ -397,13 +400,14 @@ def _cascade_to_df(results,cascade_name,tvals):
         for result in results:
             cascade_vals, _ = get_cascade_vals(result, cascade_name, pops=pop, year=tvals)
             for stage, vals in cascade_vals.items():
-                data[(cascade_name,pop_names[pop], result.name, stage)] = vals
+                data[(cascade_name, pop_names[pop], result.name, stage)] = vals
         df = pd.DataFrame(data, index=tvals)
         df = df.T
-        df.index = df.index.set_names(['cascade','pop', 'result', 'stage'])  # Set the index names correctly so they can be reordered easily
+        df.index = df.index.set_names(['cascade', 'pop', 'result', 'stage'])  # Set the index names correctly so they can be reordered easily
         cascade_df.append(df)
 
     return pd.concat(cascade_df)
+
 
 def _output_to_df(results, output_name, output, tvals):
     """
@@ -428,7 +432,7 @@ def _output_to_df(results, output_name, output, tvals):
 
     from .plotting import PlotData
 
-    pop_labels = {x:y for x,y in zip(results[0].pop_names,results[0].pop_labels)}
+    pop_labels = {x: y for x, y in zip(results[0].pop_names, results[0].pop_labels)}
     data = dict()
     popdata = PlotData(results, outputs=output)
     assert len(popdata.outputs) == 1, 'Framework plot specification should evaluate to exactly one output series - there were %d' % (len(popdata.outputs))
@@ -456,8 +460,9 @@ def _output_to_df(results, output_name, output, tvals):
 
     df = pd.DataFrame(data, index=tvals)
     df = df.T
-    df.index = df.index.set_names(['output', 'result','pop']) # Set the index names correctly so they can be reordered easily
+    df.index = df.index.set_names(['output', 'result', 'pop'])  # Set the index names correctly so they can be reordered easily
     return df
+
 
 def _write_df(writer, formats, sheet_name, df, level_ordering):
     """
@@ -476,38 +481,36 @@ def _write_df(writer, formats, sheet_name, df, level_ordering):
 
     """
 
-    level_substitutions = {'pop':'Population','stage':'Cascade stage'}
+    level_substitutions = {'pop': 'Population', 'stage': 'Cascade stage'}
 
     # Remember the ordering of each index level
     order = {}
     for level in level_ordering:
         order[level] = list(dict.fromkeys(df.index.get_level_values(level)))
 
-    required_width = [0]*(len(level_ordering)-1)
+    required_width = [0] * (len(level_ordering) - 1)
 
     row = 0
 
     worksheet = writer.book.add_worksheet(sheet_name)
-    writer.sheets[sheet_name] = worksheet # Need to add it to the ExcelWriter for it to behave properly
+    writer.sheets[sheet_name] = worksheet  # Need to add it to the ExcelWriter for it to behave properly
 
-    for title, table in df.groupby(level=level_ordering[0],sort=False):
+    for title, table in df.groupby(level=level_ordering[0], sort=False):
         worksheet.write_string(row, 0, title, formats['center_bold'])
         row += 1
 
-        table.reset_index(level=level_ordering[0], drop=True,inplace=True) # Drop the title column
+        table.reset_index(level=level_ordering[0], drop=True, inplace=True)  # Drop the title column
         table = table.reorder_levels(level_ordering[1:])
-        for i in range(1,len(level_ordering)):
-            table = table.reindex(order[level_ordering[i]],level=i-1)
+        for i in range(1, len(level_ordering)):
+            table = table.reindex(order[level_ordering[i]], level=i - 1)
         table.index = table.index.set_names([level_substitutions[x] if x in level_substitutions else x.title() for x in table.index.names])
         table.to_excel(writer, sheet_name, startcol=0, startrow=row)
         row += table.shape[0] + 2
 
         required_width[0] = max(required_width[0], len(title))
-        for i in range(0,len(required_width)):
+        for i in range(0, len(required_width)):
             required_width[i] = max(required_width[i], max(table.index.get_level_values(i).str.len()))
 
     for i in range(0, len(required_width)):
         if required_width[i] > 0:
             worksheet.set_column(i, i, required_width[i] * 1.1 + 1)
-
-

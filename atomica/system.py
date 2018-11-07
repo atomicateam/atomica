@@ -12,6 +12,7 @@ logger = logging.getLogger('atomica')
 
 # Code for determining module installation directory.
 
+
 def atomica_path(subdir=None, trailingsep=True):
     """ Returns paths relative to the Atomica parent module
 
@@ -21,7 +22,7 @@ def atomica_path(subdir=None, trailingsep=True):
         :param subdir:
     :param trailingsep:
     :return:
-    
+
     If subdir is not None, include it in the path. """
     path = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
     if subdir is not None:
@@ -36,6 +37,7 @@ def atomica_path(subdir=None, trailingsep=True):
 
 LIBRARY_PATH = atomica_path(['atomica', 'library'])
 
+
 class NotFoundError(Exception):
     """
     Error for when an item was not found
@@ -45,6 +47,7 @@ class NotFoundError(Exception):
     """
 
     pass
+
 
 class FrameworkSettings():
     """

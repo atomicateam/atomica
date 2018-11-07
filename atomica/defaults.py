@@ -8,6 +8,7 @@ from .framework import ProjectFramework
 from .project import Project
 from .system import LIBRARY_PATH, logger
 
+
 def default_programs(project, addcostcovpars=False, addcostcovdata=False, filterprograms=None):
     """ Make some default programs"""
     pass
