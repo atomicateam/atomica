@@ -17,7 +17,7 @@ import openpyxl
 from openpyxl.comments import Comment
 import numpy as np
 from . import framework as FS
-from .system import logger, reraise_modify
+from .system import logger
 
 
 def standard_formats(workbook):
@@ -648,7 +648,7 @@ class TimeDependentValuesEntry(object):
                 ts.assumption = None
 
             if constant_index is not None:
-                assert vals[offset - 1].strip().lower() == 'or', 'Error with validating row in TDVE table "%s" (did not find the text "OR" in the expected place)' % (name)  # Check row is as expected
+                assert sc.isstring(vals[offset - 1]) and vals[offset - 1].strip().lower() == 'or', 'Error with validating row in TDVE table "%s" (did not find the text "OR" in the expected place)' % (name)  # Check row is as expected
 
             data_cells = row[offset:t_end]
 

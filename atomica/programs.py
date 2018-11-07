@@ -8,7 +8,7 @@ set of programs, respectively.
 """
 
 import sciris as sc
-from .system import AtomicaException, logger, reraise_modify
+from .system import AtomicaException, logger
 from .utils import NamedItem
 from numpy import array, exp, minimum, inf
 from .utils import TimeSeries
@@ -445,7 +445,7 @@ class ProgramSet(NamedItem):
                 tdve = TimeDependentValuesEntry.from_rows(table)
             except Exception as e:
                 message = 'Error on sheet "%s" while trying to read a TDVE table starting on row %d -> ' % (sheet.title, start_row)
-                reraise_modify(e, message)
+                raise Exception('%s -> %s' % (message, e)) from e
 
             prog = self.programs[tdve.name]
 

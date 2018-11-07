@@ -16,7 +16,7 @@ from .excel import cell_require_string, standard_formats, AtomicaSpreadsheet, re
 import xlsxwriter as xw
 import io
 import numpy as np
-from .system import AtomicaException, NotFoundError, reraise_modify, logger
+from .system import AtomicaException, NotFoundError, logger
 from . import framework as FS
 from collections import defaultdict
 
@@ -230,19 +230,19 @@ class ProjectData(sc.prettyobj):
                     self._read_pops(sheet)
                 except Exception as e:
                     message = 'An error was detected on the "Population Definitions" sheet -> '
-                    reraise_modify(e, message)
+                    raise Exception('%s -> %s' % (message, e)) from e
             elif sheet.title == 'Transfers':
                 try:
                     self._read_transfers(sheet)
                 except Exception as e:
                     message = 'An error was detected on the "Transfers" sheet -> '
-                    reraise_modify(e, message)
+                    raise Exception('%s -> %s' % (message, e)) from e
             elif sheet.title == 'Interactions':
                 try:
                     self._read_interpops(sheet)
                 except Exception as e:
                     message = 'An error was detected on the "Interactions" sheet -> '
-                    reraise_modify(e, message)
+                    raise Exception('%s -> %s' % (message, e)) from e
             elif sheet.title == 'Metadata':
                 continue
             else:
@@ -253,8 +253,8 @@ class ProjectData(sc.prettyobj):
                     try:
                         tdve = TimeDependentValuesEntry.from_rows(table)
                     except Exception as e:
-                        message = 'Error on sheet "%s" while trying to read a TDVE table starting on row %d -> ' % (sheet.title, start_row)
-                        reraise_modify(e, message)
+                        message = 'Error on sheet "%s" while trying to read a TDVE table starting on row %d' % (sheet.title, start_row)
+                        raise Exception('%s -> %s' % (message, e)) from e
 
                     # If the TDVE is not in the Framework, that's a critical stop error, because the framework needs to at least declare
                     # what kind of variable this is - otherwise, we don't know the allowed units and cannot write the databook back properly

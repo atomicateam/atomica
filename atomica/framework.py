@@ -10,7 +10,7 @@ class, which provides a Python representation of a Framework file.
 import openpyxl
 import pandas as pd
 import sciris as sc
-from .system import AtomicaException, NotFoundError, logger, reraise_modify
+from .system import AtomicaException, NotFoundError, logger
 from .excel import read_tables, AtomicaSpreadsheet
 from .version import version
 import numpy as np
@@ -301,7 +301,7 @@ class ProjectFramework(object):
             name_df = sanitize_dataframe(name_df, required_columns, defaults, valid_content)
         except Exception as e:
             message = 'An error was detected on the "About" sheet in the Framework file -> '
-            reraise_modify(e, message)
+            raise Exception('%s -> %s' % (message, e)) from e
 
         name_df['name'] = name_df['name'].astype(str)
         self.name = name_df['name'].iloc[0]
@@ -335,7 +335,7 @@ class ProjectFramework(object):
             self.comps = sanitize_dataframe(self.comps, required_columns, defaults, valid_content)
         except Exception as e:
             message = 'An error was detected on the "Compartments" sheet in the Framework file -> '
-            reraise_modify(e, message)
+            raise Exception('%s -> %s' % (message, e)) from e
 
         # Default setup weight is 1 if in databook or 0 otherwise
         # This is a separate check because the default value depends on other columns
@@ -398,7 +398,7 @@ class ProjectFramework(object):
             self.characs = sanitize_dataframe(self.characs, required_columns, defaults, valid_content)
         except Exception as e:
             message = 'An error was detected on the "Characteristics" sheet in the Framework file -> '
-            reraise_modify(e, message)
+            raise Exception('%s -> %s' % (message, e)) from e
 
         if 'setup weight' not in self.characs:
             self.characs['setup weight'] = (~self.characs['databook page'].isnull()).astype(int)
@@ -452,7 +452,7 @@ class ProjectFramework(object):
             self.interactions = sanitize_dataframe(self.interactions, required_columns, defaults, valid_content)
         except Exception as e:
             message = 'An error was detected on the "Interactions" sheet in the Framework file -> '
-            reraise_modify(e, message)
+            raise Exception('%s -> %s' % (message, e)) from e
 
         # VALIDATE PARAMETERS
         # This is done last, because validating parameter dependencies requires checking compartments and characteristics
@@ -477,7 +477,7 @@ class ProjectFramework(object):
             self.pars = sanitize_dataframe(self.pars, required_columns, defaults, valid_content)
         except Exception as e:
             message = 'An error was detected on the "Parameters" sheet in the Framework file -> '
-            reraise_modify(e, message)
+            raise Exception('%s -> %s' % (message, e)) from e
 
         self.pars['format'] = self.pars['format'].map(lambda x: x.strip() if sc.isstring(x) else x)
 
