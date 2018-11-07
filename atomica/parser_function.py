@@ -22,6 +22,7 @@ supported_functions = {
     'cos':np.cos,
     'sin':np.sin,
     'sqrt': np.sqrt,
+    'ln': np.log,
     'to_timestep':to_timestep,
     'to_annual':to_annual,
     }
