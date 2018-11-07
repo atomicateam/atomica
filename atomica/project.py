@@ -28,7 +28,7 @@ from .parameters import ParameterSet
 from .programs import ProgramSet
 from .scenarios import Scenario, ParameterScenario, BudgetScenario, CoverageScenario
 from .optimization import Optimization, optimize, OptimInstructions, InvalidInitialConditions
-from .system import logger, AtomicaException
+from .system import logger
 from .cascade import get_cascade_outputs
 from .utils import NDict, evaluate_plot_string
 from .plotting import PlotData, plot_series
@@ -213,7 +213,7 @@ class Project(object):
         # Get filepath
         if self.data is None:
             errormsg = 'Please upload a databook before creating a program book. The databook defines which populations will appear in the program book.'
-            raise AtomicaException(errormsg)
+            raise Exception(errormsg)
         full_path = sc.makefilepath(filename=progbook_path, default=self.name, ext='xlsx', makedirs=False)  # Directory will be created later in progset.save()
         if data_start is None:
             data_start = self.data.tvec[0]
@@ -230,7 +230,7 @@ class Project(object):
             print('Uploading program data')
         if self.data is None:
             errormsg = 'Please upload a databook before uploading a program book. The databook contains the population definitions required to read the program book.'
-            raise AtomicaException(errormsg)
+            raise Exception(errormsg)
 
         if sc.isstring(progbook_path):
             full_path = sc.makefilepath(filename=progbook_path, default=self.name, ext='xlsx', makedirs=False)
@@ -504,7 +504,7 @@ class Project(object):
             optimized_instructions = optimize(self, optim, parset, progset, unoptimized_instructions)
         except InvalidInitialConditions:
             if optim_ins.json['optim_type'] == 'money':
-                raise AtomicaException('It was not possible to achieve the optimization target even with an increased budget. Specify or raise upper limits for spending, or decrease the optimization target')
+                raise Exception('It was not possible to achieve the optimization target even with an increased budget. Specify or raise upper limits for spending, or decrease the optimization target')
             else:
                 raise  # Just raise it as-is
 
@@ -600,7 +600,7 @@ class Project(object):
                 elif optim_type == 'money':
                     json['objective_weights']['conversion:%s' % (cascade_name)] = 0.
                 else:
-                    raise AtomicaException('Unknown optim_type')
+                    raise Exception('Unknown optim_type')
 
                 if cascade_name.lower() == 'cascade':
                     json['objective_labels']['conversion:%s' % (cascade_name)] = 'Maximize the conversion rates along each stage of the cascade'
@@ -618,7 +618,7 @@ class Project(object):
                     elif optim_type == 'money':
                         json['objective_weights'][objective_name] = 0
                     else:
-                        raise AtomicaException('Unknown optim_type')
+                        raise Exception('Unknown optim_type')
 
                     if cascade_name.lower() == 'cascade':
                         json['objective_labels'][objective_name] = 'Maximize the number of people in cascade stage "%s"' % (stage_name)
@@ -645,10 +645,10 @@ class Project(object):
                                             'xdr_inf': 'Prevalence of active XDR-TB'}
 
             else:
-                raise AtomicaException('Unknown optim_type')
+                raise Exception('Unknown optim_type')
 
         else:
-            raise AtomicaException('Tool "%s" not recognized' % tool)
+            raise Exception('Tool "%s" not recognized' % tool)
         json['maxtime'] = 30  # WARNING, default!
         json['prog_spending'] = sc.odict()
         for prog_name in self.progset().programs.keys():

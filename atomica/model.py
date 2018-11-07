@@ -9,10 +9,11 @@ be numerically integrated. It also implements the methods to actually perform th
 """
 
 
-from .system import AtomicaException, NotFoundError, AtomicaInputError, NotAllowedError, logger
-from . import framework as FS
+from .system import NotFoundError
+from .system import logger
+from .system import FrameworkSettings as FS
 from .results import Result
-from .parser_function import parse_function
+from .function_parser import parse_function
 from .version import version
 from collections import defaultdict
 import sciris as sc
@@ -25,7 +26,7 @@ model_settings['tolerance'] = 1e-6
 model_settings['iteration_limit'] = 100
 
 
-class BadInitialization(AtomicaException):
+class BadInitialization(Exception):
     # Throw this error if the simulation exited due to a bad initialization, specifically
     # due to negative initial popsizes or an excessive residual.
     # This can then be dealt with appropriately - e.g. calibration will catch this
@@ -141,7 +142,7 @@ class Compartment(Variable):
             elif link.parameter.units == FS.QUANTITY_TYPE_PROPORTION:
                 outflow_probability += link.parameter.vals[ti]
             else:
-                raise AtomicaInputError('Unknown parameter units')
+                raise Exception('Unknown parameter units')
 
         remain_probability = 1 - outflow_probability
 
@@ -313,14 +314,14 @@ class Parameter(Variable):
             # Convert average variable to object reference
             v1 = self.pop.get_variable(function_args[0])[0]
             if isinstance(v1, Link):
-                raise NotAllowedError('Links cannot be aggregated across populations')
+                raise Exception('Links cannot be aggregated across populations')
             function_args[0] = v1
 
             # Convert weighting variable to object reference
             if len(function_args) == 3:
                 v2 = self.pop.get_variable(function_args[2])[0]
                 if isinstance(v2, Link):
-                    raise NotAllowedError('Links cannot be used to weight interactions')
+                    raise Exception('Links cannot be used to weight interactions')
                 function_args[-1] = v2
 
             self.pop_aggregation = [special_function] + function_args
@@ -342,7 +343,7 @@ class Parameter(Variable):
             for deps in self.deps.values():
                 for dep in deps:
                     if isinstance(dep, Link):
-                        raise NotAllowedError("A Parameter that depends on transition flow rates cannot be a dependency, it must be output only.")
+                        raise Exception("A Parameter that depends on transition flow rates cannot be a dependency, it must be output only.")
                     dep.set_dependent()
 
     def unlink(self):
@@ -417,7 +418,7 @@ class Parameter(Variable):
                 for link in self.links:
                     n += link.source.vals[ti]
             else:
-                raise AtomicaException('Cannot retrieve source popsize for a non-transition parameter')
+                raise Exception('Cannot retrieve source popsize for a non-transition parameter')
             self.source_popsize_cache_time = ti
             self.source_popsize_cache_val = n
             return n
@@ -1079,7 +1080,7 @@ class Model(object):
                             par_label = self.framework.get_label(par.name)
                         except:  # Name lookup will fail for transfer parameters
                             par_label = par.name
-                        raise AtomicaException("Encountered unknown units '%s' for Parameter '%s' (%s) in Population %s" % (quantity_type, par.name, par_label, pop.name))
+                        raise Exception("Encountered unknown units '%s' for Parameter '%s' (%s) in Population %s" % (quantity_type, par.name, par_label, pop.name))
 
             # Then, adjust outflows to prevent negative popsizes.
             for comp_source in pop.comps:
@@ -1170,7 +1171,7 @@ class Model(object):
                         # Outflows are scaled to the entire compartment size.
                         denom_val = sum(link.parameter.vals[ti] for link in junc.outlinks)
                         if denom_val == 0:
-                            raise AtomicaException("Total junction outflow for junction '%s' was zero - all junctions must have a nonzero outflow" % (self.framework.get_label(junc.name)))
+                            raise Exception("Total junction outflow for junction '%s' was zero - all junctions must have a nonzero outflow" % (self.framework.get_label(junc.name)))
 
                         for link in junc.outlinks:
                             flow = current_size * link.parameter.vals[ti] / denom_val
@@ -1184,7 +1185,7 @@ class Model(object):
                 if not review_required:
                     break
             else:
-                raise AtomicaException("Processing junctions for timestep {0} is taking too long. Infinite loop suspected.".format(ti))
+                raise Exception("Processing junctions for timestep {0} is taking too long. Infinite loop suspected.".format(ti))
 
     def update_pars(self):
         """
@@ -1250,7 +1251,7 @@ class Model(object):
                 elif pars[0].pop_aggregation[0] in {'TGT_POP_AVG', 'TGT_POP_SUM'}:
                     pass
                 else:
-                    raise AtomicaException("Unknown aggregation function '{0}'").format(pars[0].pop_aggregation[0])  # This should never happen, an error should be raised earlier
+                    raise Exception("Unknown aggregation function '{0}'").format(pars[0].pop_aggregation[0])  # This should never happen, an error should be raised earlier
 
                 # If we are weighting by a variable, multiply the weights matrix accordingly
                 if len(pars[0].pop_aggregation) == 4:

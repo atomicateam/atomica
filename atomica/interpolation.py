@@ -6,7 +6,6 @@ This module implements basic interpolation used in Atomica
 """
 
 import numpy as np
-from .system import AtomicaException
 
 
 # General interpolation wrapper
@@ -24,14 +23,14 @@ def interpolate_func(x, y, xnew, method='pchip', extrapolate_nan=False):
         y = y.astype(float)
         xnew = xnew.astype(float)
     except Exception:
-        raise AtomicaException("Interpolation received values that cannot be converted into numpy float arrays.")
+        raise Exception("Interpolation received values that cannot be converted into numpy float arrays.")
 
     if not len(x) > 1:
-        raise AtomicaException("Interpolation failure due to the existence of less than two x values.")
+        raise Exception("Interpolation failure due to the existence of less than two x values.")
     if not len(x) == len(y):
-        raise AtomicaException("Interpolation failure due to unequal number of x and y values.")
+        raise Exception("Interpolation failure due to unequal number of x and y values.")
     if len(set(x)) != len(x):
-        raise AtomicaException("Interpolation failure due to repeated x values.")
+        raise Exception("Interpolation failure due to repeated x values.")
 
     # Sorts all input vectors.
     idx = np.argsort(x)  # Index order to sort arrays
@@ -48,7 +47,7 @@ def interpolate_func(x, y, xnew, method='pchip', extrapolate_nan=False):
     #        ...
 
     else:
-        raise AtomicaException("Interpolation method '{0}' not understood.".format(method))
+        raise Exception("Interpolation method '{0}' not understood.".format(method))
 
     # Replace extrapolated values with np.nan if this tag is marked True.
     if extrapolate_nan:

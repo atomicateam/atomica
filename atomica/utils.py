@@ -7,10 +7,10 @@ import inspect
 import os
 import ast
 from bisect import bisect
-from .system import AtomicaException, NotAllowedError
 import numpy as np
 import scipy.interpolate
 import sciris as sc
+
 
 def parent_dir():
     # Return the parent directory of the file that called this function
@@ -54,7 +54,7 @@ class NDict(sc.odict):
         # Insert a NamedItem into the NDict by using the name of the item as the key. Of course this only
         # works for NamedItems, otherwise you have to explicitly provide the key
         if not isinstance(value, NamedItem):
-            raise NotAllowedError('Can only automatically get the name from NamedItems. Instead of `x.append(y)` you need `x["name"]=y`')
+            raise Exception('Can only automatically get the name from NamedItems. Instead of `x.append(y)` you need `x["name"]=y`')
         key = value.name
         sc.odict.append(self, key=key, value=value)
         return None
@@ -123,7 +123,7 @@ class TimeSeries(object):
         elif t in self.t:
             return self.vals[self.t.index(t)]
         else:
-            raise AtomicaException('Item not found')
+            raise Exception('Item not found')
 
     def get_arrays(self):
         if len(self.t) == 0:
@@ -143,7 +143,7 @@ class TimeSeries(object):
             del self.t[idx]
             del self.vals[idx]
         else:
-            raise AtomicaException('Item not found')
+            raise Exception('Item not found')
 
     def remove_between(self, t_remove):
         # t is a two element vector [min,max] such that
@@ -170,7 +170,7 @@ class TimeSeries(object):
         v1 = v1[idx]
 
         if t1.size == 0:
-            raise AtomicaException('No time points remained after removing NaNs from the TimeSeries')
+            raise Exception('No time points remained after removing NaNs from the TimeSeries')
         elif t1.size == 1:
             return np.full(t2.shape, v1[0])
         else:

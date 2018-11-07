@@ -8,7 +8,7 @@ effectively serves as a mapping from one set of program instructions to another.
 """
 
 import sciris as sc
-from .system import AtomicaException, NotAllowedError, logger
+from .system import logger
 from .utils import NamedItem
 import numpy as np
 from .model import Model, Link
@@ -16,19 +16,18 @@ import pickle
 import scipy.optimize
 from collections import defaultdict
 from .utils import TimeSeries
-import logging
 from .results import Result
 from .cascade import get_cascade_vals
 from .programs import ProgramInstructions
 
 
-class InvalidInitialConditions(AtomicaException):
+class InvalidInitialConditions(Exception):
     # This error gets thrown if the initial conditions yield an objective value
     # that is not finite
     pass
 
 
-class UnresolvableConstraint(AtomicaException):
+class UnresolvableConstraint(Exception):
     # This error gets thrown if it is _impossible_ to satisfy the constraints. There are
     # two modes of constraint failure
     # - The constraint might not be satisfied on this iteration, but could be satisfied by other
@@ -424,7 +423,7 @@ class TotalSpendConstraint(Constraint):
             # corresponding spending adjustments available for use
             missing_times = set(self.t) - set(hard_constraints['programs'].keys())
             if missing_times:
-                raise AtomicaException('Total spending constraint was specified in %s but the optimization does not have any adjustments at those times' % (missing_times))
+                raise Exception('Total spending constraint was specified in %s but the optimization does not have any adjustments at those times' % (missing_times))
 
         # Now we have a set of times and programs for which we need to get total spend, and
         # also which programs should be included in the total for that year
@@ -598,7 +597,7 @@ class OptimInstructions(NamedItem):
                 elif tokens[0] == 'conversion':  # Parse a measurable name like 'conversions:Default'
                     measurables.append(MaximizeCascadeConversionRate(cascade_name=tokens[1], t=[end_year], pop_names='all', weight=mweight))
                 else:
-                    raise AtomicaException('Unknown measurable "%s"' % (mname))
+                    raise Exception('Unknown measurable "%s"' % (mname))
             else:
                 if optim_type == 'money':
                     # For money minimization, use at AtMostMeasurable to meet the target by the end year.
@@ -658,7 +657,7 @@ class Optimization(NamedItem):
             self.constraints = None
 
         if adjustments is None or measurables is None:
-            raise AtomicaException('Must supply either a json or an adjustments+measurables')
+            raise Exception('Must supply either a json or an adjustments+measurables')
         return
 
     def __repr__(self):

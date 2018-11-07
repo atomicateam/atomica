@@ -4,8 +4,7 @@ Define internal system constants and functions
 """
 
 import os
-import sys
-from six import reraise
+from .function_parser import parse_function, supported_functions
 
 # Set up a logger that can be imported elsewhere
 import logging
@@ -13,9 +12,17 @@ logger = logging.getLogger('atomica')
 
 # Code for determining module installation directory.
 
-
 def atomica_path(subdir=None, trailingsep=True):
-    """ Returns the parent path of the Atomica module. If subdir is not None, include it in the path. """
+    """ Returns paths relative to the Atomica parent module
+
+    This function by default returns the directory containing the Atomica
+    source files. T
+
+        :param subdir:
+    :param trailingsep:
+    :return:
+    
+    If subdir is not None, include it in the path. """
     path = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
     if subdir is not None:
         if not isinstance(subdir, list):
@@ -29,25 +36,43 @@ def atomica_path(subdir=None, trailingsep=True):
 
 LIBRARY_PATH = atomica_path(['atomica', 'library'])
 
-# Code for exceptions specific to Atomica
+class NotFoundError(Exception):
+    """
+    Error for when an item was not found
 
+    This error gets thrown if a user-specified input was not found. For example, if the
+    user queries a Population for a non-existent variable.
+    """
 
-class AtomicaException(Exception):
-    """ A wrapper class to allow for Atomica-specific exceptions. """
     pass
 
+class FrameworkSettings():
+    """
+    Define system level keywords
 
-class NotFoundError(AtomicaException):
-    # Throw this error if a user-specified input was not found
-    pass
+    This class stores sets of keywords such as the keys for different variable types, or the
+    supported quantity types (e.g., 'probability', 'number')
 
+    """
 
-class NotAllowedError(AtomicaException):
-    # Throw this error if the user requested an illegal operation
-    pass
+    KEY_COMPARTMENT = "comp"
+    KEY_CHARACTERISTIC = "charac"
+    KEY_TRANSITION = "link"
+    KEY_PARAMETER = "par"
+    KEY_POPULATION = "pop"
+    KEY_TRANSFER = "transfer"
+    KEY_INTERACTION = "interpop"
 
+    QUANTITY_TYPE_PROBABILITY = "probability"
+    QUANTITY_TYPE_DURATION = "duration"
+    QUANTITY_TYPE_NUMBER = "number"
+    QUANTITY_TYPE_FRACTION = "fraction"
+    QUANTITY_TYPE_PROPORTION = "proportion"
+    STANDARD_UNITS = [QUANTITY_TYPE_PROBABILITY, QUANTITY_TYPE_DURATION, QUANTITY_TYPE_NUMBER, QUANTITY_TYPE_FRACTION, QUANTITY_TYPE_PROPORTION]
 
-class AtomicaInputError(AtomicaException):
-    # Throw this error if the code was not able to understand the user's input
-    pass
+    DEFAULT_SYMBOL_INAPPLICABLE = "N.A."
 
+    RESERVED_KEYWORDS = ['t', 'flow', 'all', 'dt', 'total']  # A code_name in the framework cannot be equal to one of these values
+    RESERVED_KEYWORDS += supported_functions.keys()
+
+    RESERVED_SYMBOLS = set(':,;/+-*\'"')  # A code_name in the framework (for characs, comps, pars) cannot contain any of these characters

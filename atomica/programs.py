@@ -8,11 +8,11 @@ set of programs, respectively.
 """
 
 import sciris as sc
-from .system import AtomicaException, logger
+from .system import logger
 from .utils import NamedItem
 from numpy import array, exp, minimum, inf
 from .utils import TimeSeries
-from . import framework as FS
+from .system import FrameworkSettings as FS
 from .excel import standard_formats, AtomicaSpreadsheet, apply_widths, update_widths, read_tables, TimeDependentValuesEntry
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 import openpyxl
@@ -140,7 +140,7 @@ class ProgramSet(NamedItem):
             if name == prog.label:
                 return prog.name
 
-        raise AtomicaException('Could not find full name for quantity "%s" (n.b. this is case sensitive)' % (name))
+        raise Exception('Could not find full name for quantity "%s" (n.b. this is case sensitive)' % (name))
 
     def add_program(self, code_name, full_name):
         # To add a program, we just need to construct one
@@ -238,19 +238,19 @@ class ProgramSet(NamedItem):
         # they get drawn from the project
         if (framework is None and project is None) or (data is None and project is None):
             errormsg = 'To read in a ProgramSet, please supply one of the following sets of inputs: (a) a Framework and a ProjectData, (b) a Project.'
-            raise AtomicaException(errormsg)
+            raise Exception(errormsg)
 
         if framework is None:
             if project.framework is None:
                 errormsg = 'A Framework was not provided, and the Project has not been initialized with a Framework'
-                raise AtomicaException(errormsg)
+                raise Exception(errormsg)
             else:
                 framework = project.framework
 
         if data is None:
             if project.data is None:
                 errormsg = 'Project data has not been loaded yet'
-                raise AtomicaException(errormsg)
+                raise Exception(errormsg)
             else:
                 data = project.data
 
@@ -351,7 +351,7 @@ class ProgramSet(NamedItem):
                     if pop_idx[i] not in pop_codenames:
                         message = 'There was a mismatch between the populations in the databook and the populations in the program book'
                         message += '\nThe program book contains population "%s", while the databook contains: %s' % (pop_idx[i], [str(x) for x in pop_codenames.keys()])
-                        raise AtomicaException(message)
+                        raise Exception(message)
 
                     target_pops.append(pop_codenames[pop_idx[i]])  # Append the pop's codename
 
@@ -360,13 +360,13 @@ class ProgramSet(NamedItem):
                     if comp_idx[i] not in comp_codenames:
                         message = 'There was a mismatch between the compartments in the databook and the compartments in the Framework file'
                         message += '\nThe program book contains compartment "%s", while the Framework contains: %s' % (comp_idx[i], [str(x) for x in comp_codenames.keys()])
-                        raise AtomicaException(message)
+                        raise Exception(message)
 
                     target_comps.append(comp_codenames[comp_idx[i]])  # Append the pop's codename
 
             short_name = row[0].value.strip()
             if short_name.lower() == 'all':
-                raise AtomicaException('A program was named "all", which is a reserved keyword and cannot be used as a program name')
+                raise Exception('A program was named "all", which is a reserved keyword and cannot be used as a program name')
             long_name = row[1].value.strip()
 
             self.programs[short_name] = Program(name=short_name, label=long_name, target_pops=target_pops, target_comps=target_comps)
@@ -541,7 +541,7 @@ class ProgramSet(NamedItem):
                             uncertainty = float(x.value)
                     elif x.value is not None:  # If the header isn't empty, then it should be one of the program names
                         if idx_to_header[i] not in self.programs:
-                            raise AtomicaException('The heading "%s" was not recognized as a program name or a special token - spelling error?' % (idx_to_header[i]))
+                            raise Exception('The heading "%s" was not recognized as a program name or a special token - spelling error?' % (idx_to_header[i]))
                         progs[idx_to_header[i]] = float(x.value)
 
                 if baseline is not None or progs:  # Only instantiate covout objects if they have programs associated with them
@@ -660,7 +660,7 @@ class ProgramSet(NamedItem):
             pass
         else:
             errormsg = 'Please just supply a number of programs, not "%s"' % (type(progs))
-            raise AtomicaException(errormsg)
+            raise Exception(errormsg)
 
         framework, data = ProgramSet.validate_inputs(framework, data, project)
 
@@ -720,14 +720,14 @@ class ProgramSet(NamedItem):
     def validate(self):
         """ Perform basic validation checks
 
-        :raises AtomicaException is anything is invalid
+        :raises Exception is anything is invalid
         :return: None
         """
         for prog in self.programs.values():
             if not prog.target_comps:
-                raise AtomicaException('Program "%s" does not target any compartments' % (prog.name))
+                raise Exception('Program "%s" does not target any compartments' % (prog.name))
             if not prog.target_pops:
-                raise AtomicaException('Program "%s" does not target any populations' % (prog.name))
+                raise Exception('Program "%s" does not target any populations' % (prog.name))
 
     #######################################################################################################
     # Methods for getting core response summaries: budget, allocations, coverages, outcomes, etc
@@ -1086,7 +1086,7 @@ class Covout(object):
             combination_coverage = np.product(self.combinations * cov + (self.combinations ^ 1) * (1 - cov), axis=1)
             outcome += np.sum(combination_coverage.ravel() * self.combination_outcomes.ravel())
         else:
-            raise AtomicaException('Unknown reachability type "%s"', self.cov_interaction)
+            raise Exception('Unknown reachability type "%s"', self.cov_interaction)
 
         return outcome
 

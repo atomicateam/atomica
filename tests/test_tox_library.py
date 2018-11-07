@@ -179,5 +179,8 @@ def test_model(model):
     print('Test complete')
 
 if __name__ == '__main__':
+
+    np.seterr(all='raise')
+
     for m in models:
         test_model(m)

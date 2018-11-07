@@ -13,11 +13,11 @@ can be run with more recent versions of Atomica. This module defines
 
 import sys
 from distutils.version import LooseVersion
-from .system import logger, AtomicaException
+from .system import logger
 from .version import version
 import sciris as sc
 from .results import Result
-from . import framework as FS
+from .system import FrameworkSettings as FS
 import atomica
 import types
 
@@ -62,7 +62,7 @@ class Migration:
         logger.debug('MIGRATION: Upgrading %s -> %s (%s)' % (self.original_version, self.new_version, self.description))
         proj = self.fcn(proj)  # Run the migration function
         if proj is None:
-            raise AtomicaException('Migration "%s" returned None, it is likely missing a return statement' % (str(self)))
+            raise Exception('Migration "%s" returned None, it is likely missing a return statement' % (str(self)))
         proj.version = self.new_version  # Update the version
         if self.changes_results:
             proj._result_update_required = True

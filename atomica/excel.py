@@ -8,15 +8,13 @@ For example, Excel formatting, and time-varying data entry tables, are implement
 
 """
 
-from .system import AtomicaException
-
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 import sciris as sc
 import io
 import openpyxl
 from openpyxl.comments import Comment
 import numpy as np
-from . import framework as FS
+from .system import FrameworkSettings as FS
 from .system import logger
 
 
@@ -269,7 +267,7 @@ def write_matrix(worksheet, start_row, nodes, entries, formats, references=None,
     for interaction, value in entries.items():
         from_node, to_node = interaction
         if not enable_diagonal and from_node == to_node:
-            raise AtomicaException('Trying to write a diagonal entry to a table that is not allowed to contain diagonal terms')  # This is because data loss will occur if the user adds entries on the diagonal, then writes the table, and then reads it back in
+            raise Exception('Trying to write a diagonal entry to a table that is not allowed to contain diagonal terms')  # This is because data loss will occur if the user adds entries on the diagonal, then writes the table, and then reads it back in
         from_idx = nodes.index(from_node)
         to_idx = nodes.index(to_node)
         if boolean_choice:
@@ -332,7 +330,7 @@ class TimeDependentConnections(object):
             self.enable_diagonal = True
             self.allowed_units = [FS.DEFAULT_SYMBOL_INAPPLICABLE]
         else:
-            raise AtomicaException('Unknown TimeDependentConnections type - must be "transfer" or "interaction"')
+            raise Exception('Unknown TimeDependentConnections type - must be "transfer" or "interaction"')
 
     def __repr__(self):
         return '<TDC %s "%s">' % (self.type.title(), self.code_name)
@@ -363,7 +361,7 @@ class TimeDependentConnections(object):
                 to_pop = vals[2]
                 units = vals[3].lower().strip() if vals[3] else None
                 if units is None:
-                    raise AtomicaException(str('The units for transfer "%s" ("%s"->"%s") cannot be empty' % (full_name, from_pop, to_pop)))
+                    raise Exception(str('The units for transfer "%s" ("%s"->"%s") cannot be empty' % (full_name, from_pop, to_pop)))
                 assumption = vals[4]  # This is the assumption cell
                 assert vals[5].strip().lower() == 'or'  # Double check we are reading a time-dependent row with the expected shape
                 ts = TimeSeries(units=units)
@@ -575,9 +573,9 @@ class TimeDependentValuesEntry(object):
         vals = [x.value for x in rows[0]]
 
         if vals[0] is None:
-            raise AtomicaException('The name of the table is missing. This can also happen if extra rows have been added without a "#ignore" entry in the first column')
+            raise Exception('The name of the table is missing. This can also happen if extra rows have been added without a "#ignore" entry in the first column')
         elif not sc.isstring(vals[0]):
-            raise AtomicaException('In cell %s of the spreadsheet, the name of the quantity assigned to this table needs to be a string' % rows[0][0].coordinate)
+            raise Exception('In cell %s of the spreadsheet, the name of the quantity assigned to this table needs to be a string' % rows[0][0].coordinate)
         name = vals[0].strip()
 
         lowered_headings = [x.lower().strip() if sc.isstring(x) else x for x in vals]
@@ -621,7 +619,7 @@ class TimeDependentValuesEntry(object):
         for row in rows[1:]:
             vals = [x.value for x in row]
             if not sc.isstring(vals[0]):
-                raise AtomicaException('In cell %s of the spreadsheet, the name of the entry was expected to be a string, but it was not. The left-most column is expected to be a name. If you are certain the value is correct, add an single quote character at the start of the cell to ensure it remains as text' % row[0].coordinate)
+                raise Exception('In cell %s of the spreadsheet, the name of the entry was expected to be a string, but it was not. The left-most column is expected to be a name. If you are certain the value is correct, add an single quote character at the start of the cell to ensure it remains as text' % row[0].coordinate)
             series_name = vals[0].strip()
 
             if units_index is not None:
@@ -787,7 +785,7 @@ class TimeDependentValuesEntry(object):
 def cell_require_string(cell):
     # Take in an openpyxl Cell instance, if it doesn't contain a string, then throw a helpful error
     if not sc.isstring(cell.value):
-        raise AtomicaException('Cell %s needs to contain a string (i.e. not a number, date, or other cell type)' % cell.coordinate)
+        raise Exception('Cell %s needs to contain a string (i.e. not a number, date, or other cell type)' % cell.coordinate)
 
 
 def cell_get_number(cell, dtype=float):
@@ -804,4 +802,4 @@ def cell_get_number(cell, dtype=float):
         elif not s.replace('-', ''):
             return None
 
-    raise AtomicaException('Cell %s needs to contain a number' % cell.coordinate)
+    raise Exception('Cell %s needs to contain a number' % cell.coordinate)

@@ -10,37 +10,15 @@ class, which provides a Python representation of a Framework file.
 import openpyxl
 import pandas as pd
 import sciris as sc
-from .system import AtomicaException, NotFoundError, logger
+from .system import NotFoundError, FrameworkSettings as FS
+from .system import logger
 from .excel import read_tables, AtomicaSpreadsheet
 from .version import version
 import numpy as np
 from .cascade import validate_cascade
-from .parser_function import parse_function, supported_functions
+from .function_parser import parse_function
 
-# Define some key module-level constants
-KEY_COMPARTMENT = "comp"
-KEY_CHARACTERISTIC = "charac"
-KEY_TRANSITION = "link"
-KEY_PARAMETER = "par"
-KEY_POPULATION = "pop"
-KEY_TRANSFER = "transfer"
-KEY_INTERACTION = "interpop"
-
-QUANTITY_TYPE_PROBABILITY = "probability"
-QUANTITY_TYPE_DURATION = "duration"
-QUANTITY_TYPE_NUMBER = "number"
-QUANTITY_TYPE_FRACTION = "fraction"
-QUANTITY_TYPE_PROPORTION = "proportion"
-STANDARD_UNITS = [QUANTITY_TYPE_PROBABILITY, QUANTITY_TYPE_DURATION, QUANTITY_TYPE_NUMBER, QUANTITY_TYPE_FRACTION, QUANTITY_TYPE_PROPORTION]
-
-DEFAULT_SYMBOL_INAPPLICABLE = "N.A."
-
-RESERVED_KEYWORDS = ['t', 'flow', 'all', 'dt', 'total']  # A code_name in the framework cannot be equal to one of these values
-RESERVED_KEYWORDS += supported_functions.keys()
-
-RESERVED_SYMBOLS = set(':,;/+-*\'"')  # A code_name in the framework (for characs, comps, pars) cannot contain any of these characters
-
-class InvalidFramework(AtomicaException):
+class InvalidFramework(Exception):
     pass
 
 class ProjectFramework(object):
@@ -119,7 +97,7 @@ class ProjectFramework(object):
         ''' This function saves an Excel file with the original spreadsheet '''
         fullpath = sc.makefilepath(filename=filename, folder=folder, default=self.name, ext='xlsx', sanitize=True)
         if self.spreadsheet is None:
-            raise AtomicaException('Spreadsheet is not present, cannot save Framework as xlsx')
+            raise Exception('Spreadsheet is not present, cannot save Framework as xlsx')
         else:
             self.spreadsheet.save(fullpath)
         return fullpath
@@ -206,7 +184,7 @@ class ProjectFramework(object):
         for df in cascade_list:
             cascade_name = df.columns[0].strip()
             if cascade_name is None or len(cascade_name) == 0:
-                raise AtomicaException('A cascade was found without a name')
+                raise Exception('A cascade was found without a name')
 
             if cascade_name in d:
                 raise InvalidFramework('A cascade with name "%s" was already read in' % (cascade_name))
@@ -226,7 +204,7 @@ class ProjectFramework(object):
     def get_variable(self, name):
         # This function will return either a Comp, a Charac, Par, or Interaction
         # Lookup can be based on code name or full name
-        for df, item_type in zip([self.comps, self.characs, self.pars, self.interactions], [KEY_COMPARTMENT, KEY_CHARACTERISTIC, KEY_PARAMETER, KEY_INTERACTION]):
+        for df, item_type in zip([self.comps, self.characs, self.pars, self.interactions], [FS.KEY_COMPARTMENT, FS.KEY_CHARACTERISTIC, FS.KEY_PARAMETER, FS.KEY_INTERACTION]):
             if name in df.index:
                 return df.loc[name], item_type
             elif name in set(df['display name']):
@@ -494,7 +472,7 @@ class ProjectFramework(object):
         for i, par in self.pars.iterrows():
 
             # Convert case for standard units - this is required for validation
-            if par['format'] and par['format'].lower() in STANDARD_UNITS:
+            if par['format'] and par['format'].lower() in FS.STANDARD_UNITS:
                 par['format'] = par['format'].lower()
 
             if par['function'] is None:
@@ -568,13 +546,13 @@ class ProjectFramework(object):
                         raise InvalidFramework('Parameter "%s" has an outflow from Compartment "%s" which is a sink' % par.name, comp)
                     elif comp_spec['is source'] == 'y':
                         n_source_outflow += 1
-                        if par['format'] != QUANTITY_TYPE_NUMBER:
+                        if par['format'] != FS.QUANTITY_TYPE_NUMBER:
                             raise InvalidFramework('Parameter "%s" has an outflow from a source compartment, so it needs to be in "number" units' % par.name)
                     elif comp_spec['is junction'] == 'y':
-                        if par['format'] != QUANTITY_TYPE_PROPORTION:
+                        if par['format'] != FS.QUANTITY_TYPE_PROPORTION:
                             raise InvalidFramework('Parameter "%s" has an outflow from a junction, so it must be in "proportion" units' % par.name)
 
-                    if (par['format'] == QUANTITY_TYPE_PROPORTION) and (comp_spec['is junction'] != 'y'):
+                    if (par['format'] == FS.QUANTITY_TYPE_PROPORTION) and (comp_spec['is junction'] != 'y'):
                         raise InvalidFramework('"Parameter "%s" has units of "proportion" which means all of its outflows must be from junction compartments, which Compartment "%s" is not', par.name, comp)
 
                 if n_source_outflow > 1:
@@ -585,7 +563,7 @@ class ProjectFramework(object):
                         raise InvalidFramework('Parameter "%s" has an inflow to Compartment "%s" which is a source' % par.name, comp)
             else:
                 # If this is not a transition parameter...
-                if par['format'] == QUANTITY_TYPE_NUMBER and par['targetable'] == 'y':
+                if par['format'] == FS.QUANTITY_TYPE_NUMBER and par['targetable'] == 'y':
                     raise InvalidFramework('Parameter "%s" is targetable and in number units, but is not a transition parameter. To target a parameter with programs in number units, the parameter must appear in the transition matrix.' % par.name)
 
             defined.add(par.name) # Only add the parameter to the list of definitions after it has finished validating, because parameters cannot depend on themselves
@@ -599,10 +577,10 @@ class ProjectFramework(object):
             if len(name) == 1:
                 raise InvalidFramework('Code name "%s" is not valid: code names must be at least two characters long' % (name))
 
-            if RESERVED_SYMBOLS.intersection(name):
-                raise InvalidFramework('Code name "%s" is not valid: it cannot contain any of these reserved symbols %s' % (name, RESERVED_SYMBOLS))
+            if FS.RESERVED_SYMBOLS.intersection(name):
+                raise InvalidFramework('Code name "%s" is not valid: it cannot contain any of these reserved symbols %s' % (name, FS.RESERVED_SYMBOLS))
 
-            if name in RESERVED_KEYWORDS:
+            if name in FS.RESERVED_KEYWORDS:
                 raise InvalidFramework('Requested code name "%s" is a reserved keyword' % name)
 
             if name not in tmp:
@@ -633,7 +611,7 @@ class ProjectFramework(object):
 
         cascade_names = self.cascades.keys()
         for name in cascade_names:
-            if name in RESERVED_KEYWORDS:
+            if name in FS.RESERVED_KEYWORDS:
                 raise InvalidFramework('Requested cascade name "%s" is a reserved keyword' % name)
 
             if name in code_names:
@@ -642,7 +620,7 @@ class ProjectFramework(object):
                 raise InvalidFramework('Cascade "%s" cannot have the same display name as a compartment, characteristic, or parameter' % (name))
 
             for stage_name in self.cascades[name].iloc[:, 0]:
-                if stage_name in RESERVED_KEYWORDS:
+                if stage_name in FS.RESERVED_KEYWORDS:
                     raise InvalidFramework('Requested cascade stage name "%s" is a reserved keyword' % stage_name)
 
         # Check that all cascade constituents match a characteristic or compartment
@@ -677,7 +655,7 @@ class ProjectFramework(object):
                 message = 'No compartments or characteristics appear in the databook, which means it is not possible to initialize the simulation. Please assign at least some of the compartments and/or characteristics to a databook page.'
             else:
                 message = 'No compartments or characteristics have a setup weight (either because they do not appear in the databook, or the setup weight has been explicitly set to zero) - cannot initialize simulation. Please change some of the setup weights to be nonzero'
-            raise AtomicaException(message)
+            raise Exception(message)
 
         A = np.zeros((len(characs), len(comps)))
         for i, charac in enumerate(characs):
@@ -692,14 +670,14 @@ class ProjectFramework(object):
         item_spec, item_type = self.get_variable(code_name)
 
         # State variables are in number amounts unless normalized.
-        if item_type in [KEY_COMPARTMENT, KEY_CHARACTERISTIC]:
+        if item_type in [FS.KEY_COMPARTMENT, FS.KEY_CHARACTERISTIC]:
             if "denominator" in item_spec.index and item_spec["denominator"] is not None:
-                allowed_units = [QUANTITY_TYPE_FRACTION]
+                allowed_units = [FS.QUANTITY_TYPE_FRACTION]
             else:
-                allowed_units = [QUANTITY_TYPE_NUMBER]
+                allowed_units = [FS.QUANTITY_TYPE_NUMBER]
 
         # Modeller's choice for parameters
-        elif item_type in [KEY_PARAMETER] and item_spec['format']:
+        elif item_type in [FS.KEY_PARAMETER] and item_spec['format']:
             allowed_units = [item_spec['format']]
 
         else:

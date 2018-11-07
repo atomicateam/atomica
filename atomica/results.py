@@ -13,8 +13,8 @@ from .utils import NamedItem
 import matplotlib.pyplot as plt
 import ast
 from .excel import standard_formats
-from .system import logger, AtomicaException
-from . import framework as FS
+from .system import logger
+from .system import FrameworkSettings as FS
 from .utils import evaluate_plot_string
 
 class Result(NamedItem):
@@ -101,7 +101,7 @@ class Result(NamedItem):
             elif quantity == 'denominator':
                 return num_eligible
             else:
-                raise AtomicaException('Unknown coverage type requested')
+                raise Exception('Unknown coverage type requested')
 
     # Methods to list available comps, characs, pars, and links
     # pop_name is required because different populations could have
@@ -261,15 +261,15 @@ def export_results(results, filename=None, output_ordering = ('output','result',
 
     result_names = [x.name for x in results]
     if len(set(result_names)) != len(result_names):
-        raise AtomicaException('Results must have different names (in their result.name property)')
+        raise Exception('Results must have different names (in their result.name property)')
 
     # Check all results have the same time range
     for result in results:
         if result.t[0] != results[0].t[0] or result.t[-1] != results[0].t[-1]:
-            raise AtomicaException('All results must have the same start and finish years')
+            raise Exception('All results must have the same start and finish years')
 
         if set(result.pop_names) != set(results[0].pop_names):
-            raise AtomicaException('All results must have the same populations')
+            raise Exception('All results must have the same populations')
 
     # Interpolate all outputs onto these years
     new_tvals = np.arange(np.ceil(results[0].t[0]), np.floor(results[0].t[-1]) + 1)

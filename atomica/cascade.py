@@ -19,13 +19,13 @@ import sciris as sc
 import matplotlib
 from .utils import NDict
 from .results import Result
-from .system import logger, AtomicaException
+from .system import logger
 
 default_figsize = (10, 4)
 default_ax_position = [0.15, 0.2, 0.35, 0.7]
 
 
-class InvalidCascade(AtomicaException):
+class InvalidCascade(Exception):
     # Throw this error if a cascade was not valid. This error should result in the
     # FE printing a persistent diagnosic message
     pass

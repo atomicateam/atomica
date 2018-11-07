@@ -26,10 +26,10 @@ from matplotlib.ticker import FuncFormatter
 import sciris as sc
 from .model import Compartment, Characteristic, Parameter, Link
 from .results import Result
-from .system import AtomicaException, logger, NotAllowedError
-from .parser_function import parse_function
+from .system import logger
+from .function_parser import parse_function
 from .interpolation import interpolate_func
-from . import framework as FS
+from .system import FrameworkSettings as FS
 import scipy.interpolate
 import scipy.integrate
 
@@ -148,7 +148,7 @@ class PlotData(object):
 
         result_names = [x.name for x in results]
         if len(set(result_names)) != len(result_names):
-            raise AtomicaException('Results must have different names (in their result.name property)')
+            raise Exception('Results must have different names (in their result.name property)')
 
         if pops in [None, 'all']:
             pops = [pop.name for pop in results[0].model.pops]
@@ -201,7 +201,7 @@ class PlotData(object):
                     vars = pop.get_variable(output_label)
 
                     if vars[0].vals is None:
-                        raise AtomicaException(
+                        raise Exception(
                             'Requested output "%s" was not recorded because only partial results were saved' % (
                                 vars[0].name))
 
@@ -239,7 +239,7 @@ class PlotData(object):
                         data_label[output_label] = vars[0].name
 
                     else:
-                        raise AtomicaException('Unknown type')
+                        raise Exception('Unknown type')
 
                 # Second pass, add in any dynamically computed quantities
                 # Using model. Parameter objects will automatically sum over Links and convert Links
@@ -262,7 +262,7 @@ class PlotData(object):
                     for dep_label in dep_labels:
                         vars = pop.get_variable(dep_label)
                         if t_bins is not None and (isinstance(vars[0], Link) or isinstance(vars[0], Parameter)) and time_aggregation == "sum" and not displayed_annualization_warning:
-                            raise AtomicaException("Function includes Parameter/Link so annualized rates are being "
+                            raise Exception("Function includes Parameter/Link so annualized rates are being "
                                                    "used. Aggregation should use 'average' rather than 'sum'.")
                         deps[dep_label] = vars
                     par._fcn = fcn
@@ -339,7 +339,7 @@ class PlotData(object):
                             vals = sum(aggregated_outputs[x][output_name] * popsize[x] for x in pop_labels)  # Add together all the outputs
                             vals /= sum([popsize[x] for x in pop_labels])
                         else:
-                            raise AtomicaException('Unknown pop aggregation method')
+                            raise Exception('Unknown pop aggregation method')
                         self.series.append(Series(tvecs[result_label], vals, result_label, pop_name, output_name, data_label[output_name], units=aggregated_units[output_name]))
                     else:
                         vals = aggregated_outputs[pop][output_name]
@@ -378,7 +378,7 @@ class PlotData(object):
         for s in self.series:
             if accumulation_method == 'sum':
                 if '/year' in s.units:
-                    raise AtomicaException('Quantity "%s" has units "%s" which means it should be accumulated by integration, not summation' % (s.output, s.units))
+                    raise Exception('Quantity "%s" has units "%s" which means it should be accumulated by integration, not summation' % (s.output, s.units))
                 s.vals = np.cumsum(s.vals)
             elif accumulation_method == 'integrate':
                 s.vals = scipy.integrate.cumtrapz(s.vals, s.tvec)
@@ -388,7 +388,7 @@ class PlotData(object):
                 else:
                     s.units += ' years'
             else:
-                raise AtomicaException('Unknown accumulation type')
+                raise Exception('Unknown accumulation type')
 
             s.units = 'Cumulative ' + s.units
 
@@ -421,7 +421,7 @@ class PlotData(object):
             elif time_aggregation == 'average':
                 t_out = (lower + upper) / 2.0
             else:
-                raise AtomicaException('Unknown time aggregation type')
+                raise Exception('Unknown time aggregation type')
 
         for s in self.series:
             tvec = []
@@ -484,10 +484,10 @@ class PlotData(object):
 
         result_names = [x.name for x in results]
         if len(set(result_names)) != len(result_names):
-            raise AtomicaException('Results must have different names (in their result.name property)')
+            raise Exception('Results must have different names (in their result.name property)')
         for result in results:
             if result.model.progset is None:
-                raise AtomicaException('Tried to plot program spending for result "%s" that did not use programs', result.name)
+                raise Exception('Tried to plot program spending for result "%s" that did not use programs', result.name)
 
         if outputs is None:
             outputs = results[0].model.progset.programs.keys()
@@ -520,7 +520,7 @@ class PlotData(object):
                 all_vals = result.get_coverage('fraction')
                 units = 'Fraction covered/year'
             else:
-                raise AtomicaException('Unknown quantity')
+                raise Exception('Unknown quantity')
 
             for output in outputs:  # For each final output
                 if isinstance(output, dict):  # If this is an aggregation over programs
@@ -534,7 +534,7 @@ class PlotData(object):
                         output_name = output_name
                         data_label = None  # No data present for aggregations
                     else:
-                        raise NotAllowedError('Cannot use program aggregation for anything other than spending yet')
+                        raise Exception('Cannot use program aggregation for anything other than spending yet')
                 else:
                     vals = all_vals[output]
                     output_name = output
@@ -566,7 +566,7 @@ class PlotData(object):
             elif quantity in ['coverage_denominator', 'coverage_fraction']:
                 plotdata._time_aggregate(t_bins, 'average')
             else:
-                raise AtomicaException('Unknown quantity')
+                raise Exception('Unknown quantity')
 
         if accumulate is not None:
             plotdata._accumulate(accumulate)
@@ -600,7 +600,7 @@ class PlotData(object):
         for s in self.series:
             if s.result == key[0] and s.pop == key[1] and s.output == key[2]:
                 return s
-        raise AtomicaException('Series %s-%s-%s not found' % (key[0], key[1], key[2]))
+        raise Exception('Series %s-%s-%s not found' % (key[0], key[1], key[2]))
 
     def set_colors(self, colors=None, results='all', pops='all', outputs='all', overwrite=False):
         # What are the different ways we might want to set colours?
@@ -772,7 +772,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
                     output_stacks.append((x, '', [x]))
                     items.add(x)
                 else:
-                    raise AtomicaException('Unsupported input')
+                    raise Exception('Unsupported input')
 
         elif isinstance(input_stacks, dict):
             for k, x in input_stacks.items():
@@ -783,7 +783,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
                     output_stacks.append((x, k, [x]))
                     items.add(x)
                 else:
-                    raise AtomicaException('Unsupported input')
+                    raise Exception('Unsupported input')
 
         # Add missing items
         missing = list(set(available_items) - items)
@@ -825,7 +825,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
         tval_offset = block_width + gaps[1]
         iterator = nested_loop([range(len(plotdata.results)), range(len(tvals))], [1, 0])
     else:
-        raise AtomicaException('outer option must be either "times" or "results"')
+        raise Exception('outer option must be either "times" or "results"')
 
     figs = []
     fig, ax = plt.subplots()
@@ -1157,7 +1157,7 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
                 if legend_mode == 'together':
                     render_legend(ax, plot_type)
     else:
-        raise AtomicaException('axis option must be one of "results", "pops" or "outputs"')
+        raise Exception('axis option must be one of "results", "pops" or "outputs"')
 
     if legend_mode == 'separate':
         reverse_legend = True if plot_type in ['stacked', 'proportion'] else False
@@ -1362,7 +1362,7 @@ def relabel_legend(figs, labels):
         idx = labels.keys()
         assert max(idx) < len(vpacker._children), 'Requested index greater than number of legend entries'
     else:
-        raise AtomicaException('Labels must be a list or a dict')
+        raise Exception('Labels must be a list or a dict')
 
     for idx, label in labels.items():
         text = vpacker._children[idx]._children[1]._text

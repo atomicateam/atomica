@@ -13,7 +13,7 @@ main types of scenarios in Atomica:
 
 import numpy as np
 import sciris as sc
-from .system import AtomicaException, logger
+from .system import logger
 from .utils import NamedItem
 from .programs import ProgramInstructions
 from .utils import TimeSeries
@@ -87,7 +87,7 @@ class ParameterScenario(Scenario):
             for pop_label, overwrite in self.scenario_values[par_label].items():
 
                 if not par.has_values(pop_label):
-                    raise AtomicaException("You cannot specify overwrites for a parameter with a function, instead you should overwrite its dependencies")
+                    raise Exception("You cannot specify overwrites for a parameter with a function, instead you should overwrite its dependencies")
 
                 original_y_end = par.interpolate(np.array([max(overwrite['t']) + 1e-5]), pop_label)
 
@@ -108,7 +108,7 @@ class ParameterScenario(Scenario):
 
                 # Now, insert all of the program overwrites
                 if len(overwrite['t']) != len(overwrite['y']):
-                    raise AtomicaException('Number of time points in overwrite does not match number of values')
+                    raise Exception('Number of time points in overwrite does not match number of values')
 
                 if len(overwrite['t']) == 1:
                     logger.warning('Only one time point was specified in the overwrite, which means that the overwrite will not have any effect')

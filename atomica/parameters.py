@@ -11,8 +11,8 @@ in the model appears in the parset, not just the parameters in the databook.
 import numpy as np
 import sciris as sc
 from .interpolation import interpolate_func
-from . import framework as FS
-from .system import AtomicaException, logger
+from .system import FrameworkSettings as FS
+from .system import logger
 from .utils import NamedItem
 
 # Parameter class that stores one array of values converted from raw project data
@@ -98,21 +98,21 @@ class Parameter(NamedItem):
 
         # Validate input.
         if pop_name not in self.t.keys():
-            raise AtomicaException("Cannot interpolate parameter '{0}' "
+            raise Exception("Cannot interpolate parameter '{0}' "
                                    "without referring to a proper population name.".format(pop_name))
         if tvec is None:
-            raise AtomicaException("Cannot interpolate parameter '{0}' "
+            raise Exception("Cannot interpolate parameter '{0}' "
                                    "without providing a time vector.".format(self.name))
 
         if not self.has_values(pop_name):
-            raise AtomicaException('Parameter "%s" contains no data for pop "%s", and thus cannot be interpolated' % (self.name, pop_name))
+            raise Exception('Parameter "%s" contains no data for pop "%s", and thus cannot be interpolated' % (self.name, pop_name))
 
         tvec = sc.promotetoarray(tvec)
         if not len(self.t[pop_name]) > 0:
-            raise AtomicaException("There are no timepoint values for parameter '{0}', "
+            raise Exception("There are no timepoint values for parameter '{0}', "
                                    "population '{1}'.".format(self.name, pop_name))
         if not len(self.t[pop_name]) == len(self.y[pop_name]):
-            raise AtomicaException("Parameter '{0}', population '{1}', does not have corresponding values "
+            raise Exception("Parameter '{0}', population '{1}', does not have corresponding values "
                                    "and timepoints.".format(self.name, pop_name))
 
         # if len(self.t[pop_name]) == 1 and not extrapolate_nan:
@@ -191,7 +191,7 @@ class ParameterSet(NamedItem):
         if name in self.pars:
             return self.pars[name]
         else:
-            raise AtomicaException("Name '{0}' cannot be found in parameter set '{1}'".format(name, self.name))
+            raise Exception("Name '{0}' cannot be found in parameter set '{1}'".format(name, self.name))
 
     def make_pars(self, framework, data):
         self.pop_names = data.pops.keys()
@@ -235,7 +235,7 @@ class ParameterSet(NamedItem):
             elif tdc.type == 'interaction':
                 item_storage = self.interactions
             else:
-                raise AtomicaException('Unknown time-dependent connection type')
+                raise Exception('Unknown time-dependent connection type')
 
             name = tdc.code_name  # The name of this interaction e.g. 'age'
             if name not in item_storage:

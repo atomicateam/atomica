@@ -16,8 +16,9 @@ from .excel import cell_require_string, standard_formats, AtomicaSpreadsheet, re
 import xlsxwriter as xw
 import io
 import numpy as np
-from .system import AtomicaException, NotFoundError, logger
-from . import framework as FS
+from .system import NotFoundError
+from . import logger
+from .system import FrameworkSettings as FS
 from collections import defaultdict
 
 # Data maps to a databook
@@ -128,7 +129,7 @@ class ProjectData(sc.prettyobj):
             new_pops = pops
 
         if not new_pops:
-            raise AtomicaException('A new databook must have at least 1 population')
+            raise Exception('A new databook must have at least 1 population')
 
         if sc.isnumber(transfers):
             new_transfers = sc.odict()
@@ -262,7 +263,7 @@ class ProjectData(sc.prettyobj):
                         spec = framework.get_variable(tdve.name)[0]
                     except NotFoundError:
                         message = 'Error on sheet "%s" while reading TDVE table "%s" (row %d). The variable was not found in the Framework' % (sheet.title, tdve.name, start_row)
-                        raise AtomicaException(message)
+                        raise Exception(message)
 
                     code_name = spec.name
 
@@ -313,11 +314,11 @@ class ProjectData(sc.prettyobj):
             for _, spec in df.iterrows():
 
                 if spec.name in self.pops:
-                    raise AtomicaException('Code name "%s" has been used for both a population and a framework quantity - population names must be unique' % (spec.name))
+                    raise Exception('Code name "%s" has been used for both a population and a framework quantity - population names must be unique' % (spec.name))
 
                 if spec['databook page'] is not None:
                     if spec.name not in self.tdve:
-                        raise AtomicaException('The databook did not contain a necessary TDVE table named "%s" (code name "%s")' % (spec['display name'], spec.name))
+                        raise Exception('The databook did not contain a necessary TDVE table named "%s" (code name "%s")' % (spec['display name'], spec.name))
                     else:
                         allowed_units = framework.get_allowed_units(spec.name)
                         tdve = self.tdve[spec.name]
@@ -340,7 +341,7 @@ class ProjectData(sc.prettyobj):
                         assert ts.units.strip().title() == FS.DEFAULT_SYMBOL_INAPPLICABLE.title()
                     break
             else:
-                raise AtomicaException('Required interaction "%s" not found in databook' % spec.name)
+                raise Exception('Required interaction "%s" not found in databook' % spec.name)
 
         return True
 
@@ -386,7 +387,7 @@ class ProjectData(sc.prettyobj):
         assert code_name not in self.pops, 'Population with name "%s" already exists' % (code_name)
 
         if code_name.lower() in FS.RESERVED_KEYWORDS:
-            raise AtomicaException('Population name "%s" is a reserved keyword' % (code_name.lower()))
+            raise Exception('Population name "%s" is a reserved keyword' % (code_name.lower()))
 
         self.pops[code_name] = {'label': full_name}
         for interaction in self.transfers + self.interpops:
@@ -405,7 +406,7 @@ class ProjectData(sc.prettyobj):
         assert new_code_name not in self.pops, 'Population with name "%s" already exists' % (new_code_name)
 
         if new_code_name.lower() in FS.RESERVED_KEYWORDS:
-            raise AtomicaException('Population name "%s" is a reserved keyword' % (new_code_name.lower()))
+            raise Exception('Population name "%s" is a reserved keyword' % (new_code_name.lower()))
 
         # First change the name of the key
         self.pops.rename(existing_code_name, new_code_name)
@@ -504,7 +505,7 @@ class ProjectData(sc.prettyobj):
             assert len(pop_name) > 1, 'Population code name (abbreviation) "%s" is not valid - it must be at least two characters long' % (pop_name)
 
             if pop_name.lower() in FS.RESERVED_KEYWORDS:
-                raise AtomicaException('Population name "%s" is a reserved keyword' % (pop_name.lower()))
+                raise Exception('Population name "%s" is a reserved keyword' % (pop_name.lower()))
             self.pops[pop_name] = {'label': row[1].value.strip()}
 
     def _write_pops(self):

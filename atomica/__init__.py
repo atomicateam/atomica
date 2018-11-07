@@ -31,7 +31,7 @@ License:
         model
         optimization
         parameters
-        parser_function
+        function_parser
         plotting
         programs
         project
@@ -65,7 +65,7 @@ if not any([isinstance(h, logging.StreamHandler) and not isinstance(h, logging.F
     logger.addHandler(h1)
     logger.addHandler(h2)
 
-from atomica.version import version as __version__, versiondate as __versiondate__
+from .version import version as __version__, versiondate as __versiondate__
 logger.critical('Atomica %s (%s) -- (c) the Atomica development team' % (__version__, __versiondate__)) # Log with the highest level
 logger.critical(datetime.now())
 
@@ -84,14 +84,8 @@ logger.setLevel('INFO')
 import pandas as pd
 pd.set_option('mode.chained_assignment', None)
 
-# Import exposed submodule contents
-# Set to True to print out as modules are being imported
-_debug = False
-
-# The Atomica "user interface" -- import everything from submodules
-from .version import *
-from .system import *
-from .framework import ProjectFramework
+# The Atomica user interface -- import from submodules
+from .framework import *
 from .project import *
 from .calibration import *
 from .scenarios import *
@@ -104,3 +98,4 @@ from .cascade import *
 from .results import *
 from .migration import *
 from .utils import *
+from .system import *
