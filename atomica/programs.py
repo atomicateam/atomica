@@ -11,8 +11,8 @@ import sciris as sc
 from .system import AtomicaException, logger, reraise_modify
 from .utils import NamedItem
 from numpy import array, exp, minimum, inf
-from .structure import TimeSeries
-from .structure import FrameworkSettings as FS
+from .utils import TimeSeries
+from . import framework as FS
 from .excel import standard_formats, AtomicaSpreadsheet, apply_widths, update_widths, read_tables, TimeDependentValuesEntry
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 import openpyxl

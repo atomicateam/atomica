@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import ast
 from .excel import standard_formats
 from .system import logger, AtomicaException
-from .structure import FrameworkSettings as FS
+from . import framework as FS
 
 
 

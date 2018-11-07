@@ -13,7 +13,6 @@ from .version import * # No dependencies
 if _debug: print('Importing system...')
 from .system import *  # No dependencies
 if _debug: print('Importing structure...')
-from .structure import *
 if _debug: print('Importing framework...')
 from .framework import *
 if _debug: print('Importing project...')

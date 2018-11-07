@@ -13,7 +13,7 @@ in a particular year.
 import numpy as np
 import sciris as sc
 from .system import logger
-from .structure import FrameworkSettings as FS
+from . import framework as FS
 import pandas as pd
 
 

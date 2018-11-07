@@ -83,3 +83,24 @@ logger.setLevel('INFO')
 # Increase Framework performance by not calling garbage collection all the time
 import pandas as pd
 pd.set_option('mode.chained_assignment', None)
+
+# Import exposed submodule contents
+# Set to True to print out as modules are being imported
+_debug = False
+
+# The Atomica "user interface" -- import everything from submodules
+from .version import *
+from .system import *
+from .framework import *
+from .project import *
+from .calibration import *
+from .scenarios import *
+from .defaults import *
+from .plotting import *
+from .programs import *
+from .reconciliation import *
+from .optimization import *
+from .cascade import *
+from .results import *
+from .migration import *
+from .utils import *

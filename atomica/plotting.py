@@ -29,7 +29,7 @@ from .results import Result
 from .system import AtomicaException, logger, NotAllowedError
 from .parser_function import parse_function
 from .interpolation import interpolate_func
-from .structure import FrameworkSettings as FS
+from . import framework as FS
 import scipy.interpolate
 import scipy.integrate
 

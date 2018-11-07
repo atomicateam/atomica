@@ -16,7 +16,7 @@ import sciris as sc
 from .system import AtomicaException, logger
 from .utils import NamedItem
 from .programs import ProgramInstructions
-from .structure import TimeSeries
+from .utils import TimeSeries
 
 
 class Scenario(NamedItem):

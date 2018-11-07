@@ -11,7 +11,7 @@ in the model appears in the parset, not just the parameters in the databook.
 import numpy as np
 import sciris as sc
 from .interpolation import interpolate_func
-from .structure import FrameworkSettings as FS
+from . import framework as FS
 from .system import AtomicaException, logger
 from .utils import NamedItem
 

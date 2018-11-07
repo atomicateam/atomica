@@ -11,15 +11,35 @@ can be run with more recent versions of Atomica. This module defines
 
 """
 
+import sys
 from distutils.version import LooseVersion
 from .system import logger, AtomicaException
 from .version import version
 import sciris as sc
 from .results import Result
-from .structure import FrameworkSettings as FS
+from . import framework as FS
+import atomica
+import types
 
-available_migrations = []  # This list stores all of the migrations that are possible
+### MODULE MIGRATIONS
+#
+# In this section, make changes to the Atomica module structure to enable pickle files
+# to be loaded at all
 
+# First, add any placeholder modules that have been subsequently removed
+atomica.structure = types.ModuleType('structure') # Moved TimeSeries from 1.0.11 to 1.0.12 20181107
+sys.modules['atomica.structure'] = atomica.structure
+
+# Then, remap any required classes
+atomica.structure.TimeSeries = atomica.utils.TimeSeries
+
+### PROJECT MIGRATIONS
+#
+# The remaining code manages upgrading Project objects and their contents after they
+# have been unpickled and instantiated
+
+# This list stores all of the migrations that are possible
+available_migrations = []
 
 class Migration:
     """ Class representation of a migration

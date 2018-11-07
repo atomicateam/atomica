@@ -15,7 +15,7 @@ from .model import Model, Link
 import pickle
 import scipy.optimize
 from collections import defaultdict
-from .structure import TimeSeries
+from .utils import TimeSeries
 import logging
 from .results import Result
 from .cascade import get_cascade_vals

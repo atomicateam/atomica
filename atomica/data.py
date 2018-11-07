@@ -8,7 +8,7 @@ to Excel files.
 
 """
 
-from .structure import TimeSeries
+from .utils import TimeSeries
 import sciris as sc
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 import openpyxl
@@ -17,7 +17,7 @@ import xlsxwriter as xw
 import io
 import numpy as np
 from .system import AtomicaException, NotFoundError, reraise_modify, logger
-from .structure import FrameworkSettings as FS
+from . import framework as FS
 from collections import defaultdict
 
 # Data maps to a databook

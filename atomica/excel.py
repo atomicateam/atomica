@@ -16,7 +16,7 @@ import io
 import openpyxl
 from openpyxl.comments import Comment
 import numpy as np
-from .structure import FrameworkSettings as FS
+from . import framework as FS
 from .system import logger, reraise_modify
 
 
@@ -340,7 +340,7 @@ class TimeDependentConnections(object):
     @staticmethod
     def from_tables(tables, interaction_type):
         # interaction_type is 'transfer' or 'interaction'
-        from .structure import TimeSeries  # Import here to avoid circular reference
+        from .utils import TimeSeries  # Import here to avoid circular reference
 
         # Read the names
         code_name = tables[0][1][0].value
@@ -569,7 +569,7 @@ class TimeDependentValuesEntry(object):
         # 'units', 'uncertainty', and 'constant' are optional - if 'constant' is present then expect
         # that the column after it contains 'or'
 
-        from .structure import TimeSeries  # Import here to avoid circular reference
+        from .utils import TimeSeries  # Import here to avoid circular reference
 
         # First, read the headings
         vals = [x.value for x in rows[0]]

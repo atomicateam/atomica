@@ -10,7 +10,7 @@ be numerically integrated. It also implements the methods to actually perform th
 
 
 from .system import AtomicaException, NotFoundError, AtomicaInputError, NotAllowedError, logger
-from .structure import FrameworkSettings as FS
+from . import framework as FS
 from .results import Result
 from .parser_function import parse_function
 from .version import version
