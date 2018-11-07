@@ -1750,7 +1750,7 @@ def export_results(cache_id, username):
     results = load_result(cache_id) # Load the result from the cache and check if we got a result.
     if results is None:
         return { 'error': 'Failed to load plot results from cache' }
-    file_name = 'results.zip'
+    file_name = 'results.xlsx'
     full_file_name = get_path(file_name, username=username)
     au.export_results(results, full_file_name)
     print(">> export_results %s" % (full_file_name))
