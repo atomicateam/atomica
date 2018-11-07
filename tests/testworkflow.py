@@ -402,7 +402,7 @@ if "makeplots" in torun:
 
 
 if "export" in torun:
-    P.results[-1].export(TMPDIR+test+"_results")
+    au.export_results(P.results[0],TMPDIR+test+"_results")
 
 if "manualcalibrate" in torun:
     # Attempt a manual calibration, i.e. edit the scaling factors directly.
@@ -512,9 +512,10 @@ if "coveragescenario" in torun:
     plt.ylim(741,746)
 
     # Test export
-    no_programs.export(TMPDIR + 'covscen_noprogs.xlsx')
-    baseline.export(TMPDIR + 'covscen_baseline.xlsx')
-    scen_result.export(TMPDIR + 'covscen_reduced.xlsx')
+    au.export_results(no_programs,TMPDIR + 'covscen_noprogs.xlsx')
+    au.export_results(baseline, TMPDIR + 'covscen_baseline.xlsx')
+    au.export_results(scen_result, TMPDIR + 'covscen_reduced.xlsx')
+
     # Confirm that
     # - FOI-related values (e.g. transmission probability) in decreasing order are noprogs, reduced, baselilne
     # - Coverage values are 1.0 in baseline and 0.5 (or time varying) in scen result for applicable programs

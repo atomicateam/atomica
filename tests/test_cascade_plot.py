@@ -62,10 +62,7 @@ if "basicplots" in torun:
         result.plot(plot_group='latency')
 
     #    # Export limited set of results based on 'Export' column in Framework, or export everything
-        result.export(filename=tmpdir+'export_from_framework_1.xlsx') # Export only the quantities tagged as 'export' in the Framework
-        result.export(filename=tmpdir+'export_from_framework_2.xlsx',plot_names=['Active DS-TB']) # export all cascades but only one plot
-        result.export(filename=tmpdir+'export_from_framework_3.xlsx',plot_names=['Active DS-TB','Active treatment'],cascade_names=[]) # Export two plots and no cascades
-
+        au.export_results(result,filename=tmpdir+'export_from_framework_1.xlsx' )
         result.export_raw(filename=tmpdir+'export_raw.xlsx') # Export everything
 
         # Plot various cascades

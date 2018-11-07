@@ -18,11 +18,9 @@ F = au.ProjectFramework(au.LIBRARY_PATH + test + '_framework.xlsx')
 P = au.Project(name=test.upper()+" project", framework=F,do_run=False)
 P.load_databook(databook_path=au.LIBRARY_PATH + test + '_databook.xlsx', make_default_parset=True, do_run=True)
 
-P.results[0].export(test.upper()+" results")
-
+au.export_results(P.results[0],tmpdir+test.upper()+" results")
 
 P.save(tmpdir+test+".prj")
-
 P = au.Project.load(tmpdir+test+".prj")
 
 if plot_initial:

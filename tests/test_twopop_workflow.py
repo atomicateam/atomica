@@ -15,8 +15,7 @@ F = au.ProjectFramework(au.LIBRARY_PATH + 'sir_framework.xlsx')
 P = au.Project(name=test.upper()+" project", framework=F)
 P.load_databook(databook_path= testdir + 'databook_sir_twopop.xlsx', make_default_parset=True, do_run=True)
 
-P.results[0].export(tmpdir + test.upper()+" results")
-    
+au.export_results(P.results[0],tmpdir + test.upper()+" results")
 P.save(tmpdir+test+".prj")
 
 P = au.Project.load(tmpdir+test+".prj")
