@@ -27,11 +27,11 @@ import types
 # to be loaded at all
 
 # First, add any placeholder modules that have been subsequently removed
-atomica.structure = types.ModuleType('structure') # Moved TimeSeries from 1.0.11 to 1.0.12 20181107
+atomica.structure = types.ModuleType('structure') # Removed 'structure' module in 1.0.12 20181107
 sys.modules['atomica.structure'] = atomica.structure
 
 # Then, remap any required classes
-atomica.structure.TimeSeries = atomica.utils.TimeSeries
+atomica.structure.TimeSeries = atomica.utils.TimeSeries # Moved 'TimeSeries' in 1.0.12 20181107
 
 ### PROJECT MIGRATIONS
 #

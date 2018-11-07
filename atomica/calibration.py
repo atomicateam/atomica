@@ -16,7 +16,7 @@ calibration_settings = dict()
 calibration_settings['tolerance'] = 1e-6
 
 
-def update_parset(parset, y_factors, pars_to_adjust):
+def _update_parset(parset, y_factors, pars_to_adjust):
     # Insert updated y-values into the parset
     # - parset : a ParameterSet object
     # - y_factors : Array with as many elements as pars_to_adjust
@@ -42,12 +42,12 @@ def update_parset(parset, y_factors, pars_to_adjust):
             raise NotImplemented
 
 
-def calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, project):
+def _calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, project):
     # y-factors, array of y-factors to apply to specified output_quantities
     # pars_to_adjust - list of tuples (par_name,pop_name,...) recognized by parset.update()
     # output_quantities - a tuple like (pop,var,weight,metric) understood by model.get_pop[pop].getVar
 
-    update_parset(parset, y_factors, pars_to_adjust)
+    _update_parset(parset, y_factors, pars_to_adjust)
 
     try:
         result = project.run_sim(parset=parset, store_results=False)
@@ -191,9 +191,9 @@ def perform_autofit(project, parset, pars_to_adjust, output_quantities, max_time
     if max_time is not None:
         optim_args['maxtime'] = max_time
 
-    x1, _, _ = sc.asd(calculate_objective, x0, args, **optim_args)
+    x1, _, _ = sc.asd(_calculate_objective, x0, args, **optim_args)
 
-    update_parset(args['parset'], x1, pars_to_adjust)
+    _update_parset(args['parset'], x1, pars_to_adjust)
 
     for i, x in enumerate(pars_to_adjust):
         par_name = x[0]

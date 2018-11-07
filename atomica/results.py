@@ -15,8 +15,7 @@ import ast
 from .excel import standard_formats
 from .system import logger, AtomicaException
 from . import framework as FS
-
-
+from .utils import evaluate_plot_string
 
 class Result(NamedItem):
     # A Result stores a single model run
@@ -222,39 +221,6 @@ class Result(NamedItem):
         d = PlotData.programs(self, quantity=quantity)
         d.interpolate(year)
         return sc.odict([(s.data_label, s.vals) for s in d.series])
-
-
-def evaluate_plot_string(plot_string):
-    # The plots in the framework are specified as strings - for example,
-    #
-    # plot_string = "{'New active DS-TB':['pd_div:flow','nd_div:flow']}"
-    #
-    # This needs to be (safely) evaluated so that the actual dict can be
-    # used. This function evaluates a string like this and returns a
-    # variable accordingly. For example
-    #
-    # x = evaluate_plot_string("{'New active DS-TB':['pd_div:flow','nd_div:flow']}")
-    #
-    # is the same as
-    #
-    # x = {'New active DS-TB':['pd_div:flow','nd_div:flow']}
-    #
-    # This will only happen if tokens associated with dicts and lists are present -
-    # otherwise the original string will just be returned directly
-
-    if '{' in plot_string or '[' in plot_string:
-        # Evaluate the string to set lists and dicts - do at least a little validation
-        assert '__' not in plot_string, 'Cannot use double underscores in functions'
-        assert len(plot_string) < 1800  # Function string must be less than 1800 characters
-        fcn_ast = ast.parse(plot_string, mode='eval')
-        for node in ast.walk(fcn_ast):
-            if not (node is fcn_ast):
-                assert isinstance(node, ast.Dict) or isinstance(node, ast.Str) or isinstance(node, ast.List) or isinstance(node, ast.Load), 'Only allowed to initialize lists and dicts of strings here'
-        compiled_code = compile(fcn_ast, filename="<ast>", mode="eval")
-        return eval(compiled_code)
-    else:
-        return plot_string
-
 
 def export_results(results, filename=None, output_ordering = ('output','result','pop'), cascade_ordering = ('pop','result','stage'), program_ordering = ('program','result','quantity')):
     """ Export Result outputs to a file

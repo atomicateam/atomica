@@ -1,24 +1,24 @@
 ## This script checks that the junction update is correct
 
 import numpy as np
-import atomica.ui as au
+import atomica as at
 import os
 
-testdir = au.parent_dir()
+testdir = at.parent_dir()
 tmpdir = os.path.join(testdir,'temp','')
 
 F_path = testdir + "framework_junction_test.xlsx"
 D_path = tmpdir + "databook_junction_test.xlsx"
 
-F = au.ProjectFramework(F_path)
-D = au.ProjectData.new(F,np.arange(2000,2001),pops={'pop1':'Population 1'},transfers=0)
+F = at.ProjectFramework(F_path)
+D = at.ProjectData.new(F,np.arange(2000,2001),pops={'pop1':'Population 1'},transfers=0)
 D.save(D_path)
 
-P = au.Project(name="test", framework=F, do_run=False)
+P = at.Project(name="test", framework=F, do_run=False)
 P.load_databook(databook_path=D_path, make_default_parset=True, do_run=True)
 
-d = au.PlotData(P.results[0],[':ca',':cb','cb:',':cc',':ce','ce'],project=P)
-au.plot_series(d,axis='pops')
+d = at.PlotData(P.results[0],[':ca',':cb','cb:',':cc',':ce','ce'],project=P)
+at.plot_series(d,axis='pops')
 
 # Do some validation checks
 pop = P.results[0].model.pops[0]

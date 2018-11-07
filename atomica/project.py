@@ -30,9 +30,9 @@ from .scenarios import Scenario, ParameterScenario, BudgetScenario, CoverageScen
 from .optimization import Optimization, optimize, OptimInstructions, InvalidInitialConditions
 from .system import logger, AtomicaException
 from .cascade import get_cascade_outputs
-from .utils import NDict
+from .utils import NDict, evaluate_plot_string
 from .plotting import PlotData, plot_series
-from .results import Result, evaluate_plot_string
+from .results import Result
 from .migration import migrate
 import sciris as sc
 import numpy as np

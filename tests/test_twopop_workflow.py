@@ -2,30 +2,30 @@
 Version:
 """
 
-import atomica.ui as au
+import atomica as at
 import os
 plot_initial = True
 
 test = "sir"
 
-testdir = au.parent_dir()
+testdir = at.parent_dir()
 tmpdir = os.path.join(testdir,'temp','')
 
-F = au.ProjectFramework(au.LIBRARY_PATH + 'sir_framework.xlsx')
-P = au.Project(name=test.upper()+" project", framework=F)
+F = at.ProjectFramework(at.LIBRARY_PATH + 'sir_framework.xlsx')
+P = at.Project(name=test.upper()+" project", framework=F)
 P.load_databook(databook_path= testdir + 'databook_sir_twopop.xlsx', make_default_parset=True, do_run=True)
 
-au.export_results(P.results[0],tmpdir + test.upper()+" results")
+at.export_results(P.results[0],tmpdir + test.upper()+" results")
 P.save(tmpdir+test+".prj")
 
-P = au.Project.load(tmpdir+test+".prj")
+P = at.Project.load(tmpdir+test+".prj")
 
 def plot_calibration(adjustables,measurables,titlestr):
     # Run calibration and plot results showing y-factors in title
-    new_parset = au.perform_autofit(P, P.parsets['default'], adjustables, measurables, max_time=30)
+    new_parset = at.perform_autofit(P, P.parsets['default'], adjustables, measurables, max_time=30)
     new_result = P.run_sim(new_parset)
-    d = au.PlotData(new_result, outputs=['ch_prev'])
-    figs = au.plot_series(d, axis='pops', data=P.data)
+    d = at.PlotData(new_result, outputs=['ch_prev'])
+    figs = at.plot_series(d, axis='pops', data=P.data)
     par = new_parset.get_par('transpercontact')
     figs[0].axes[0].set_title("Calibrating {}: adults={:.2f}, children={:.2f}, meta={:.2f}".format(titlestr, par.y_factor['adults'], par.y_factor['children'],par.meta_y_factor))
 

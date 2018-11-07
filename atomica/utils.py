@@ -3,11 +3,18 @@ Define utility classes used throughout Atomica
 
 """
 
-import sciris as sc
-from .system import NotAllowedError
 import inspect
 import os
+import ast
+from bisect import bisect
+from .system import AtomicaException, NotAllowedError
+import numpy as np
+import scipy.interpolate
+import sciris as sc
 
+def parent_dir():
+    # Return the parent directory of the file that called this function
+    return os.path.join(os.path.abspath(os.path.join(inspect.stack()[1][1], os.pardir)), '')
 
 class NamedItem(object):
     def __init__(self, name=None):
@@ -25,7 +32,6 @@ class NamedItem(object):
 
     def __repr__(self):
         return sc.prepr(self)
-
 
 class NDict(sc.odict):
     def __init__(self, *args, **kwargs):
@@ -58,14 +64,6 @@ class NDict(sc.odict):
         if isinstance(self[new], NamedItem):
             self[new].name = new
         return None
-
-
-from .system import AtomicaException
-from bisect import bisect
-import sciris as sc
-import numpy as np
-import scipy.interpolate
-
 
 
 class TimeSeries(object):
@@ -190,7 +188,33 @@ class TimeSeries(object):
         # (and perhaps some other distribution information too)
         raise NotImplementedError()
 
+def evaluate_plot_string(plot_string):
+    # The plots in the framework are specified as strings - for example,
+    #
+    # plot_string = "{'New active DS-TB':['pd_div:flow','nd_div:flow']}"
+    #
+    # This needs to be (safely) evaluated so that the actual dict can be
+    # used. This function evaluates a string like this and returns a
+    # variable accordingly. For example
+    #
+    # x = evaluate_plot_string("{'New active DS-TB':['pd_div:flow','nd_div:flow']}")
+    #
+    # is the same as
+    #
+    # x = {'New active DS-TB':['pd_div:flow','nd_div:flow']}
+    #
+    # This will only happen if tokens associated with dicts and lists are present -
+    # otherwise the original string will just be returned directly
 
-def parent_dir():
-    # Return the parent directory of the file that called this function
-    return os.path.join(os.path.abspath(os.path.join(inspect.stack()[1][1], os.pardir)), '')
+    if '{' in plot_string or '[' in plot_string:
+        # Evaluate the string to set lists and dicts - do at least a little validation
+        assert '__' not in plot_string, 'Cannot use double underscores in functions'
+        assert len(plot_string) < 1800  # Function string must be less than 1800 characters
+        fcn_ast = ast.parse(plot_string, mode='eval')
+        for node in ast.walk(fcn_ast):
+            if not (node is fcn_ast):
+                assert isinstance(node, ast.Dict) or isinstance(node, ast.Str) or isinstance(node, ast.List) or isinstance(node, ast.Load), 'Only allowed to initialize lists and dicts of strings here'
+        compiled_code = compile(fcn_ast, filename="<ast>", mode="eval")
+        return eval(compiled_code)
+    else:
+        return plot_string

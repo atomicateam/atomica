@@ -1,7 +1,7 @@
-import atomica.ui as au
-from atomica.ui import ProjectFramework, Project
+import atomica as at
+from atomica import ProjectFramework, Project
 import sciris as sc
-from atomica.ui import InvalidCascade
+from atomica import InvalidCascade
 import os
 
 test = 'tb'
@@ -17,7 +17,7 @@ torun = [
 #'mpld3test'
 ]
 
-testdir = au.parent_dir()
+testdir = at.parent_dir()
 tmpdir = os.path.join(testdir,'temp','')
 
 # Check validation
@@ -25,19 +25,19 @@ if "validate_cascade" in torun:
     from atomica.cascade import validate_cascade
 
     # First check that all of the library frameworks are OK
-    fnames = os.listdir(au.LIBRARY_PATH)
+    fnames = os.listdir(at.LIBRARY_PATH)
     # NB. To test a single file, set e.g. `fnames=['framework_tb.xlsx']`
     for fname in fnames:
         if fname.endswith('_framework.xlsx'):
             print("Validating %s" % (fname))
-            F = ProjectFramework(au.LIBRARY_PATH+fname)
+            F = ProjectFramework(at.LIBRARY_PATH+fname)
 
             # Validate all of the cascades in the framework
             for cascade in F.cascades:
                 validate_cascade(F, cascade)
 
 
-    F = ProjectFramework(au.LIBRARY_PATH + "tb_framework.xlsx")
+    F = ProjectFramework(at.LIBRARY_PATH + "tb_framework.xlsx")
     try:
         validate_cascade(F,None) # Try running this on the command line to see the error message
     except InvalidCascade:
@@ -45,12 +45,12 @@ if "validate_cascade" in torun:
 
     for fname in ["framework_sir_badcascade1.xlsx","framework_sir_badcascade2.xlsx"]:
         try:
-            F = ProjectFramework(au.parent_dir() + fname)
+            F = ProjectFramework(at.parent_dir() + fname)
         except InvalidCascade:
             print("Correctly raised invalid cascade for %s" % fname)
 
 # Load a framework and project to get a Result
-P = au.demo(test)
+P = at.demo(test)
 result = P.run_sim('default')
 
 # # Make some plots from plot names and groups in the Framework
@@ -62,30 +62,30 @@ if "basicplots" in torun:
         result.plot(plot_group='latency')
 
     #    # Export limited set of results based on 'Export' column in Framework, or export everything
-        au.export_results(result,filename=tmpdir+'export_from_framework_1.xlsx' )
+        at.export_results(result,filename=tmpdir+'export_from_framework_1.xlsx' )
         result.export_raw(filename=tmpdir+'export_raw.xlsx') # Export everything
 
         # Plot various cascades
         startyear = 2000
         endyear = 2030
 
-        au.plot_cascade(result, cascade='TB treatment (including recovered)', pops='all', year=startyear, data=P.data)
-        au.plot_cascade(result, cascade='TB treatment (including recovered)', pops='all', year=endyear, data=P.data)
+        at.plot_cascade(result, cascade='TB treatment (including recovered)', pops='all', year=startyear, data=P.data)
+        at.plot_cascade(result, cascade='TB treatment (including recovered)', pops='all', year=endyear, data=P.data)
 
-        au.plot_cascade(result,cascade='TB treatment (including recovered)',pops='0-4',year=endyear,data=P.data)
-        au.plot_cascade(result,cascade='SP treatment',pops='0-4',year=endyear,data=P.data)
+        at.plot_cascade(result,cascade='TB treatment (including recovered)',pops='0-4',year=endyear,data=P.data)
+        at.plot_cascade(result,cascade='SP treatment',pops='0-4',year=endyear,data=P.data)
 
-        au.plot_cascade(result,cascade='SP treatment',pops='Gen 5-14',year=endyear,data=P.data) # Look up using full name
-        au.plot_cascade(result,cascade='SP treatment',pops=['Gen 0-4','Gen 5-14'],year=endyear,data=P.data) # Combine subset of pops - should be able to add numbers from the previous two figures
+        at.plot_cascade(result,cascade='SP treatment',pops='Gen 5-14',year=endyear,data=P.data) # Look up using full name
+        at.plot_cascade(result,cascade='SP treatment',pops=['Gen 0-4','Gen 5-14'],year=endyear,data=P.data) # Combine subset of pops - should be able to add numbers from the previous two figures
     elif test == 'udt':
         # No predefined cascades, use the default one
-        au.plot_cascade(result, pops='all', year=2016, data=P.data)  # plot default cascade
+        at.plot_cascade(result, pops='all', year=2016, data=P.data)  # plot default cascade
     else:
         # Plot the first cascade by default
         startyear = 2016
         endyear = 2017
-        au.plot_cascade(result, cascade=0, pops='all', year=startyear, data=P.data)
-        au.plot_cascade(result, cascade=0, pops='all', year=endyear, data=P.data)
+        at.plot_cascade(result, cascade=0, pops='all', year=startyear, data=P.data)
+        at.plot_cascade(result, cascade=0, pops='all', year=endyear, data=P.data)
 
 # Do a scenario to get a second set of results
 if "scenplots" in torun:
@@ -118,12 +118,12 @@ if "scenplots" in torun:
     startyear = 2018 if test=='tb' else 2016
     endyear = 2020 if test=='tb' else 2017
 
-    au.plot_multi_cascade([par_results,scen_results],None,year=startyear)
-    au.plot_multi_cascade([par_results],None,year=[startyear,endyear])
+    at.plot_multi_cascade([par_results,scen_results],None,year=startyear)
+    at.plot_multi_cascade([par_results],None,year=[startyear,endyear])
     if test=='tb':
-        au.plot_multi_cascade([par_results,scen_results],cascade=0,pops='all',year=[startyear,endyear])
-        au.plot_multi_cascade([par_results],cascade=1,year=[startyear,endyear])
-        #au.plot_multi_cascade([par_results,scen_results],cascade=None,pops='all',year=2030)
+        at.plot_multi_cascade([par_results,scen_results],cascade=0,pops='all',year=[startyear,endyear])
+        at.plot_multi_cascade([par_results],cascade=1,year=[startyear,endyear])
+        #at.plot_multi_cascade([par_results,scen_results],cascade=None,pops='all',year=2030)
 
 # # Dynamically create a cascade
 if "cascadefromscratch" in torun:
@@ -131,17 +131,17 @@ if "cascadefromscratch" in torun:
     cascade['Susceptible'] = 'sus'
     cascade['Vaccinated'] = 'vac'
     cascade['Infected'] = 'ac_inf'
-    au.plot_cascade(result,cascade=cascade,pops='all',year=2030)
+    at.plot_cascade(result,cascade=cascade,pops='all',year=2030)
 
 
 
 if 'mpld3test' in torun:
-    P = au.demo()
-    Q = au.demo()
+    P = at.demo()
+    Q = at.demo()
     P.result().name = 'Example result 1'
     Q.result().name = 'Example result 2'
     results = [P.result(), Q.result()]
-    fig,table = au.plot_cascade(results, cascade='main', pops='all', year=2030, data=P.data, show_table=False)
+    fig,table = at.plot_cascade(results, cascade='main', pops='all', year=2030, data=P.data, show_table=False)
     
     as_mpld3 = True
     if as_mpld3:

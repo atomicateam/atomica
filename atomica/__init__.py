@@ -91,7 +91,7 @@ _debug = False
 # The Atomica "user interface" -- import everything from submodules
 from .version import *
 from .system import *
-from .framework import *
+from .framework import ProjectFramework
 from .project import *
 from .calibration import *
 from .scenarios import *

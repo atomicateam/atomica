@@ -3,7 +3,7 @@ Version:
 """
 
 import os
-import atomica.ui as au
+import atomica as at
 import sciris as sc
 import pylab as pl
 import matplotlib.pyplot as plt
@@ -76,18 +76,18 @@ if test == "tb":
                       "xdr_deaths": ["px_term:flow", "px_sad:flow", "nx_term:flow", "nx_sad:flow"]}
     plot_pop = ['5-14', '15-64']
 
-TMPDIR = au.atomica_path(['tests','temp'])
-LIBDIR = au.LIBRARY_PATH
-TESTDIR = au.atomica_path('tests')
+TMPDIR = at.atomica_path(['tests','temp'])
+LIBDIR = at.LIBRARY_PATH
+TESTDIR = at.atomica_path('tests')
 
 if "loadframework" in torun:
-    F = au.ProjectFramework(LIBDIR + test + '_framework.xlsx')
+    F = at.ProjectFramework(LIBDIR + test + '_framework.xlsx')
 
 if "saveframework" in torun:
     F.save(TMPDIR+'framework_'+test+".xlsx")
 
 if "makedatabook" in torun:
-    P = au.Project(framework=F) # Create a project with an empty data structure.
+    P = at.Project(framework=F) # Create a project with an empty data structure.
     if test == "sir": args = {"num_pops":1, "num_transfers":1,"data_start":2000, "data_end":2015, "data_dt":1.0}
     elif test == "tb": args = {"num_pops":12, "num_transfers":3, "data_end":2018}
     elif test in ["tb_simple","tb_simple_dyn"]: args = {"num_pops":1, "num_transfers":0, "data_start":2014, "data_end":2018, "data_dt":1.0}
@@ -100,7 +100,7 @@ if "makedatabook" in torun:
 
 if "makeproject" in torun:
     # Preventing a run and databook loading so as to make calls explicit for the benefit of the FE.
-    P = au.Project(name=test.upper()+" project", framework=F, do_run=False)
+    P = at.Project(name=test.upper()+" project", framework=F, do_run=False)
     
 if "loaddatabook" in torun:
     # Preventing parset creation and a run so as to make calls explicit for the benefit of the FE.
@@ -124,7 +124,7 @@ if "runsim" in torun:
     P.run_sim(parset="default", result_name="default")    
 
 if 'plotcascade' in torun:
-    au.plot_cascade(P.results[-1], pops='all', year=[2017], data=P.data)
+    at.plot_cascade(P.results[-1], pops='all', year=[2017], data=P.data)
     if forceshow: pl.show()
     
     # Browser test
@@ -136,7 +136,7 @@ if 'plotcascade' in torun:
     
 if "makeblankprogbook" in torun:
     print('\n\n\nMaking programs spreadsheet ... ')
-    P = au.demo(which=test, addprogs=False, do_plot=0, do_run=False)
+    P = at.demo(which=test, addprogs=False, do_plot=0, do_run=False)
     P.run_sim(parset="default", result_name="default")    
 
     filename = TMPDIR + "progbook_"+test+"_blank.xlsx"
@@ -156,7 +156,7 @@ if "makeblankprogbook" in torun:
 
 if "writeprogbook" in torun:
     print('\n\n\nExporting programs spreadsheet ... ')
-    P = au.demo(which=test, do_plot=0, do_run=False)
+    P = at.demo(which=test, do_plot=0, do_run=False)
     filename = TMPDIR + "progbook_"+test+"_export.xlsx"
     if test in ["sir","tb","udt","usdt","hiv","hypertension"]:
         P.progsets[0].save(filename)
@@ -168,7 +168,7 @@ if "testprograms" in torun:
     else:
         print('\n\n\nLoading programs spreadsheet ...')
     
-        P = au.demo(which=test,do_plot=0) # Note, the demo automatically load the program book
+        P = at.demo(which=test,do_plot=0) # Note, the demo automatically load the program book
 
         # Simple tests for TB and SIR to see if programs are working as expected
         if test =="sir":      
@@ -238,40 +238,40 @@ if "testprograms" in torun:
 
 if "runsim_programs" in torun:
 
-    P = au.demo(which=test,do_plot=0)
+    P = at.demo(which=test,do_plot=0)
 
     if test == 'sir':
         P.update_settings(sim_start=2000.0, sim_end=2030, sim_dt=0.25)
         alloc  = {'Risk avoidance': 400000} # Other programs will use default spend
-#        instructions = au.ProgramInstructions() 
-        instructions = au.ProgramInstructions(alloc) # TODO - get default instructions
+#        instructions = at.ProgramInstructions()
+        instructions = at.ProgramInstructions(alloc) # TODO - get default instructions
         P.run_sim(parset="default", result_name="default-noprogs")
         P.run_sim(parset="default", progset='default',progset_instructions=instructions,result_name="default-progs")
-        d = au.PlotData([P.results["default-noprogs"],P.results["default-progs"]], outputs=['transpercontact','contacts','recrate','infdeath','susdeath'])
-        au.plot_series(d, axis="results")
+        d = at.PlotData([P.results["default-noprogs"],P.results["default-progs"]], outputs=['transpercontact','contacts','recrate','infdeath','susdeath'])
+        at.plot_series(d, axis="results")
 
     elif test == 'diabetes':
         parset = P.parsets[0]
         original_progset = P.progsets[0]
-        reconciled_progset, progset_comparison, parameter_comparison = au.reconcile(project=P,parset=parset,progset=original_progset,reconciliation_year=2016.,unit_cost_bounds=0.2)
-        instructions = au.ProgramInstructions(start_year=2016.) 
+        reconciled_progset, progset_comparison, parameter_comparison = at.reconcile(project=P,parset=parset,progset=original_progset,reconciliation_year=2016.,unit_cost_bounds=0.2)
+        instructions = at.ProgramInstructions(start_year=2016.)
         newalloc = {'Screening - family nurse':  15000 }
         parresults = P.run_sim(parset="default", result_name="default-noprogs")
         progresults = P.run_sim(parset="default", progset='default',progset_instructions=instructions,result_name="default-progs")
-        au.plot_multi_cascade([parresults, progresults],'Diabetes care cascade',year=[2017])
+        at.plot_multi_cascade([parresults, progresults],'Diabetes care cascade',year=[2017])
 
     elif test in ['tb_simple','tb_simple_dyn']:
         parset = P.parsets[0]
         original_progset = P.progsets[0]
-        reconciled_progset, progset_comparison, parameter_comparison = au.reconcile(project=P,parset=parset,progset=original_progset,reconciliation_year=2016.,unit_cost_bounds=0.2)
-        instructions = au.ProgramInstructions(start_year=2016.) 
+        reconciled_progset, progset_comparison, parameter_comparison = at.reconcile(project=P,parset=parset,progset=original_progset,reconciliation_year=2016.,unit_cost_bounds=0.2)
+        instructions = at.ProgramInstructions(start_year=2016.)
         newalloc = {'Passive case finding':  2000000 }
         parresults = P.run_sim(parset="default", result_name="default-noprogs")
         progresults = P.run_sim(parset="default", progset='default',progset_instructions=instructions,result_name="default-progs")
-        au.plot_multi_cascade([parresults, progresults],'TB care cascade',year=[2017])
+        at.plot_multi_cascade([parresults, progresults],'TB care cascade',year=[2017])
 
     elif test == 'tb':
-        instructions = au.ProgramInstructions(start_year=2015,stop_year=2030) 
+        instructions = at.ProgramInstructions(start_year=2015,stop_year=2030)
 #        P.run_sim(parset="default", result_name="default-noprogs")
         P.run_sim(parset="default", progset='default',progset_instructions=instructions,result_name="default-progs")
 
@@ -280,11 +280,11 @@ if "runsim_programs" in torun:
         scen2alloc = {'Testing - clinics': 120000}
         scen3alloc = {'Testing - outreach': 50000}
         scen4alloc = {'Adherence': 40000}
-        bl_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018) 
-        scen1_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen1alloc) 
-        scen2_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen2alloc) 
-        scen3_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen3alloc) 
-        scen4_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen4alloc) 
+        bl_instructions = at.ProgramInstructions(start_year=2016,stop_year=2018)
+        scen1_instructions = at.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen1alloc)
+        scen2_instructions = at.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen2alloc)
+        scen3_instructions = at.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen3alloc)
+        scen4_instructions = at.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen4alloc)
 
         baselineresults = P.run_sim(parset="default", progset='default',progset_instructions=bl_instructions,result_name="Baseline")
         scen1results = P.run_sim(parset="default", progset='default',progset_instructions=scen1_instructions,result_name="Scale up pharmacies")
@@ -292,41 +292,41 @@ if "runsim_programs" in torun:
         scen3results = P.run_sim(parset="default", progset='default',progset_instructions=scen3_instructions,result_name="Scale up outreach")
         scen4results = P.run_sim(parset="default", progset='default',progset_instructions=scen4_instructions,result_name="Scale up adherence")
 
-        au.plot_multi_cascade([baselineresults, scen1results, scen2results, scen3results, scen4results],'Cascade',year=[2017])
+        at.plot_multi_cascade([baselineresults, scen1results, scen2results, scen3results, scen4results],'Cascade',year=[2017])
 
     elif test == 'usdt':
         scenalloc = {'Screening at pharmacies':  2400000 }
     
-        bl_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018) 
-        scen_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scenalloc) 
+        bl_instructions = at.ProgramInstructions(start_year=2016,stop_year=2018)
+        scen_instructions = at.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scenalloc)
 
         baselineresults = P.run_sim(parset="default", progset='default',progset_instructions=bl_instructions,result_name="baseline")
         scenresults = P.run_sim(parset="default", progset='default',progset_instructions=scen_instructions,result_name="scen")
 
-        au.plot_multi_cascade([baselineresults, scenresults],'main',year=[2017])
+        at.plot_multi_cascade([baselineresults, scenresults],'main',year=[2017])
 
     elif test == 'cervicalcancer':
         scenalloc = {'HPV vaccine':  200000 }
     
-        bl_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018) 
-        scen_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scenalloc) 
+        bl_instructions = at.ProgramInstructions(start_year=2016,stop_year=2018)
+        scen_instructions = at.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scenalloc)
 
         baselineresults = P.run_sim(parset="default", progset='default',progset_instructions=bl_instructions,result_name="baseline")
         scenresults = P.run_sim(parset="default", progset='default',progset_instructions=scen_instructions,result_name="scen")
 
-        au.plot_multi_cascade([baselineresults, scenresults],year=[2017])
+        at.plot_multi_cascade([baselineresults, scenresults],year=[2017])
 
     elif test in ['hypertension','hypertension_dyn']:
         scenalloc = {'Screening - urban':  30000 }
     
-        bl_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018) 
-        scen_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scenalloc) 
+        bl_instructions = at.ProgramInstructions(start_year=2016,stop_year=2018)
+        scen_instructions = at.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scenalloc)
 
         noprogs = P.run_sim(parset="default", result_name="default-noprogs")
         baselineresults = P.run_sim(parset="default", progset='default',progset_instructions=bl_instructions,result_name="baseline")
         scenresults = P.run_sim(parset="default", progset='default',progset_instructions=scen_instructions,result_name="scen")
 
-        au.plot_multi_cascade([noprogs, baselineresults, scenresults],'Hypertension care cascade',year=[2018])
+        at.plot_multi_cascade([noprogs, baselineresults, scenresults],'Hypertension care cascade',year=[2018])
 
     elif test in ['hiv','hiv_dyn']:
         scen1alloc = {'Testing - clinics': 4200000}# 1500000
@@ -337,14 +337,14 @@ if "runsim_programs" in torun:
         scen6alloc = {'Advanced adherence support': 60000}
         scen7alloc = {'Whatsapp adherence support': 1000}
     
-        bl_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018) 
-        scen1_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen1alloc) 
-        scen2_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen2alloc) 
-        scen3_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen3alloc) 
-        scen4_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen4alloc) 
-        scen5_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen5alloc) 
-        scen6_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen6alloc) 
-        scen7_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen7alloc)
+        bl_instructions = at.ProgramInstructions(start_year=2016,stop_year=2018)
+        scen1_instructions = at.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen1alloc)
+        scen2_instructions = at.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen2alloc)
+        scen3_instructions = at.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen3alloc)
+        scen4_instructions = at.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen4alloc)
+        scen5_instructions = at.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen5alloc)
+        scen6_instructions = at.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen6alloc)
+        scen7_instructions = at.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen7alloc)
 
         baselineresults = P.run_sim(parset="default", progset='default',progset_instructions=bl_instructions,result_name="baseline")
         scen1results = P.run_sim(parset="default", progset='default',progset_instructions=scen1_instructions,result_name="scen1")
@@ -355,7 +355,7 @@ if "runsim_programs" in torun:
         scen6results = P.run_sim(parset="default", progset='default',progset_instructions=scen6_instructions,result_name="scen6")
         scen7results = P.run_sim(parset="default", progset='default',progset_instructions=scen7_instructions,result_name="scen7")
 
-        au.plot_multi_cascade([baselineresults, scen1results, scen2results, scen3results, scen4results, scen5results, scen6results, scen7results],year=[2018])
+        at.plot_multi_cascade([baselineresults, scen1results, scen2results, scen3results, scen4results, scen5results, scen6results, scen7results],year=[2018])
 
     elif test in ['service']:
         print('\n\n\nRunning with programs not yet implemented for service example.')
@@ -371,38 +371,38 @@ if "makeplots" in torun:
             P.results["parset_default"].get_variable(test_pop,var)[0].plot()
 
         # Plot population decomposition.
-        d = au.PlotData(P.results["parset_default"],outputs=decomp,pops=plot_pop)
-        au.plot_series(d, plot_type="stacked")
+        d = at.PlotData(P.results["parset_default"],outputs=decomp,pops=plot_pop)
+        at.plot_series(d, plot_type="stacked")
 
     if test == "tb":
         # Plot bars for deaths, aggregated by strain, stacked by pop
-        d = au.PlotData(P.results["parset_default"],outputs=grouped_deaths,t_bins=10,pops=plot_pop)
-        au.plot_bars(d, outer="results", stack_pops=[plot_pop])
+        d = at.PlotData(P.results["parset_default"],outputs=grouped_deaths,t_bins=10,pops=plot_pop)
+        at.plot_bars(d, outer="results", stack_pops=[plot_pop])
 
         # Plot bars for deaths, aggregated by pop, stacked by strain
-        d = au.PlotData(P.results["parset_default"],outputs=grouped_deaths,t_bins="all",pops=plot_pop)
-        au.plot_bars(d, stack_outputs=[list(grouped_deaths.keys())])
+        d = at.PlotData(P.results["parset_default"],outputs=grouped_deaths,t_bins="all",pops=plot_pop)
+        at.plot_bars(d, stack_outputs=[list(grouped_deaths.keys())])
 
         # Plot total death flow over time
         # Plot death flow rate decomposition over all time
-        d = au.PlotData(P.results["parset_default"],outputs=grouped_deaths,pops=plot_pop)
-        au.plot_series(d, plot_type='stacked', axis='outputs')
+        d = at.PlotData(P.results["parset_default"],outputs=grouped_deaths,pops=plot_pop)
+        at.plot_series(d, plot_type='stacked', axis='outputs')
 
-        d = au.PlotData(P.results["parset_default"], pops='0-4')
-        au.plot_series(d, plot_type='stacked')
+        d = at.PlotData(P.results["parset_default"], pops='0-4')
+        at.plot_series(d, plot_type='stacked')
 
     elif test == 'sir':
         # Plot disaggregated flow into deaths over time
-        d = au.PlotData(P.results["parset_default"],outputs=grouped_deaths,pops=plot_pop)
-        au.plot_series(d, plot_type='stacked', axis='outputs')
+        d = at.PlotData(P.results["parset_default"],outputs=grouped_deaths,pops=plot_pop)
+        at.plot_series(d, plot_type='stacked', axis='outputs')
 
         # Plot aggregate flows
-        d = au.PlotData(P.results["parset_default"],outputs=[{"Death rate":deaths}])
-        au.plot_series(d, axis="pops")
+        d = at.PlotData(P.results["parset_default"],outputs=[{"Death rate":deaths}])
+        at.plot_series(d, axis="pops")
 
 
 if "export" in torun:
-    au.export_results(P.results[0],TMPDIR+test+"_results")
+    at.export_results(P.results[0],TMPDIR+test+"_results")
 
 if "manualcalibrate" in torun:
     # Attempt a manual calibration, i.e. edit the scaling factors directly.
@@ -415,8 +415,8 @@ if "manualcalibrate" in torun:
         outputs = ["ac_inf"]
     if test in ['sir','tb']:
         P.run_sim(parset="manual", result_name="manual")
-        d = au.PlotData([P.results["parset_default"],P.results["manual"]], outputs=outputs, pops=plot_pop)
-        au.plot_series(d, axis="results", data=P.data)
+        d = at.PlotData([P.results["parset_default"],P.results["manual"]], outputs=outputs, pops=plot_pop)
+        at.plot_series(d, axis="results", data=P.data)
     
 if "autocalibrate" in torun:
     if test == "sir":
@@ -432,17 +432,17 @@ if "autocalibrate" in torun:
     else:
         P.calibrate(max_time=10, new_name="auto")
     P.run_sim(parset="auto", result_name="auto")
-    au.plot_cascade(P.results[-1], cascade=0, pops='all', year=2017, data=P.data)
+    at.plot_cascade(P.results[-1], cascade=0, pops='all', year=2017, data=P.data)
     if test == "sir":
         outputs = ["ch_prev"]
     if test == "tb":
         outputs = ["ac_inf"]
-        d = au.PlotData(P.results, outputs=outputs)   # Values method used to plot all existent results.
-        au.plot_series(d, axis='results', data=P.data)
+        d = at.PlotData(P.results, outputs=outputs)   # Values method used to plot all existent results.
+        at.plot_series(d, axis='results', data=P.data)
     
 if "parameterscenario" in torun:
     
-    P = au.demo(which=test)
+    P = at.demo(which=test)
     
     scvalues = dict()
 
@@ -481,40 +481,40 @@ if "parameterscenario" in torun:
         scen = P.make_scenario(which='parameter',name="Varying Infections 2", instructions=scvalues)
         scen.run(P,P.parsets["default"])
     
-        d = au.PlotData([P.results["Varying Infections"],P.results["Varying Infections 2"]], outputs=scen_outputs, pops=[scen_pop],project=P)
-        au.plot_series(d, axis="results")
+        d = at.PlotData([P.results["Varying Infections"],P.results["Varying Infections 2"]], outputs=scen_outputs, pops=[scen_pop],project=P)
+        at.plot_series(d, axis="results")
         plt.title('Scenario comparison')
         plt.ylabel('Number of people')
 
 if "coveragescenario" in torun:
 
-    P = au.demo(which=test)
-    instructions = au.ProgramInstructions(start_year=2018)
+    P = at.demo(which=test)
+    instructions = at.ProgramInstructions(start_year=2018)
     no_programs = P.run_sim(parset='default',result_name='No programs')
     baseline = P.run_sim(parset='default',progset='default',progset_instructions=instructions,result_name='Default programs')
 
     coverage = {
         'Risk avoidance':0.5,
          'Harm reduction 1':0.5,
-         'Harm reduction 2':au.TimeSeries([2018,2020],[0.7,0.2]),
+         'Harm reduction 2':at.TimeSeries([2018,2020],[0.7,0.2]),
     }
-    scen = au.CoverageScenario('Reduced coverage','default','default',coverage=coverage,start_year=2018)
+    scen = at.CoverageScenario('Reduced coverage','default','default',coverage=coverage,start_year=2018)
     scen_result = scen.run(project=P)
 
     # Plot coverages
-    d = au.PlotData.programs([baseline,scen_result],quantity='coverage_fraction',outputs='Harm reduction 2')
-    au.plot_series(d, axis="results")
+    d = at.PlotData.programs([baseline,scen_result],quantity='coverage_fraction',outputs='Harm reduction 2')
+    at.plot_series(d, axis="results")
 
     # Plot results
-    d = au.PlotData([no_programs,baseline,scen_result],outputs='ch_infrec')
-    au.plot_series(d, axis="results")
+    d = at.PlotData([no_programs,baseline,scen_result],outputs='ch_infrec')
+    at.plot_series(d, axis="results")
     plt.xlim(2022.5,2023)
     plt.ylim(741,746)
 
     # Test export
-    au.export_results(no_programs,TMPDIR + 'covscen_noprogs.xlsx')
-    au.export_results(baseline, TMPDIR + 'covscen_baseline.xlsx')
-    au.export_results(scen_result, TMPDIR + 'covscen_reduced.xlsx')
+    at.export_results(no_programs,TMPDIR + 'covscen_noprogs.xlsx')
+    at.export_results(baseline, TMPDIR + 'covscen_baseline.xlsx')
+    at.export_results(scen_result, TMPDIR + 'covscen_reduced.xlsx')
 
     # Confirm that
     # - FOI-related values (e.g. transmission probability) in decreasing order are noprogs, reduced, baselilne
@@ -557,12 +557,12 @@ def supported_plots_func():
 #    for output in outputs:
 #        try:
 #            import numpy as np # TEMP
-#            plotdata = au.PlotData(results, outputs=output, project=proj, pops=pops)
+#            plotdata = at.PlotData(results, outputs=output, project=proj, pops=pops)
 #            for series in plotdata.series:
 #                if any(np.isnan(series.vals)):
 #                    print('NANS?????????!!')
 #                    print series.vals
-#            figs = au.plot_series(plotdata, data=data, axis=axis) # Todo - customize plot formatting here
+#            figs = at.plot_series(plotdata, data=data, axis=axis) # Todo - customize plot formatting here
 #            all_figs += sc.promotetolist(figs)
 #            print('Plot %s succeeded' % (output))
 #        except Exception as E:
@@ -582,7 +582,7 @@ def get_plots(proj, results=None, plot_names=None, pops='all', axis=None, output
     data = proj.data if plotdata is not False else None # Plot data unless asked not to
     for output in outputs:
         try:
-            plotdata = au.PlotData(results, outputs=output, project=proj, pops=pops)
+            plotdata = at.PlotData(results, outputs=output, project=proj, pops=pops)
             nans_replaced = 0
             series_list = sc.promotetolist(plotdata.series)
             for series in series_list:
@@ -594,7 +594,7 @@ def get_plots(proj, results=None, plot_names=None, pops='all', axis=None, output
                             nans_replaced += 1
             if nans_replaced:
                 print('Warning: %s nans were replaced' % nans_replaced)
-            figs = au.plot_series(plotdata, data=data, axis=axis) # Todo - customize plot formatting here
+            figs = at.plot_series(plotdata, data=data, axis=axis) # Todo - customize plot formatting here
             graphs += figs
             print('Plot %s succeeded' % (output))
         except Exception as E:
@@ -610,11 +610,11 @@ if 'budgetscenarios' in torun: # WARNING, assumes that default scenarios are bud
     if test=='tb':
         scen_outputs = ["lt_inf", "ac_inf"]
         scen_pop = "15-64"
-        P = au.demo(which='tb')
+        P = at.demo(which='tb')
         results = P.run_scenarios()
         if plot_option == 1:
-            d = au.PlotData(results, outputs=scen_outputs, pops=[scen_pop])
-            figs = au.plot_series(d, axis="results")
+            d = at.PlotData(results, outputs=scen_outputs, pops=[scen_pop])
+            figs = at.plot_series(d, axis="results")
         elif plot_option == 2:
             figs = get_plots(P, results, axis="results")
         if browser:
@@ -624,10 +624,10 @@ if 'budgetscenarios' in torun: # WARNING, assumes that default scenarios are bud
 
 if "optimization" in torun:
     if test == 'tb':
-        P = au.demo(which='tb')
+        P = at.demo(which='tb')
         P.run_optimization(maxtime=30)
     elif test == 'sir':
-        P = au.demo(which='sir')
+        P = at.demo(which='sir')
 
         alloc = sc.odict([('Risk avoidance',0.),
                          ('Harm reduction 1',0.),
@@ -635,18 +635,18 @@ if "optimization" in torun:
                          ('Treatment 1',50.),
                          ('Treatment 2', 1.)])
 
-        instructions = au.ProgramInstructions(alloc=alloc,start_year=2020) # Instructions for default spending
+        instructions = at.ProgramInstructions(alloc=alloc,start_year=2020) # Instructions for default spending
         adjustments = []
-        adjustments.append(au.SpendingAdjustment('Treatment 1',2020,'abs',0.,100.))
-        adjustments.append(au.SpendingAdjustment('Treatment 2',2020,'abs',0.,100.))
-        constraints = au.TotalSpendConstraint() # Cap total spending in all years
+        adjustments.append(at.SpendingAdjustment('Treatment 1',2020,'abs',0.,100.))
+        adjustments.append(at.SpendingAdjustment('Treatment 2',2020,'abs',0.,100.))
+        constraints = at.TotalSpendConstraint() # Cap total spending in all years
 
         ## CASCADE MEASURABLE
         # This measurable will maximize the number of people in the final cascade stage, whatever it is
-        measurables = au.MaximizeCascadeStage('main',[2023],pop_names='all') # NB. make sure the objective year is later than the program start year, otherwise no time for any changes
+        measurables = at.MaximizeCascadeStage('main',[2023],pop_names='all') # NB. make sure the objective year is later than the program start year, otherwise no time for any changes
 
         # This is the same as the 'standard' example, just running the optimization and comparing the results
-        optimization = au.Optimization(name='default', adjustments=adjustments, measurables=measurables, constraints=constraints)
+        optimization = at.Optimization(name='default', adjustments=adjustments, measurables=measurables, constraints=constraints)
         unoptimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=instructions, result_name="unoptimized")
         optimized_instructions = optimize(P, optimization, parset=P.parsets["default"], progset=P.progsets['default'], instructions=instructions)
         optimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=optimized_instructions, result_name="optimized")
@@ -654,7 +654,7 @@ if "optimization" in torun:
         for adjustable in adjustments:
             print("%s - before=%.2f, after=%.2f" % (adjustable.name,unoptimized_result.model.program_instructions.alloc[adjustable.name].get(2020),optimized_result.model.program_instructions.alloc[adjustable.name].get(2020))) # TODO - add time to alloc
 
-        au.plot_multi_cascade([unoptimized_result, optimized_result],'main',pops='all',year=2020)
+        at.plot_multi_cascade([unoptimized_result, optimized_result],'main',pops='all',year=2020)
 
 if "runsimprogs" in torun:
     from atomica.core.programs import ProgramInstructions
@@ -666,5 +666,5 @@ if "saveproject" in torun:
     P.save(TMPDIR+test+".prj")
 
 if "loadproject" in torun:
-    P = au.Project.load(TMPDIR+test+".prj")
+    P = at.Project.load(TMPDIR+test+".prj")
 
