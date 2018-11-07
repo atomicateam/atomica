@@ -21,6 +21,7 @@ supported_functions = {
     'pi':np.pi,
     'cos':np.cos,
     'sin':np.sin,
+    'sqrt': np.sqrt,
     'to_timestep':to_timestep,
     'to_annual':to_annual,
     }
