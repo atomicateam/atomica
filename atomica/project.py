@@ -185,7 +185,15 @@ class Project(object):
         else:
             databook_spreadsheet = databook_path
 
-        self.data = ProjectData.from_spreadsheet(databook_spreadsheet, self.framework)
+        data = ProjectData.from_spreadsheet(databook_spreadsheet, self.framework)
+
+        # If there are existing progsets, make sure the new data is consistent with them
+        if self.progsets:
+            data_pops = set((x,y['label']) for x,y in data.pops.items())
+            for progset in self.progsets.values():
+                assert data_pops == set((x,y) for x,y in progset.pops.items()), 'Existing progsets exist with populations that do not match the new databook'
+
+        self.data = data
         self.data.validate(self.framework)  # Make sure the data is suitable for use in the Project (as opposed to just manipulating the databook)
         self.databook = sc.dcp(databook_spreadsheet)  # Actually a shallow copy is fine here because AtomicaSpreadsheet contains no mutable properties
         self.modified = sc.now()
