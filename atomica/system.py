@@ -4,26 +4,27 @@ Define internal system constants and functions
 """
 
 import os
-from .function_parser import parse_function, supported_functions
+from .function_parser import supported_functions
 
 # Set up a logger that can be imported elsewhere
 import logging
 logger = logging.getLogger('atomica')
-
-# Code for determining module installation directory.
 
 
 def atomica_path(subdir=None, trailingsep=True):
     """ Returns paths relative to the Atomica parent module
 
     This function by default returns the directory containing the Atomica
-    source files. T
+    source files. It can also return paths relative to this directory using
+    the optional additional arguments
 
-        :param subdir:
-    :param trailingsep:
-    :return:
+    :param subdir: Append an additional path list to Atomica path
+    :param trailingsep: If True, a trailing separator will be included so that the
+                        returned path can have a file name string added to it easily
+    :return: Absolute path string
 
-    If subdir is not None, include it in the path. """
+    """
+
     path = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
     if subdir is not None:
         if not isinstance(subdir, list):

@@ -631,7 +631,19 @@ class OptimInstructions(NamedItem):
 
 
 class Optimization(NamedItem):
-    """ An object that defines an Optimization to perform """
+    """
+    Instructions on how to perform an optimization
+
+    The Optimization object stores the information that defines an optimization operation.
+    Optimization can be thought of as a function mapping one set of program instructions
+    to another set of program instructions. The parameters of that function are stored in the
+    Optimization object, and amount to
+
+    - A definition of optimality
+    - A specification of allowed changes to the program instructions
+    - Any additional information required by a particular optimization algorithm e.g. ASD
+
+    """
 
     def __init__(self, name=None, parsetname=None, progsetname=None, adjustments=None, measurables=None, constraints=None, maxtime=None, maxiters=None, method='asd'):
 
@@ -741,12 +753,35 @@ def _objective_fcn(asd_values, pickled_model=None, optimization=None, hard_const
 
 
 def optimize(project, optimization, parset, progset, instructions, x0=None, xmin=None, xmax=None, hard_constraints=None):
+    """
+    Main user entry point for optimization
+
+    The optional inputs `x0`, `xmin`, `xmax` and `hard_constraints` are used when
+    performing parallel optimization (implementation not complete yet), in which case
+    they are computed by the parallel wrapper to `optimize()`. Normally these variables
+    would not be specified by users, because they are computed from the `Optimization`
+    together with the instructions (because relative constraints in the Optimization are
+    interpreted as being relative to the allocation in the instructions).
+
+    :param project: A :py:class:`Project` instance
+    :param optimization: An :py:class:`Optimization` instance
+    :param parset: A :py:class:`ParameterSet` instance or name of a parset
+    :param progset: A :py:class:`ProgramSet` instance or name of a progset
+    :param instructions: A :py:class:`ProgramInstructions` instance
+    :param x0: Not for manual use - override initial values
+    :param xmin: Not for manual use - override lower bounds
+    :param xmax: Not for manual use - override upper bounds
+    :param hard_constraints: Not for manual use - override hard constraints
+    :return: A :py:class:`ProgramInstructions` instance representing optimal instructions
+
+    """
     # The ASD initialization, xmin and xmax values can optionally be
     # method can be one of
     # - asd (to use normal ASD)
     # - pso (to use particle swarm optimization from pyswarm)
+    # - hyperopt (to use hyperopt's Bayesian optimization function)
 
-    assert optimization.method in ['asd', 'pso']
+    assert optimization.method in ['asd', 'pso', 'hyperopt']
 
     model = Model(project.settings, project.framework, parset, progset, instructions)
     pickled_model = pickle.dumps(model)
@@ -771,13 +806,6 @@ def optimize(project, optimization, parset, progset, instructions, x0=None, xmin
     if not np.isfinite(initial_objective):
         raise InvalidInitialConditions()
 
-    if optimization.method == 'pso':
-        try:
-            import pyswarm
-        except Exception as E:
-            print('Could not import pyswarm, defaulting to ASD: %s' % str(E))
-            optimization.method = 'asd'
-
     if optimization.method == 'asd':
         optim_args = {
             # 'stepsize': proj.settings.autofit_params['stepsize'],
@@ -791,6 +819,9 @@ def optimize(project, optimization, parset, progset, instructions, x0=None, xmin
         }
         x_opt = sc.asd(_objective_fcn, x0, args, **optim_args)[0]
     elif optimization.method == 'pso':
+
+        import pyswarm
+
         optim_args = {
             'maxiter': 3,
             'lb': xmin,
@@ -800,10 +831,30 @@ def optimize(project, optimization, parset, progset, instructions, x0=None, xmin
         }
         if np.any(~np.isfinite(xmin)) or np.any(~np.isfinite(xmax)):
             errormsg = 'PSO optimization requires finite upper and lower bounds to specify the search domain (i.e. every Adjustable needs to have finite bounds)'
-            logger.warning(errormsg)
-            xmin[~np.isfinite(xmin)] = 0.0
-            xmax[~np.isfinite(xmax)] = 1e9
+            raise Exception(errormsg)
+
         x_opt, _ = pyswarm.pso(_objective_fcn, kwargs=args, **optim_args)
+    elif optimization.method == 'hyperopt':
+
+        import hyperopt
+        import functools
+
+        if np.any(~np.isfinite(xmin)) or np.any(~np.isfinite(xmax)):
+            errormsg = 'hyperopt optimization requires finite upper and lower bounds to specify the search domain (i.e. every Adjustable needs to have finite bounds)'
+            raise Exception(errormsg)
+
+        space = []
+        for i, (lower, upper) in enumerate(zip(xmin,xmax)):
+            space.append(hyperopt.hp.uniform(str(i),lower,upper))
+        fcn = functools.partial(_objective_fcn,**args) # Partial out the extra arguments to the objective
+
+        optim_args = {
+            'max_evals': optimization.maxiters if optimization.maxiters is not None else 100,
+            'algo': hyperopt.tpe.suggest
+        }
+
+        x_opt = hyperopt.fmin(fcn, space, **optim_args)
+        x_opt = np.array([x_opt[str(n)] for n in range(len(x_opt.keys()))])
 
     optimization.update_instructions(x_opt, model.program_instructions)
     optimization.constrain_instructions(model.program_instructions, hard_constraints)
