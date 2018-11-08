@@ -47,8 +47,8 @@ def get_version_info():
 	''' Return the information about the running environment '''
 	gitinfo = sc.gitinfo(__file__)
 	version_info = sc.odict({
-	       'version':   at.version,
-	       'date':      at.versiondate,
+	       'version':   at.__version__,
+	       'date':      at.__versiondate__,
 	       'gitbranch': gitinfo['branch'],
 	       'githash':   gitinfo['hash'],
 	       'gitdate':   gitinfo['date'],

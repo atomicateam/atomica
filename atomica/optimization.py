@@ -566,7 +566,12 @@ class OptimInstructions(NamedItem):
         adjustments = []
         default_spend = progset.get_alloc(tvec=adjustment_year, instructions=progset_instructions)  # Record the default spend for scale-up in money minimization
         for prog_name in progset.programs:
-            limits = prog_spending[prog_name]
+            limits = sc.dcp(prog_spending[prog_name])
+            if limits[0] is None:
+                limits[0] = 0.0
+            if limits[1] is None and optim_type == 'money':
+                # Money minimization requires an absolute upper bound. Limit it to 5x default spend by default
+                limits[1] = 5 * default_spend[prog_name]
             adjustments.append(SpendingAdjustment(prog_name, t=adjustment_year, limit_type='abs', lower=limits[0], upper=limits[1]))
 
             if optim_type == 'money':
