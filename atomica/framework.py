@@ -732,3 +732,166 @@ def sanitize_dataframe(df, required_columns, defaults, valid_content):
     df.columns = [x.strip() for x in df.columns]
 
     return df
+
+def generate_framework_doc(framework,fname):
+    """
+    Generate a framework documentation template file
+
+    This function takes in a Framework and a file name, and writes a
+    Markdown template file for the framework
+
+    :param F: A :py:class:`ProjectFramework` instance
+    :param fname: The filename to write
+    :return: None
+    """
+
+    with open(fname,'w') as f:
+
+        # Write the heading
+        f.write('# Framework overview\n\n')
+
+        f.write('**Name**: %s\n' % framework.name)
+        f.write('**Description**: %s\n' % framework.sheets['about'][0]['description'].iloc[0])
+
+        f.write('\nContents\n')
+        f.write('- [Compartments](#compartments)\n')
+        f.write('- [Characteristics](#characteristics)\n')
+        f.write('- [Parameters](#parameters)\n')
+        f.write('- [Interactions](#interactions)\n\n')
+
+        f.write('## Compartments\n\n')
+        for _, spec in framework.comps.iterrows():
+            f.write('### Compartment: %s\n\n' % (spec['display name']))
+            f.write('- Code name: `%s`\n' % (spec.name))
+            if spec['is source'] == 'y':
+                f.write('- Is source\n')
+            if spec['is sink'] == 'y':
+                f.write('- Is sink\n')
+            if spec['is junction'] == 'y':
+                f.write('- Is junction\n')
+            if spec['calibrate'] == 'y':
+                f.write('- Value can be used for calibration\n')
+
+            if spec['databook page']:
+                f.write('- Appears in the databook\n')
+            else:
+                f.write('- Does not appear in the databook\n')
+
+            if spec['setup weight'] > 0:
+                f.write('- Databook values will be used for model initialization\n')
+
+            f.write('\n')
+            f.write('- Description: <ENTER DESCRIPTION>\n')
+            f.write('- Data entry guidance: %s\n' % (spec['guidance'] if spec['guidance']  else '<ENTER GUIDANCE>'))
+
+            f.write('\n')
+
+        f.write('## Characteristics\n\n')
+        for _, spec in framework.characs.iterrows():
+            f.write('### Characteristic: %s\n\n' % (spec['display name']))
+            f.write('- Code name: `%s`\n' % (spec.name))
+            if spec['calibrate'] == 'y':
+                f.write('- Value can be used for calibration\n')
+
+            f.write('- Includes:\n')
+            for inc_name in spec['components'].split(','):
+                f.write('\t- %s\n' % (framework.get_label(inc_name.strip())))
+
+            if spec['denominator']:
+                f.write('- Denominator: %s\n' % (framework.get_label(spec['denominator'])))
+
+            if spec['databook page']:
+                f.write('- Appears in the databook\n')
+            else:
+                f.write('- Does not appear in the databook\n')
+
+            if spec['setup weight'] > 0:
+                f.write('- Databook values will be used for model initialization\n')
+
+            f.write('\n')
+            f.write('- Description: <ENTER DESCRIPTION>\n')
+            f.write('- Data entry guidance: %s\n' % (spec['guidance'] if spec['guidance']  else '<ENTER GUIDANCE>'))
+
+            f.write('\n')
+
+        # Work out functional dependencies
+        fcn_deps = {x:set() for x in framework.pars.index.values}
+        fcn_used_in = {x:set() for x in framework.pars.index.values}
+        for _, spec in framework.pars.iterrows():
+            if spec['function']:
+                _, deps = parse_function(spec['function'])  # Parse the function to get dependencies
+                for dep in deps:
+                    fcn_deps[spec.name].add(framework.get_label(dep))
+
+                    if dep in fcn_deps:
+                        fcn_used_in[dep].add(spec['display name'])
+
+        f.write('## Parameters\n\n')
+        for _, spec in framework.pars.iterrows():
+            f.write('### Parameter: %s\n\n' % (spec['display name']))
+            f.write('- Code name: `%s`\n' % (spec.name))
+            if spec['calibrate'] == 'y':
+                f.write('- Value can be used for calibration\n')
+            f.write('- Units/format: %s\n' % (spec['format']))
+
+            if spec['minimum value'] is not None and spec['maximum value'] is not None:
+                f.write('- Value restrictions: %s-%s\n' % (sc.sigfig(spec['minimum value'],keepints=True),sc.sigfig(spec['maximum value'],keepints=True)))
+            elif spec['minimum value'] is not None:
+                f.write('- Value restrictions: At least %s\n' % (sc.sigfig(spec['minimum value'],keepints=True)))
+            elif spec['maximum value'] is not None:
+                f.write('- Value restrictions: At most %s\n' % (sc.sigfig(spec['maximum value'],keepints=True)))
+
+            if framework.transitions[spec.name]:
+                f.write('- Contributes to transitions from:\n')
+                for transition in framework.transitions[spec.name]:
+                    f.write('\t- "%s" to "%s"\n'  % (framework.get_label(transition[0]), framework.get_label(transition[1])))
+
+            f.write('- Default value: %s\n' % (spec['default value']))
+            if spec['databook page']:
+                f.write('- Appears in the databook\n')
+            else:
+                f.write('- Does not appear in the databook\n')
+
+            if spec['function']:
+                f.write("- This parameter's value is computed by a function: `%s`\n" % (spec['function']))
+
+            if fcn_deps[spec.name]:
+                f.write('- Depends on:\n')
+                for dep in fcn_deps[spec.name]:
+                    f.write('\t- "%s"\n' % (dep))
+
+            if fcn_used_in[spec.name]:
+                f.write('- Used to compute:\n')
+                for dep in fcn_used_in[spec.name]:
+                    f.write('\t- "%s"\n' % (dep))
+
+            f.write('\n')
+            f.write('- Description: <ENTER DESCRIPTION>\n')
+            f.write('- Data entry guidance: %s\n' % (spec['guidance'] if spec['guidance']  else '<ENTER GUIDANCE>'))
+
+            f.write('\n')
+
+        f.write('## Interactions\n\n')
+        for _, spec in framework.interactions.iterrows():
+            f.write('### Interaction: %s\n\n' % (spec['display name']))
+            f.write('- Code name: `%s`\n' % (spec.name))
+
+            used_to_compute = []
+            for x, deps in fcn_deps.items():
+                if spec['display name'] in deps:
+                    used_to_compute.append(framework.get_label(x))
+
+            if used_to_compute:
+                f.write('- Used to compute:\n')
+                for x in used_to_compute:
+                    f.write('\t- "%s"\n' % (x))
+
+            f.write('\n')
+            f.write('- Description: <ENTER DESCRIPTION>\n')
+            f.write('- Data entry guidance: <ENTER GUIDANCE>\n')
+
+            f.write('\n')
+
+
+
+
