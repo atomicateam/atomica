@@ -733,7 +733,7 @@ def sanitize_dataframe(df, required_columns, defaults, valid_content):
 
     return df
 
-def generate_framework_doc(framework,fname):
+def generate_framework_doc(framework,fname, databook_only=False):
     """
     Generate a framework documentation template file
 
@@ -742,6 +742,7 @@ def generate_framework_doc(framework,fname):
 
     :param F: A :py:class:`ProjectFramework` instance
     :param fname: The filename to write
+    :param databook_only: If True, only quantities appearing in the databook will be shown
     :return: None
     """
 
@@ -750,17 +751,25 @@ def generate_framework_doc(framework,fname):
         # Write the heading
         f.write('# Framework overview\n\n')
 
-        f.write('**Name**: %s\n' % framework.name)
-        f.write('**Description**: %s\n' % framework.sheets['about'][0]['description'].iloc[0])
+        f.write('**Name**: %s\n\n' % framework.name)
+        f.write('**Description**: %s\n\n' % framework.sheets['about'][0]['description'].iloc[0])
 
-        f.write('\nContents\n')
+        f.write('## Contents\n')
         f.write('- [Compartments](#compartments)\n')
         f.write('- [Characteristics](#characteristics)\n')
         f.write('- [Parameters](#parameters)\n')
         f.write('- [Interactions](#interactions)\n\n')
+        if 'plots' in framework.sheets:
+            f.write('- [Plots](#plots)\n\n')
+        if 'cascades' in framework.sheets:
+            f.write('- [Cascades](#cascades)\n\n')
+
 
         f.write('## Compartments\n\n')
         for _, spec in framework.comps.iterrows():
+            if databook_only and not spec['databook page']:
+                continue
+
             f.write('### Compartment: %s\n\n' % (spec['display name']))
             f.write('- Code name: `%s`\n' % (spec.name))
             if spec['is source'] == 'y':
@@ -788,6 +797,9 @@ def generate_framework_doc(framework,fname):
 
         f.write('## Characteristics\n\n')
         for _, spec in framework.characs.iterrows():
+            if databook_only and not spec['databook page']:
+                continue
+
             f.write('### Characteristic: %s\n\n' % (spec['display name']))
             f.write('- Code name: `%s`\n' % (spec.name))
             if spec['calibrate'] == 'y':
@@ -828,6 +840,9 @@ def generate_framework_doc(framework,fname):
 
         f.write('## Parameters\n\n')
         for _, spec in framework.pars.iterrows():
+            if databook_only and not spec['databook page']:
+                continue
+
             f.write('### Parameter: %s\n\n' % (spec['display name']))
             f.write('- Code name: `%s`\n' % (spec.name))
             if spec['calibrate'] == 'y':
@@ -892,6 +907,25 @@ def generate_framework_doc(framework,fname):
 
             f.write('\n')
 
+        if 'plots' in framework.sheets:
+            f.write('## Plots\n\n')
 
+            for _, spec in framework.sheets['plots'][0].iterrows():
+                f.write('### Plot: %s\n\n' % (spec['name']))
+                f.write('- Definition: `%s`\n' % (spec['quantities']))
+                f.write('- Description: <ENTER DESCRIPTION>\n\n')
+
+
+        if framework.cascades:
+            f.write('## Cascades\n\n')
+            for name, df in framework.cascades.items():
+                f.write('### Cascade: %s\n\n' % (name))
+                f.write('- Description: <ENTER DESCRIPTION>\n')
+                f.write('- Stages:\n')
+                for _,stage in df.iterrows():
+                    f.write('\t- %s\n' % (stage[0]))
+                    for inc_name in stage[1].split(','):
+                        f.write('\t\t- %s\n' % (framework.get_label(inc_name.strip())))
+                f.write('\n')
 
 
