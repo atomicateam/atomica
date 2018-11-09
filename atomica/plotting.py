@@ -1021,14 +1021,14 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
         ax.set_yticks([x[0] for x in block_labels])
         ax.set_yticklabels([x[1] for x in block_labels])
         ax.invert_yaxis()
-#        set_tick_format(ax.xaxis, "km")
+        ax.xaxis.set_major_formatter(FuncFormatter(sc.SItickformatter))
     else:
         ax.set_xlim(left=-2 * gaps[0], right=block_offset + base_offset)
         fig.set_figwidth(1.1 + 1.1 * (block_offset + base_offset))
         ax.set_ylim(bottom=0)
         ax.set_xticks([x[0] for x in block_labels])
         ax.set_xticklabels([x[1] for x in block_labels])
-#        set_tick_format(ax.yaxis, "km")
+        ax.yaxis.set_major_formatter(FuncFormatter(sc.SItickformatter))
 
     # Calculate the units. As all bar patches are shown on the same axis, they are all expected to have the
     # same units. If they do not, the plot could be misleading
@@ -1301,35 +1301,6 @@ def _render_data(ax, data, series, baseline=None, filled=False) -> None:
         ax.scatter(t, y, marker='o', s=40, linewidths=3, facecolors='none', color=series.color)  # label='Data %s %s' % (name(pop,proj),name(output,proj)))
 
 
-def set_tick_format(axis, formatter='siticks') -> None:
-    """
-    Set y-axis tick number formatting
-
-    :param axis: An axis instance (e.g. `ax.xaxis` or `ax.yaxis`
-    :param formatter: A string naming a format to use
-
-    """
-
-    def km(x, pos):
-        if x >= 1e6:
-            return '%1.1fM' % (x * 1e-6)
-        elif x >= 1e3:
-            return '%1.1fK' % (x * 1e-3)
-        else:
-            return '%g' % x
-
-    def percent(x, pos):
-        return '%g%%' % (x * 100)
-
-    formatters = {
-        'km': km,
-        'percent': percent,
-        'siticks': sc.SItickformatter,
-    }
-
-    axis.set_major_formatter(FuncFormatter(formatters[formatter]))
-
-
 def _apply_series_formatting(ax, plot_type) -> None:
     # This function applies formatting that is common to all Series plots
     # (irrespective of the 'axis' setting)
@@ -1342,8 +1313,7 @@ def _apply_series_formatting(ax, plot_type) -> None:
         ax.set_ylabel('Proportion ' + ax.get_ylabel())
     else:
         ax.set_ylim(top=ax.get_ylim()[1] * 1.05)
-
-    set_tick_format(ax.yaxis, "km")
+    ax.yaxis.set_major_formatter(FuncFormatter(sc.SItickformatter))
 
 
 def _turn_off_border(ax) -> None:
