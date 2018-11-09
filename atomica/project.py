@@ -392,31 +392,36 @@ class Project(object):
         """ Modify the project settings, e.g. the simulation time vector. """
         self.settings.update_time_vector(start=sim_start, end=sim_end, dt=sim_dt)
 
-    def run_sim(self, parset=None, progset=None, progset_instructions=None,
-                store_results=True, result_type=None, result_name=None):
+    def run_sim(self, parset=None, progset=None, progset_instructions=None, store_results=True, result_name=None):
         """
-        Run model using a selected parset and store/return results.
-        An optional program set and use instructions can be passed in to simulate budget-based interventions.
+        Run a single simulation
+
+        This function is the main entry point for running model simulations, given a
+        parset and optionally program set + instructions.
+
+        :param parset: A :py:class:`ParameterSet` instance, or the name of a parset contained in ``self.parsets``.
+                        If ``None``, then the most recently added parset will be used (the last entry in ``self.parsets``)
+        :param progset: Optionally pass in a :py:class:`ProgramSet` instance, or the name of a progset contained in ``self.progsets``
+        :param progset_instructions: A :py:class:`ProgramInstructions` instance. If passing in a ``progset``, then it is mandatory to also pass in instructions
+        :param store_results: If True (default) then the result will automatically be stored in ``self.results``
+        :param result_name: Optionally assign a specific name to the result (otherwise, a unique default name will automatically be selected)
+        :return: A :py:class:`Result` instance
+
         """
 
         parset = self.parset(parset)
         if progset is not None:     # Do not grab a default program set in case one does not exist.
+            if progset_instructions is None:
+                raise Exception('To run a simulation with programs, both a ProgramSet and program instructions need to provided')
             progset = progset if isinstance(progset, ProgramSet) else self.progset(progset)
-
-        if progset is None:
-            logger.info("Initiating a standard run of project '%s' (no programs)", self.name)
-        elif progset_instructions is None:
-            logger.info("Program set '%s' will be ignored while running project '%s' due to the absence of program set instructions", progset.name, self.name)
+            logger.info("Initiating a run of project '%s' (with programs)", self.name)
         else:
-            logger.info("Initiating a run of project '%s' with programs", self.name)
+            logger.info("Initiating a run of project '%s' (no programs)", self.name)
 
         if result_name is None:
             base_name = "parset_" + parset.name
             if progset is not None:
                 base_name = base_name + "_progset_" + progset.name
-            if result_type is not None:
-                base_name = result_type + "_" + base_name
-
             k = 1
             result_name = base_name
             while result_name in self.results:

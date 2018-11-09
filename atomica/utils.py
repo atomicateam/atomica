@@ -90,16 +90,29 @@ class TimeSeries(object):
         return output
 
     @property
-    def has_data(self):
-        # Returns true if any time-specific data has been entered (not just an assumption)
+    def has_data(self) -> bool:
+        """
+        Check if any data has been provided
+
+        :return: ``True`` if any data has been entered (assumption or time-specific)
+
+        """
         return self.assumption is not None or self.has_time_data
 
     @property
-    def has_time_data(self):
+    def has_time_data(self) -> bool:
+        """
+        Check if time-specific data has been provided
+
+        Unlike ``has_data``, this will return ``False`` if only an assumption has been entered
+
+        :return: ``True`` if any time-specific data has been entered
+
+        """
         # Returns true if any time-specific data has been entered (not just an assumption)
         return len(self.t) > 0
 
-    def insert(self, t, v):
+    def insert(self, t, v) -> None:
         # Insert value v at time t maintaining sort order
         # To set the assumption, set t=None
 

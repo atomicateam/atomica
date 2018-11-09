@@ -48,13 +48,22 @@ class Parameter(NamedItem):
     def pops(self):
         return self.t.keys()
 
-    def has_values(self, pop_name):
-        # Returns True if this Parameter has values specified for the given population
-        # If the Parameter has an assumption, then the time value will be nan but a
-        # y-value will be present. If the Parameter normally has a function, then the
-        # y-value will be None. If a function Parameter has a scenario overwrite applied
-        # then actual values will be present. Essentially, if this function returns True,
-        # then the `interpolate()` method will return usable values
+    def has_values(self, pop_name: str) -> bool:
+        """
+        Check if any values are present
+
+        Returns True if this Parameter has values specified for the given population
+        If the Parameter has an assumption, then the time value will be nan but a
+        y-value will be present. If the Parameter normally has a function, then the
+        y-value will be None. If a function Parameter has a scenario overwrite applied
+        then actual values will be present. Essentially, if this function returns True,
+        then the `interpolate()` method will return usable values
+
+        :param pop_name: The code name of a population
+        :return: ``True`` if any values are present for specified population, otherwise ``False``
+
+        """
+
         return (self.y[pop_name].size > 0) and self.y[pop_name][0] is not None
 
     def insert_value_pair(self, t, y, pop_name):

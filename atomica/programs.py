@@ -76,15 +76,12 @@ class ProgramSet(NamedItem):
     A Program object will be instantiated for every program listed on the 'Program Targeting'
     sheet in the program book
 
+    :param name: Optionally specify the name of the ProgramSet
+    :param tvec: Optionally specify the years for data entry
+
     """
 
     def __init__(self, name="default", tvec=None):
-        """
-
-        :param name: Optionally specify the name of the ProgramSet
-        :param tvec: Optionally specify the years for data entry
-
-        """
 
         NamedItem.__init__(self, name)
 
@@ -464,6 +461,9 @@ class ProgramSet(NamedItem):
             set_ts(prog, 'unit_cost', tdve.ts['Unit cost'])
             set_ts(prog, 'coverage', tdve.ts['Coverage'])
             set_ts(prog, 'saturation', tdve.ts['Saturation'])
+
+            assert prog.unit_cost.has_data, 'Unit cost data for %s not was not entered (in table on sheet "%s" starting on row %d' % (prog.name, sheet.title, start_row)
+            assert prog.spend_data.has_data, 'Spending data for %s not was not entered (in table on sheet "%s" starting on row %d' % (prog.name, sheet.title, start_row)
 
             if '/year' in prog.unit_cost.units and '/year' in prog.coverage.units:
                 logger.warning('Program %s: Typically if the unit cost is `/year` then the coverage would not be `/year`', prog.label)
