@@ -402,7 +402,7 @@ class Project(object):
         :param parset: A :py:class:`ParameterSet` instance, or the name of a parset contained in ``self.parsets``.
                         If ``None``, then the most recently added parset will be used (the last entry in ``self.parsets``)
         :param progset: Optionally pass in a :py:class:`ProgramSet` instance, or the name of a progset contained in ``self.progsets``
-        :param progset_instructions: A :py:class:`ProgramInstructions` instance. If passing in a ``progset``, then it is mandatory to also pass in instructions
+        :param progset_instructions: A :py:class:`ProgramInstructions` instance. Programs will only be used if a instructions are provided
         :param store_results: If True (default) then the result will automatically be stored in ``self.results``
         :param result_name: Optionally assign a specific name to the result (otherwise, a unique default name will automatically be selected)
         :return: A :py:class:`Result` instance
@@ -410,13 +410,15 @@ class Project(object):
         """
 
         parset = self.parset(parset)
-        if progset is not None:     # Do not grab a default program set in case one does not exist.
-            if progset_instructions is None:
-                raise Exception('To run a simulation with programs, both a ProgramSet and program instructions need to provided')
+        if progset is not None:
             progset = progset if isinstance(progset, ProgramSet) else self.progset(progset)
-            logger.info("Initiating a run of project '%s' (with programs)", self.name)
+
+        if progset is None:
+            logger.info("Initiating a standard run of project '%s' (no programs)", self.name)
+        elif progset_instructions is None:
+            logger.info("Program set '%s' will be ignored while running project '%s' due to the absence of program set instructions", progset.name, self.name)
         else:
-            logger.info("Initiating a run of project '%s' (no programs)", self.name)
+            logger.info("Initiating a run of project '%s' (with programs)", self.name)
 
         if result_name is None:
             base_name = "parset_" + parset.name
