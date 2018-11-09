@@ -39,16 +39,27 @@ settings['bar_width'] = 1.0  # Width of bars in plot_bars()
 settings['line_width'] = 3.0  # Width of bars in plot_bars()
 
 
-def save_figs(figs, path='.', prefix='', fnames=None):
-    # Take in array of figures, and save them to disk
-    # Path and prefix are appended to the start
-    # fnames - Optionally an array of file names. By default, each figure is named
-    # using its 'label' property. If a figure has an empty 'label' string it is assumed to be
-    # a legend and will be named based on the name of the figure immediately before it.
-    # If you provide an empty string in the `fnames` argument this same operation will be carried
-    # out. If the last figure name is omitted, an empty string will automatically be added. This allows
-    # the separate-legend option to be turned on or off without changing the filename inputs to this function
-    # (because the last legend figure may or may not be present depending on the legend mode)
+def save_figs(figs, path='.', prefix='', fnames=None) -> None:
+    """
+    Save figures to disk as PNG files
+
+    Functions like `plot_series` and `plot_bars` can generate multiple figures, depending on
+    the data and legend options. This function facilitates saving those figures together.
+    The name for the file can be automatically selected when saving figures generated
+    by `plot_series` and `plot_bars`. This function also deals with cases where the figure
+    list may or may not contain a separate legend (so saving figures with this function means
+    the legend mode can be changed freely without having to change the figure saving code).
+
+    :param figs: A figure or list of figures
+    :param path: Optionally append a path to the figure file name
+    :param prefix: Optionally prepend a prefix to the file name
+    :param fnames: Optionally an array of file names. By default, each figure is named
+    using its 'label' property. If a figure has an empty 'label' string it is assumed to be
+    a legend and will be named based on the name of the figure immediately before it.
+    If you provide an empty string in the `fnames` argument this same operation will be carried
+    out. If the last figure name is omitted, an empty string will automatically be added.
+
+    """
 
     try:
         os.makedirs(path)
@@ -80,66 +91,62 @@ def save_figs(figs, path='.', prefix='', fnames=None):
         logger.info('Saved figure "%s"', fname)
 
 
-class PlotData(object):
-    # This is what gets passed into a plotting function, which displays a View of the data
-    # Conceptually, we are applying visuals to the data.
-    # But we are performing an extraction step rather than doing it directly because things like
-    # labels, colours, groupings etc. only apply to plots, not to results, and there could be several
-    # different views of the same data.
+class PlotData():
+    """
+    Process model outputs into plottable quantities
+
+    This is what gets passed into a plotting function, which displays a View of the data
+    Conceptually, we are applying visuals to the data.
+    But we are performing an extraction step rather than doing it directly because things like
+    labels, colours, groupings etc. only apply to plots, not to results, and there could be several
+    different views of the same data.
+
+    :param results: which results to plot. Can be
+                  - a Result,
+                  - a list of Results,
+                  - a dict/odict of results (the name of the result is taken from the Result, not the dict)
+    :param outputs: The name of an output compartment, characteristic, or
+                      parameter, or list of names. Inside a list, a dict can be given to
+                      specify an aggregation e.g. :py:`outputs=['sus',{'total':['sus','vac']}]`
+                      where the key is the new name. Or, a formula can be given which will
+                      be evaluated by looking up labels within the model object. Links will
+                      automatically be summed over
+    :param pops: The name of an output population, or list of names. Like
+                 outputs, can specify a dict with a list of pops to aggregate over them
+    :param output_aggregation: If an output aggregation is requested, combine
+                                the outputs listed using one of
+                                  - 'sum' - just add values together
+                                  - 'average' - unweighted average of quantities
+                                  - 'weighted' - weighted average where the weight is the
+                                    compartment size, characteristic value, or link source
+                                    compartment size (summed over duplicate links). 'weighted'
+                                    method cannot be used with non-transition parameters and a
+                                    KeyError will result in that case
+    :param pop_aggregation: Same as output_aggregation, except that 'weighted'
+                              uses population sizes. Note that output aggregation is performed
+                              before population aggregation. This also means that population
+                              aggregation can be used to combine already aggregated outputs (e.g.
+                              can first sum 'sus'+'vac' within populations, and then take weighted
+                              average across populations)
+    :param project: Optionally provide a :py:class:`Project` object, which will be used to convert names to labels in the outputs for plotting.
+    :param time_aggregation: Optionally specify time aggregation method. Supported methods are 'sum' and 'average' (no weighting). When aggregating
+                                times, *non-annualized* flow rates will be used.
+    :param t_bins: Optionally specify time bins, which will enable time aggregation. Supported inputs are
+                      - A vector of bin edges. Time points are included if the time
+                        is >= the lower bin value and < upper bin value.
+                      - A scalar bin size (e.g. 5) which will be expanded to a vector spanning the data
+                      - The string 'all' will maps to bin edges `[-inf, inf]` aggregating over all time
+    :param accumulate: Optionally accumulate outputs over time. Can be 'sum' or 'integrate' to either sum quantities or integrate by multiplying by the timestep. Accumulation happens *after* time aggregation.
+                   The logic is extremely simple - the quantities in the Series pass through `cumsum`. If 'integrate' is selected, then the quantities are multiplied
+                   by `dt` and the units are multiplied by `years`
+    :return: A `PlotData` instance that can be passed to :py:func:`plot_series` or :py:func:`plot_bars`
+
+    .. automethod:: __getitem__
+
+    """
 
     # TODO: Make sure to chuck a useful error when t_bins is greater than sim duration, rather than just crashing.
     def __init__(self, results, outputs=None, pops=None, output_aggregation=None, pop_aggregation=None, project=None, time_aggregation='sum', t_bins=None, accumulate=None):
-        # Construct a PlotData instance from model outputs
-        #
-        # final_outputs[result][pop][output] = vals
-        # where the keys are the aggregated labels (if specified)
-        # Aggregation computation is performed here
-        # Input must be a list either containing a list of raw output labels or a dict with a single
-        # key where the value is a list of raw output labels e.g.
-        # outputs = ['vac',{'total':['vac','sus']}]
-        #
-        #
-        # - results - which results to plot. Can be
-        #               - a Result,
-        #               - a list of Results,
-        #               - a dict/odict of results (the name of the result is taken from the Result, not the dict)
-        # - outputs - The name of an output compartment, characteristic, or
-        #   parameter, or list of names. Inside a list, a dict can be given to
-        #   specify an aggregation e.g. outputs=['sus',{'total':['sus','vac']}]
-        #   where the key is the new name. Or, a formula can be given which will
-        #   be evaluated by looking up labels within the model object. Links will
-        #   automatically be summed over
-        # - pops - The name of an output population, or list of names. Like
-        #   outputs, can specify a dict with a list of pops to aggregate over them
-        # - axis - Display one of results, outputs, or pops as different coloured
-        #   lines on the plot. A new figure will be generated for all other
-        #   combinations of the remaining quantities
-        # - output_aggregation - If an output aggregation is requested, combine
-        #   the outputs listed using one of
-        #       - 'sum' - just add values together
-        #       - 'average' - unweighted average of quantities
-        #       - 'weighted' - weighted average where the weight is the
-        #         compartment size, characteristic value, or link source
-        #         compartment size (summed over duplicate links). 'weighted'
-        #         method cannot be used with non-transition parameters and a
-        #         KeyError will result in that case
-        # - pop_aggregation - Same as output_aggregation, except that 'weighted'
-        #   uses population sizes. Note that output aggregation is performed
-        #   before population aggregation. This also means that population
-        #   aggregation can be used to combine already aggregated outputs (e.g.
-        #   can first sum 'sus'+'vac' within populations, and then take weighted
-        #   average across populations)
-        # - time_aggregation - Supported methods are 'sum' and 'average' (no weighting). When aggregating
-        #   times, *non-annualized* flow rates will be used.
-        # - t_bins can be
-        #       - A vector of bin edges. Time points are included if the time
-        #         is >= the lower bin value and < upper bin value.
-        #       - A scalar bin size (e.g. 5) which will be expanded to a vector spanning the data
-        #       - The string 'all' will maps to bin edges [-inf inf] aggregating over all time
-        # - accumulate - can be 'sum' or 'integrate' to either sum quantities or integrate by multiplying by the timestep. Accumulation happens *after* time aggregation.
-        #                The logic is extremely simple - the quantities in the Series pass through `cumsum`. If 'integrate' is selected, then the quantities are multiplied
-        #                by `dt` and the units are multiplied by `years`
-
         # Validate inputs
         if isinstance(results, sc.odict):
             results = [result for _, result in results.items()]
@@ -162,15 +169,15 @@ class PlotData(object):
         elif not isinstance(outputs, list):
             outputs = [outputs]
 
-        pops = expand_dict(pops)
-        outputs = expand_dict(outputs)
+        pops = _expand_dict(pops)
+        outputs = _expand_dict(outputs)
 
         assert output_aggregation in [None, 'sum', 'average', 'weighted']
         assert pop_aggregation in [None, 'sum', 'average', 'weighted']
 
         # First, get all of the pops and outputs requested by flattening the lists
-        pops_required = extract_labels(pops)
-        outputs_required = extract_labels(outputs)
+        pops_required = _extract_labels(pops)
+        outputs_required = _extract_labels(outputs)
 
         self.series = []
         tvecs = dict()
@@ -248,7 +255,7 @@ class PlotData(object):
                     if not isinstance(l, dict):
                         continue
 
-                    output_label, f_stack_str = list(l.items())[0]  # extract_labels has already ensured only one key is present
+                    output_label, f_stack_str = list(l.items())[0]  # _extract_labels has already ensured only one key is present
 
                     if not sc.isstring(f_stack_str):
                         continue
@@ -352,12 +359,12 @@ class PlotData(object):
         self.pops = sc.odict()
         for pop in pops:
             key = list(pop.keys())[0] if isinstance(pop, dict) else pop
-            self.pops[key] = get_full_name(key, project) if project is not None else key
+            self.pops[key] = _get_full_name(key, project) if project is not None else key
 
         self.outputs = sc.odict()
         for output in outputs:
             key = list(output.keys())[0] if isinstance(output, dict) else output
-            self.outputs[key] = get_full_name(key, project) if project is not None else key
+            self.outputs[key] = _get_full_name(key, project) if project is not None else key
 
         # Handle time aggregation
         if t_bins is not None:
@@ -366,13 +373,20 @@ class PlotData(object):
         if accumulate is not None:
             self._accumulate(accumulate)
 
-    def _accumulate(self, accumulation_method):
-        # Time accumulation of Series object contained within this instance
-        # Accumulation methods are
-        # - sum : runs `cumsum` on all quantities - should not be used if units are flow rates (so will check for '/year')
-        # - integrate : integrate using trapezoidal rule, assuming initial value of 0
-        # Note that here there is no concept of 'dt' because we might have non-uniform time aggregation bins
-        # Therefore, we need to use the time vector actually contained in the Series object (via cumtrapz())
+    def _accumulate(self, accumulation_method) -> None:
+        """
+        Internal method to accumulate values over time
+
+        Accumulation methods are
+
+        :param accumulation_method: Select whether to add or integrate. Supported methods are:
+                                    - 'sum' : runs `cumsum` on all quantities - should not be used if units are flow rates (so will check for '/year')
+                                    - 'integrate' : integrate using trapezoidal rule, assuming initial value of 0
+                                            Note that here there is no concept of 'dt' because we might have non-uniform time aggregation bins
+                                            Therefore, we need to use the time vector actually contained in the Series object (via `cumtrapz()`)
+
+        """
+
         assert accumulation_method in ['sum', 'integrate']
 
         for s in self.series:
@@ -392,12 +406,16 @@ class PlotData(object):
 
             s.units = 'Cumulative ' + s.units
 
-    def _time_aggregate(self, t_bins, time_aggregation):
-        # This is an internal method used for time aggregation
-        # It is called by __init__() to time-aggregate model outputs, and by
-        # `.programs()` to time-aggregate spending values
+    def _time_aggregate(self, t_bins, time_aggregation) -> None:
+        """
+        Internal method for time aggregation
 
-        # If t_bins is a scalar, expand it into a vector of bin edges
+        Note that accumulation is effectively a running total, whereas aggregation refers to binning
+
+        :param t_bins: Vector of bin edges OR a scalar bin size, which will be automatically expanded to a vector of bin edges
+        :param time_aggregation: can be 'sum' or 'average'
+
+        """
 
         assert time_aggregation in ['sum', 'average']
 
@@ -460,21 +478,25 @@ class PlotData(object):
 
     @staticmethod
     def programs(results, outputs=None, t_bins=None, quantity='spending', accumulate=None):
-        # This constructs a PlotData instance from spending values
-        #
-        # INPUTS
-        # - results - single Result, or list of Results. Technically could plot spending given just a progset and instructions, but
-        #           passing in Results makes it parsimonious with the other plotting functions. This could be relaxed in future, where the 'Result'
-        #           name is actually the name of a progset etc. but unless that's necessary, doing it this way is clearer and more consistent
-        #           otherwise it's too easy to pass in the wrong combination of progset+instructions
-        # - prognames - specification of which programs to plot spending for
-        #     - the name of a single program
-        #     - a list of program names
-        #     - aggregation dict e.g. {'treatment':['tx-1','tx-2']} or list of such dicts. Output aggregation type is automatically 'sum' for
-        #                              program spending, and NOT permitted for coverages (due to modality interactions)
-        # - t_bins - aggregate over time, using summation for spending and number coverage, and average for fraction/proportion coverage
-        # - quantity - can be 'spending', 'coverage_number', 'coverage_denominator', or 'coverage_fraction'. The 'coverage_denominator' is
-        #              the sum of compartments reached by a program, such that coverage_fraction = coverage_number/coverage_denominator
+        """
+        Constructs a PlotData instance from program values
+
+        This alternate constructor can be used to plot program-related quantities such as spending or coverage.
+
+        :param results: single Result, or list of Results
+        :param outputs: specification of which programs to plot spending for. Can be:
+                        - the name of a single program
+                        - a list of program names
+                        - aggregation dict e.g. {'treatment':['tx-1','tx-2']} or list of such dicts. Output aggregation type is automatically 'sum' for
+                          program spending, and aggregation is NOT permitted for coverages (due to modality interactions)
+        :param t_bins: aggregate over time, using summation for spending and number coverage, and average for fraction/proportion coverage. Notice that
+                        unlike the `PlotData()` constructor, this function does _not_ allow the time aggregation method to be manually set.
+        :param quantity: can be 'spending', 'coverage_number', 'coverage_denominator', or 'coverage_fraction'. The 'coverage_denominator' is
+                        the sum of compartments reached by a program, such that coverage_fraction = coverage_number/coverage_denominator
+        :param accumulate: can be 'sum' or 'integrate'
+        :return: A new :py:class:`PlotData` instance
+
+        """
 
         # Sanitize the results input
         if isinstance(results, sc.odict):
@@ -494,8 +516,8 @@ class PlotData(object):
         elif not isinstance(outputs, list):
             outputs = [outputs]
 
-        outputs = expand_dict(outputs)
-#        progs_required = extract_labels(outputs)
+        outputs = _expand_dict(outputs)
+#        progs_required = _extract_labels(outputs)
 
         assert quantity in ['spending', 'coverage_number', 'coverage_denominator', 'coverage_fraction']
         # Make a new PlotData instance
@@ -574,9 +596,17 @@ class PlotData(object):
         return plotdata
 
     def tvals(self):
-        # Return a vector of time values for the PlotData object, if all of the series have the
-        # same time axis (otherwise throw an error)
-        # All series must have the same number of timepoints.
+        """
+        Return vector of time values
+
+        This method returns a vector of time values for the ``PlotData`` object, if all of the series have the
+        same time axis (otherwise it will throw an error). All series must have the same number of timepoints.
+        This will always be the case for a ``PlotData`` object unless the instance has been manually modified after construction.
+
+        :return: Tuple with (array of time values, array of time labels)
+
+        """
+
         assert len(set([len(x.tvec) for x in self.series])) == 1, "All series must have the same number of time points."
         tvec = self.series[0].tvec
         t_labels = self.series[0].t_labels
@@ -584,56 +614,75 @@ class PlotData(object):
             assert (all(np.equal(self.series[i].tvec, tvec))), 'All series must have the same time points'
         return tvec, t_labels
 
-    def interpolate(self, t2):
-        # This will interpolate all Series onto a new time axis
-        # Note that NaNs will be set anywhere that extrapolation is needed
-        t2 = sc.promotetoarray(t2)
+    def interpolate(self, new_tvec):
+        """
+        Interpolate all ``Series`` onto new time values
+
+        This will modify all of the contained ``Series`` objects in-place.
+        The modified ``PlotData`` instance is also returned, so that interpolation and
+        construction can be performed in one line. i.e. both
+
+        >>> d = PlotData(result)
+        ... d.interpolate(tvals)
+
+        >>> vals = PlotData(result).interpolate(tvals)
+
+        will work as intended.
+
+        :param new_tvec: Vector of new time values
+        :return: The modified `PlotData` instance
+
+        """
+
+        new_tvec = sc.promotetoarray(new_tvec)
         for series in self.series:
-            series.vals = series.interpolate(t2)
-            series.tvec = np.copy(t2)
-            series.t_labels = np.copy(t2)
+            series.vals = series.interpolate(new_tvec)
+            series.tvec = np.copy(new_tvec)
+            series.t_labels = np.copy(new_tvec)
         return self
 
-    def __getitem__(self, key):
-        # key is a tuple of (result,pop,output)
-        # retrive a single Series e.g. plotdata['default','0-4','sus']
+    def __getitem__(self, key: tuple):
+        """
+        Implement custom indexing
+
+        The :py:class:`Series` objects stored within :py:class:`PlotData` are each bound to a single
+        result, population, and output. This operator makes it possible to easily retrieve
+        a particular :py:class:`Series` instance. For example,
+
+        >>> d = PlotData(results)
+        ... d['default','0-4','sus']
+
+        :param key: A tuple of (result,pop,output)
+        :return: A :py:class:`Series` instance
+
+        """
+
         for s in self.series:
             if s.result == key[0] and s.pop == key[1] and s.output == key[2]:
                 return s
         raise Exception('Series %s-%s-%s not found' % (key[0], key[1], key[2]))
 
     def set_colors(self, colors=None, results='all', pops='all', outputs='all', overwrite=False):
-        # What are the different ways we might want to set colours?
-        # - Assign a set of colours to results/pops/outputs to distinguish on a line plot
-        # - Assign a colour scheme to a bunch of outputs
-        #
-        # There are two usage scenarios
-        # - Colour filling, where we want to assign colours to a number of outputs
-        # What if we want to assign *across* pops? Then, we need something a bit more
-        # sophisticated
-        #
-        # set_colors() - Assign a colour to every output
-        # set_colors(outputs=[a,b,c]) - Assign a colour to every output of type a,b,c irrespective of pop
-        # set_colors(pops=[a,b,c]) - Assign a colour to each pop irrespective of result/output
-        # What if we want to assign a particular one?
-        #
-        # Or keep the others fixed?
-        #
-        # - Specific colour assignment
-        #
-        # colors can be
-        # - None, in which case colours will automatically be added
-        # - a colour string that will be applied to filtered things
-        #
-        # Then results, pop, outputs corresponds to a series filter
+        """
+        Assign colors to quantities
 
-        # Usage scenarios
-        # - Colours are shared across any dimensions that are 'None'
-        # - So for instance, 'output=[a,b,c]' would give the same colour to all of those outputs,
-        # across all results and pops
-        # - If multiple ones are specified, combinations get the unique colours
-        # - At least one of them must not be none
-        # - It is a bad idea to manually set colors for more than one dimension because the order is unclear!
+        This function facilitates assigned colors to the ``Series`` objects contained in this
+        ``PlotData`` instance.
+
+        :param colors: Specify the colours to use. This can be
+                    - A list of colours that applies to the list of all matching items
+                    - A single colour to use for all matching items
+                    - The name of a colormap to use (e.g., 'Blues')
+        :param results: A list of results to set colors for, or a dict of results where the key names the results (e.g. ``PlotData.results``)
+        :param pops: A list of pops to set colors for, or a dict of pops where the key names the pops (e.g. ``PlotData.pops``
+        :param outputs:A list of outputs to set colors for, or a dict of outputs where the key names the outputs (e.g. ``PlotData.outputs``)
+        :param overwrite: False (default) or True. If True, then any existing manually set colours will be overwritten
+        :return: The `PlotData` instance (also modified in-place)
+
+        Essentially, the lists of results, pops, and outputs are used to filter the ``Series`` resulting in a list of ``Series`` to operate on.
+        Then, the colors argument is applied to that list.
+
+        """
 
         if isinstance(results, dict):
             results = results.keys()
@@ -676,7 +725,24 @@ class PlotData(object):
         return self
 
 
-class Series(object):
+class Series():
+    """
+    Represent a plottable time series
+
+    A Series represents a quantity available for plotting. It is like a `TimeSeries` but contains
+    additional information only used for plotting, such as color.
+
+    :param tvec: array of time values
+    :param vals: array of values
+    :param result: name of the result associated with ths data
+    :param pop: name of the pop associated with the data
+    :param output: name of the output associated with the data
+    :param data_label: name of a quantity in project data to plot in conjunction with this `Series`
+    :param color: the color to render the `Series` with
+    :param units: the units for the values
+
+    """
+
     def __init__(self, tvec, vals, result='default', pop='default', output='default', data_label='', color=None, units=''):
         self.tvec = np.copy(tvec)
         self.t_labels = np.copy(self.tvec)  # Iterable array of time labels - could become strings like [2010-2014]
@@ -694,30 +760,49 @@ class Series(object):
     def __repr__(self):
         return 'Series(%s,%s,%s)' % (self.result, self.pop, self.output)
 
-    def interpolate(self, t2):
-        # Return an np.array() with the values of this series interpolated onto the requested
-        # time array t2. To ensure results are not misleading, extrapolation is disabled
-        # and will return NaN if t2 contains values outside the original time range
+    def interpolate(self, new_tvec):
+        """
+        Return interpolated vector of values
+
+        This function returns an `np.array()` with the values of this series interpolated onto the requested
+        time array new_tvec. To ensure results are not misleading, extrapolation is disabled
+        and will return `NaN` if `new_tvec` contains values outside the original time range.
+
+        Note that unlike `PlotData.interpolate()`, `Series.interpolate()` does not modify the object but instead
+        returns the interpolated values. This makes the `Series` object more versatile (`PlotData` is generally
+        used only for plotting, but the `Series` object can be a convenient way to work with values computed using
+        the sophisticated aggregations within `PlotData`).
+
+        :param new_tvec: array of new time values
+        :return: array with interpolated values (same size as `new_tvec`)
+
+        """
+
         f = scipy.interpolate.PchipInterpolator(self.tvec, self.vals, axis=0, extrapolate=False)
-        out_of_bounds = (t2 < self.tvec[0]) | (t2 > self.tvec[-1])
+        out_of_bounds = (new_tvec < self.tvec[0]) | (new_tvec > self.tvec[-1])
         if np.any(out_of_bounds):
-            logger.warning('Series has values from %.2f to %.2f so requested time points %s are out of bounds', self.tvec[0], self.tvec[-1], t2[out_of_bounds])
-        return f(sc.promotetoarray(t2))
+            logger.warning('Series has values from %.2f to %.2f so requested time points %s are out of bounds', self.tvec[0], self.tvec[-1], new_tvec[out_of_bounds])
+        return f(sc.promotetoarray(new_tvec))
 
 
-def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', legend_mode=None, show_all_labels=False, orientation='vertical'):
-    # We have a collection of bars - one for each Result, Pop, Output, and Timepoint.
-    # Any aggregations have already been done. But _groupings_ have not. Let's say that we can group
-    # pops and outputs but we never want to stack results. At least for now.
-    # But, the quantities could still vary over time. So we will have
-    # - A set of arrays where the number of arrays is the number of things being stacked and
-    #   the number of values is the number of bars - could be time, or could be results?
-    # - As many sets as there are ungrouped bars
-    # xlabels refers to labels within a block (i.e. they will be repeated for multiple times and results)
-    #
-    # INPUTS
-    # - show_all_labels: If True, then inner/outer labels will be shown even if there is only one
-    # - orientation : 'vertical' (default) or 'horizontal'
+def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', legend_mode=None, show_all_labels=False, orientation='vertical') -> list:
+    """
+    Produce a bar plot
+
+    :param plotdata: a :py:class:`PlotData` instance to plot
+    :param stack_pops: A list of lists with populations to stack. A bar is rendered for each item in the list.
+                       For example, `[['0-4','5-14'],['15-64']]` will render two bars, with two populations stacked
+                       in the first bar, and only one population in the second bar. Items not appearing in this list
+                       will be rendered unstacked.
+    :param stack_outputs: Same as `stack_pops`, but for outputs.
+    :param outer: Select whether the outermost/highest level of grouping is by `'times'` or by `'results'`
+    :param legend_mode: override the default legend mode in settings
+    :param show_all_labels: If True, then inner/outer labels will be shown even if there is only one label
+    :param orientation: 'vertical' (default) or 'horizontal'
+    :return: A list of newly created Figures
+
+    """
+
     global settings
     if legend_mode is None:
         legend_mode = settings['legend_mode']
@@ -816,14 +901,14 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
             gaps[1] = 0
         result_offset = block_width + gaps[1]
         tval_offset = len(plotdata.results) * (block_width + gaps[1]) + gaps[2]
-        iterator = nested_loop([range(len(plotdata.results)), range(len(tvals))], [0, 1])
+        iterator = _nested_loop([range(len(plotdata.results)), range(len(tvals))], [0, 1])
     elif outer == 'results':
         if len(tvals) == 1:  # If there is only one inner group
             gaps[2] = gaps[1]
             gaps[1] = 0
         result_offset = len(tvals) * (block_width + gaps[1]) + gaps[2]
         tval_offset = block_width + gaps[1]
-        iterator = nested_loop([range(len(plotdata.results)), range(len(tvals))], [1, 0])
+        iterator = _nested_loop([range(len(plotdata.results)), range(len(tvals))], [1, 0])
     else:
         raise Exception('outer option must be either "times" or "results"')
 
@@ -1017,23 +1102,28 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
 
     # Do the legend last, so repositioning the axes works properly
     if legend_mode == 'together':
-        render_legend(ax, plot_type='bar', handles=legend_patches)
+        _render_legend(ax, plot_type='bar', handles=legend_patches)
     elif legend_mode == 'separate':
         figs.append(sc.separatelegend(handles=legend_patches, reverse=True))
 
     return figs
 
 
-def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=None, lw=None):
-    # This function plots a time series for a model output quantities
-    #
-    # INPUTS
-    # - plotdata - a PlotData instance to plot
-    # - plot_type - 'line', 'stacked', or 'proportion' (stacked, normalized to 1)
-    # - data - Draw scatter points for data wherever the output label matches
-    #   a data label. Only draws data if the plot_type is 'line'
-    # - legend_mode - override the default legend mode in settings
-    # - lw - Change the line width
+def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=None, lw=None) -> list:
+    """
+    Produce a time series plot
+
+    :param plotdata: a :py:class:`PlotData` instance to plot
+    :param plot_type: 'line', 'stacked', or 'proportion' (stacked, normalized to 1)
+    :param axis: Specify which quantity to group outputs on plots by - can be 'outputs', 'results', or 'pops'. A line will
+                 be drawn for each of the selected quantity, and any other quantities will appear as separate figures.
+    :param data:  Draw scatter points for data wherever the output label matches a data label. Only draws data if the plot_type is 'line'
+    :param legend_mode: override the default legend mode in settings
+    :param lw: override the default line width
+    :return: A list of newly created Figures
+
+    """
+
 
     global settings
     if legend_mode is None:
@@ -1076,16 +1166,16 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
                                  labels=[plotdata.results[x] for x in plotdata.results],
                                  colors=[plotdata[result, pop, output].color for result in plotdata.results])
                     if plot_type == 'stacked' and data is not None:
-                        stack_data(ax, data, [plotdata[result, pop, output] for result in plotdata.results])
+                        _stack_data(ax, data, [plotdata[result, pop, output] for result in plotdata.results])
                 else:
                     for i, result in enumerate(plotdata.results):
                         ax.plot(plotdata[result, pop, output].tvec, plotdata[result, pop, output].vals,
                                 color=plotdata[result, pop, output].color, label=plotdata.results[result], lw=lw)
                         if data is not None and i == 0:
-                            render_data(ax, data, plotdata[result, pop, output])
-                apply_series_formatting(ax, plot_type)
+                            _render_data(ax, data, plotdata[result, pop, output])
+                _apply_series_formatting(ax, plot_type)
                 if legend_mode == 'together':
-                    render_legend(ax, plot_type)
+                    _render_legend(ax, plot_type)
 
     elif axis == 'pops':
         plotdata.set_colors(pops=plotdata.pops.keys())
@@ -1110,16 +1200,16 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
                                  labels=[plotdata.pops[x] for x in plotdata.pops],
                                  colors=[plotdata[result, pop, output].color for pop in plotdata.pops])
                     if plot_type == 'stacked' and data is not None:
-                        stack_data(ax, data, [plotdata[result, pop, output] for pop in plotdata.pops])
+                        _stack_data(ax, data, [plotdata[result, pop, output] for pop in plotdata.pops])
                 else:
                     for pop in plotdata.pops:
                         ax.plot(plotdata[result, pop, output].tvec, plotdata[result, pop, output].vals,
                                 color=plotdata[result, pop, output].color, label=plotdata.pops[pop], lw=lw)
                         if data is not None:
-                            render_data(ax, data, plotdata[result, pop, output])
-                apply_series_formatting(ax, plot_type)
+                            _render_data(ax, data, plotdata[result, pop, output])
+                _apply_series_formatting(ax, plot_type)
                 if legend_mode == 'together':
-                    render_legend(ax, plot_type)
+                    _render_legend(ax, plot_type)
 
     elif axis == 'outputs':
         plotdata.set_colors(outputs=plotdata.outputs.keys())
@@ -1146,16 +1236,16 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
                                  labels=[plotdata.outputs[x] for x in plotdata.outputs],
                                  colors=[plotdata[result, pop, output].color for output in plotdata.outputs])
                     if plot_type == 'stacked' and data is not None:
-                        stack_data(ax, data, [plotdata[result, pop, output] for output in plotdata.outputs])
+                        _stack_data(ax, data, [plotdata[result, pop, output] for output in plotdata.outputs])
                 else:
                     for output in plotdata.outputs:
                         ax.plot(plotdata[result, pop, output].tvec, plotdata[result, pop, output].vals,
                                 color=plotdata[result, pop, output].color, label=plotdata.outputs[output], lw=lw)
                         if data is not None:
-                            render_data(ax, data, plotdata[result, pop, output])
-                apply_series_formatting(ax, plot_type)
+                            _render_data(ax, data, plotdata[result, pop, output])
+                _apply_series_formatting(ax, plot_type)
                 if legend_mode == 'together':
-                    render_legend(ax, plot_type)
+                    _render_legend(ax, plot_type)
     else:
         raise Exception('axis option must be one of "results", "pops" or "outputs"')
 
@@ -1166,23 +1256,31 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
     return figs
 
 
-def stack_data(ax, data, series):
-    # Stack a list of series in order
+def _stack_data(ax, data, series) -> None:
+    """
+    Internal function to stack series data
+
+    Used by `plot_series` when rendering stacked plots and also showing data.
+
+    """
+
     baselines = np.cumsum(np.stack([s.vals for s in series]), axis=0)
     baselines = np.vstack([np.zeros((1, baselines.shape[1])), baselines])  # Insert row of zeros for first data row
     for i, s in enumerate(series):
-        render_data(ax, data, s, baselines[i, :], True)
+        _render_data(ax, data, s, baselines[i, :], True)
 
 
-def render_data(ax, data, series, baseline=None, filled=False):
-    # This function renders a scatter plot for a single variable in a single population
-    #
-    # INPUTS
-    # ax - axis object that data will be rendered in
-    # data - a ProjectData instance containing the data to render
-    # series - a Series object, the 'pop' and 'data_label' attributes are used to extract the TimeSeries from the data
-    # baseline - adds an offset to the data e.g. for stacked plots
-    # filled - fill the marker with a solid fill e.g. for stacked plots
+def _render_data(ax, data, series, baseline=None, filled=False) -> None:
+    """
+    Renders a scatter plot for a single variable in a single population
+
+    :param ax: axis object that data will be rendered in
+    :param data: a ProjectData instance containing the data to render
+    :param series: a `Series` object, the 'pop' and 'data_label' attributes are used to extract the TimeSeries from the data
+    :param baseline: adds an offset to the data e.g. for stacked plots
+    :param filled: fill the marker with a solid fill e.g. for stacked plots
+
+    """
 
     ts = data.get_ts(series.data_label, series.pop)
     if ts is None:
@@ -1203,12 +1301,16 @@ def render_data(ax, data, series, baseline=None, filled=False):
         ax.scatter(t, y, marker='o', s=40, linewidths=3, facecolors='none', color=series.color)  # label='Data %s %s' % (name(pop,proj),name(output,proj)))
 
 
-def set_tick_format(axis, formatter):
-    # INPUTS
-    # - axis : The axis to format e.g. 'ax.xaxis' or 'ax.yaxis'
-    # - formatter : Specify which format to use (scope to expand selection in here, e.g. draw from sciris)
+def set_tick_format(axis, formatter='siticks') -> None:
+    """
+    Set y-axis tick number formatting
+
+    :param axis: An axis instance (e.g. `ax.xaxis` or `ax.yaxis`
+    :param formatter: A string naming a format to use
+
+    """
+
     def km(x, pos):
-        #
         if x >= 1e6:
             return '%1.1fM' % (x * 1e-6)
         elif x >= 1e3:
@@ -1219,11 +1321,16 @@ def set_tick_format(axis, formatter):
     def percent(x, pos):
         return '%g%%' % (x * 100)
 
-    fcn = locals()[formatter]
-    axis.set_major_formatter(FuncFormatter(fcn))
+    formatters = {
+        'km': km,
+        'percent': percent,
+        'siticks': sc.SItickformatter,
+    }
+
+    axis.set_major_formatter(FuncFormatter(formatters[formatter]))
 
 
-def apply_series_formatting(ax, plot_type):
+def _apply_series_formatting(ax, plot_type) -> None:
     # This function applies formatting that is common to all Series plots
     # (irrespective of the 'axis' setting)
     ax.autoscale(enable=True, axis='x', tight=True)
@@ -1239,9 +1346,14 @@ def apply_series_formatting(ax, plot_type):
     set_tick_format(ax.yaxis, "km")
 
 
-def _turn_off_border(ax):
+def _turn_off_border(ax) -> None:
     """
-    Turns off top and right borders, leaving only bottom and left borders on.
+    Turns off top and right borders.
+
+    Note that this function will leave the bottom and left borders on.
+
+    :param ax: An axis object
+    :return: None
     """
     ax.spines['right'].set_color('none')
     ax.spines['top'].set_color('none')
@@ -1249,12 +1361,16 @@ def _turn_off_border(ax):
     ax.yaxis.set_ticks_position('left')
 
 
-def plot_legend(entries, plot_type='patch', fig=None):
-    # plot type - can be 'patch' or 'line'
-    # The legend items are a dict keyed with the label e.g.
-    # entries = {'sus':'blue','vac':'red'}
-    # If a figure is passed in, the legend will be drawn in that figure, overwriting
-    # a previous legend if one was already there
+def plot_legend(entries: dict, plot_type='patch', fig=None):
+    """
+    Render a new legend
+
+    :param entries: Dict where key is the label and value is the colour e.g. `{'sus':'blue','vac':'red'}`
+    :param plot_type: can be 'patch' or 'line'
+    :param fig: Optionally takes in the figure to render the legend in. If not provided, a new figure will be created
+    :return: The matplotlib `Figure` object containing the legend
+
+    """
 
     h = []
     for label, color in entries.items():
@@ -1266,7 +1382,7 @@ def plot_legend(entries, plot_type='patch', fig=None):
     legendsettings = {'loc': 'center', 'bbox_to_anchor': None, 'frameon': False}  # Settings for separate legend
 
     if fig is None:  # Draw in a new figure
-        sc.separatelegend(handles=h)
+        fig = sc.separatelegend(handles=h)
     else:
         existing_legend = fig.findobj(Legend)
         if existing_legend and existing_legend[0].parent is fig:  # If existing legend and this is a separate legend fig
@@ -1282,13 +1398,20 @@ def plot_legend(entries, plot_type='patch', fig=None):
                 ax.legend(handles=h, **legendsettings)
                 box = ax.get_position()
                 ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+
     return fig
 
 
-def render_legend(ax, plot_type=None, handles=None):
-    # This function renders a legend
-    # INPUTS
-    # - plot_type - Used to decide whether to reverse the legend order for stackplots
+def _render_legend(ax, plot_type=None, handles=None) -> None:
+    """
+    Internal function to render a legend
+
+    :param ax: Axis in which to create the legend
+    :param plot_type: Used to decide whether to reverse the legend order for stackplots
+    :param handles: The handles of the objects to enter in the legend. Labels should be stored in the handles
+
+    """
+
     if handles is None:
         handles, labels = ax.get_legend_handles_labels()
     else:
@@ -1305,20 +1428,24 @@ def render_legend(ax, plot_type=None, handles=None):
     ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
 
 
-def reorder_legend(figs, order=None):
-    # This helper function lets you reorder a legend after figure creation
-    # Order can be
-    # - A string 'reverse' to reverse the order of the legend
-    # - A list of indices mapping old position to new position. For example, if the
-    #   original label order was ['a,'b','c'], then order=[1,0,2] would result in ['b','a','c']
+def reorder_legend(figs, order=None) -> None:
+    """
+    Change the order of an existing legend
+
+    :param figs: Figure, or list of figures, containing legends for which the order should be changed
+    :param order: Specification of the order in which to render the legend entries. This can be
+                    - The string `'reverse'` which will reverse the order of the legend
+                    - A list of indices mapping old position to new position. For example, if the
+                        original label order was ['a,'b','c'], then order=[1,0,2] would result in ['b','a','c'].
+                        If a partial list is provided, then only a subset of the legend entries will appear. This
+                        allows this function to be used to remove legend entries as well.
+
+    """
 
     if isinstance(figs, list):
-        if not figs[-1].get_label():  # If the last figure is a legend figure
-            fig = figs[-1]
-        else:
-            for fig in figs:  # Apply order operation to all figures passed in
-                reorder_legend(fig, order=order)
-            return
+        for fig in figs:  # Apply order operation to all figures passed in
+            reorder_legend(fig, order=order)
+        return
     else:
         fig = figs
 
@@ -1339,14 +1466,20 @@ def reorder_legend(figs, order=None):
     vpacker._children = new_children
 
 
-def relabel_legend(figs, labels):
+def relabel_legend(figs, labels) -> None:
+    """
+    Change the labels on an existing legend
+
+    :param figs: Figure, or list of figures, to change labels in
+    :param labels: `list` of labels the same length as the number of legend labels OR a `dict` of labels where the key is the index
+    of the labels to change. The `dict` input option makes it possible to change only a subset of the labels.
+
+    """
+
     if isinstance(figs, list):
-        if not figs[-1].get_label():  # If the last figure is a legend figure
-            fig = figs[-1]
-        else:
-            for fig in figs:  # Apply order operation to all figures passed in
-                relabel_legend(fig, labels=labels)
-            return
+        for fig in figs:
+            relabel_legend(fig, labels=labels)
+        return
     else:
         fig = figs
 
@@ -1355,8 +1488,7 @@ def relabel_legend(figs, labels):
     vpacker = legend._legend_handle_box._children[0]
 
     if isinstance(labels, list):
-        assert len(labels) == len(
-            vpacker._children), 'If specifying list of labels, length must match number of legend entries'
+        assert len(labels) == len(vpacker._children), 'If specifying list of labels, length must match number of legend entries'
         labels = {i: l for i, l in enumerate(labels)}
     elif isinstance(labels, dict):
         idx = labels.keys()
@@ -1369,23 +1501,31 @@ def relabel_legend(figs, labels):
         text.set_text(label)
 
 
-def get_full_name(output_id, proj):
+def _get_full_name(code_name: str, proj=None) -> str:
     """
-    For a given output_id, returns the user-friendly version of the name. 
+    Return the label of an object retrieved by name
+
+    If a :py:class:`Project` has been provided, code names can be converted into
+    labels for plotting. This function is different to `framework.get_label()` though,
+    because it supports converting population names to labels as well (this information is
+    in the project's data, not in the framework), and it also supports converting
+    link syntax (e.g. `sus:vac`) into full names as well. Note also that this means that the strings
+    returned by `_get_full_name` can be as specific as necessary for plotting.
+
+    :param code_name: The code name for a variable (e.g. `'sus'`, `'pris'`, `'sus:vac'`)
+    :param proj: Optionally specify a :py:class:`Project` instance
+    :return: If a project was provided, returns the full name. Otherwise, just returns the code name
     """
 
-    # Note that an output_id could be a Compartment, Characteristic, Parameter, Population, or Link Expression
     if proj is None:
-        return output_id
+        return code_name
 
-    if output_id in proj.data.pops:
-        return proj.data.pops[output_id]['label']  # Convert population
+    if code_name in proj.data.pops:
+        return proj.data.pops[code_name]['label']  # Convert population
 
-    def full_name(x): return proj.framework.get_variable(x)[0]['display name']
-
-    if ':' in output_id:  # We are parsing a link
+    if ':' in code_name:  # We are parsing a link
         # Handle Links specified with colon syntax
-        output_tokens = output_id.split(':')
+        output_tokens = code_name.split(':')
         if len(output_tokens) == 2:
             output_tokens.append('')
         src, dest, par = output_tokens
@@ -1393,18 +1533,18 @@ def get_full_name(output_id, proj):
         # If 'par_name:flow' syntax was used
         if dest == 'flow':
             if src in proj.framework:
-                return "{0} (flow)".format(full_name(src))
+                return "{0} (flow)".format(proj.framework.get_label(src))
             else:
                 return "{0} (flow)".format(src)
 
         if src and src in proj.framework:
-            src = full_name(src)
+            src = proj.framework.get_label(src)
 
         if dest and dest in proj.framework:
-            dest = full_name(dest)
+            dest = proj.framework.get_label(dest)
 
         if par and par in proj.framework:
-            par = full_name(par)
+            par = proj.framework.get_label(par)
 
         full = 'Flow'
         if src:
@@ -1415,20 +1555,43 @@ def get_full_name(output_id, proj):
             full += ' ({})'.format(par)
         return full
     else:
-        if output_id in proj.framework:
-            return full_name(output_id)
+        if code_name in proj.framework:
+            return proj.framework.get_label(code_name)
         else:
-            return output_id
+            return code_name
 
 
-def nested_loop(inputs, loop_order):
-    # Take in a list of lists to iterate over, and their nesting order
-    # Return items in the order of the original lists
-    # e.g
-    # inputs = [['a','b','c'],[1,2,3]]
-    # for l,n in nested_loop([['a','b','c'],[1,2,3]],[0,1]):
-    # This would yield in order (a,1),(a,2),(a,3),(b,1)...
-    # but if loop_order = [1,0], then it would be (a,1),(b,1),(c,1),(a,2)...
+def _nested_loop(inputs, loop_order):
+    """
+    Zip list of lists in order
+
+    This is used in :py:func:`plot_bars` to control whether 'times' or 'results' are the
+    outer grouping. This function takes in a list of lists to iterate over, and their
+    nesting order. It then yields tuples of items in the given order. Only tested
+    for two levels (which are all that get used in :py:func:`plot_bars` but in theory
+    supports an arbitrary number of items.
+
+    :param inputs: List of lists. All lists should have the same length
+    :param loop_order: Nesting order for the lists
+    :return: Generator yielding tuples of items, one for each list
+
+    Example usage:
+
+    >>> list(_nested_loop([['a','b'],[1,2]],[0,1]))
+    [['a', 1], ['a', 2], ['b', 1], ['b', 2]]
+
+    Notice how the first two items have the same value for the first list
+    while the items from the second list vary. If the `loop_order` is
+    reversed, then:
+
+    >>> list(_nested_loop([['a','b'],[1,2]],[1,0]))
+    [['a', 1], ['b', 1], ['a', 2], ['b', 2]]
+
+    Notice now how now the first two items have different values from the
+    first list but the same items from the second list.
+
+    """
+
     inputs = [inputs[i] for i in loop_order]
     iterator = itertools.product(*inputs)  # This is in the loop order
     for item in iterator:
@@ -1438,24 +1601,70 @@ def nested_loop(inputs, loop_order):
         yield out
 
 
-def expand_dict(x):
+def _expand_dict(x: list) -> list:
+    """
+    Expand a dict with multiple keys into a list of single-key dicts
+
+    An aggregation is defined as a mapping of multiple outputs into a single
+    variable with a single label. This is represented by a dict with a single key,
+    where the key is the label of the new quantity, and the value represents the instructions
+    for how to compute the quantity. Sometimes outputs and pops are used directly, without
+    renaming, so in this case, only the string representing the name of the quantity is required.
+    Therefore, the format used internally by `PlotData` is that outputs/pops are represented
+    as lists with length equal to the total number of quantities being returned/computed, and
+    that list can contain dictionaries with single keys whenever an aggregation is required.
+
+    For ease of use, it is convenient for users to enter multiple aggregations as a single dict
+    with multiple keys. This function processes such a dict into the format used internally
+    by PlotData.
+
+
+    :param x: A list of inputs, containing strings or dicts that might have multiple keys
+    :return: A list containing strings or dicts where any dicts have only one key
+
+    Example usage:
+
+    >>> _expand_dict(['a',{'b':1,'c':2}])
+    ['a', {'b': 1}, {'c': 2}]
+
+    """
     # If a list contains a dict with multiple keys, expand it into multiple dicts each
     # with a single key
     y = list()
     for v in x:
         if isinstance(v, dict):
             y += [{a: b} for a, b in v.items()]
-        else:
+        elif sc.isstring(v):
             y.append(v)
+        else:
+            raise Exception('Unknown type')
     return y
 
 
-def extract_labels(input_arrays):
-    # Flatten the input arrays to extract all requested pops and outputs
-    # e.g. ['vac',{'a':['vac','sus']}] -> ['vac','vac','sus'] -> set(['vac','sus'])
-    # This is because the workflow for aggregation is
-    #   1 - retrieve all quantities required
-    #   2 - perform all aggregations
+def _extract_labels(input_arrays) -> set:
+    """
+    Extract all quantities from list of dicts
+
+    The inputs supported by `outputs` and `pops` can contain lists of optional
+    aggregations. The first step in `PlotData` is to extract all of the quantities
+    in the `Model` object that are required to compute the requested aggregations.
+
+    :param input_arrays: Input string, list, or dict specifying aggregations
+    :return: Set of unique string values that correspond to model quantities
+
+    Example usage:
+
+    >>> _extract_labels(['vac',{'a':['vac','sus']}])
+    set(['vac','sus'])
+
+    The main workflow is:
+
+    ['vac',{'a':['vac','sus']}] -> ['vac','vac','sus'] -> set(['vac','sus'])
+
+    i.e. first a flat list is constructed by replacing any dicts with their values
+    and concatenating, then the list is converted into a set
+
+    """
 
     out = []
     for x in input_arrays:
