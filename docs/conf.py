@@ -62,7 +62,7 @@ autodoc_default_options = {
     'member-order': 'bysource',
     # 'special-members': '__init__',
     'undoc-members': None,
-    "inherited-members": None,
+    # "inherited-members": None,
     "private-members": None,
     # 'exclude-members': '__weakref__'
 }

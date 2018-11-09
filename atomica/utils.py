@@ -36,6 +36,10 @@ class NamedItem(object):
 
 
 class NDict(sc.odict):
+    """
+    Store and sync items with a name property
+
+    """
     def __init__(self, *args, **kwargs):
         sc.odict.__init__(self, *args, **kwargs)
         return None

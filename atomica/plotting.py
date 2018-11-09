@@ -9,10 +9,8 @@ generate various plots from model outputs.
 import itertools
 import os
 import errno
-import textwrap
 from collections import defaultdict
 
-import pylab as pl
 import matplotlib.cm as cmx
 import matplotlib.colors as matplotlib_colors
 import matplotlib.pyplot as plt
@@ -107,7 +105,7 @@ class PlotData():
                   - a dict/odict of results (the name of the result is taken from the Result, not the dict)
     :param outputs: The name of an output compartment, characteristic, or
                       parameter, or list of names. Inside a list, a dict can be given to
-                      specify an aggregation e.g. :py:`outputs=['sus',{'total':['sus','vac']}]`
+                      specify an aggregation e.g. ``outputs=['sus',{'total':['sus','vac']}]``
                       where the key is the new name. Or, a formula can be given which will
                       be evaluated by looking up labels within the model object. Links will
                       automatically be summed over
@@ -930,6 +928,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
     inner_labels = []  # Labels for bar groups below axis
     block_offset = None
     base_offset = None
+    negative_present = False # If True, it means negative quantities were present
 
     # Iterate over the inner and outer groups, rendering blocks at a time
     for r_idx, t_idx in iterator:
@@ -944,7 +943,8 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
         for idx, bar_pop, bar_output in zip(range(len(bar_pops)), bar_pops, bar_outputs):
             # pop is something like ['0-4','5-14'] or ['0-4']
             # output is something like ['sus','vac'] or ['0-4'] depending on the stack
-            y0 = 0
+
+            y0 = [0,0] # Baselines for positive and negative bars, respectively
 
             # Set the name of the bar
             # If the user provided a label, it will always be displayed
@@ -975,16 +975,25 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
                 for output in bar_output[2]:
                     series = plotdata[plotdata.results[r_idx], pop, output]
                     y = series.vals[t_idx]
-                    if orientation == 'horizontal':
-                        rectangles[series.color].append(Rectangle((y0, base_offset + block_offset), y, width))
+                    if y >= 0:
+                        baseline = y0[0]
+                        y0[0] += y
+                        height = y
                     else:
-                        rectangles[series.color].append(Rectangle((base_offset + block_offset, y0), width, y))
+                        baseline = y0[1]+y
+                        y0[1] += y
+                        height = -y
+                        negative_present = True
+
+                    if orientation == 'horizontal':
+                        rectangles[series.color].append(Rectangle((baseline, base_offset + block_offset), height, width))
+                    else:
+                        rectangles[series.color].append(Rectangle((base_offset + block_offset, baseline), width, height))
 
                     if series.color in color_legend and (pop, output) not in color_legend[series.color]:
                         color_legend[series.color].append((pop, output))
                     elif series.color not in color_legend:
                         color_legend[series.color] = [(pop, output)]
-                    y0 += y
 
             block_labels.append((base_offset + block_offset + width / 2., bar_label))
 
@@ -1014,10 +1023,15 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
     ax.autoscale()
     _turn_off_border(ax)
     block_labels = sorted(block_labels, key=lambda x: x[0])
+
     if orientation == 'horizontal':
         ax.set_ylim(bottom=-2 * gaps[0], top=block_offset + base_offset)
         fig.set_figheight(0.75 + 0.75 * (block_offset + base_offset))
-        ax.set_xlim(left=0)
+        if not negative_present:
+            ax.set_xlim(left=0)
+        else:
+            ax.spines['right'].set_color('k')
+            ax.spines['right'].set_position('zero')
         ax.set_yticks([x[0] for x in block_labels])
         ax.set_yticklabels([x[1] for x in block_labels])
         ax.invert_yaxis()
@@ -1025,7 +1039,11 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
     else:
         ax.set_xlim(left=-2 * gaps[0], right=block_offset + base_offset)
         fig.set_figwidth(1.1 + 1.1 * (block_offset + base_offset))
-        ax.set_ylim(bottom=0)
+        if not negative_present:
+            ax.set_ylim(bottom=0)
+        else:
+            ax.spines['top'].set_color('k')
+            ax.spines['top'].set_position('zero')
         ax.set_xticks([x[0] for x in block_labels])
         ax.set_xticklabels([x[1] for x in block_labels])
         ax.yaxis.set_major_formatter(FuncFormatter(sc.SItickformatter))
@@ -1083,6 +1101,8 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
             ax2.set_yticks([x[0] for x in inner_labels])
             # TODO - At the moment there is a chance these labels will overlap, need to increase the offset somehow e.g. padding with spaces
             # Best to leave this until a specific test case arises
+            # Simply rotating doesn't work because the vertical labels also overlap with the original axis labels
+            # So would be necessary to apply some offset as well (perhaps from YAxis.get_text_widths)
             ax2.set_yticklabels([str(x[1]) for x in inner_labels])
             ax2.yaxis.set_ticks_position('left')
             ax2.set_ylim(ax.get_ylim())
