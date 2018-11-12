@@ -215,6 +215,9 @@ class ProjectData(sc.prettyobj):
             spreadsheet = AtomicaSpreadsheet(spreadsheet)
 
         workbook = openpyxl.load_workbook(spreadsheet.get_file(), read_only=True, data_only=True)  # Load in read-only mode for performance, since we don't parse comments etc.
+        if workbook.properties.category and not workbook.properties.category == 'atomica:databook':
+            message = 'Error loading databook - was expecting an Atomica databook, but instead received a %s' % (workbook.properties.category)
+            raise Exception(message)
 
         # These sheets are optional - if none of these are provided in the databook
         # then they will remain empty
@@ -351,6 +354,7 @@ class ProjectData(sc.prettyobj):
 
         # Open a workbook
         self._book = xw.Workbook(f)
+        self._book.set_properties({'category': 'atomica:databook'})
         self._formats = standard_formats(self._book)
         self._references = {}  # Reset the references dict
 

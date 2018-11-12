@@ -51,6 +51,9 @@ class ProjectFramework(object):
             return
 
         workbook = openpyxl.load_workbook(self.spreadsheet.get_file(), read_only=True, data_only=True)  # Load in read-write mode so that we can correctly dump the file
+        if workbook.properties.category and not workbook.properties.category == 'atomica:framework':
+            message = 'Error loading framework - was expecting an Atomica framework, but instead received a %s' % (workbook.properties.category)
+            raise Exception(message)
 
         self.sheets = sc.odict()
 
