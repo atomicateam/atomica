@@ -538,6 +538,8 @@ class ProjectFramework(object):
                 to_comps = [x[1] for x in self.transitions[par.name]]
 
                 # Avoid discussions about how to disaggregate parameters with multiple links from the same compartment.
+                # Note that Parameter.source_popsize() sums over source compartments from all links associated with the parameter.
+                # Therefore, if this check wasn't in place here, the compartments would otherwise get double counted
                 if len(from_comps) != len(set(from_comps)):
                     raise InvalidFramework('Parameter "%s" cannot be associated with more than one transition from the same compartment' % par.name)
 
