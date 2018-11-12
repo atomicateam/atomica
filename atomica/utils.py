@@ -238,3 +238,61 @@ def evaluate_plot_string(plot_string):
         return eval(compiled_code)
     else:
         return plot_string
+
+
+def format_duration(t: float) -> str:
+    """
+    User-friendly string format of a duration
+
+    This helper function is used when displaying durations in plots. It takes in
+    a duration in units of years, and returns a string representation in user-friendly
+    units. This function is mainly intended to be used to format denominators
+    e.g., going from 'probability' and '1/365' to 'probability/day'
+
+    :param t: A duration in units of years
+    :return: A string
+
+    Example usage:
+
+    >>> format_duration(1)
+    'year'
+    >>> format_duration(1/365)
+    'day'
+    >>> format_duration(2/365)
+    '2 days'
+    >>> format_duration(1.5/52)
+    '1.5 weeks'
+    >>> format_duration(2/52)
+    'fortnight'
+    >>> format_duration(2.5/12)
+    '2.5 months'
+
+    """
+
+    # First decide the base units
+    if t >= 1.0:
+        base_scale = 1
+        timescale = 'year'
+    elif t >= 1/12:
+        base_scale = 1/12
+        timescale = 'month'
+    elif t >= 1/26:
+        base_scale = 1/26
+        timescale = 'fortnight'
+    elif t >= 1/52:
+        base_scale = 1/52
+        timescale = 'week'
+    else:
+        base_scale = 1/365
+        timescale = 'day'
+
+    # Then, work out how many of the base unit there are
+    converted_t = t/base_scale
+
+    # If there is only one of the base unit, then return the timescale as the final string
+    if abs(converted_t-1.0) < 1e-5:
+        return timescale
+    elif converted_t%1 < 1e-3: # If it's sufficiently close to an integer, show it as an integer
+        return '%d %ss' % (converted_t, timescale)
+    else:
+        return '%s %ss' % (sc.sigfig(converted_t, keepints=True,sigfigs=3), timescale)
