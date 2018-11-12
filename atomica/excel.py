@@ -803,3 +803,26 @@ def cell_get_number(cell, dtype=float):
             return None
 
     raise Exception('Cell %s needs to contain a number' % cell.coordinate)
+
+
+def validate_category(workbook, expected_category):
+    """
+    Check Atomica workbook type
+
+    This function makes sure that a workbook has a particular category property
+    stored within it, and displays an appropriate error message if not. If the
+    category isn't present or doesn't start with 'atomica', just ignore it for
+    robustness (instead, a parsing error will likely be raised)
+
+    :param workbook: An openpyxl workbook
+    :param category: The expected string category
+    :return: None
+    """
+
+    category = workbook.properties.category
+    if category and sc.isstring(category) and category.startswith('atomica:'):
+        if category.strip() != expected_category.strip():
+            expected_type = expected_category.split(':')[1].title()
+            actual_type = category.split(':')[1].title()
+            message = 'Error loading %s - the provided file was a %s file' % (expected_type, actual_type)
+            raise Exception(message)

@@ -12,7 +12,7 @@ import pandas as pd
 import sciris as sc
 from .system import NotFoundError, FrameworkSettings as FS
 from .system import logger
-from .excel import read_tables, AtomicaSpreadsheet
+from .excel import read_tables, AtomicaSpreadsheet, validate_category
 from .version import version
 import numpy as np
 from .cascade import validate_cascade
@@ -51,9 +51,7 @@ class ProjectFramework(object):
             return
 
         workbook = openpyxl.load_workbook(self.spreadsheet.get_file(), read_only=True, data_only=True)  # Load in read-write mode so that we can correctly dump the file
-        if workbook.properties.category and not workbook.properties.category == 'atomica:framework':
-            message = 'Error loading framework - was expecting an Atomica framework, but instead received a %s' % (workbook.properties.category)
-            raise Exception(message)
+        validate_category(workbook, 'atomica:framework')
 
         self.sheets = sc.odict()
 

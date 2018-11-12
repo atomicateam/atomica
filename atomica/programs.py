@@ -13,7 +13,7 @@ from .utils import NamedItem
 from numpy import array, exp, minimum, inf
 from .utils import TimeSeries
 from .system import FrameworkSettings as FS
-from .excel import standard_formats, AtomicaSpreadsheet, apply_widths, update_widths, read_tables, TimeDependentValuesEntry
+from .excel import standard_formats, AtomicaSpreadsheet, apply_widths, update_widths, read_tables, TimeDependentValuesEntry, validate_category
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 import openpyxl
 import xlsxwriter as xw
@@ -268,9 +268,7 @@ class ProgramSet(NamedItem):
             spreadsheet = AtomicaSpreadsheet(spreadsheet)
 
         workbook = openpyxl.load_workbook(spreadsheet.get_file(), read_only=True, data_only=True)  # Load in read-only mode for performance, since we don't parse comments etc.
-        if workbook.properties.category and not workbook.properties.category == 'atomica:progbook':
-            message = 'Error loading progbook - was expecting an Atomica progbook, but instead received a %s' % (workbook.properties.category)
-            raise Exception(message)
+        validate_category(workbook, 'atomica:progbook')
 
         # Load individual sheets
         self._read_targeting(workbook['Program targeting'])
