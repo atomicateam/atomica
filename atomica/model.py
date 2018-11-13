@@ -36,47 +36,95 @@ class BadInitialization(Exception):
 
 class Variable(object):
     """
-    Lightweight abstract class to store variable array of values (presumably corresponding to an external time vector).
-    Includes an attribute to describe the format of these values.
-    Examples include characteristics and dependent parameters.
-    Note: All non-dependent parameters correspond to links.
+    Integration object to manage compartments, characteristics, parameters, and links
+
+    This is a lightweight abstract class to store arrays of values at each simulation time step. It includes
+    functionality that is common to all integration objects, and defines the interface to be implemented
+    by derived classes.
+
+        :param pop: A :py:class:`Population` instance. This allows references back to the population containing an object
+                    (which facilitates a number of operations such as those that require the population's size)
+        :param id: ID is a tuple that uniquely identifies the Variable within a model.
+                    By convention, this is a ``population:code_name`` tuple
+                    (but in the case of links, there are additional terms)
     """
 
     def __init__(self, pop, id):
-        self.id = id  # ID is a tuple that uniquely identifies the Variable within a model. The last entry in the Tuple is the cascade name
-        self.t = None
-        self.dt = None
-        if 'vals' not in dir(self):  # characteristics already have a vals method
-            self.vals = None
-        self.units = 'unknown'  # 'unknown' units are distinct to dimensionless units, that have value ''
-        self.pop = pop  # Reference back to the Population containing this object
+        self.id = id  #: Unique identifier for the integration object
+        self.t = None #: Array of time values. This should be a reference to the base array stored in a :py:class:`model` object
+        self.dt = None #: Time step size
+        if 'vals' not in dir(self):
+            self.vals = None #: The fundamental values stored by this object. Note that Characteristics implement this as a property method
+        self.units = 'unknown'  #: The units for the quantity, used for plotting and for validation. Note that the default ``'unknown'`` units are distinct to dimensionless units, which have value ``''``
+        self.pop = pop  #: Reference back to the Population containing this object
 
     @property
-    def name(self):
-        # Facilitate retrieving the cascade name e.g. for plotting
+    def name(self) -> str:
+        """
+        The code name of the ``Variable`` e.g. `sus`
+
+        This property facilitates retrieving the name e.g. for plotting
+
+        :return: A code name
+
+        """
+
         return self.id[-1]
 
-    def preallocate(self, tvec, dt):
+    def preallocate(self, tvec: np.array, dt: float):
+        """
+        Preallocate arrays to improve performance
+
+        This method gets called just before integration, once the final sizes of the arrays are known.
+
+        :param tvec: An array of time values
+        :param dt: Time step size
+        :return:
+        """
         self.t = tvec
         self.dt = dt
         self.vals = np.ones(tvec.shape) * np.nan
 
-    def plot(self):
+    def plot(self) -> None:
+        """
+        Produce a time series plot
+
+        This is a quick function to make a basic line plot of this ``Variable``. Mainly
+        intended for debugging. Production-ready plots should be generated using the
+        plotting library functions instead
+
+        """
         plt.figure()
         plt.plot(self.t, self.vals, label=self.name)
         plt.legend()
         plt.xlabel('Year')
         plt.ylabel("%s (%s)" % (self.name, self.units))
 
-    def update(self, ti):
-        # A Variable can have a function to update its value at a given time, which is
-        # overloaded differently for Characteristics and Parameters
+    def update(self, ti: int) -> None:
+        """
+        Update the value at a given time index
+
+        This method performs any required computations to update the value
+        of the variable at a given time index. For example, Parameters may require
+        their update function to be called, while characteristics need their
+        source compartments to be added up.
+
+        :param ti:
+        :return:
+        """
+
         return
 
-    def set_dependent(self):
-        # Make the variable a dependency. For Compartments and Links, this does nothing. For Characteristics and
-        # Parameters, it will set the dependent flag, but in addition, any validation constraints e.g. a Parameter
-        # that depends on Links cannot itself be a dependency, will be enforced
+    def set_dependent(self) -> None:
+        """
+        Make the variable a dependency
+
+        For Compartments and Links, this does nothing. For Characteristics and
+        Parameters, it will set the dependent flag, but in addition, any validation constraints e.g. a Parameter
+        that depends on Links cannot itself be a dependency, will be enforced
+
+        """
+
         return
 
     def unlink(self):
@@ -268,37 +316,59 @@ class Characteristic(Variable):
 
 
 class Parameter(Variable):
-    # A parameter is a Variable that can have a value computed via an fcn_str and a list of
-    # dependent Variables. This class may need to be relabeld to avoid confusion with
-    # the class in Parameter.py which provides a means of computing the Parameter that is used by the model.
-    # This is a Parameter in the cascade.xlsx sense - there is one Parameter object for every item in the
-    # Parameters sheet. A parameter that maps to multiple transitions (e.g. doth_rate) will have one parameter
-    # and multiple Link instances that depend on the same Parameter instance
-    #
-    #  *** Parameter values are always annualized ***
+    """
+    Integration object to represent Parameters
+
+    A parameter is a Variable that can have a value computed via an fcn_str and a list of
+    dependent Variables. This is a Parameter in the cascade.xlsx sense - there is one Parameter object for every item in the
+    Parameters sheet. A parameter that maps to multiple transitions (e.g. ``doth_rate``) will have one parameter
+    and multiple Link instances that depend on the same Parameter instance
+
+    :param pop: A :py:class:`Population` instance corresponding to the population that will contain this parameter
+    :param name: The code name for this parameter
+
+    """
+
     def __init__(self, pop, name):
+
         Variable.__init__(self, pop=pop, id=(pop.name, name))
-        self.vals = None
-        self.limits = None  # Can be a two element vector [min,max]
-        self.dependency = False
-        self.pop_aggregation = None    # If True, value update in Model.update_pars(), not self.update().
-        self.scale_factor = 1.0  # This should be set to the product of the population-specific y_factor and the meta_y_factor from the ParameterSet
-        self.links = []  # References to links that derive from this parameter
-        self.source_popsize_cache_time = None
-        self.source_popsize_cache_val = None
+        self.limits = None  #: Can be a two element vector [min,max]
+        self.dependency = False #: If True, this parameter will be updated during integration
+        self.pop_aggregation = None  #: If not None, stores list of population aggregation information (special function, which weighting comp/charac and which interaction term to use)
+        self.scale_factor = 1.0  #: This should be set to the product of the population-specific ``y_factor`` and the ``meta_y_factor`` from the ParameterSet
+        self.links = []  #: References to links that derive from this parameter
+        self._source_popsize_cache_time = None #: Internal cache for the time at which the source popsize was previously computed
+        self._source_popsize_cache_val = None #: Internal cache for the last previously computed source popsize
+        self.fcn_str = None  #: String representation of parameter function
+        self.deps = None  #: Dict of dependencies containing lists of integration objects
+        self._fcn = None  #: Internal cache for parsed parameter function (this will be dropped when pickled)
 
-        self.fcn_str = None  # String representation of parameter function
-        self.deps = None  # Dict of dependencies containing lists of integration objects
-        self._fcn = None  # Internal cache for parsed parameter function (this will be dropped when pickled)
+        #: For transition parameters, the ``vals`` stored by the parameter is effectively a rate. The ``timescale``
+        #: attribute informs the time period corresponding to the units in which the rate has been provided.
+        #: If the units are ``number`` or ``probability`` then the ``timescale`` corresponds to the denominator of the units
+        #: e.g. probability/day (with ``timescale=1/365``).
+        #: If the units are ``duration`` then the timescale stores the units in which the duration has been specified
+        #: e.g. ``duration=1`` with ``timescale=1/52`` is the same as ``duration=7`` with ``timescale=1/365``
+        #: The effective duration used in the simulation is ``duration*timescale`` with units of years (so it will behave correctly if
+        #: one wanted to use 1/365.25 instead of 1/365)
+        self.timescale = 1.0
 
-    def set_fcn(self, framework, fcn_str):
-        # fcn_input could be
-        # - string, which gets converted to a functor via parse_function()
-        # - functor, which gets stored in self._fcn directly
-        #
-        # Supported functions will be given as input a dict where the keys are
-        # the dependencies in dep_list, and the values are scalars computed from the
-        # current state of the model during integration
+
+    def set_fcn(self, framework, fcn_str) -> None:
+        """
+        Add a function to this parameter
+
+        This method adds a function to the parameter. The following steps are carried out
+
+            - The function is parsed and stored in the ``._fcn`` attribute (until the Parameter is pickled)
+            - The dependencies are extracted, and are stored as references to the actual integration objects
+              to increase performance during integration
+            - If this is a transition parameter, then dependencies will have their `dependent` flag updated
+
+        :param framework: A py:class:`ProjectFramework` instance, used to identify and retrieve interaction terms
+        :param fcn_str: The string containing the function to add
+
+        """
 
         assert sc.isstring(fcn_str), "Parameter function must be supplied as a string"
         self.fcn_str = fcn_str
@@ -410,8 +480,8 @@ class Parameter(Variable):
         # derive from this program. If the parameter has no links, return NaN
         # which disambiguates between a parameter whose source compartments are all
         # empty, vs a parameter that has no source compartments
-        if ti == self.source_popsize_cache_time:
-            return self.source_popsize_cache_val
+        if ti == self._source_popsize_cache_time:
+            return self._source_popsize_cache_val
         else:
             if self.links:
                 n = 0
@@ -419,8 +489,8 @@ class Parameter(Variable):
                     n += link.source.vals[ti]
             else:
                 raise Exception('Cannot retrieve source popsize for a non-transition parameter')
-            self.source_popsize_cache_time = ti
-            self.source_popsize_cache_val = n
+            self._source_popsize_cache_time = ti
+            self._source_popsize_cache_val = n
             return n
 
 
@@ -657,13 +727,14 @@ class Population(object):
         # Parameters first pass, create parameter objects and links
         for par_name in list(pars.index):
             par = Parameter(pop=self, name=par_name)
+            par.units = pars.at[par_name, "format"]
+            par.timescale = pars.at[par_name, "timescale"]
             self.pars.append(par)
-            if framework.transitions[par_name]:  # If there are any links associated with this parameter
-                par.units = pars.at[par_name, "format"]  # First copy in the units from the Framework - mainly for transition parameters that are functions. Others will get overwritten from databook later
+            if framework.transitions[par_name]:
                 for pair in framework.transitions[par_name]:
                     src = self.get_comp(pair[0])
                     dst = self.get_comp(pair[1])
-                    tag = par.name + ':flow'  # Temporary tag solution.
+                    tag = par.name + ':flow'
                     new_link = Link(self, par, src, dst, tag)
                     if tag not in self.link_lookup:
                         self.link_lookup[tag] = [new_link]
@@ -1046,6 +1117,7 @@ class Model(object):
             # First, populate all of the link values without any outflow constraints
             for par in pop.pars:
                 if par.links:
+
                     transition = par.vals[ti]
 
                     if not transition:
@@ -1054,27 +1126,33 @@ class Model(object):
                         continue
                     quantity_type = par.units
 
-                    # An annual duration can be converted into an annual probability; do it.
+                    # Convert from duration to equivalent probability
                     if quantity_type == FS.QUANTITY_TYPE_DURATION:
-                        transition = 1.0 - np.exp(-1.0 / transition)
-                        quantity_type = FS.QUANTITY_TYPE_PROBABILITY
+                        converted_frac = 1.0 - np.exp(-self.dt / (transition * par.timescale))
+                        for link in par.links:
+                            link.vals[ti] = link.source.vals[ti] * converted_frac
 
                     # Convert probability by Poisson distribution formula to a value appropriate for timestep.
                     if quantity_type == FS.QUANTITY_TYPE_PROBABILITY:
                         if transition > 1.0:
-                            transition = 1.0
-                        converted_frac = 1 - (1 - transition) ** self.dt
+                            converted_frac = 1.0
+                        else:
+                            converted_frac = 1 - (1 - transition) ** (self.dt / par.timescale)
                         for link in par.links:
                             link.vals[ti] = link.source.vals[ti] * converted_frac
+
                     # Linearly convert number down to that appropriate for one timestep.
-                    # Disaggregate proportionally across all source compartment sizes related to all links.
                     elif quantity_type == FS.QUANTITY_TYPE_NUMBER:
-                        converted_amt = transition * self.dt
+                        converted_amt = transition * (self.dt / par.timescale) # Number flow in this timestep, so it includes a timescale factor
+
+                        # Disaggregate proportionally across all source compartment sizes related to all links.
                         if len(par.links) > 1:
                             for link in par.links:
                                 link.vals[ti] = converted_amt * link.source.vals[ti] / par.source_popsize(ti)
                         else:
                             par.links[0].vals[ti] = converted_amt
+
+                    # Raise an error if the transition parameter has unrecognized units
                     elif quantity_type not in [FS.QUANTITY_TYPE_PROPORTION]:
                         try:
                             par_label = self.framework.get_label(par.name)

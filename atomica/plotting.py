@@ -389,8 +389,8 @@ class PlotData():
 
         for s in self.series:
             if accumulation_method == 'sum':
-                if '/year' in s.units:
-                    raise Exception('Quantity "%s" has units "%s" which means it should be accumulated by integration, not summation' % (s.output, s.units))
+                if s.timescale is not None:
+                    raise Exception('Quantity "%s" has timescale %g which means it should be accumulated by integration, not summation' % (s.output, s.timescale))
                 s.vals = np.cumsum(s.vals)
             elif accumulation_method == 'integrate':
                 s.vals = scipy.integrate.cumtrapz(s.vals, s.tvec)
@@ -741,7 +741,7 @@ class Series():
 
     """
 
-    def __init__(self, tvec, vals, result='default', pop='default', output='default', data_label='', color=None, units=''):
+    def __init__(self, tvec, vals, result='default', pop='default', output='default', data_label='', color=None, units='', timescale=None):
         self.tvec = np.copy(tvec)
         self.t_labels = np.copy(self.tvec)  # Iterable array of time labels - could become strings like [2010-2014]
         self.vals = np.copy(vals)
@@ -750,11 +750,26 @@ class Series():
         self.output = output
         self.color = color
         self.data_label = data_label  # Used to identify data for plotting
-        self.units = units
+        self.units = units #: The units for the quantity to display on the plot
+
+        #: If the quantity has a time-like denominator (e.g. number/year, probability/day) then the denominator is stored here (in units of years)
+        #: This enables quantities to be time-aggregated correctly (e.g. number/day must be converted to number/timestep prior to summation or integration)
+        #: For links, the timescale is normally just ``dt``. This also enables more rigorous checking for quantities with time denominators than checking
+        #: for a string like ``'/year'`` because users may not set this specifically.
+        self.timescale = None
 
         if np.any(np.isnan(vals)):
             logger.warning('%s contains NaNs', self)
 
+    @property
+    def unit_string(self):
+        """
+        The unit of the quantity is interpreted as a numerator if the Timescale is not none. For example,
+        Compartments have units of 'number', while Links have units of 'number/timestep' which is stored as
+        ``Series.units='number'`` and ``Series.timescale=0.25`` (if ``dt=0.25``). The `unit_string` attribute
+
+        :return:
+        """
     def __repr__(self):
         return 'Series(%s,%s,%s)' % (self.result, self.pop, self.output)
 

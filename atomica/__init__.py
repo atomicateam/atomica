@@ -38,7 +38,6 @@ License:
         reconciliation
         results
         scenarios
-        structure
         system
         utils
 
