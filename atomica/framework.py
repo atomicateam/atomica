@@ -446,7 +446,8 @@ class ProjectFramework(object):
             'databook page': None,
             'databook order': None,
             'targetable': 'n',
-            'guidance': None
+            'guidance': None,
+            'timescale': None
         }
         valid_content = {
             'display name': None,
@@ -535,6 +536,9 @@ class ProjectFramework(object):
                 if not par['format']:
                     raise InvalidFramework('Parameter %s is a transition parameter, so it needs to have a format specified in the Framework' % par.name)
 
+                if par['timescale'] is None:
+                    self.pars.at[par.name,'timescale'] = 1.0 # Default timescale - note that currently only transition parameters are allowed to have a timescale that is not None
+
                 from_comps = [x[0] for x in self.transitions[par.name]]
                 to_comps = [x[1] for x in self.transitions[par.name]]
 
@@ -567,9 +571,11 @@ class ProjectFramework(object):
                     if self.get_comp(comp)['is source'] == 'y':
                         raise InvalidFramework('Parameter "%s" has an inflow to Compartment "%s" which is a source' % par.name, comp)
             else:
-                # If this is not a transition parameter...
+                # If this is not a transition parameter
                 if par['format'] == FS.QUANTITY_TYPE_NUMBER and par['targetable'] == 'y':
                     raise InvalidFramework('Parameter "%s" is targetable and in number units, but is not a transition parameter. To target a parameter with programs in number units, the parameter must appear in the transition matrix.' % par.name)
+                if par['timescale'] is not None:
+                    raise InvalidFramework('Parameter "%s" is not a transition parameter, but has a timescale associated with it. To avoid ambiguity in the parameter value used in functions, non-transition parameters cannot have timescales provided. Please remove the timescale value from the framework.' % par.name)
 
             defined.add(par.name)  # Only add the parameter to the list of definitions after it has finished validating, because parameters cannot depend on themselves
 
