@@ -325,7 +325,7 @@ class TimeDependentConnections(object):
 
         if self.type == 'transfer':
             self.enable_diagonal = False
-            self.allowed_units = [FS.QUANTITY_TYPE_NUMBER, FS.QUANTITY_TYPE_PROBABILITY]
+            self.allowed_units = [FS.QUANTITY_TYPE_NUMBER + ' (per year)', FS.QUANTITY_TYPE_PROBABILITY + ' (per year)']
         elif self.type == 'interaction':
             self.enable_diagonal = True
             self.allowed_units = [FS.DEFAULT_SYMBOL_INAPPLICABLE]
@@ -502,7 +502,6 @@ class TimeDependentConnections(object):
 
 
 class TimeDependentValuesEntry(object):
-
     """ Table for time-dependent data entry
 
     This class is Databooks and Program books to enter potentially time-varying data.
@@ -514,6 +513,9 @@ class TimeDependentValuesEntry(object):
     The TDVE class optionally allows the specification of units, assumptions, and uncertainty,
     which each map to properties on the underlying TimeSeries objects. It also contains a
     time vector corresponding to the time values that appear or will appear in the spreadsheet.
+
+    Note that the units are stored within the TimeSeries objects, which means that they can
+    are able to differ across rows.
 
     :param name: The name/title for this table
     :param tvec: Specify the time values for this table. All TimeSeries in the ts dict should have corresponding time values

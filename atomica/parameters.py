@@ -192,6 +192,9 @@ class ParameterSet(NamedItem):
 
         self.pop_names = data.pops.keys() #: List of all population code names contained in the ``ParameterSet``
         self.pop_labels = [pop["label"] for pop in data.pops.values()] #: List of corresponding full names for populations
+        self.pars = sc.odict() #: Stores the Parameter instances contained by this ParameterSet associated with framework comps, characs, and parameters
+        self.transfers = sc.odict() #: Stores the Parameter instances contained by this ParameterSet associated with databook transfers
+        self.interactions = sc.odict() #: Stores the Parameter instances contained by this ParameterSet associated with framework interactions
 
         # Instantiate all quantities that appear in the databook (compartments, characteristics, parameters)
         for name, tdve in data.tdve.items():
@@ -204,7 +207,7 @@ class ParameterSet(NamedItem):
                 tvec, yvec = ts.get_arrays()
                 par.t[pop_name] = tvec
                 par.y[pop_name] = yvec
-                par.y_format = units
+                par.y_format[pop_name] = units
                 par.y_factor[pop_name] = 1.0
 
         # Instantiate parameters not in the databook

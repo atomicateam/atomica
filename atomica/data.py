@@ -154,8 +154,7 @@ class ProjectData(sc.prettyobj):
                     else:
                         order = databook_order
                     pages[databook_page].append((full_name, order))
-
-                    data.tdve[full_name] = TimeDependentValuesEntry(full_name, tvec, allowed_units=[framework.get_units(full_name)], comment=spec['guidance'])
+                    data.tdve[full_name] = TimeDependentValuesEntry(full_name, tvec, allowed_units=[framework.get_databook_units(full_name)], comment=spec['guidance'])
 
         # Now convert pages to full names and sort them into the correct order
         for _, spec in framework.sheets['databook pages'][0].iterrows():
@@ -253,6 +252,7 @@ class ProjectData(sc.prettyobj):
                 tables, start_rows = read_tables(sheet)
                 for table, start_row in zip(tables, start_rows):
 
+
                     try:
                         tdve = TimeDependentValuesEntry.from_rows(table)
                     except Exception as e:
@@ -262,12 +262,22 @@ class ProjectData(sc.prettyobj):
                     # If the TDVE is not in the Framework, that's a critical stop error, because the framework needs to at least declare
                     # what kind of variable this is - otherwise, we don't know the allowed units and cannot write the databook back properly
                     try:
-                        spec = framework.get_variable(tdve.name)[0]
+                        spec, item_type = framework.get_variable(tdve.name)
                     except NotFoundError:
                         message = 'Error on sheet "%s" while reading TDVE table "%s" (row %d). The variable was not found in the Framework' % (sheet.title, tdve.name, start_row)
                         raise Exception(message)
 
                     code_name = spec.name
+                    tdve.allowed_units = [framework.get_databook_units(code_name)]
+
+                    # Migrate the units (20181114)
+                    # All TimeSeries instances in databook TDVE tables should have the same units as the allowed units
+                    # However, if the user entered something that is wrong, we need to keep it and alert them during validation
+                    # Therefore, we can migrate as long as the _old_ units made sense
+                    for ts in tdve.ts.values():
+                        if ts.units != tdve.allowed_units[0]:
+                            if not ts.units or ts.units.strip().lower() == tdve.allowed_units[0].strip().split()[0].strip().lower():
+                                ts.units = tdve.allowed_units[0]
 
                     if not spec['databook page']:
                         logger.warning('A TDVE table for "%s" (%s) was read in and will be used, but the Framework did not mark this quantity as appearing in the databook', tdve.name, code_name)
@@ -276,6 +286,7 @@ class ProjectData(sc.prettyobj):
                     self.tdve[code_name] = tdve
                     # Store the TDVE on the page it was actually on, rather than the one in the framework. Then, if users move anything around, the change will persist
                     self.tdve_pages[sheet.title].append(code_name)
+
 
         # Set the ProjectData's tvec based on the first TDVE table
         # 99.9% of the time, all of the tables will have the same values and so this is generally safe
@@ -286,28 +297,34 @@ class ProjectData(sc.prettyobj):
 
         return self
 
-    def validate(self, framework):
-        # Check if the contents of the ProjectData can be used to run simulations
-        #
-        # A databook can be 'valid' in two senses
-        #
-        # - The Excel file adheres to the correct syntax and it can be parsed into a ProjectData object
-        # - The resulting ProjectData object contains sufficient information to run a simulation
-        #
-        # Sometimes it is desirable for ProjectData to be valid in one sense rather than the other. For example,
-        # in order to run a simulation, the ProjectData needs to contain at least one value for every TDVE table.
-        # However, the TDVE table does _not_ need to contain values if all we want to do is add another key pop
-        # Thus, the first stage of validation is the ProjectData constructor - if that runs, then users can
-        # access methods like 'add_pop','remove_transfer' etc.
-        #
-        # However, to actually run a simulation, the _contents_ of the databook need to satisfy various conditions
-        # These tests are implemented here. The typical workflow would be that ProjectData.validate() should be used
-        # if a simulation is going to be run. In the first instance, this can be done in `Project.load_databook` but
-        # the FE might want to perform this check at a different point if the databook manipulation methods e.g.
-        # `add_pop` are going to be exposed in the interface
-        #
-        # This function throws an informative error if there are any problems identified or otherwise returns True
-        #
+    def validate(self, framework) -> bool:
+        """
+        Check if the ProjectData instance can be used to run simulations
+
+        A databook can be 'valid' in two senses
+
+        - The Excel file adheres to the correct syntax and it can be parsed into a ProjectData object
+        - The resulting ProjectData object contains sufficient information to run a simulation
+
+        Sometimes it is desirable for ProjectData to be valid in one sense rather than the other. For example,
+        in order to run a simulation, the ProjectData needs to contain at least one value for every TDVE table.
+        However, the TDVE table does _not_ need to contain values if all we want to do is add another key pop
+        Thus, the first stage of validation is the ProjectData constructor - if that runs, then users can
+        access methods like 'add_pop','remove_transfer' etc.
+
+        On the other hand, to actually run a simulation, the _contents_ of the databook need to satisfy various conditions
+        These tests are implemented here. The typical workflow would be that ProjectData.validate() should be used
+        if a simulation is going to be run. In the first instance, this can be done in `Project.load_databook` but
+        the FE might want to perform this check at a different point if the databook manipulation methods e.g.
+        `add_pop` are going to be exposed in the interface
+
+        This function throws an informative error if there are any problems identified or otherwise returns True
+
+        :param framework: A :py:class:`ProjectFramework` instance to validate the data against
+        :return: True if ProjectData is valid. An error will be raised otherwise
+
+        """
+
         # Make sure that all of the quantities the Framework says we should read in have been read in, and that
         # those quantities all have some data values associated with them
         for df in [framework.comps, framework.characs, framework.pars]:
@@ -320,8 +337,7 @@ class ProjectData(sc.prettyobj):
                     if spec.name not in self.tdve:
                         raise Exception('The databook did not contain a necessary TDVE table named "%s" (code name "%s")' % (spec['display name'], spec.name))
                     else:
-                        # TODO - update this to work with duration suffixes e.g. 'probability (per day)'
-                        framework_units = framework.get_databook_units(spec.name)
+                        framework_units = framework.get_databook_units(spec.name) # Get the expected databook units
                         tdve = self.tdve[spec.name]
                         tdve_sheet = self.get_tdve_page(spec.name)
                         for name, ts in self.tdve[spec.name].ts.items():
@@ -329,8 +345,10 @@ class ProjectData(sc.prettyobj):
                             assert name in self.pops, '%s. Population "%s" not recognized. Should be one of: %s' % (location, name, self.pops.keys())
                             assert ts.has_data, '%s. Data values missing for %s (%s)' % (location, self.tdve[spec.name].name, name)
                             assert ts.units is not None, '%s. Units missing for %s (%s)' % (location, self.tdve[spec.name].name, name)
-                            if framework_units:
-                                assert ts.units in framework_units, '%s. Unit "%s" for %s (%s) do not match allowed units (%s)' % (location, ts.units, self.tdve[spec.name].name, name, allowed_units)
+                            if ts.units.strip().lower() != framework_units.strip().lower():
+                                # If the units don't match the framework's 'databook' units, see if they at least match the standard unit (for legacy databooks)
+                                if 'format' in spec and spec['format'] is not None and ts.units.lower().strip() != spec['format'].lower().strip():
+                                    assert ts.units == framework_units, '%s. Unit "%s" for %s (%s) does not match the declared units from the Framework (expecting "%s")' % (location, ts.units, self.tdve[spec.name].name, name, framework_units)
 
         for _, spec in framework.interactions.iterrows():
             for tdc in self.interpops:
@@ -339,7 +357,7 @@ class ProjectData(sc.prettyobj):
                         assert to_pop in self.pops, 'Population "%s" in "%s" not recognized. Should be one of: %s' % (name, self.tdve[spec.name].name, self.pops.keys())
                         assert from_pop in self.pops, 'Population "%s" in "%s" not recognized. Should be one of: %s' % (name, self.tdve[spec.name].name, self.pops.keys())
                         assert ts.has_data, 'Data values missing for interaction %s, %s->%s' % (spec.name, to_pop, from_pop)
-                        assert ts.units.strip().title() == FS.DEFAULT_SYMBOL_INAPPLICABLE.title()
+                        assert ts.units.strip().title() == FS.DEFAULT_SYMBOL_INAPPLICABLE.title() # Units should be
                     break
             else:
                 raise Exception('Required interaction "%s" not found in databook' % spec.name)
@@ -396,8 +414,9 @@ class ProjectData(sc.prettyobj):
             interaction.pops.append(code_name)
         for tdve in self.tdve.values():
             # Since TDVEs in databooks must have the unit set in the framework, all ts objects must share the same units
-            # Therefore, we can get the units for the new series from any one of the existing ts instances
-            tdve.ts[code_name] = TimeSeries(units=tdve.ts[0].units)
+            # And, there is only supposed to be one type of unit allowed for TDVE tables (if the unit is empty, it will be 'N.A.')
+            # so can just pick the first of the allowed units
+            tdve.ts[code_name] = TimeSeries(units=tdve.allowed_units[0])
 
     def rename_pop(self, existing_code_name, new_code_name, new_full_name):
         # Rename an existing pop
@@ -449,12 +468,32 @@ class ProjectData(sc.prettyobj):
                 if k == pop_name:
                     del tdve.ts[k]
 
-    def add_transfer(self, code_name, full_name):
+    def add_transfer(self, code_name: str, full_name: str) -> TimeDependentConnections:
+        """
+        Add a new empty transfer
+
+        :param code_name: The code name of the transfer to create
+        :param full_name: The full name of the transfer to create
+        :return: Newly instantiated TimeDependentConnections object (also added to ``ProjectData.transfers``)
+
+        """
+
         for transfer in self.transfers:
             assert code_name != transfer.code_name, 'Transfer with name "%s" already exists' % (code_name)
-        self.transfers.append(TimeDependentConnections(code_name, full_name, self.tvec, list(self.pops.keys()), type='transfer', ts=None))
 
-    def rename_transfer(self, existing_code_name, new_code_name, new_full_name):
+        new_transfer = TimeDependentConnections(code_name, full_name, self.tvec, list(self.pops.keys()), type='transfer', ts=None)
+        self.transfers.append(new_transfer)
+        return new_transfer
+
+    def rename_transfer(self, existing_code_name: str, new_code_name: str, new_full_name: str) -> None:
+        """
+        Rename an existing transfer
+
+        :param existing_code_name: The existing code name to change
+        :param new_code_name: The new code name
+        :param new_full_name: The new full name
+
+        """
 
         # Check no name collisions
         for transfer in self.transfers:
@@ -472,25 +511,51 @@ class ProjectData(sc.prettyobj):
         transfer_to_change.code_name = new_code_name
         transfer_to_change.full_name = new_full_name
 
-    def remove_transfer(self, code_name):
+    def remove_transfer(self, code_name: str) -> None:
+        """
+        Remove a transfer
+
+        :param code_name: Code name of the transfer to remove
+        """
+
         names = [x.code_name for x in self.transfers]
         idx = names.index(code_name)
         del self.transfers[idx]
 
     # NB. Differences in the model will only happen if the model knows what to do with the new interaction
-    def add_interaction(self, code_name, full_name):
+    def add_interaction(self, code_name: str, full_name: str) -> TimeDependentConnections:
+        """
+        Add a new empty interaction
+
+        :param code_name: The code name of the interaction to create
+        :param full_name: The full name of the interaction to create
+        :return: Newly instantiated TimeDependentConnections object (also added to ``ProjectData.interpops``)
+
+        """
+
         for interaction in self.interpops:
             assert code_name != interaction.code_name, 'Interaction with name "%s" already exists' % (code_name)
         interpop = TimeDependentConnections(code_name, full_name, self.tvec, list(self.pops.keys()), type='interaction', ts=None)
         self.interpops.append(interpop)
         return interpop
 
-    def remove_interaction(self, code_name):
+    def remove_interaction(self, code_name: str) -> None:
+        """
+        Remove an interaction
+
+        :param code_name: Code name of the interaction to remove
+        """
+
         names = [x.code_name for x in self.interpops]
         idx = names.index(code_name)
         del self.interpops[idx]
 
-    def _read_pops(self, sheet):
+    def _read_pops(self, sheet) -> None:
+        """
+        Reads the 'Population Definitions' sheet
+
+        """
+
         # TODO - can modify _read_pops() and _write_pops() if there are more population attributes
         tables = read_tables(sheet)[0]
         assert len(tables) == 1, 'Population Definitions page should only contain one table'
@@ -511,8 +576,12 @@ class ProjectData(sc.prettyobj):
                 raise Exception('Population name "%s" is a reserved keyword' % (pop_name.lower()))
             self.pops[pop_name] = {'label': row[1].value.strip()}
 
-    def _write_pops(self):
-        # Writes the 'Population Definitions' sheet
+    def _write_pops(self) -> None:
+        """
+        Writes the 'Population Definitions' sheet
+
+        """
+
         sheet = self._book.add_worksheet("Population Definitions")
         sheet.set_tab_color('#FFC000')  # this tab is orange
         widths = dict()
@@ -534,15 +603,25 @@ class ProjectData(sc.prettyobj):
 
         apply_widths(sheet, widths)
 
-    def _read_transfers(self, sheet):
+
+    def _read_transfers(self, sheet) -> None:
+        """
+        Writes the 'Transfers' sheet
+
+        """
+
         tables, start_rows = read_tables(sheet)
         assert len(tables) % 3 == 0, 'There should be 3 subtables for every transfer'
         self.transfers = []
         for i in range(0, len(tables), 3):
             self.transfers.append(TimeDependentConnections.from_tables(tables[i:i + 3], 'transfer'))
-        return
 
-    def _write_transfers(self):
+
+    def _write_transfers(self) -> None:
+        """
+        Writes the 'Transfers' sheet
+
+        """
         # Writes a sheet for every transfer
 
         # Skip if no transfers
@@ -558,7 +637,12 @@ class ProjectData(sc.prettyobj):
             next_row = transfer.write(sheet, next_row, self._formats, self._references, widths)
         apply_widths(sheet, widths)
 
-    def _read_interpops(self, sheet):
+
+    def _read_interpops(self, sheet) -> None:
+        """
+        Writes the 'Interactions' sheet
+
+        """
         tables, start_rows = read_tables(sheet)
         assert len(tables) % 3 == 0, 'There should be 3 subtables for every transfer'
         self.interpops = []
@@ -566,12 +650,16 @@ class ProjectData(sc.prettyobj):
             self.interpops.append(TimeDependentConnections.from_tables(tables[i:i + 3], 'interaction'))
         return
 
-    def _write_interpops(self):
-        # Writes a sheet for every interaction
+    def _write_interpops(self) -> None:
+        """
+        Writes the 'Interactions' sheet
+
+        """
 
         # Skip if no interpops
         if not self.interpops:
             return
+
         sheet = self._book.add_worksheet("Interactions")
         sheet.set_tab_color('#808080')
         widths = dict()
@@ -580,8 +668,15 @@ class ProjectData(sc.prettyobj):
             next_row = interpop.write(sheet, next_row, self._formats, self._references, widths)
         apply_widths(sheet, widths)
 
-    def _write_tdve(self):
-        # Writes several sheets, one for each custom page specified in the Framework
+    def _write_tdve(self) -> None:
+        """
+        Writes the TDVE tables
+
+        This method will create multiple sheets, one for each custom page specified
+        in the Framework.
+
+        """
+
         widths = dict()
 
         for sheet_name, code_names in self.tdve_pages.items():

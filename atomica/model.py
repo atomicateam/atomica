@@ -1007,12 +1007,12 @@ class Model(object):
                 for to_pop in par.pops:
                     self.interactions[name][parset.pop_names.index(from_pop), parset.pop_names.index(to_pop), :] = par.interpolate(self.t, to_pop) * par.y_factor[to_pop] * par.meta_y_factor
 
-        # Insert values from parset into model objects
+        # Insert values for Framework parameters
+        # The units for these come from the framework
         for pop in self.pops:
             for par in pop.pars:
                 if par.name in parset.pars:
                     cascade_par = parset.get_par(par.name)
-                    par.units = cascade_par.y_format[pop_name]
                     par.scale_factor = cascade_par.y_factor[pop_name] * cascade_par.meta_y_factor
                     if not par.fcn_str and cascade_par.has_values(pop.name):
                         par.vals = cascade_par.interpolate(tvec=self.t, pop_name=pop.name) * par.scale_factor
@@ -1038,7 +1038,7 @@ class Model(object):
                         par.preallocate(self.t, self.dt)
                         par.scale_factor = transfer_parameter.y_factor[pop_target] * transfer_parameter.meta_y_factor
                         par.vals = transfer_parameter.interpolate(tvec=self.t, pop_name=pop_target) * par.scale_factor
-                        par.units = transfer_parameter.y_format[pop_target]
+                        par.units = transfer_parameter.y_format[pop_target].strip().split()[0].strip().lower()
                         pop.pars.append(par)
                         pop.par_lookup[par_name] = par
 

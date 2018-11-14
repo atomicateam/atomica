@@ -718,15 +718,15 @@ class ProjectFramework(object):
         # State variables are in number amounts unless normalized.
         if item_type in [FS.KEY_COMPARTMENT, FS.KEY_CHARACTERISTIC]:
             if "denominator" in item_spec.index and item_spec["denominator"] is not None:
-                return FS.QUANTITY_TYPE_FRACTION
+                return FS.QUANTITY_TYPE_FRACTION.title()
             else:
-                return FS.QUANTITY_TYPE_NUMBER
+                return FS.QUANTITY_TYPE_NUMBER.title()
         elif item_type == FS.KEY_PARAMETER:
             if item_spec['timescale']:
                 if item_spec['format'] == FS.QUANTITY_TYPE_DURATION:
-                    return '%s (%s)' % (item_spec['format'],format_duration(item_spec['timescale'],pluralize=True))
+                    return '%s (%s)' % (FS.QUANTITY_TYPE_DURATION.title(),format_duration(item_spec['timescale'],pluralize=True))
                 elif item_spec['format'] in {FS.QUANTITY_TYPE_NUMBER,FS.QUANTITY_TYPE_PROBABILITY}:
-                    return '%s (per %s)' % (item_spec['format'],format_duration(item_spec['timescale'],pluralize=False))
+                    return '%s (per %s)' % (item_spec['format'].title(),format_duration(item_spec['timescale'],pluralize=False))
             elif item_spec['format']:
                 return item_spec['format']
 
