@@ -8,48 +8,52 @@ import sciris as sc
 import pylab as pl
 import matplotlib.pyplot as plt
 from atomica.optimization import optimize
+import numpy as np
 
-test = "sir"
+np.seterr(all='raise')
+
+# test = "sir"
 #test = "tb"
 #test = "tb_simple_dyn"
 #test = "tb_simple"
 #test = "hypertension"
-#test = "hypertension_dyn"
+# test = "hypertension_dyn"
 #test = "dt"
 #test = "udt"
 #test = "usdt"
 # test = "cervicalcancer"
 #test = "hiv"
 #test = "hiv_dyn"
-#test = "diabetes"
+test = "diabetes"
 #test = "service"
 
 torun = [
-#"loadframework",
-#"saveframework",
-#"makedatabook",
-#"makeproject",
-#"loaddatabook",
-#"makeparset",
-#"runsim",
-#"plotcascade",
-#"makeblankprogbook",
+# "loadframework",
+# "saveframework",
+# "makedatabook",
+# "makeproject",
+# "loaddatabook",
+# "makeparset",
+# "runsim",
+# "plotcascade",
+# "makeblankprogbook",
 # "writeprogbook",
-#"testprograms",
-# "runsim_programs",
-#"makeplots",
-#"export",
+# "testprograms",
+"runsim_programs",
+# "makeplots",
+# "export",
 # "manualcalibrate",
-#"autocalibrate",
-#"parameterscenario",
-"coveragescenario",
-#'budgetscenarios',
-#'optimization',
+# "autocalibrate",
+# "parameterscenario",
+# "coveragescenario",
+# 'budgetscenarios',
+# 'optimization',
 # "saveproject",
 # "loadproject",
 ]
 
 forceshow = True # Whether or not to force plots to show (warning, only partly implemented)
+
 
 # Define plotting variables in case plots are generated
 if test == "sir":
@@ -72,13 +76,15 @@ if test == "tb":
                       "xdr_deaths": ["px_term:flow", "px_sad:flow", "nx_term:flow", "nx_sad:flow"]}
     plot_pop = ['5-14', '15-64']
 
-tmpdir = "." + os.sep + "temp" + os.sep
+TMPDIR = au.atomica_path(['tests','temp'])
+LIBDIR = au.LIBRARY_PATH
+TESTDIR = au.atomica_path('tests')
 
 if "loadframework" in torun:
-    F = au.ProjectFramework("./frameworks/framework_" + test + ".xlsx")
+    F = au.ProjectFramework(LIBDIR + test + '_framework.xlsx')
 
 if "saveframework" in torun:
-    F.save(tmpdir+'framework_'+test+".xlsx")
+    F.save(TMPDIR+'framework_'+test+".xlsx")
 
 if "makedatabook" in torun:
     P = au.Project(framework=F) # Create a project with an empty data structure.
@@ -90,7 +96,7 @@ if "makedatabook" in torun:
     elif test in ["udt","usdt","usdt_dyn","dt"]: args = {"num_pops":1, "num_transfers":0,"data_start":2016, "data_end":2019, "data_dt":1.0}
     elif test in ["hiv","hiv_dyn"]: args = {"num_pops":2, "num_transfers":0,"data_start":2016, "data_end":2019, "data_dt":1.0}
     elif test in ["hypertension","hypertension_dyn"]: args = {"num_pops":4, "num_transfers":0,"data_start":2016, "data_end":2019, "data_dt":1.0}
-    P.create_databook(databook_path=tmpdir + "databook_" + test + "_blank.xlsx", **args)
+    P.create_databook(databook_path=TMPDIR + "databook_" + test + "_blank.xlsx", **args)
 
 if "makeproject" in torun:
     # Preventing a run and databook loading so as to make calls explicit for the benefit of the FE.
@@ -98,7 +104,7 @@ if "makeproject" in torun:
     
 if "loaddatabook" in torun:
     # Preventing parset creation and a run so as to make calls explicit for the benefit of the FE.
-    P.load_databook(databook_path="./databooks/databook_" + test + ".xlsx", make_default_parset=False, do_run=False)
+    P.load_databook(databook_path=LIBDIR + test + '_databook.xlsx', make_default_parset=False, do_run=False)
     
 if "makeparset" in torun:
     P.make_parset(name="default")
@@ -133,7 +139,7 @@ if "makeblankprogbook" in torun:
     P = au.demo(which=test, addprogs=False, do_plot=0, do_run=False)
     P.run_sim(parset="default", result_name="default")    
 
-    filename = "temp/progbook_"+test+"_blank.xlsx"
+    filename = TMPDIR + "progbook_"+test+"_blank.xlsx"
     if test == "tb":
         P.make_progbook(filename, progs=6)
     elif test == "diabetes":
@@ -151,7 +157,7 @@ if "makeblankprogbook" in torun:
 if "writeprogbook" in torun:
     print('\n\n\nExporting programs spreadsheet ... ')
     P = au.demo(which=test, do_plot=0, do_run=False)
-    filename = "temp/progbook_"+test+"_export.xlsx"
+    filename = TMPDIR + "progbook_"+test+"_export.xlsx"
     if test in ["sir","tb","udt","usdt","hiv","hypertension"]:
         P.progsets[0].save(filename)
 
@@ -176,8 +182,11 @@ if "testprograms" in torun:
             print(P.progsets[0].get_outcomes(coverage)) # NB, calculations don't quite make sense atm, need to work in the impact interactions
 
             # For a single program, demonstrate how to get a vector of number/proportion covered given a time vector, a budget (note, budget is optional!!), and denominators
-            print(P.progsets[0].programs[4].get_num_covered(year=[2014,2015,2016,2017], budget=[1e5,2e5,3e5,4e5]))
-            print(P.progsets[0].programs[4].get_prop_covered(year=[2014,2015,2016,2017], budget=[1e5,2e5,3e5,4e5],denominator = [1e4,1.1e4,1.2e4,1.3e4]))
+
+            num_covered = P.progsets[0].programs[4].get_num_covered(tvec=[2014, 2015, 2016, 2017], spending=[1e5, 2e5, 3e5, 4e5],dt=P.settings.sim_dt)
+            prop_covered = P.progsets[0].programs[4].get_prop_covered(tvec=[2014, 2015, 2016, 2017], num_covered=[1e5, 2e5, 3e5, 4e5], denominator=[1e4, 1.1e4, 1.2e4, 1.3e4])
+            print(num_covered)
+            print(prop_covered)
 
             # For a whole parset, demonstrate how to get a dictionary of proportion covered for each program given a time vector and denominators
             denominator = sc.odict([('Risk avoidance',  [1e6,1.1e6,1.2e6,1.3e6]),
@@ -186,8 +195,9 @@ if "testprograms" in torun:
                                  ('Treatment 1',        [3e4,3.1e4,3.2e4,3.3e4]),
                                  ('Treatment 2',        [4e4,4.1e4,4.2e4,4.3e4])])
 
-            print(P.progsets[0].get_num_covered(year=[2014,2015,2016,2017]))
-            print(P.progsets[0].get_prop_covered(year=[2014,2015,2016,2017],denominator = denominator))
+            num_coverage = P.progsets[0].get_num_coverage(tvec=[2014, 2015, 2016, 2017], dt=P.settings.sim_dt)
+            print(num_coverage)
+            print(P.progsets[0].get_prop_coverage(tvec=[2014, 2015, 2016, 2017], num_coverage=num_coverage, denominator = denominator))
 
         elif test =="tb":      
 
@@ -222,8 +232,8 @@ if "testprograms" in torun:
                                     ('PCF-HIV-',        [9e6]),
                                     ('PCF-HIV+',        [9e6])])
 
-            print(P.progsets[0].get_num_covered(year=[2017]))
-            print(P.progsets[0].get_prop_covered(year=[2017],denominator = denominator))
+            print(P.progsets[0].get_num_coverage(year=[2017]))
+            print(P.progsets[0].get_prop_coverage(year=[2017], denominator = denominator))
 
 
 if "runsim_programs" in torun:
@@ -334,7 +344,7 @@ if "runsim_programs" in torun:
         scen4_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen4alloc) 
         scen5_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen5alloc) 
         scen6_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen6alloc) 
-        scen7_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen7alloc) 
+        scen7_instructions = au.ProgramInstructions(start_year=2016,stop_year=2018,alloc=scen7alloc)
 
         baselineresults = P.run_sim(parset="default", progset='default',progset_instructions=bl_instructions,result_name="baseline")
         scen1results = P.run_sim(parset="default", progset='default',progset_instructions=scen1_instructions,result_name="scen1")
@@ -353,13 +363,13 @@ if "runsim_programs" in torun:
     else:
         print('\n\n\nUnknown test.')
 
-    
+
 if "makeplots" in torun:
     # Low level debug plots.
     if test in ['tb','sir']:
         for var in test_vars:
             P.results["parset_default"].get_variable(test_pop,var)[0].plot()
-    
+
         # Plot population decomposition.
         d = au.PlotData(P.results["parset_default"],outputs=decomp,pops=plot_pop)
         au.plot_series(d, plot_type="stacked")
@@ -392,7 +402,7 @@ if "makeplots" in torun:
 
 
 if "export" in torun:
-    P.results[-1].export(tmpdir+test+"_results")
+    P.results[-1].export(TMPDIR+test+"_results")
 
 if "manualcalibrate" in torun:
     # Attempt a manual calibration, i.e. edit the scaling factors directly.
@@ -403,9 +413,10 @@ if "manualcalibrate" in torun:
     if test == "tb":
         P.parsets["manual"].set_scaling_factor(par_name="foi", pop_name="15-64", scale=2.0)
         outputs = ["ac_inf"]
-    P.run_sim(parset="manual", result_name="manual")
-    d = au.PlotData([P.results["default"],P.results["manual"]], outputs=outputs, pops=plot_pop)
-    au.plot_series(d, axis="results", data=P.data)
+    if test in ['sir','tb']:
+        P.run_sim(parset="manual", result_name="manual")
+        d = au.PlotData([P.results["parset_default"],P.results["manual"]], outputs=outputs, pops=plot_pop)
+        au.plot_series(d, axis="results", data=P.data)
     
 if "autocalibrate" in torun:
     if test == "sir":
@@ -421,7 +432,7 @@ if "autocalibrate" in torun:
     else:
         P.calibrate(max_time=10, new_name="auto")
     P.run_sim(parset="auto", result_name="auto")
-    au.plot_cascade(P.results[-1], cascade='Cascade', pops='all', year=2017, data=P.data)
+    au.plot_cascade(P.results[-1], cascade=0, pops='all', year=2017, data=P.data)
     if test == "sir":
         outputs = ["ch_prev"]
     if test == "tb":
@@ -434,6 +445,7 @@ if "parameterscenario" in torun:
     P = au.demo(which=test)
     
     scvalues = dict()
+
     if test == "sir":
         scen_par = "infdeath"
         scen_pop = "adults"
@@ -448,8 +460,9 @@ if "parameterscenario" in torun:
         scen_pop = "adults"
         scen_outputs = ["all_people","all_dx", "all_tx"]
 
-    scvalues[scen_par] = dict()
-    scvalues[scen_par][scen_pop] = dict()
+    if test in ["tb","sir","udt"]:
+        scvalues[scen_par] = dict()
+        scvalues[scen_par][scen_pop] = dict()
 
     if test in ["tb","sir"]:
         # Insert (or possibly overwrite) one value.
@@ -499,9 +512,9 @@ if "coveragescenario" in torun:
     plt.ylim(741,746)
 
     # Test export
-    no_programs.export('temp/covscen_noprogs.xlsx')
-    baseline.export('temp/covscen_baseline.xlsx')
-    scen_result.export('temp/covscen_reduced.xlsx')
+    no_programs.export(TMPDIR + 'covscen_noprogs.xlsx')
+    baseline.export(TMPDIR + 'covscen_baseline.xlsx')
+    scen_result.export(TMPDIR + 'covscen_reduced.xlsx')
     # Confirm that
     # - FOI-related values (e.g. transmission probability) in decreasing order are noprogs, reduced, baselilne
     # - Coverage values are 1.0 in baseline and 0.5 (or time varying) in scen result for applicable programs
@@ -614,7 +627,6 @@ if "optimization" in torun:
         P.run_optimization(maxtime=30)
     elif test == 'sir':
         P = au.demo(which='sir')
-        P.load_progbook(progbook_path="databooks/progbook_" + test + ".xlsx", make_default_progset=True)
 
         alloc = sc.odict([('Risk avoidance',0.),
                          ('Harm reduction 1',0.),
@@ -630,7 +642,7 @@ if "optimization" in torun:
 
         ## CASCADE MEASURABLE
         # This measurable will maximize the number of people in the final cascade stage, whatever it is
-        measurables = au.MaximizeCascadeFinalStage('main',[2030],pop_names='all') # NB. make sure the objective year is later than the program start year, otherwise no time for any changes
+        measurables = au.MaximizeCascadeStage('main',[2023],pop_names='all') # NB. make sure the objective year is later than the program start year, otherwise no time for any changes
 
         # This is the same as the 'standard' example, just running the optimization and comparing the results
         optimization = au.Optimization(name='default', adjustments=adjustments, measurables=measurables, constraints=constraints)
@@ -650,8 +662,8 @@ if "runsimprogs" in torun:
     P.run_sim(parset="default", progset="default", progset_instructions=ProgramInstructions(), result_name="progtest")
     
 if "saveproject" in torun:
-    P.save(tmpdir+test+".prj")
+    P.save(TMPDIR+test+".prj")
 
 if "loadproject" in torun:
-    P = au.Project.load(tmpdir+test+".prj")
+    P = au.Project.load(TMPDIR+test+".prj")
 

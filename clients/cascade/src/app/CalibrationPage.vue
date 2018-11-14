@@ -1,7 +1,7 @@
 <!--
 Calibration Page
 
-Last update: 2018-09-06
+Last update: 2018-10-05
 -->
 
 <template>
@@ -47,7 +47,7 @@ Last update: 2018-09-06
         &nbsp;&nbsp;
         <div class="controls-box">
           <b>Parameter set: &nbsp;</b>
-          <select v-model="activeParset">
+          <select v-model="activeParset" @change="loadParTable()">
             <option v-for='parset in parsetOptions'>
               {{ parset }}
             </option>
@@ -56,8 +56,7 @@ Last update: 2018-09-06
           <button class="btn btn-icon" @click="copyParset()" data-tooltip="Copy"><i class="ti-files"></i></button>
           <button class="btn btn-icon" @click="deleteParset()" data-tooltip="Delete"><i class="ti-trash"></i></button>
           <button class="btn btn-icon" @click="downloadParset()" data-tooltip="Download"><i class="ti-download"></i></button>
-          <button class="btn btn-icon" @click="uploadParset()" data-tooltip="Upload"><i class="ti-upload"></i></button>
-          <button class="btn btn-icon" @click="loadParTable()" data-tooltip="Refresh"><i class="ti-reload"></i></button>&nbsp;
+          <button class="btn btn-icon" @click="uploadParset()" data-tooltip="Upload"><i class="ti-upload"></i></button>&nbsp;
           <help reflink="parameter-sets"></help>
         </div>
 
@@ -485,11 +484,13 @@ Last update: 2018-09-06
       deleteParset() {
         console.log('deleteParset() called for ' + this.activeParset)
         status.start(this)
-        rpcs.rpc('delete_parset', [this.projectID, this.activeParset]) // Have the server copy the project, giving it a new name.
+        rpcs.rpc('delete_parset', [this.projectID, this.activeParset]) // Have the server delete the parset.
           .then(response => {
-            this.updateSets() // Update the project summaries so the copied program shows up on the list.
-            // TODO: look into whether the above line is necessary
-            status.succeed(this, 'Parameter set "'+this.activeParset+'" deleted') // Indicate success.
+            this.updateSets() // Update the project summaries so the deleted parset shows up on the list.
+            .then(response2 => {
+              this.loadParTable() // Reload the parameters.
+              status.succeed(this, 'Parameter set "'+this.activeParset+'" deleted') // Indicate success.
+            })    
           })
           .catch(error => {
             status.fail(this, 'Cannot delete last parameter set: ensure there are at least 2 parameter sets before deleting one', error)
@@ -514,9 +515,11 @@ Last update: 2018-09-06
           .then(response => {
             status.start(this)
             this.updateSets() // Update the project summaries so the copied program shows up on the list.
-            // TODO: look into whether the above line is necessary
-            this.activeParset = response.data
-            status.succeed(this, 'Parameter set "' + this.activeParset + '" uploaded') // Indicate success.
+            .then(response2 => {
+              this.activeParset = response.data
+              this.loadParTable() // Reload the parameters.
+              status.succeed(this, 'Parameter set "' + this.activeParset + '" uploaded') // Indicate success.
+            })
           })
           .catch(error => {
             status.fail(this, 'Could not upload parameter set', error)

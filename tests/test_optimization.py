@@ -12,6 +12,7 @@ logger = logging.getLogger()
 ## Setting DEBUG level before importing Atomica will display the structure warnings occurring during import
 # logger.setLevel('DEBUG')
 
+
 import atomica.ui as au
 import sciris as sc
 import numpy as np
@@ -25,6 +26,8 @@ test='sir'
 # test='diabetes'
 # test='hypertension'
 #test='usdt'
+
+np.seterr(all='raise')
 
 torun = [
 "standard",
@@ -44,8 +47,7 @@ torun = [
 
 # Load the SIR demo and associated programs
 P = au.demo(which=test,do_plot=0)
-filename = "databooks/progbook_"+test+".xlsx"
-P.load_progbook(progbook_path=filename)
+P.update_settings(sim_end=2030.0)
 
 def run_optimization(proj,optimization,instructions):
     unoptimized_result = proj.run_sim(parset=proj.parsets["default"], progset=proj.progsets['default'], progset_instructions=instructions, result_name="unoptimized")
@@ -155,8 +157,8 @@ if 'delayed' in torun and test=='sir':
     (unoptimized_result,optimized_result) = run_optimization(P, optimization, instructions)
 
     t = optimized_result.model.t
-    unoptimized_spending = unoptimized_result.model.progset.get_alloc(unoptimized_result.model.program_instructions,t)
-    optimized_spending = optimized_result.model.progset.get_alloc(optimized_result.model.program_instructions,t)
+    unoptimized_spending = unoptimized_result.model.progset.get_alloc(t,unoptimized_result.model.program_instructions)
+    optimized_spending = optimized_result.model.progset.get_alloc(t,optimized_result.model.program_instructions)
 
     plt.figure()
     plt.plot(t,unoptimized_spending['Treatment 1'],label='Unoptimized Treatment 1')
@@ -199,8 +201,8 @@ if 'multi_year_fixed' in torun and test=='sir':
     (unoptimized_result,optimized_result) = run_optimization(P, optimization, instructions)
 
     t = optimized_result.model.t
-    unoptimized_spending = unoptimized_result.model.progset.get_alloc(unoptimized_result.model.program_instructions,t)
-    optimized_spending = optimized_result.model.progset.get_alloc(optimized_result.model.program_instructions,t)
+    unoptimized_spending = unoptimized_result.model.progset.get_alloc(t,unoptimized_result.model.program_instructions)
+    optimized_spending = optimized_result.model.progset.get_alloc(t,optimized_result.model.program_instructions)
 
 
     d = au.PlotData.programs(optimized_result)
@@ -235,8 +237,8 @@ if 'multi_year_relative' in torun and test=='sir':
     (unoptimized_result,optimized_result) = run_optimization(P, optimization, instructions)
 
     t = optimized_result.model.t
-    unoptimized_spending = unoptimized_result.model.progset.get_alloc(unoptimized_result.model.program_instructions,t)
-    optimized_spending = optimized_result.model.progset.get_alloc(optimized_result.model.program_instructions,t)
+    unoptimized_spending = unoptimized_result.model.progset.get_alloc(t,unoptimized_result.model.program_instructions)
+    optimized_spending = optimized_result.model.progset.get_alloc(t,optimized_result.model.program_instructions)
 
     d = au.PlotData.programs(optimized_result)
     au.plot_series(d,plot_type='stacked')
@@ -267,8 +269,8 @@ if 'gradual' in torun and test=='sir':
     (unoptimized_result,optimized_result) = run_optimization(P, optimization, instructions)
 
     t = optimized_result.model.t
-    unoptimized_spending = unoptimized_result.model.progset.get_alloc(unoptimized_result.model.program_instructions,t)
-    optimized_spending = optimized_result.model.progset.get_alloc(optimized_result.model.program_instructions,t)
+    unoptimized_spending = unoptimized_result.model.progset.get_alloc(t,unoptimized_result.model.program_instructions)
+    optimized_spending = optimized_result.model.progset.get_alloc(t,optimized_result.model.program_instructions)
 
     plt.figure()
     plt.plot(t,unoptimized_spending['Treatment 1'],label='Unoptimized Treatment 1')
@@ -304,8 +306,8 @@ if 'mixed' in torun and test=='sir':
     (unoptimized_result,optimized_result) = run_optimization(P, optimization, instructions)
 
     t = optimized_result.model.t
-    unoptimized_spending = unoptimized_result.model.progset.get_alloc(unoptimized_result.model.program_instructions,t)
-    optimized_spending = optimized_result.model.progset.get_alloc(optimized_result.model.program_instructions,t)
+    unoptimized_spending = unoptimized_result.model.progset.get_alloc(t,unoptimized_result.model.program_instructions)
+    optimized_spending = optimized_result.model.progset.get_alloc(t,optimized_result.model.program_instructions)
 
     plt.figure()
     plt.plot(t,unoptimized_spending['Treatment 1'],label='Unoptimized Treatment 1')
@@ -332,8 +334,8 @@ if 'parametric_paired' in torun and test=='sir':
     (unoptimized_result,optimized_result) = run_optimization(P, optimization, instructions)
 
     t = optimized_result.model.t
-    unoptimized_spending = unoptimized_result.model.progset.get_alloc(unoptimized_result.model.program_instructions,t)
-    optimized_spending = optimized_result.model.progset.get_alloc(optimized_result.model.program_instructions,t)
+    unoptimized_spending = unoptimized_result.model.progset.get_alloc(t,unoptimized_result.model.program_instructions)
+    optimized_spending = optimized_result.model.progset.get_alloc(t,optimized_result.model.program_instructions)
 
     plt.figure()
     plt.plot(t,unoptimized_spending['Treatment 1'],label='Unoptimized Treatment 1')

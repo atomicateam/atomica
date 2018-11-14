@@ -1,8 +1,11 @@
 import sciris as sc
 from .system import NotAllowedError
+import inspect
+import os
+
 
 class NamedItem(object):
-    def __init__(self,name=None):
+    def __init__(self, name=None):
         if name is None:
             name = '<unnamed>'
         self.name = name
@@ -18,6 +21,7 @@ class NamedItem(object):
     def __repr__(self):
         return sc.prepr(self)
 
+
 class NDict(sc.odict):
     def __init__(self, *args, **kwargs):
         sc.odict.__init__(self, *args, **kwargs)
@@ -30,19 +34,27 @@ class NDict(sc.odict):
         sc.odict.__setitem__(self, key, item)
 
         # If it is a NamedItem, then synchronize the name of the object with the specified key
-        if isinstance(item,NamedItem):
+        if isinstance(item, NamedItem):
             item.name = key
             item.modified = sc.now()
         return None
-    
+
     def append(self, value):
         # Insert a NamedItem into the NDict by using the name of the item as the key. Of course this only
         # works for NamedItems, otherwise you have to explicitly provide the key
-        if not isinstance(value,NamedItem):
+        if not isinstance(value, NamedItem):
             raise NotAllowedError('Can only automatically get the name from NamedItems. Instead of `x.append(y)` you need `x["name"]=y`')
         key = value.name
         sc.odict.append(self, key=key, value=value)
         return None
 
+    def copy(self, old, new):
+        sc.odict.copy(self, old, new)
+        if isinstance(self[new], NamedItem):
+            self[new].name = new
+        return None
 
 
+def parent_dir():
+    # Return the parent directory of the file that called this function
+    return os.path.join(os.path.abspath(os.path.join(inspect.stack()[1][1], os.pardir)), '')

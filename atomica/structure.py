@@ -4,6 +4,7 @@ import sciris as sc
 import numpy as np
 import scipy.interpolate
 
+
 class FrameworkSettings(object):
     # Holds various constants naming things used throughout Atomica
     from .parser_function import supported_functions
@@ -21,14 +22,14 @@ class FrameworkSettings(object):
     QUANTITY_TYPE_NUMBER = "number"
     QUANTITY_TYPE_FRACTION = "fraction"
     QUANTITY_TYPE_PROPORTION = "proportion"
-    STANDARD_UNITS = [QUANTITY_TYPE_PROBABILITY,QUANTITY_TYPE_DURATION,QUANTITY_TYPE_NUMBER,QUANTITY_TYPE_FRACTION,QUANTITY_TYPE_PROPORTION]
+    STANDARD_UNITS = [QUANTITY_TYPE_PROBABILITY, QUANTITY_TYPE_DURATION, QUANTITY_TYPE_NUMBER, QUANTITY_TYPE_FRACTION, QUANTITY_TYPE_PROPORTION]
 
     DEFAULT_SYMBOL_INAPPLICABLE = "N.A."
 
-    RESERVED_KEYWORDS = ['t','flow','all','dt','total'] # A code_name in the framework cannot be equal to one of these values
+    RESERVED_KEYWORDS = ['t', 'flow', 'all', 'dt', 'total']  # A code_name in the framework cannot be equal to one of these values
     RESERVED_KEYWORDS += supported_functions.keys()
 
-    RESERVED_SYMBOLS = set(':,;/+-*\'"') # A code_name in the framework (for characs, comps, pars) cannot contain any of these characters
+    RESERVED_SYMBOLS = set(':,;/+-*\'"')  # A code_name in the framework (for characs, comps, pars) cannot contain any of these characters
 
 # def convert_quantity(value, initial_type, final_type, set_size=None, dt=1.0):
 #     """
@@ -80,8 +81,9 @@ class FrameworkSettings(object):
 #
 #     return value
 
+
 class TimeSeries(object):
-    def __init__(self, t=None, vals=None, format=None, units=None,assumption=None):
+    def __init__(self, t=None, vals=None, units=None, assumption=None):
 
         t = sc.promotetoarray(t) if t is not None else list()
         vals = sc.promotetoarray(vals) if vals is not None else list()
@@ -90,12 +92,11 @@ class TimeSeries(object):
 
         self.t = []
         self.vals = []
-        self.format = format # TODO - differentiate between format and unit. The format specifies how to scale, while the unit specifies the dimensions. For example, format='number' but unit='Number of people'
         self.units = units
         self.assumption = assumption
-        self.sigma = None # Uncertainty value
+        self.sigma = None  # Uncertainty value
 
-        for tx, vx in zip(t,vals):
+        for tx, vx in zip(t, vals):
             self.insert(tx, vx)
 
     def __repr__(self):
@@ -116,10 +117,10 @@ class TimeSeries(object):
         # Insert value v at time t maintaining sort order
         # To set the assumption, set t=None
 
-        if v is None: # Can't cast a None to a float, just skip it
+        if v is None:  # Can't cast a None to a float, just skip it
             return
 
-        v = float(v) # Convert input to float
+        v = float(v)  # Convert input to float
 
         if t is None:
             self.assumption = v
@@ -168,16 +169,16 @@ class TimeSeries(object):
             if t_remove[0] < tval < t_remove[1]:
                 self.remove(tval)
 
-    def interpolate(self,t2):
+    def interpolate(self, t2):
         # Output is guaranteed to be of type np.array
-        t2 = sc.promotetoarray(t2) # Deal with case where user prompts for single time point
+        t2 = sc.promotetoarray(t2)  # Deal with case where user prompts for single time point
 
         if not self.has_data:
             return np.full(t2.shape, np.nan)
         elif not self.has_time_data:
             return np.full(t2.shape, self.assumption)
 
-        t1,v1 = self.get_arrays()
+        t1, v1 = self.get_arrays()
 
         # Remove NaNs
         idx = ~np.isnan(t1) & ~np.isnan(v1)
@@ -187,16 +188,16 @@ class TimeSeries(object):
         if t1.size == 0:
             raise AtomicaException('No time points remained after removing NaNs from the TimeSeries')
         elif t1.size == 1:
-            return np.full(t2.shape,v1[0])
+            return np.full(t2.shape, v1[0])
         else:
             v2 = np.zeros(t2.shape)
             f = scipy.interpolate.PchipInterpolator(t1, v1, axis=0, extrapolate=False)
-            v2[(t2>=t1[0]) & (t2<=t1[-1])] = f(t2[(t2>=t1[0]) & (t2<=t1[-1])])
-            v2[t2<t1[0]] = v1[0]
-            v2[t2>t1[-1]] = v1[-1]
+            v2[(t2 >= t1[0]) & (t2 <= t1[-1])] = f(t2[(t2 >= t1[0]) & (t2 <= t1[-1])])
+            v2[t2 < t1[0]] = v1[0]
+            v2[t2 > t1[-1]] = v1[-1]
             return v2
 
-    def sample(self,t2):
+    def sample(self, t2):
         # This method might sample from the TimeSeries for the given years
         # e.g. `ts.interpolate([2011,2012])` would give the values without uncertainty
         # while `ts.sample([2011,2012])` would perturb the values depending on sigma

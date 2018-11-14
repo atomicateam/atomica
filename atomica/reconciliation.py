@@ -1,7 +1,9 @@
 import numpy as np
 import sciris as sc
 from .system import logger
+from .structure import FrameworkSettings as FS
 import pandas as pd
+
 
 def _extract_targets(result, progset, ti, eval_pars=None):
     # Store the target parset values in the same form as the progset computed parameter values
@@ -18,31 +20,24 @@ def _extract_targets(result, progset, ti, eval_pars=None):
     # Get the parameter outcomes - assumes simulation end year was the reconciliation year (hence -1 index)
     target_vals = dict()
     for covout in progset.covouts.values():
-        par,pop = covout.par,covout.pop
-        if (eval_pars is None and result.framework.get_par(par)['targetable'] == 'y') or (par,pop) in eval_pars:
-            target_vals[(par,pop)] = result.get_variable(pop, par)[0].vals[ti]
+        par_name, pop_name = covout.par, covout.pop
+        if (eval_pars is None and result.framework.get_par(par_name)['targetable'] == 'y') or (par_name, pop_name) in eval_pars:
+            par = result.get_variable(pop_name, par_name)[0]
+            if par.units == FS.QUANTITY_TYPE_NUMBER:
+                # If a transition parameter in number units is being targeted, then the program outcome is in units of per person reached
+                # at each timestep, while the parameter units are people/year. Thus, we need to convert the model parameter into the program
+                # output units prior to reconciling
+                target_vals[(par_name, pop_name)] = par.vals[ti] * result.dt / np.array([par.source_popsize(x) for x in ti])
+            else:
+                target_vals[(par_name, pop_name)] = par.vals[ti]
 
-    # Get the coverage denominator (it's always the same, so can do it once here)
-    coverage_denominator = dict()
-    for prog in progset.programs.values():  # For each program
-        for pop_name in prog.target_pops:
-            for comp_name in prog.target_comps:
-                if prog.name not in coverage_denominator:
-                    coverage_denominator[prog.name] = result.get_variable(pop_name, comp_name)[0].vals[ti].copy()
-                else:
-                    coverage_denominator[prog.name] += result.get_variable(pop_name, comp_name)[0].vals[ti]
+    # Get the coverage denominator in the reconciliation year (it's always the same, so can do it once here)
+    coverage_denominator = {x: y[ti] for x, y in result.get_coverage('denominator').items()}
 
-    # TODO - this probably doesn't work for multiple time indexes?
-    # Need to refactor properly
-    par_covered = dict()
-    for par_name in progset.pars:
-        for pop in result.model.pops:
-            par = pop.get_par(par_name)
-            par_covered[(par_name, pop.name)] = par.source_popsize(ti)
+    return target_vals, coverage_denominator
 
-    return target_vals, coverage_denominator, par_covered
 
-def _update_progset(asd_vals,mapping,progset):
+def _update_progset(asd_vals, mapping, progset):
     # Updates progset in place, inserting values
     # INPUTS:
     # - asd_vals - asd array
@@ -54,7 +49,7 @@ def _update_progset(asd_vals,mapping,progset):
     #             baseline - par,pop
     #             outcome - par,pop,program
     # - progset : ProgramSet to modify, should have only one time
-    for x,target in zip(asd_vals,mapping):
+    for x, target in zip(asd_vals, mapping):
         if target[0] == 'unit_cost':
             assert len(progset.programs[target[1]].unit_cost.vals) == 1
             progset.programs[target[1]].unit_cost.vals[0] = x
@@ -62,11 +57,12 @@ def _update_progset(asd_vals,mapping,progset):
             assert len(progset.programs[target[1]].capacity.vals) == 1
             progset.programs[target[1]].capacity.vals[0] = x
         elif target[0] == 'baseline':
-            progset.covouts[(target[1],target[2])].baseline = x
+            progset.covouts[(target[1], target[2])].baseline = x
         elif target[0] == 'outcome':
-            progset.covouts[(target[1],target[2])].progs[target[3]] = x
+            progset.covouts[(target[1], target[2])].progs[target[3]] = x
 
-def _prepare_bounds(progset,unit_cost_bounds,baseline_bounds,capacity_bounds,outcome_bounds):
+
+def _prepare_bounds(progset, unit_cost_bounds, baseline_bounds, capacity_bounds, outcome_bounds):
     # This is a separate function to _prepare_asd_inputs() because there may be complex logic related to
     # defaults for constructing the bounds. At the end, the bounds dict contains upper and lower limits
     # for every parameter being considered
@@ -86,20 +82,21 @@ def _prepare_bounds(progset,unit_cost_bounds,baseline_bounds,capacity_bounds,out
 
     for prog in progset.programs.values():
         if unit_cost_bounds:
-            bounds['unit_cost'][prog.name] = prog.unit_cost.vals*np.array([1-unit_cost_bounds,1+unit_cost_bounds])
-        if capacity_bounds:
-            bounds['capacity'][prog.name] = prog.capacity.vals*np.array([1-capacity_bounds,1+capacity_bounds])
+            bounds['unit_cost'][prog.name] = prog.unit_cost.vals * np.array([1 - unit_cost_bounds, 1 + unit_cost_bounds])
+        if capacity_bounds and prog.capacity.has_data:
+            bounds['capacity'][prog.name] = prog.capacity.vals * np.array([1 - capacity_bounds, 1 + capacity_bounds])
 
     for covout in progset.covouts.values():
         if baseline_bounds:
-            bounds['baseline'][(covout.par,covout.pop)] = covout.baseline*np.array([1-baseline_bounds,1+baseline_bounds])
+            bounds['baseline'][(covout.par, covout.pop)] = covout.baseline * np.array([1 - baseline_bounds, 1 + baseline_bounds])
         if outcome_bounds:
-            for prog,outcome in covout.progs.items():
-                bounds['outcome'][(covout.par, covout.pop,prog)] = outcome*np.array([1-outcome_bounds,1+outcome_bounds])
+            for prog, outcome in covout.progs.items():
+                bounds['outcome'][(covout.par, covout.pop, prog)] = outcome * np.array([1 - outcome_bounds, 1 + outcome_bounds])
 
     return bounds
 
-def _prepare_asd_inputs(progset,bounds):
+
+def _prepare_asd_inputs(progset, bounds):
     # Return initial values, upper-lower bounds, and mapping to insert the arrays into a progset
     # Only quantities that appear in the bounds dict will be reconciled
     x0 = list()
@@ -108,45 +105,48 @@ def _prepare_asd_inputs(progset,bounds):
     mapping = list()
 
     for prog in progset.programs.values():
-        if prog.name in bounds['unit_cost']: # Might need to check program_specific bounds here
+        if prog.name in bounds['unit_cost']:  # Might need to check program_specific bounds here
             x0.append(prog.unit_cost.vals[0])
             xmin.append(bounds['unit_cost'][prog.name][0])
             xmax.append(bounds['unit_cost'][prog.name][1])
-            mapping.append(('unit_cost',prog.name))
-        if prog.name in bounds['capacity']: # Might need to check program_specific bounds here
+            mapping.append(('unit_cost', prog.name))
+        if prog.name in bounds['capacity']:  # Might need to check program_specific bounds here
             x0.append(prog.capacity.vals[0])
             xmin.append(bounds['capacity'][prog.name][0])
             xmax.append(bounds['capacity'][prog.name][1])
-            mapping.append(('capacity',prog.name))
+            mapping.append(('capacity', prog.name))
 
     for covout in progset.covouts.values():
         if (covout.par, covout.pop) in bounds['baseline']:
             x0.append(covout.baseline)
-            xmin.append(bounds['baseline'][(covout.par,covout.pop)][0])
-            xmax.append(bounds['baseline'][(covout.par,covout.pop)][1])
-            mapping.append(('baseline', covout.par,covout.pop))
+            xmin.append(bounds['baseline'][(covout.par, covout.pop)][0])
+            xmax.append(bounds['baseline'][(covout.par, covout.pop)][1])
+            mapping.append(('baseline', covout.par, covout.pop))
 
             for prog, outcome in covout.progs.items():
                 if (covout.par, covout.pop, prog) in bounds['outcome']:
                     x0.append(outcome)
-                    xmin.append(bounds['outcome'][(covout.par, covout.pop,prog)][0])
-                    xmax.append(bounds['outcome'][(covout.par, covout.pop)][1])
+                    xmin.append(bounds['outcome'][(covout.par, covout.pop, prog)][0])
+                    xmax.append(bounds['outcome'][(covout.par, covout.pop, prog)][1])
                     mapping.append(('outcome', covout.par, covout.pop, prog))
 
     return x0, xmin, xmax, mapping
 
-def _objective(x, mapping, progset, eval_years, target_vals, coverage_denominator, par_covered):
-    _update_progset(x,mapping,progset) # Apply the changes to the progset
-    num_covered = progset.get_coverage(year=eval_years)
-    prop_covered = progset.get_coverage(year=eval_years, denominator=coverage_denominator)
+
+def _objective(x, mapping, progset, eval_years, target_vals, coverage_denominator, dt):
+    _update_progset(x, mapping, progset)  # Apply the changes to the progset
+    num_coverage = progset.get_num_coverage(tvec=eval_years, dt=dt, sample=False)  # Get number coverage using latest unit costs but default spending
+    prop_coverage = progset.get_prop_coverage(tvec=eval_years, num_coverage=num_coverage, denominator=coverage_denominator, sample=False)
+
     obj = 0.0
-    for i in range(0,len(eval_years)):
-        outcomes = progset.get_outcomes(num_covered={prog:cov[i] for prog,cov in num_covered.items()},par_covered=par_covered,prop_covered={prog:cov[i] for prog,cov in prop_covered.items()}) # Program outcomes for this year
-        for key in target_vals: # Key is a (par,pop) tuple
+    for i in range(0, len(eval_years)):
+        outcomes = progset.get_outcomes(prop_coverage=prop_coverage, sample=False)
+        for key in target_vals:  # Key is a (par,pop) tuple
             obj += (target_vals[key][i] - outcomes[key]) ** 2  # Add squared difference in parameter value
     return obj
 
-def _convert_to_single_year(progset,reconciliation_year):
+
+def _convert_to_single_year(progset, reconciliation_year):
     # Take in a progset
     # Return a progset with values only in the reconciliation year
     # This is then what actually gets reconciled
@@ -187,12 +187,13 @@ def _convert_to_single_year(progset,reconciliation_year):
     return new_progset
 
 # ASD takes in a list of values. So we need to map all of the things we are optimizing onto
+
+
 def reconcile(project, parset, progset, reconciliation_year, max_time=10, unit_cost_bounds=0.0, baseline_bounds=0.0, capacity_bounds=0.0, outcome_bounds=0.0, eval_pars=None, eval_range=None):
     # INTERIM
     #
     # unit_cost_bounds = 0.2 means +/- 20%
     # Same for the other bounds
-
     """
     Reconciles progset to identified parset, the objective being to match the parameters as closely as possible with identified standard deviation sigma
 
@@ -216,7 +217,7 @@ def reconcile(project, parset, progset, reconciliation_year, max_time=10, unit_c
 
     """
     # Sanitize inputs
-    parset  = project.parset(parset)
+    parset = project.parset(parset)
     progset = project.progset(progset)
 
     logger.warning('Reconcilation when parameter is in number units not fully tested')
@@ -225,20 +226,20 @@ def reconcile(project, parset, progset, reconciliation_year, max_time=10, unit_c
     assert len(reconciliation_year) == 1, 'Reconciliation year must be a scalar'
 
     if eval_range is None:
-        eval_range = [reconciliation_year[0],reconciliation_year[0]+project.settings.sim_dt]
+        eval_range = [reconciliation_year[0], reconciliation_year[0] + project.settings.sim_dt]
 
     # Do a prerun to get the baseline values and coverage denominator
-    parset_results = project.run_sim(parset=parset, store_results=False)
+    parset_results = project.run_sim(parset=parset, progset=progset, store_results=False)
     ti = np.where((parset_results.model.t >= eval_range[0]) & (parset_results.model.t < eval_range[1]))[0]
     eval_years = parset_results.t[ti]
-    target_vals, coverage_denominator, par_covered = _extract_targets(parset_results,progset,ti,eval_pars)
+    target_vals, coverage_denominator = _extract_targets(parset_results, progset, ti, eval_pars)
 
     # Prepare ASD inputs
-    new_progset = _convert_to_single_year(progset,reconciliation_year[0])
-    bounds = _prepare_bounds(new_progset,unit_cost_bounds,baseline_bounds,capacity_bounds,outcome_bounds) # Convert reconcile() inputs into full detailed bounds
-    x0, xmin, xmax, mapping = _prepare_asd_inputs(new_progset,bounds) # Assemble ASD variables
+    new_progset = _convert_to_single_year(progset, reconciliation_year[0])
+    bounds = _prepare_bounds(new_progset, unit_cost_bounds, baseline_bounds, capacity_bounds, outcome_bounds)  # Convert reconcile() inputs into full detailed bounds
+    x0, xmin, xmax, mapping = _prepare_asd_inputs(new_progset, bounds)  # Assemble ASD variables
 
-    logger.info("Reconciling in %.2f, evaluating from %.2f up to %.2f" % (reconciliation_year,eval_range[0], eval_range[1]))
+    logger.info("Reconciling in %.2f, evaluating from %.2f up to %.2f", reconciliation_year, eval_range[0], eval_range[1])
 
     args = {
         'mapping': mapping,
@@ -246,7 +247,7 @@ def reconcile(project, parset, progset, reconciliation_year, max_time=10, unit_c
         'eval_years': eval_years,
         'target_vals': target_vals,
         'coverage_denominator': coverage_denominator,
-        'par_covered':par_covered,
+        'dt': project.settings.sim_dt,
     }
 
     optim_args = {
@@ -260,7 +261,7 @@ def reconcile(project, parset, progset, reconciliation_year, max_time=10, unit_c
         # 'reltol': None,
         'xmin': xmin,
         'xmax': xmax,
-        'verbose': 2, # default verbosity
+        'verbose': 2,  # default verbosity
         'maxtime': max_time,
     }
 
@@ -268,23 +269,21 @@ def reconcile(project, parset, progset, reconciliation_year, max_time=10, unit_c
     _update_progset(x_opt, mapping, new_progset)  # Apply the changes to the progset
 
     # Before/after for quantities
-    records = [(item[0],item[1:],orig_val,opt_val) for item,orig_val,opt_val in zip(mapping,x0,x_opt)]
-    progset_comparison = pd.DataFrame.from_records(records,columns=['Quantity','Identifier','Before reconciliation','After reconciliation'])
+    records = [(item[0], item[1:], orig_val, opt_val) for item, orig_val, opt_val in zip(mapping, x0, x_opt)]
+    progset_comparison = pd.DataFrame.from_records(records, columns=['Quantity', 'Identifier', 'Before reconciliation', 'After reconciliation'])
 
     # Before/after for parameters
     records = []
-    old_num_coverage = progset.get_coverage(year=eval_years)
-    new_num_coverage = new_progset.get_coverage(year=eval_years)
-    old_prop_coverage = progset.get_coverage(year=eval_years, denominator=coverage_denominator)
-    new_prop_coverage = new_progset.get_coverage(year=eval_years, denominator=coverage_denominator)
-    for i,year in enumerate(eval_years):
-        old_outcomes = progset.get_outcomes(num_covered={prog: cov[i] for prog, cov in old_num_coverage.items()},prop_covered={prog: cov[i] for prog, cov in old_prop_coverage.items()}, par_covered=par_covered)  # Program outcomes for this year
-        new_outcomes = new_progset.get_outcomes(num_covered={prog: cov[i] for prog, cov in new_num_coverage.items()},prop_covered={prog: cov[i] for prog, cov in new_prop_coverage.items()}, par_covered=par_covered)  # Program outcomes for this year
+    old_num_coverage = progset.get_num_coverage(tvec=eval_years, dt=project.settings.sim_dt)
+    new_num_coverage = new_progset.get_num_coverage(tvec=eval_years, dt=project.settings.sim_dt)
+    old_prop_coverage = progset.get_prop_coverage(tvec=eval_years, num_coverage=old_num_coverage, denominator=coverage_denominator)
+    new_prop_coverage = new_progset.get_prop_coverage(tvec=eval_years, num_coverage=new_num_coverage, denominator=coverage_denominator)
+    for i, year in enumerate(eval_years):
+        old_outcomes = progset.get_outcomes(prop_coverage={prog: cov[[i]] for prog, cov in old_prop_coverage.items()})  # Program outcomes for this year
+        new_outcomes = new_progset.get_outcomes(prop_coverage={prog: cov[[i]] for prog, cov in new_prop_coverage.items()})  # Program outcomes for this year
         for (par, pop), target in target_vals.items():
-            records.append((par,pop,year,target[0],old_outcomes[(par,pop)],new_outcomes[(par,pop)]))
-    parameter_comparison = pd.DataFrame.from_records(records,columns=['Parameter','Population','Year','Target','Before reconciliation','After reconciliation'])
+            records.append((par, pop, year, target[0], old_outcomes[(par, pop)], new_outcomes[(par, pop)]))
+    parameter_comparison = pd.DataFrame.from_records(records, columns=['Parameter', 'Population', 'Year', 'Target', 'Before reconciliation', 'After reconciliation'])
     parameter_comparison['Difference'] = parameter_comparison['Before reconciliation'] - parameter_comparison['After reconciliation']
 
     return new_progset, progset_comparison, parameter_comparison
-
-

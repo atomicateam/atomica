@@ -8,14 +8,14 @@ import numpy as np
 import sciris as sc
 import atomica.ui as au
 
-to_run = ['quick','full'][0] 
+to_run = ['quick','full'][0]
 run_scens = True
 run_optim = True
 maxtime   = 10
 txtcolor  = 'blue'
 
 T = sc.tic()
-# np.seterr(all='raise') # We don't expect numerical warnings in any of the demos - but TB currently has some
+np.seterr(all='raise') # We don't expect numerical warnings in any of the demos - but TB currently has some
 
 #%%
 if to_run == 'quick':
@@ -26,7 +26,6 @@ if to_run == 'quick':
     if run_optim:
         if len(P.optims): P.run_optimization(maxtime=maxtime)
         else:             sc.colorize('green', 'No optimizations found')
-
 
 #%%
 if to_run == 'full':
@@ -57,8 +56,7 @@ if to_run == 'full':
             if len(P.optims): P.run_optimization(maxtime=maxtime)
             else:             sc.colorize('green', 'No optimizations found')
         Plist.append(P)
-    
-    
+
 sc.toc(T)
 print('Done.')
     

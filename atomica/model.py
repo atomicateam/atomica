@@ -4,6 +4,7 @@ from .system import AtomicaException, NotFoundError, AtomicaInputError, NotAllow
 from .structure import FrameworkSettings as FS
 from .results import Result
 from .parser_function import parse_function
+from .version import version
 from collections import defaultdict
 import sciris as sc
 import numpy as np
@@ -14,12 +15,14 @@ model_settings = dict()
 model_settings['tolerance'] = 1e-6
 model_settings['iteration_limit'] = 100
 
+
 class BadInitialization(AtomicaException):
     # Throw this error if the simulation exited due to a bad initialization, specifically
     # due to negative initial popsizes or an excessive residual.
     # This can then be dealt with appropriately - e.g. calibration will catch this
     # error and instruct ASD to reject the proposed parameters
     pass
+
 
 class Variable(object):
     """
@@ -30,7 +33,7 @@ class Variable(object):
     """
 
     def __init__(self, pop, id):
-        self.id = id # ID is a tuple that uniquely identifies the Variable within a model. The last entry in the Tuple is the cascade name
+        self.id = id  # ID is a tuple that uniquely identifies the Variable within a model. The last entry in the Tuple is the cascade name
         self.t = None
         self.dt = None
         if 'vals' not in dir(self):  # characteristics already have a vals method
@@ -75,11 +78,12 @@ class Variable(object):
     def __repr__(self):
         return '%s "%s" %s' % (self.__class__.__name__, self.name, self.id)
 
+
 class Compartment(Variable):
     """ A class to wrap up data for one compartment within a cascade network. """
 
     def __init__(self, pop, name):
-        Variable.__init__(self, pop=pop, id=(pop.name,name))
+        Variable.__init__(self, pop=pop, id=(pop.name, name))
         self.units = 'Number of people'
         self.tag_birth = False  # Tag for whether this compartment contains unborn people.
         self.tag_dead = False  # Tag for whether this compartment contains dead people.
@@ -115,7 +119,7 @@ class Compartment(Variable):
         if ti is None:
             ti = np.arange(0, len(self.t))
 
-        outflow_probability = 0 # Outflow probability at this timestep
+        outflow_probability = 0  # Outflow probability at this timestep
         for link in self.outlinks:
 
             if link.parameter.units == FS.QUANTITY_TYPE_DURATION:
@@ -145,8 +149,6 @@ class Compartment(Variable):
         dur = (1 - (1. / np.log(remain_probability) ** 2) * (remain_probability - 1)) * self.dt
         return dur
 
-
-
     def expected_outflow(self, ti):
         # After 1 year, where are people expected to be? If people would leave in less than a year,
         # then the numbers correspond to when the compartment is empty
@@ -160,6 +162,7 @@ class Compartment(Variable):
 
         return outflow
 
+
 class Characteristic(Variable):
     """ A characteristic represents a grouping of compartments. """
 
@@ -167,7 +170,7 @@ class Characteristic(Variable):
         # includes is a list of Compartments, whose values are summed
         # the denominator is another Characteristic that normalizes this one
         # All passed by reference so minimal performance impact
-        Variable.__init__(self, pop=pop, id=(pop.name,name))
+        Variable.__init__(self, pop=pop, id=(pop.name, name))
         self.units = 'Number of people'
         self.includes = []
         self.denominator = None
@@ -253,29 +256,30 @@ class Characteristic(Variable):
             else:
                 self.internal_vals[ti] = np.inf  # Given a non-zero/zero case, keep the answer infinite.
 
+
 class Parameter(Variable):
     # A parameter is a Variable that can have a value computed via an fcn_str and a list of
     # dependent Variables. This class may need to be relabeld to avoid confusion with
     # the class in Parameter.py which provides a means of computing the Parameter that is used by the model.
-    # This is a Parameter in the cascade.xlsx sense - there is one Parameter object for every item in the 
+    # This is a Parameter in the cascade.xlsx sense - there is one Parameter object for every item in the
     # Parameters sheet. A parameter that maps to multiple transitions (e.g. doth_rate) will have one parameter
     # and multiple Link instances that depend on the same Parameter instance
     #
     #  *** Parameter values are always annualized ***
     def __init__(self, pop, name):
-        Variable.__init__(self, pop=pop, id=(pop.name,name))
+        Variable.__init__(self, pop=pop, id=(pop.name, name))
         self.vals = None
         self.limits = None  # Can be a two element vector [min,max]
         self.dependency = False
         self.pop_aggregation = None    # If True, value update in Model.update_pars(), not self.update().
-        self.scale_factor = 1.0 # This should be set to the product of the population-specific y_factor and the meta_y_factor from the ParameterSet
+        self.scale_factor = 1.0  # This should be set to the product of the population-specific y_factor and the meta_y_factor from the ParameterSet
         self.links = []  # References to links that derive from this parameter
         self.source_popsize_cache_time = None
         self.source_popsize_cache_val = None
 
-        self.fcn_str = None # String representation of parameter function
-        self.deps = None # Dict of dependencies containing lists of integration objects
-        self._fcn = None # Internal cache for parsed parameter function (this will be dropped when pickled)
+        self.fcn_str = None  # String representation of parameter function
+        self.deps = None  # Dict of dependencies containing lists of integration objects
+        self._fcn = None  # Internal cache for parsed parameter function (this will be dropped when pickled)
 
     def set_fcn(self, framework, fcn_str):
         # fcn_input could be
@@ -306,7 +310,7 @@ class Parameter(Variable):
             # Convert weighting variable to object reference
             if len(function_args) == 3:
                 v2 = self.pop.get_variable(function_args[2])[0]
-                if isinstance(v2,Link):
+                if isinstance(v2, Link):
                     raise NotAllowedError('Links cannot be used to weight interactions')
                 function_args[-1] = v2
 
@@ -315,7 +319,7 @@ class Parameter(Variable):
         deps = {}
         interactions = set(framework.interactions.index)
         for dep_name in dep_list:
-            if not (dep_name in interactions or dep_name in ['t','dt']): # There are no integration variables associated with the interactions, as they are treated as a special matrix
+            if not (dep_name in interactions or dep_name in ['t', 'dt']):  # There are no integration variables associated with the interactions, as they are treated as a special matrix
                 deps[dep_name] = self.pop.get_variable(dep_name)
         self.deps = deps
 
@@ -358,23 +362,27 @@ class Parameter(Variable):
     def constrain(self, ti):
         # NB. Must be an array, so ti must must not be supplied
         if self.limits is not None:
-            self.vals[ti] = max(self.limits[0], self.vals[ti])
-            self.vals[ti] = min(self.limits[1], self.vals[ti])
+            if self.vals[ti] < self.limits[0]:
+                self.vals[ti] = self.limits[0]
+            if self.vals[ti] > self.limits[1]:
+                self.vals[ti] = self.limits[1]
 
     def update(self, ti=None):
-        # Update the value of this Parameter at time index ti
-        # by evaluating its f_stack function using the 
-        # current values of all dependent variables at time index ti
+        # Update the value of this Parameter at time indices ti
+        #
+        # INPUTS
+        # - ti : An int, or a numpy array with index values. If None, all time values will be used
+        #
+        # OUTPUTS
+        # - No outputs, the parameter value is updated in-place
 
         if not self._fcn or self.pop_aggregation:
             return
 
         if ti is None:
             ti = np.arange(0, self.vals.size)  # This corresponds to every time point
-        else:
-            ti = np.array(ti)
 
-        dep_vals = dict.fromkeys(self.deps,0.0)
+        dep_vals = dict.fromkeys(self.deps, 0.0)
         for dep_name, deps in self.deps.items():
             for dep in deps:
                 if isinstance(dep, Link):
@@ -384,7 +392,7 @@ class Parameter(Variable):
 
         dep_vals['t'] = self.t[ti]
         dep_vals['dt'] = self.dt
-        self.vals[ti] = self.scale_factor*self._fcn(**dep_vals)
+        self.vals[ti] = self.scale_factor * self._fcn(**dep_vals)
 
     def source_popsize(self, ti):
         # Get the total number of people covered by this program
@@ -400,10 +408,11 @@ class Parameter(Variable):
                 for link in self.links:
                     n += link.source.vals[ti]
             else:
-                n = np.nan
+                raise AtomicaException('Cannot retrieve source popsize for a non-transition parameter')
             self.source_popsize_cache_time = ti
             self.source_popsize_cache_val = n
             return n
+
 
 class Link(Variable):
     """
@@ -419,7 +428,7 @@ class Link(Variable):
     # *** Link values are always dt-based ***
     def __init__(self, pop, parameter, source, dest, tag):
         # Note that the Link's name is the transition tag
-        Variable.__init__(self, pop=pop, id=(pop.name,source.name,dest.name,tag)) # A Link is only uniquely identified by (Pop,Source,Dest,Par)
+        Variable.__init__(self, pop=pop, id=(pop.name, source.name, dest.name, tag))  # A Link is only uniquely identified by (Pop,Source,Dest,Par)
         self.vals = None
         self.units = 'Number of people'
 
@@ -454,6 +463,7 @@ class Link(Variable):
         Variable.plot(self)
         plt.title('Link %s to %s' % (self.source.name, self.dest.name))
 
+
 class Population(object):
     """
     A class to wrap up data for one population within model.
@@ -462,8 +472,8 @@ class Population(object):
 
     def __init__(self, framework, name, label):
 
-        self.name = name # This is the code name
-        self.label = label # This is the full name
+        self.name = name  # This is the code name
+        self.label = label  # This is the full name
 
         self.comps = list()  # List of cascade compartments that this model population subdivides into.
         # List of characteristics and output parameters.
@@ -532,7 +542,7 @@ class Population(object):
         # types except for links, but if that logic changes, simple modifications can
         # be made here
 
-        name = name.replace('___',':') # Parameter functions will convert ':' to '___' for use in variable names
+        name = name.replace('___', ':')  # Parameter functions will convert ':' to '___' for use in variable names
 
         if name in self.comp_lookup:
             return [self.comp_lookup[name]]
@@ -612,11 +622,11 @@ class Population(object):
         # Instantiate compartments
         for comp_name in list(comps.index):
             self.comps.append(Compartment(pop=self, name=comp_name))
-            if comps.at[comp_name,"is source"] == 'y':
+            if comps.at[comp_name, "is source"] == 'y':
                 self.comps[-1].tag_birth = True
-            if comps.at[comp_name,"is sink"] == 'y':
+            if comps.at[comp_name, "is sink"] == 'y':
                 self.comps[-1].tag_dead = True
-            if comps.at[comp_name,"is junction"] == 'y':
+            if comps.at[comp_name, "is junction"] == 'y':
                 self.comps[-1].is_junction = True
         self.comp_lookup = {comp.name: comp for comp in self.comps}
 
@@ -626,20 +636,20 @@ class Population(object):
         self.charac_lookup = {charac.name: charac for charac in self.characs}
 
         # Characteristics second pass, add includes and denominator
-        for charac_name,charac in zip(list(characs.index),self.characs):
-            includes = [x.strip() for x in characs.at[charac_name,'components'].split(',')]
+        for charac_name, charac in zip(list(characs.index), self.characs):
+            includes = [x.strip() for x in characs.at[charac_name, 'components'].split(',')]
             for inc_name in includes:
                 charac.add_include(self.get_variable(inc_name)[0])  # nb. We expect to only get one match for the name, so use index 0
-            denominator = characs.at[charac_name,"denominator"]
+            denominator = characs.at[charac_name, "denominator"]
             if denominator is not None:
-                charac.add_denom(self.get_variable(denominator)[0]) # nb. framework import strips whitespace from the overall field
+                charac.add_denom(self.get_variable(denominator)[0])  # nb. framework import strips whitespace from the overall field
 
         # Parameters first pass, create parameter objects and links
         for par_name in list(pars.index):
             par = Parameter(pop=self, name=par_name)
             self.pars.append(par)
-            if framework.transitions[par_name]: # If there are any links associated with this parameter
-                par.units = pars.at[par_name,"format"] # First copy in the units from the Framework - mainly for transition parameters that are functions. Others will get overwritten from databook later
+            if framework.transitions[par_name]:  # If there are any links associated with this parameter
+                par.units = pars.at[par_name, "format"]  # First copy in the units from the Framework - mainly for transition parameters that are functions. Others will get overwritten from databook later
                 for pair in framework.transitions[par_name]:
                     src = self.get_comp(pair[0])
                     dst = self.get_comp(pair[1])
@@ -653,9 +663,9 @@ class Population(object):
         self.par_lookup = {par.name: par for par in self.pars}
 
         # Parameters second pass, process f_stacks, deps, and limits
-        for par_name,par in zip(list(pars.index),self.pars):
-            min_value = pars.at[par_name,'minimum value']
-            max_value = pars.at[par_name,'maximum value']
+        for par_name, par in zip(list(pars.index), self.pars):
+            min_value = pars.at[par_name, 'minimum value']
+            max_value = pars.at[par_name, 'maximum value']
 
             if (min_value is not None) or (max_value is not None):
                 par.limits = [-np.inf, np.inf]
@@ -664,9 +674,9 @@ class Population(object):
                 if max_value is not None:
                     par.limits[1] = max_value
 
-            fcn_str = pars.at[par_name,'function']
+            fcn_str = pars.at[par_name, 'function']
             if fcn_str is not None:
-                par.set_fcn(framework,fcn_str)
+                par.set_fcn(framework, fcn_str)
 
     def preallocate(self, tvec, dt):
         """
@@ -695,13 +705,11 @@ class Population(object):
         for i, c in enumerate(characs):
             # Look up the characteristic value
             par = parset.get_par(c.name)
-            b[i] = par.interpolate(tvec=np.array([t_init]), pop_name=self.name)[0]*par.y_factor[self.name]*par.meta_y_factor
-            # Run exception clauses for compartment logic.
-            if isinstance(c,Characteristic):
+            b[i] = par.interpolate(tvec=np.array([t_init]), pop_name=self.name)[0] * par.y_factor[self.name] * par.meta_y_factor
+            if isinstance(c, Characteristic):
                 if c.denominator is not None:
-                    denom_par = parset.pars['characs'][parset.par_ids['characs'][c.denominator.name]]
-                    b[i] *= denom_par.interpolate(tvec=np.array([t_init]), pop_name=self.name)[0]*denom_par.y_factor[self.name]*denom_par.meta_y_factor
-
+                    denom_par = parset.get_par(c.denominator.name)
+                    b[i] *= denom_par.interpolate(tvec=np.array([t_init]), pop_name=self.name)[0] * denom_par.y_factor[self.name] * denom_par.meta_y_factor
                 for inc in c.get_included_comps():
                     A[i, comp_indices[inc.name]] = 1.0
             else:
@@ -711,14 +719,14 @@ class Population(object):
         if np.linalg.matrix_rank(A) < A.shape[1]:
             # If the system is rank deficient, then attempt to solve it with positive compartment sizes
             # This will allow `x+y+z=10`, `x=10` to resolve `y+z=0`
-            res = lsq_linear(A, b.ravel(),bounds=(0,np.inf)) # Do non-negative least squares - for omitted characs, this _SHOULD_ lead to 0
+            res = lsq_linear(A, b.ravel(), bounds=(0, np.inf))  # Do non-negative least squares - for omitted characs, this _SHOULD_ lead to 0
         else:
             # If the system is NOT rank deficient, then attempt to solve it with negative compartment sizes. This way,
             # errors that result in negative compartments will be limited to the part of the system that is incorrect,
             # rather than manifesting is a large residual distributed over the entire system
-            res = lsq_linear(A, b.ravel()) # Do non-negative least squares - for omitted characs, this _SHOULD_ lead to 0
+            res = lsq_linear(A, b.ravel())  # Do non-negative least squares - for omitted characs, this _SHOULD_ lead to 0
 
-        x = res['x'].reshape(-1,1)
+        x = res['x'].reshape(-1, 1)
         residual = res['cost']
 
         # Print warning for characteristics that are not well matched by the compartment size solution
@@ -738,16 +746,16 @@ class Population(object):
                                                  "Target value = N/A (0.0)".format(charac.name))
 
             n_indent += 1
-            if isinstance(charac,Characteristic):
+            if isinstance(charac, Characteristic):
                 for inc in charac.includes:
                     if isinstance(inc, Characteristic):
                         report_characteristic(inc, n_indent)
                     else:
-                        logger.warning(n_indent * '\t' + 'Compartment %s: Computed value = %f' % (inc.name, x[comp_indices[inc.name]]))
+                        logger.warning(n_indent * '\t' + 'Compartment %s: Computed value = %f', inc.name, x[comp_indices[inc.name]])
 
         for i in range(0, len(comps)):
             if x[i] < -model_settings['tolerance']:
-                logger.warning('Compartment %s %s - Calculated %f' % (self.name, comps[i].name, x[i]))
+                logger.warning('Compartment %s %s - Calculated %f', self.name, comps[i].name, x[i])
                 for charac in characs:
                     try:
                         if comps[i] in charac.get_included_comps():
@@ -760,8 +768,8 @@ class Population(object):
         if residual > model_settings["tolerance"]:
             print(x)
             raise BadInitialization("Residual was {0} which is unacceptably large (should be < {1}). "
-                                   "This points to a probable inconsistency in the initial "
-                                   "values.".format(residual, model_settings["tolerance"]))
+                                    "This points to a probable inconsistency in the initial "
+                                    "values.".format(residual, model_settings["tolerance"]))
 
         # Halt for any negative popsizes
         if np.any(np.less(x, -model_settings['tolerance'])):
@@ -775,16 +783,28 @@ class Population(object):
             if c.tag_birth or c.tag_dead:
                 c.vals[0] = 0
 
+
 class Model(object):
     """ A class to wrap up multiple populations within model and handle cross-population transitions. """
 
     def __init__(self, settings, framework, parset, progset=None, program_instructions=None):
+        #
+        # Note that if a progset is provided and program instructions are not, then programs will not be
+        # turned on. However, the progset is still available so that the coverage can still be probed
+        # (in particular, the coverage denominator from Result.get_coverage('denominator') is used
+        # for reconciliation
+        #
+        # Record version info for the model run. These are generally NOT updated in migration. Thus, they serve
+        # as a record of which specific version of the code was used to generate the results
+        self.version = version
+        self.gitinfo = sc.gitinfo(__file__)
+        self.created = sc.now()
 
         self.pops = list()  # List of population groups that this model subdivides into.
         self.interactions = sc.odict()
         self.programs_active = None  # True or False depending on whether Programs will be used or not
         self.progset = sc.dcp(progset)
-        self.program_instructions = sc.dcp(program_instructions) # program instructions
+        self.program_instructions = sc.dcp(program_instructions)  # program instructions
         self.t = None
         self.dt = None
 
@@ -792,10 +812,10 @@ class Model(object):
         self._vars_by_pop = None  # Cache to look up lists of variables by name across populations
         self._pop_ids = sc.odict()  # Maps name of a population to its position index within populations list.
         self._program_cache = None
-        self._par_list = list(framework.pars.index) # This is a list of all parameters code names in the model
+        self._par_list = list(framework.pars.index)  # This is a list of all parameters code names in the model
 
-        self.framework = sc.dcp(framework) # Store a copy of the Framework used to generate this model
-        self.framework.spreadsheet = None # No need to keep the spreadsheet
+        self.framework = sc.dcp(framework)  # Store a copy of the Framework used to generate this model
+        self.framework.spreadsheet = None  # No need to keep the spreadsheet
         self.build(settings, parset)
 
     def unlink(self):
@@ -810,7 +830,7 @@ class Model(object):
             pop.unlink()
 
         self._vars_by_pop = None
-        self._program_cache = None # This drops the cache when pickling, but its only going to have anything if pickled DURING process() i.e. only devs would encounter this
+        self._program_cache = None  # This drops the cache when pickling, but its only going to have anything if pickled DURING process() i.e. only devs would encounter this
 
     def relink(self):
         # Need to enumerate objects at Model level because transitions link across pops
@@ -836,43 +856,31 @@ class Model(object):
             self.programs_active = True
             self._program_cache = dict()
 
-            self._program_cache['comps'] = {}
-            self._program_cache['pars'] = {}
+            self._program_cache['comps'] = dict()
             for prog in self.progset.programs.values():
                 self._program_cache['comps'][prog.name] = []
-
                 for pop_name in prog.target_pops:
                     for comp_name in prog.target_comps:
                         self._program_cache['comps'][prog.name].append(self.get_pop(pop_name).get_comp(comp_name))
 
-            for target_par in prog.target_pars:
-                if target_par['param'] not in self._program_cache['pars']:
-                    self._program_cache['pars'][target_par['param']] = {}
+            self._program_cache['num_coverage'] = self.progset.get_num_coverage(tvec=self.t, dt=self.dt, instructions=self.program_instructions)
 
-                self._program_cache['pars'][target_par['param']][target_par['pop']] = self.get_pop(target_par['pop']).get_par(target_par['param'])
-
-            self._program_cache['alloc'] = self.progset.get_alloc(self.program_instructions, self.t)
-            self._program_cache['num_coverage'] = self.progset.get_num_covered(year=self.t, alloc=self._program_cache['alloc'])
-
+            # Cache the proportion coverage for coverage scenarios so that we don't call interpolate() every timestep
             self._program_cache['prop_coverage'] = dict()
             for prog_name, coverage_ts in self.program_instructions.coverage.items():
                 self._program_cache['prop_coverage'][prog_name] = coverage_ts.interpolate(self.t)
 
-            self.progset.prepare_cache()
         else:
             self.programs_active = False
-
-
 
     def set_vars_by_pop(self):
         self._vars_by_pop = defaultdict(list)
         for pop in self.pops:
             for var in pop.comps + pop.characs + pop.pars + pop.links:
                 self._vars_by_pop[var.name].append(var)
-        self._vars_by_pop = dict(self._vars_by_pop) # Stop new entries from appearing in here by accident
+        self._vars_by_pop = dict(self._vars_by_pop)  # Stop new entries from appearing in here by accident
 
     def __getstate__(self):
-        # The combination of
         self.unlink()
         d = sc.dcp(self.__dict__)  # Pickling to string results in a copy
         self.relink()  # Relink, otherwise the original object gets unlinked
@@ -882,7 +890,7 @@ class Model(object):
         self.__dict__ = d
         self.relink()
 
-    def __deepcopy__(self,memodict={}):
+    def __deepcopy__(self, memodict={}):
         # Using dcp(self.__dict__) is faster than pickle getstate/setstate
         # when this is called via copy.deepcopy()
         self.unlink()
@@ -897,14 +905,13 @@ class Model(object):
         pop_index = self._pop_ids[pop_name]
         return self.pops[pop_index]
 
-
     def build(self, settings, parset):
         """ Build the full model. """
 
         self.t = settings.tvec  # Note: Class @property method returns a new object each time.
         self.dt = settings.sim_dt
 
-        for k, (pop_name,pop_label) in enumerate(zip(parset.pop_names,parset.pop_labels)):
+        for k, (pop_name, pop_label) in enumerate(zip(parset.pop_names, parset.pop_labels)):
             self.pops.append(Population(framework=self.framework, name=pop_name, label=pop_label))
             # Memory is allocated, speeding up model. However, values are NaN to enforce proper parset value saturation.
             self.pops[-1].preallocate(self.t, self.dt)
@@ -917,19 +924,17 @@ class Model(object):
             self.interactions[name] = np.zeros((len(self.pops), len(self.pops), len(self.t)))
             for from_pop, par in weights.items():
                 for to_pop in par.pops:
-                    self.interactions[name][parset.pop_names.index(from_pop), parset.pop_names.index(to_pop), :] = par.interpolate(self.t, to_pop)*par.y_factor[to_pop]*par.meta_y_factor
+                    self.interactions[name][parset.pop_names.index(from_pop), parset.pop_names.index(to_pop), :] = par.interpolate(self.t, to_pop) * par.y_factor[to_pop] * par.meta_y_factor
 
         # Insert values from parset into model objects
-        for cascade_par in parset.pars['cascade']:
-            for pop_name in parset.pop_names:
-                pop = self.get_pop(pop_name)
-                par = pop.get_par(cascade_par.name)  # Find the parameter with the requested name
-                # If parameter has an f-stack then vals will be calculated during/after integration.
-                # This is opposed to values being supplied from databook.
-                par.units = cascade_par.y_format[pop_name]
-                par.scale_factor = cascade_par.y_factor[pop_name]*cascade_par.meta_y_factor
-                if not par.fcn_str:
-                    par.vals = cascade_par.interpolate(tvec=self.t, pop_name=pop_name)*par.scale_factor
+        for pop in self.pops:
+            for par in pop.pars:
+                if par.name in parset.pars:
+                    cascade_par = parset.get_par(par.name)
+                    par.units = cascade_par.y_format[pop_name]
+                    par.scale_factor = cascade_par.y_factor[pop_name] * cascade_par.meta_y_factor
+                    if not par.fcn_str and cascade_par.has_values(pop.name):
+                        par.vals = cascade_par.interpolate(tvec=self.t, pop_name=pop.name) * par.scale_factor
 
         # Propagating transfer parameter parset values into Model object.
         # For each population pair, instantiate a Parameter with the values from the databook
@@ -950,11 +955,10 @@ class Model(object):
                         par_name = trans_type + '_' + pop_source + '_to_' + pop_target  # e.g. 'aging_0-4_to_15-64'
                         par = Parameter(pop=pop, name=par_name)
                         par.preallocate(self.t, self.dt)
-                        par.scale_factor = transfer_parameter.y_factor[pop_target]*transfer_parameter.meta_y_factor
-                        par.vals = transfer_parameter.interpolate(tvec=self.t, pop_name=pop_target)*par.scale_factor
+                        par.scale_factor = transfer_parameter.y_factor[pop_target] * transfer_parameter.meta_y_factor
+                        par.vals = transfer_parameter.interpolate(tvec=self.t, pop_name=pop_target) * par.scale_factor
                         par.units = transfer_parameter.y_format[pop_target]
                         pop.pars.append(par)
-                        # TODO: Reconsider manual lookup hack if Transfers are implemented differently.
                         pop.par_lookup[par_name] = par
 
                         target_pop_obj = self.get_pop(pop_target)
@@ -985,15 +989,15 @@ class Model(object):
         # Initial flush of people in junctions
         if self._t_index == 0:
             # Make sure initially-filled junctions are processed and initial dependencies are calculated, and calculate initial flows
-            self.update_pars() # Update transition parameters in case junction outflows are function parameters
-            self.update_junctions(initial_flush=True) # Flush the current contents of the junction without considering any inflows
-            self.update_pars() # Update the transition parameters in case junction outflows are functions _and_ they depend on compartment sizes that just changed in the line above
-            self.update_links() # Update all of the links
-            self.update_junctions() # Junctions are now empty - perform a normal update by setting the outflows to be equal to the inflows so the usual condition outflow[t]=inflow[t] is satisfied
+            self.update_pars()  # Update transition parameters in case junction outflows are function parameters
+            self.update_junctions(initial_flush=True)  # Flush the current contents of the junction without considering any inflows
+            self.update_pars()  # Update the transition parameters in case junction outflows are functions _and_ they depend on compartment sizes that just changed in the line above
+            self.update_links()  # Update all of the links
+            self.update_junctions()  # Junctions are now empty - perform a normal update by setting the outflows to be equal to the inflows so the usual condition outflow[t]=inflow[t] is satisfied
 
         # Main integration loop
         while self._t_index < (self.t.size - 1):
-            self.update_comps() # This writes values to comp.vals[ti+1] so this will be out of bounds if self._t_index == self.t.size-1
+            self.update_comps()  # This writes values to comp.vals[ti+1] so this will be out of bounds if self._t_index == self.t.size-1
             self._t_index += 1  # Step the simulation forward
             self.update_pars()
             self.update_links()
@@ -1014,7 +1018,7 @@ class Model(object):
                 #             for link in par.links:
                 #                 link.vals = None
 
-        self._program_cache = None # Drop the program cache afterwards to save space
+        self._program_cache = None  # Drop the program cache afterwards to save space
 
     def update_links(self):
         """
@@ -1064,9 +1068,9 @@ class Model(object):
                     elif quantity_type not in [FS.QUANTITY_TYPE_PROPORTION]:
                         try:
                             par_label = self.framework.get_label(par.name)
-                        except: # Name lookup will fail for transfer parameters
+                        except:  # Name lookup will fail for transfer parameters
                             par_label = par.name
-                        raise AtomicaException("Encountered unknown units '%s' for Parameter '%s' (%s) in Population %s" % (quantity_type,par.name,par_label,pop.name))
+                        raise AtomicaException("Encountered unknown units '%s' for Parameter '%s' (%s) in Population %s" % (quantity_type, par.name, par_label, pop.name))
 
             # Then, adjust outflows to prevent negative popsizes.
             for comp_source in pop.comps:
@@ -1076,7 +1080,7 @@ class Model(object):
                         outflow += link.vals[ti]
 
                     if outflow > comp_source.vals[ti]:
-                        rescale = comp_source.vals[ti]/outflow
+                        rescale = comp_source.vals[ti] / outflow
                         for link in comp_source.outlinks:
                             link.vals[ti] *= rescale
 
@@ -1112,7 +1116,7 @@ class Model(object):
             for comp in pop.comps:
                 comp.vals[ti + 1] = max(0, comp.vals[ti + 1])
 
-    def update_junctions(self,initial_flush=False):
+    def update_junctions(self, initial_flush=False):
         """
         For every compartment considered a junction, propagate the contents onwards.
         Do so until all junctions are empty.
@@ -1122,7 +1126,7 @@ class Model(object):
         # some people in it initially, or after `update_links` in which case it won't have any people
         # so it needs to fill itself from its incoming links
 
-        ti = self._t_index # The current simulation timestep, at time ti the inflow and outflow need to be balanced. `update_links()` sets the inflow but not the outflow, which is done here
+        ti = self._t_index  # The current simulation timestep, at time ti the inflow and outflow need to be balanced. `update_links()` sets the inflow but not the outflow, which is done here
 
         for pop in self.pops:
 
@@ -1144,7 +1148,7 @@ class Model(object):
 
             # Repeatedly flush the junctions until they have all resolved (this deals with cases where one
             # junction has a flow into another junction)
-            for i in range(0,model_settings["iteration_limit"]):
+            for i in range(0, model_settings["iteration_limit"]):
                 review_required = False
 
                 for junc in junctions:
@@ -1185,56 +1189,25 @@ class Model(object):
 
         ti = self._t_index
 
-        # The output list maintains the order in which characteristics and parameters appear in the
-        # settings, and also puts characteristics before parameters. So iterating through that list
-        # will automatically compute them in the correct order
-
         # First, compute dependent characteristics, as parameters might depend on them
         for pop in self.pops:
             for charac in pop.characs:
                 if charac.dependency:
                     charac.update(ti)
 
-        # 1st:  Update parameters if they have an f_stack variable
-        # 2nd:  Any parameter that is overwritten by a program-based cost-coverage-impact transformation.
-        # 3rd:  Any parameter that is overwritten by a special rule, e.g. averaging across populations.
-        # 4th:  Any parameter that is restricted within a range of values, i.e. by min/max values.
-        # Looping through populations must be internal.
-        # This allows all values to be calculated before special inter-population rules are applied.
-        # We resolve one parameter at a time, in dependency order
         do_program_overwrite = self.programs_active and self.program_instructions.start_year <= self.t[ti] <= self.program_instructions.stop_year
 
         if do_program_overwrite:
-            # Compute the fraction covered
-            num_covered  = sc.odict([(k,v[ti]) for k,v in self._program_cache['num_coverage'].iteritems()])
-            prop_covered = sc.odict.fromkeys(self._program_cache['comps'], 0.0)
-            for k,comp_list in self._program_cache['comps'].items():
-                if k in self._program_cache['prop_coverage']:
-                    prop_covered[k] = self._program_cache['prop_coverage'][k][ti]
+            prop_coverage = sc.odict.fromkeys(self._program_cache['comps'], 0.0)
+            for k, comp_list in self._program_cache['comps'].items():
+                if k in self._program_cache['prop_coverage']: # If the coverage was precomputed in a coverage scenario
+                    prop_coverage[k] = self._program_cache['prop_coverage'][k][[ti]]
                 else:
                     n = 0.0
                     for comp in comp_list:
                         n += comp.vals[ti]
-                    if n:
-                        prop_covered[k] = np.minimum(self._program_cache['num_coverage'][k][ti] / n, 1.)
-                    else:
-                        prop_covered[k] = 1.
-
-            # TODO - Note that if a program has a coverage overwrite (in proportion units) but then targets
-            # a number parameter, the coverage overwrite will have no effect. This is kind of fitting in the
-            # sense that for number parameters, at the moment
-            # - the proportion coverage is ignored
-            # - the targeting sheet is ignored
-            # so it is consistent to have (fraction) coverage overwrites also be ignored. This may change if the
-            # design of number coverage programs is modified
-            par_covered = dict()
-            for par_name in self.progset.pars:
-                for pop in self.pops:
-                    par = pop.get_par(par_name)
-                    par_covered[(par_name,pop.name)] = par.source_popsize(ti)
-
-            # Compute the updated program values
-            prog_vals = self.progset.get_outcomes(num_covered=num_covered, prop_covered=prop_covered, par_covered=par_covered)
+                    prop_coverage[k] = self.progset.programs[k].get_prop_covered(self.t[ti], self._program_cache['num_coverage'][k][ti], n, sample=False)
+            prog_vals = self.progset.get_outcomes(prop_coverage)
 
         for par_name in self._par_list:
             # All of the parameters with this name, across populations.
@@ -1249,17 +1222,19 @@ class Model(object):
             # Then overwrite with program values
             if do_program_overwrite:
                 for par in pars:
-                    if (par.name,par.pop.name) in prog_vals:
-                        par.vals[ti] = prog_vals[(par.name,par.pop.name)]
+                    if (par.name, par.pop.name) in prog_vals:
+                        par.vals[ti] = prog_vals[(par.name, par.pop.name)]
+                        if par.units == FS.QUANTITY_TYPE_NUMBER:
+                            par.vals[ti] *= par.source_popsize(ti) / self.dt  # The outcome in the progbook is per person reached, which is a timestep specific value. Thus, need to annualize here
 
             # Handle parameters that aggregate over populations and use interactions in these functions.
             if pars[0].pop_aggregation:
                 # NB. `par.pop_aggregation` is (agg_fcn,par_name,interaction_name,charac_name) where the last item is optional
 
-                par_vals = [par.pop_aggregation[1].vals[ti] for par in pars] # Value of variable being averaged
+                par_vals = [par.pop_aggregation[1].vals[ti] for par in pars]  # Value of variable being averaged
                 par_vals = np.array(par_vals).reshape(-1, 1)
 
-                weights = self.interactions[pars[0].pop_aggregation[2]][:,:,ti].copy()
+                weights = self.interactions[pars[0].pop_aggregation[2]][:, :, ti].copy()
 
                 if pars[0].pop_aggregation[0] in {'SRC_POP_AVG', 'SRC_POP_SUM'}:
                     weights = weights.T
@@ -1270,20 +1245,21 @@ class Model(object):
 
                 # If we are weighting by a variable, multiply the weights matrix accordingly
                 if len(pars[0].pop_aggregation) == 4:
-                    charac_vals = [par.pop_aggregation[3].vals[ti] for par in pars] # Value of weighting variable
+                    charac_vals = [par.pop_aggregation[3].vals[ti] for par in pars]  # Value of weighting variable
                     charac_vals = np.array(charac_vals).reshape(-1, 1)
                     weights *= charac_vals.T
 
                 if pars[0].pop_aggregation[0] in {'SRC_POP_AVG', 'TGT_POP_AVG'}:
-                    weights /= np.sum(weights, axis=1, keepdims=1) # Normalize the interaction
+                    weights /= np.sum(weights, axis=1, keepdims=1)  # Normalize the interaction
                 par_vals = np.matmul(weights, par_vals)
 
                 for par, val in zip(pars, par_vals):
-                    par.vals[ti] = par.scale_factor*val
+                    par.vals[ti] = par.scale_factor * val
 
             # Restrict the parameter's value if a limiting range was defined
             for par in pars:
                 par.constrain(ti)
+
 
 def run_model(settings, framework, parset, progset=None, program_instructions=None, name=None):
     """
