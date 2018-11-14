@@ -1143,9 +1143,13 @@ class Model(object):
 
                     # Linearly convert number down to that appropriate for one timestep.
                     elif quantity_type == FS.QUANTITY_TYPE_NUMBER:
-                        converted_amt = transition * (self.dt / par.timescale) # Number flow in this timestep, so it includes a timescale factor
+
+                        if transition < 0:
+                            logger.warning('Negative transition occurred')
+                            transition = 0
 
                         # Disaggregate proportionally across all source compartment sizes related to all links.
+                        converted_amt = transition * (self.dt / par.timescale) # Number flow in this timestep, so it includes a timescale factor
                         if len(par.links) > 1:
                             for link in par.links:
                                 link.vals[ti] = converted_amt * link.source.vals[ti] / par.source_popsize(ti)
