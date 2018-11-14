@@ -168,17 +168,18 @@ class Project(object):
         data.save(databook_path)
         return data
 
-    def load_databook(self, databook_path=None, make_default_parset=True, do_run=True):
+    def load_databook(self, databook_path=None, make_default_parset=True, do_run=True) -> None:
         """
-        Load a data spreadsheet.
+        Load a data spreadsheet
 
-        INPUTS:
-        - databook_path: a path string, which will load a file from disk, or an AtomicaSpreadsheet
-                         containing the contents of a databook
-        - make_default_parset: If True, a Parset called "default" will be immediately created from the
-                               newly-added data
-        - do_run: If True, a simulation will be run using the new parset
+        :param databook_path: a path string, which will load a file from disk, or an AtomicaSpreadsheet
+                                containing the contents of a databook
+        :param make_default_parset: If True, a Parset called "default" will be immediately created from the
+                                    newly-added data
+        :param do_run: If True, a simulation will be run using the new parset
+
         """
+
         if sc.isstring(databook_path):
             full_path = sc.makefilepath(filename=databook_path, default=self.name, ext='xlsx', makedirs=False)
             databook_spreadsheet = AtomicaSpreadsheet(full_path)
@@ -212,11 +213,10 @@ class Project(object):
 
     def make_parset(self, name="default"):
         """ Transform project data into a set of parameters that can be used in model simulations. """
-        self.parsets.append(ParameterSet(name))
-        self.parsets[name].make_pars(self.framework, self.data)
+        self.parsets.append(ParameterSet(self.framework, self.data, name))
         return self.parsets[name]
 
-    def make_progbook(self, progbook_path=None, progs=None, data_start=None, data_end=None, blh_effects=False):
+    def make_progbook(self, progbook_path=None, progs=None, data_start=None, data_end=None):
         ''' Make a blank program databook'''
         # Get filepath
         if self.data is None:
@@ -230,12 +230,19 @@ class Project(object):
         progset = ProgramSet.new(tvec=np.arange(data_start, data_end + 1), progs=progs, framework=self.framework, data=self.data)
         progset.save(full_path)
 
-    def load_progbook(self, progbook_path=None, name="default", blh_effects=False, verbose=False):
-        ''' Load a programs databook'''
-        if verbose:
-            print('Making ProgramSet')
-        if verbose:
-            print('Uploading program data')
+    def load_progbook(self, progbook_path=None, name="default"):
+        """
+        Create a ProgramSet given a progbook
+
+        :param progbook_path: Path to a program spreadsheet
+        :param name: The name to assign to the new ProgramSet
+        :return: The newly created ProgramSet (also stored in ``self.progsets``)
+
+        """
+
+        logger.debug('Making ProgramSet')
+        logger.debug('Uploading program data')
+
         if self.data is None:
             errormsg = 'Please upload a databook before uploading a program book. The databook contains the population definitions required to read the program book.'
             raise Exception(errormsg)
@@ -246,15 +253,14 @@ class Project(object):
         else:
             progbook_spreadsheet = progbook_path
 
-        progset = ProgramSet.from_spreadsheet(spreadsheet=progbook_spreadsheet, framework=self.framework, data=self.data)
+        progset = ProgramSet.from_spreadsheet(spreadsheet=progbook_spreadsheet, framework=self.framework, data=self.data, name=name)
         progset.validate()
         self.progbook = sc.dcp(progbook_spreadsheet)  # Actually a shallow copy is fine here because AtomicaSpreadsheet contains no mutable properties
 
-        if verbose:
-            print('Updating program sets')
+        logger.debug('Updating program sets')
         self.progsets.append(progset)
-        if verbose:
-            print('Done with make_progset().')
+        logger.debug('Done with make_progset().')
+
 
     def make_scenario(self, name="default", which=None, instructions=None, json=None):
         if json is not None:

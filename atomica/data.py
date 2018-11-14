@@ -154,7 +154,8 @@ class ProjectData(sc.prettyobj):
                     else:
                         order = databook_order
                     pages[databook_page].append((full_name, order))
-                    data.tdve[full_name] = TimeDependentValuesEntry(full_name, tvec, allowed_units=framework.get_allowed_units(full_name), comment=spec['guidance'])
+
+                    data.tdve[full_name] = TimeDependentValuesEntry(full_name, tvec, allowed_units=[framework.get_units(full_name)], comment=spec['guidance'])
 
         # Now convert pages to full names and sort them into the correct order
         for _, spec in framework.sheets['databook pages'][0].iterrows():
@@ -270,8 +271,6 @@ class ProjectData(sc.prettyobj):
 
                     if not spec['databook page']:
                         logger.warning('A TDVE table for "%s" (%s) was read in and will be used, but the Framework did not mark this quantity as appearing in the databook', tdve.name, code_name)
-
-                    tdve.allowed_units = [x.title() if x in FS.STANDARD_UNITS else x for x in framework.get_allowed_units(code_name)]
                     tdve.comment = spec['guidance']
 
                     self.tdve[code_name] = tdve
@@ -321,7 +320,8 @@ class ProjectData(sc.prettyobj):
                     if spec.name not in self.tdve:
                         raise Exception('The databook did not contain a necessary TDVE table named "%s" (code name "%s")' % (spec['display name'], spec.name))
                     else:
-                        allowed_units = framework.get_allowed_units(spec.name)
+                        # TODO - update this to work with duration suffixes e.g. 'probability (per day)'
+                        framework_units = framework.get_databook_units(spec.name)
                         tdve = self.tdve[spec.name]
                         tdve_sheet = self.get_tdve_page(spec.name)
                         for name, ts in self.tdve[spec.name].ts.items():
@@ -329,8 +329,8 @@ class ProjectData(sc.prettyobj):
                             assert name in self.pops, '%s. Population "%s" not recognized. Should be one of: %s' % (location, name, self.pops.keys())
                             assert ts.has_data, '%s. Data values missing for %s (%s)' % (location, self.tdve[spec.name].name, name)
                             assert ts.units is not None, '%s. Units missing for %s (%s)' % (location, self.tdve[spec.name].name, name)
-                            if allowed_units:
-                                assert ts.units in allowed_units, '%s. Unit "%s" for %s (%s) do not match allowed units (%s)' % (location, ts.units, self.tdve[spec.name].name, name, allowed_units)
+                            if framework_units:
+                                assert ts.units in framework_units, '%s. Unit "%s" for %s (%s) do not match allowed units (%s)' % (location, ts.units, self.tdve[spec.name].name, name, allowed_units)
 
         for _, spec in framework.interactions.iterrows():
             for tdc in self.interpops:
@@ -395,8 +395,9 @@ class ProjectData(sc.prettyobj):
         for interaction in self.transfers + self.interpops:
             interaction.pops.append(code_name)
         for tdve in self.tdve.values():
-            default_unit = tdve.allowed_units[0] if tdve.allowed_units else None
-            tdve.ts[code_name] = TimeSeries(units=default_unit)
+            # Since TDVEs in databooks must have the unit set in the framework, all ts objects must share the same units
+            # Therefore, we can get the units for the new series from any one of the existing ts instances
+            tdve.ts[code_name] = TimeSeries(units=tdve.ts[0].units)
 
     def rename_pop(self, existing_code_name, new_code_name, new_full_name):
         # Rename an existing pop

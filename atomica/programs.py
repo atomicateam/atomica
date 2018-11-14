@@ -254,13 +254,29 @@ class ProgramSet(NamedItem):
         return framework, data
 
     @staticmethod
-    def from_spreadsheet(spreadsheet=None, framework=None, data=None, project=None):
+    def from_spreadsheet(spreadsheet=None, framework=None, data=None, project=None, name=None):
+        """
+        Instantiate a ProgramSet from a spreadsheet
+
+        To load a spreadsheet, need to either pass in
+
+            - A Project containing a framework and data
+            - ProjectFramework and ProjectData instances without a project
+
+        :param spreadsheet: A string file path, or an AtomicaSpreadsheet
+        :param framework: A :py:class:`ProjectFramework` instance
+        :param data: A :py:class:`ProjectData` instance
+        :param project: A :py:class:`Project` instance
+        :param name: Optionally specify the name of the ProgramSet to create
+        :return: A :py:class:`ProgramSet`
+
+        """
         '''Make a program set by loading in a spreadsheet.'''
 
         framework, data = ProgramSet.validate_inputs(framework, data, project)
 
         # Populate the available pops, comps, and pars based on the framework and data provided at this step
-        self = ProgramSet()
+        self = ProgramSet(name=name)
         self._set_available(framework, data)
 
         # Create and load spreadsheet

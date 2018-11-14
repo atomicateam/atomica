@@ -43,7 +43,8 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.napoleon',
     'sphinx_autodoc_typehints',
-    'nbsphinx',
+    'sphinx_markdown_tables',
+    # 'nbsphinx',
 ]
 #
 # autoclass_content = "both"  # include both class docstring and __init__

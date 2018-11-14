@@ -1133,7 +1133,7 @@ class Model(object):
                             link.vals[ti] = link.source.vals[ti] * converted_frac
 
                     # Convert probability by Poisson distribution formula to a value appropriate for timestep.
-                    if quantity_type == FS.QUANTITY_TYPE_PROBABILITY:
+                    elif quantity_type == FS.QUANTITY_TYPE_PROBABILITY:
                         if transition > 1.0:
                             converted_frac = 1.0
                         else:

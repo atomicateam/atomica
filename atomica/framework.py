@@ -17,7 +17,7 @@ from .version import version
 import numpy as np
 from .cascade import validate_cascade
 from .function_parser import parse_function
-
+from .utils import format_duration
 
 class InvalidFramework(Exception):
     pass
@@ -536,8 +536,15 @@ class ProjectFramework(object):
                 if not par['format']:
                     raise InvalidFramework('Parameter %s is a transition parameter, so it needs to have a format specified in the Framework' % par.name)
 
-                if par['timescale'] is None:
+                allowed_formats = {FS.QUANTITY_TYPE_NUMBER, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_DURATION, FS.QUANTITY_TYPE_PROPORTION}
+                if par['format'] not in allowed_formats:
+                    raise InvalidFramework('Parameter %s is a transition parameter so format "%s is not allowed - it must be one of %s' % (par.name,par['format'],allowed_formats))
+
+                if par['timescale'] is None and par['format'] in {FS.QUANTITY_TYPE_NUMBER, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_DURATION}:
                     self.pars.at[par.name,'timescale'] = 1.0 # Default timescale - note that currently only transition parameters are allowed to have a timescale that is not None
+                elif par['timescale'] is not None and par['format'] == FS.QUANTITY_TYPE_PROPORTION:
+                    raise InvalidFramework('Parameter %s is in proportion units, therefore it cannot have a timescale entered for it' % par.name)
+
 
                 from_comps = [x[0] for x in self.transitions[par.name]]
                 to_comps = [x[1] for x in self.transitions[par.name]]
@@ -574,8 +581,11 @@ class ProjectFramework(object):
                 # If this is not a transition parameter
                 if par['format'] == FS.QUANTITY_TYPE_NUMBER and par['targetable'] == 'y':
                     raise InvalidFramework('Parameter "%s" is targetable and in number units, but is not a transition parameter. To target a parameter with programs in number units, the parameter must appear in the transition matrix.' % par.name)
-                if par['timescale'] is not None:
-                    raise InvalidFramework('Parameter "%s" is not a transition parameter, but has a timescale associated with it. To avoid ambiguity in the parameter value used in functions, non-transition parameters cannot have timescales provided. Please remove the timescale value from the framework.' % par.name)
+
+                # NB. If the user specifies a timescale for a non-transition parameter, it won't have any effect, but it will result in appropriately
+                # labelled units in the databook. So for now, don't throw an error, just proceed
+                # if par['timescale'] is not None:
+                #     raise InvalidFramework('Parameter "%s" is not a transition parameter, but has a timescale associated with it. To avoid ambiguity in the parameter value used in functions, non-transition parameters cannot have timescales provided. Please remove the timescale value from the framework.' % par.name)
 
             defined.add(par.name)  # Only add the parameter to the list of definitions after it has finished validating, because parameters cannot depend on themselves
 
@@ -676,25 +686,51 @@ class ProjectFramework(object):
         if np.linalg.matrix_rank(A) < len(comps):
             logger.warning('Initialization characteristics are underdetermined - this may be intentional, but check the initial compartment sizes carefully')
 
-    def get_allowed_units(self, code_name):
-        # Given a variable's code name, return the allowed units for that variable based on the spec provided in the Framework
+    def get_databook_units(self, code_name: str) -> str:
+        """
+        Return the user-facing units for a quantity given a code name
+
+        This function returns the units specified in the Framework for quantities defined in the Framework.
+        The units for a quantity are:
+
+            - For compartments, number
+            - For characteristics, number or fraction depending on whether a denominator is present
+            - For parameters, return either the explicitly specified units plus a timescale, or an empty string
+            - Otherwise, return the inapplicable string (e.g. 'N.A.')
+
+        This function computes the units dynamically based on the content of the DataFrames. This ensures that
+        it stays in sync with the actual content - for example, if a denominator is programatically added to
+        a characteristic, the units don't also need to be manually updated.
+
+        Note that at this stage in computation, the units are mainly for managing presentation in the databook.
+        For example, a characteristic with a denominator is technically dimensionless, but we need it to be
+        reported in the databook as a fraction for data entry. Similarly, while the Framework stores the
+        internal units and timescale for a parameter (e.g. 'probability' and '1/365') this function will
+        return 'probability (per day)' for use in the databook.
+
+        :param code_name: Code name of a quantity supported by ``ProjectFramework.get_variable()``
+        :return: String containing the units of the quantity
+
+        """
+
         item_spec, item_type = self.get_variable(code_name)
 
         # State variables are in number amounts unless normalized.
         if item_type in [FS.KEY_COMPARTMENT, FS.KEY_CHARACTERISTIC]:
             if "denominator" in item_spec.index and item_spec["denominator"] is not None:
-                allowed_units = [FS.QUANTITY_TYPE_FRACTION]
+                return FS.QUANTITY_TYPE_FRACTION
             else:
-                allowed_units = [FS.QUANTITY_TYPE_NUMBER]
+                return FS.QUANTITY_TYPE_NUMBER
+        elif item_type == FS.KEY_PARAMETER:
+            if item_spec['timescale']:
+                if item_spec['format'] == FS.QUANTITY_TYPE_DURATION:
+                    return '%s (%s)' % (item_spec['format'],format_duration(item_spec['timescale'],pluralize=True))
+                elif item_spec['format'] in {FS.QUANTITY_TYPE_NUMBER,FS.QUANTITY_TYPE_PROBABILITY}:
+                    return '%s (per %s)' % (item_spec['format'],format_duration(item_spec['timescale'],pluralize=False))
+            elif item_spec['format']:
+                return item_spec['format']
 
-        # Modeller's choice for parameters
-        elif item_type in [FS.KEY_PARAMETER] and item_spec['format']:
-            allowed_units = [item_spec['format']]
-
-        else:
-            allowed_units = []
-
-        return allowed_units
+        return FS.DEFAULT_SYMBOL_INAPPLICABLE
 
 
 def sanitize_dataframe(df, required_columns, defaults, valid_content):

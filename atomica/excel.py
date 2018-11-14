@@ -515,37 +515,23 @@ class TimeDependentValuesEntry(object):
     which each map to properties on the underlying TimeSeries objects. It also contains a
     time vector corresponding to the time values that appear or will appear in the spreadsheet.
 
+    :param name: The name/title for this table
+    :param tvec: Specify the time values for this table. All TimeSeries in the ts dict should have corresponding time values
+    :param ts: Optionally specify an odict() of TimeSeries objects populating the rows. Could be populated after
+    :param allowed_units: Optionally specify a list of allowed units that will appear as a dropdown
+    :param comment: Optionally specify descriptive text that will be added as a comment to the name cell
+
     """
 
-    # A TDVE table is used for representing Characteristics and Parameters that appear in the Parset, a quantity
-    # that has one sparse time array for each population. A TDVE table contains
-    # - An ordered list of TimeSeries objects
-    # - A name for the quantity (as this is what gets printed and read, it's usually a full name rather than a code name)
-    # - Optionally a list of allowed units - All TimeSeries objects must have units contained in this list
-    # - A time axis (e.g. np.arange(2000,2019)) - all TimeSeries time values must exactly match one of the values here
-    #   i.e. you cannot try to write a TimeSeries that has a time value that doesn't appear as a table heading
-
     def __init__(self, name, tvec, ts=None, allowed_units=None, comment=None):
-        """ Instantiate a new TimeDepedentValuesEntry table object
 
-        :param name: The name/title for this table
-        :param tvec: Specify the time values for this table. All TimeSeries in the ts dict should have corresponding time values
-        :param ts: Optionally specify an odict() of TimeSeries objects populating the rows. Could be populated after
-        :param allowed_units: Optionally specify a list of allowed units that will appear as a dropdown
-        :param comment: Optionally specify descriptive text that will be added as a comment to the name cell
-        """
-
-        # ts - An odict where the key is a population name and the value is a TimeSeries
-        # name - This is the name of the quantity i.e. the full name of the characteristic or parameter
-        # tvec - The time values that will be written in the headings
-        # allowed_units - Possible values for the unit selection dropdown
         if ts is None:
             ts = sc.odict()
 
-        self.name = name
-        self.comment = comment
-        self.tvec = tvec
-        self.ts = ts
+        self.name = name #: Name for th quantity printed in Excel
+        self.comment = comment #: A comment that will be added in Excel
+        self.tvec = tvec #: time axis (e.g. np.arange(2000,2019)) - all TimeSeries time values must exactly match one of the values here
+        self.ts = ts #: dict of :py:class:`TimeSeries` objects
         self.allowed_units = [x.title() if x in FS.STANDARD_UNITS else x for x in allowed_units] if allowed_units is not None else None  # Otherwise, can be an odict with keys corresponding to ts - leave as None for no restriction
 
     def __repr__(self):

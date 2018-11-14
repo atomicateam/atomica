@@ -240,7 +240,7 @@ def evaluate_plot_string(plot_string):
         return plot_string
 
 
-def format_duration(t: float) -> str:
+def format_duration(t: float, pluralize=False) -> str:
     """
     User-friendly string format of a duration
 
@@ -250,12 +250,15 @@ def format_duration(t: float) -> str:
     e.g., going from 'probability' and '1/365' to 'probability/day'
 
     :param t: A duration in units of years
+    :param pluralize: Always return a plural suffix
     :return: A string
 
     Example usage:
 
     >>> format_duration(1)
     'year'
+    >>> format_duration(1, pluralize=True)
+    'years'
     >>> format_duration(1/365)
     'day'
     >>> format_duration(2/365)
@@ -291,7 +294,7 @@ def format_duration(t: float) -> str:
 
     # If there is only one of the base unit, then return the timescale as the final string
     if abs(converted_t-1.0) < 1e-5:
-        return timescale
+        return (timescale + 's') if pluralize else timescale
     elif converted_t%1 < 1e-3: # If it's sufficiently close to an integer, show it as an integer
         return '%d %ss' % (converted_t, timescale)
     else:
