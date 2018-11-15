@@ -1,17 +1,5 @@
 <template>
   <div class="multi-bar-view">
-    <div class="selections">
-      
-      <label>
-        Year
-        <select class="select" v-model="year">
-          <option v-for="option in yearOptions" :key="option" :value="option">
-            {{ option }}
-          </option>
-        </select>
-      </label>
-    </div>
-
     <div class="year-slider">
       <year-slider
         :years="yearOptions"
@@ -86,16 +74,6 @@ export default {
 }
 </script>
 <style lang="scss" scoped>
-.selections {
-  border-bottom: 1px solid #e4ecfc;
-  padding: 1rem;
-  margin-bottom: 1rem;
-
-  .select {
-    margin-right: 1rem;
-  }
-}
-
 .scenarios-vis {
   .stacked-cascade-vis {
     display: flex;

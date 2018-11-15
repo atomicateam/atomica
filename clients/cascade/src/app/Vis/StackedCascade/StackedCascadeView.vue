@@ -1,18 +1,9 @@
 <template>
   <div class="stacked-cascade-view">
-    <div class="selections">
-      <label v-if="resultsOptions.length > 1">
+    <div class="selections" v-if="resultsOptions.length > 1">
+      <label>
         <select class="select" v-model="result">
           <option v-for="option in resultsOptions" :key="option" :value="option">
-            {{ option }}
-          </option>
-        </select>
-      </label>
-      
-      <label>
-        Year
-        <select class="select" v-model="year">
-          <option v-for="option in yearOptions" :key="option" :value="option">
             {{ option }}
           </option>
         </select>
