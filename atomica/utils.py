@@ -201,30 +201,46 @@ class TimeSeries(object):
             return v2
 
     def sample(self, t2):
-        # This method might sample from the TimeSeries for the given years
-        # e.g. `ts.interpolate([2011,2012])` would give the values without uncertainty
-        # while `ts.sample([2011,2012])` would perturb the values depending on sigma
-        # (and perhaps some other distribution information too)
+        """
+        Not yet implemented
+
+        This method might sample from the TimeSeries for the given years
+        e.g. `ts.interpolate([2011,2012])` would give the values without uncertainty
+        while `ts.sample([2011,2012])` would perturb the values depending on sigma
+        (and perhaps some other distribution information too)
+
+        :param t2:
+        :return: None
+
+        """
+
         raise NotImplementedError()
 
 
-def evaluate_plot_string(plot_string):
-    # The plots in the framework are specified as strings - for example,
-    #
-    # plot_string = "{'New active DS-TB':['pd_div:flow','nd_div:flow']}"
-    #
-    # This needs to be (safely) evaluated so that the actual dict can be
-    # used. This function evaluates a string like this and returns a
-    # variable accordingly. For example
-    #
-    # x = evaluate_plot_string("{'New active DS-TB':['pd_div:flow','nd_div:flow']}")
-    #
-    # is the same as
-    #
-    # x = {'New active DS-TB':['pd_div:flow','nd_div:flow']}
-    #
-    # This will only happen if tokens associated with dicts and lists are present -
-    # otherwise the original string will just be returned directly
+def evaluate_plot_string(plot_string: str):
+    """
+    Evaluate a plotting output specification
+
+    The plots in the framework are specified as strings - for example,
+
+    >>> plot_string = "{'New active DS-TB':['pd_div:flow','nd_div:flow']}"
+
+    This needs to be (safely) evaluated so that the actual dict can be
+    used. This function evaluates a string like this and returns a
+    variable accordingly. For example
+
+    >>> x = evaluate_plot_string("{'New active DS-TB':['pd_div:flow','nd_div:flow']}")
+
+    is the same as
+
+    >>> x = {'New active DS-TB':['pd_div:flow','nd_div:flow']}
+
+    This will only happen if tokens associated with dicts and lists are present -
+    otherwise the original string will just be returned directly
+
+    :param plot_string: A string representation of Python structures (e.g., lists, dicts)
+    :return: Evaluated expression, the same as if it has originally been entered in a .py file
+    """
 
     if '{' in plot_string or '[' in plot_string:
         # Evaluate the string to set lists and dicts - do at least a little validation

@@ -11,10 +11,12 @@ import os
 import errno
 from collections import defaultdict
 
+import numpy as np
+import scipy.interpolate
+import scipy.integrate
 import matplotlib.cm as cmx
 import matplotlib.colors as matplotlib_colors
 import matplotlib.pyplot as plt
-import numpy as np
 from matplotlib.collections import PatchCollection
 from matplotlib.legend import Legend
 from matplotlib.lines import Line2D
@@ -28,8 +30,7 @@ from .system import logger
 from .function_parser import parse_function
 from .interpolation import interpolate_func
 from .system import FrameworkSettings as FS
-import scipy.interpolate
-import scipy.integrate
+from .utils import format_duration
 
 settings = dict()
 settings['legend_mode'] = 'together'  # Possible options are ['together','separate','none']
@@ -189,7 +190,9 @@ class PlotData():
 
             aggregated_outputs = defaultdict(dict)  # Dict with aggregated_outputs[pop_label][aggregated_output_label]
             aggregated_units = dict()  # Dict with aggregated_units[aggregated_output_label]
+            aggregated_timescales = dict()
             output_units = dict()
+            output_timescales = dict()
             compsize = dict()
             popsize = dict()
             # Defaultdict won't throw key error when checking outputs.
@@ -206,9 +209,7 @@ class PlotData():
                     vars = pop.get_variable(output_label)
 
                     if vars[0].vals is None:
-                        raise Exception(
-                            'Requested output "%s" was not recorded because only partial results were saved' % (
-                                vars[0].name))
+                        raise Exception('Requested output "%s" was not recorded because only partial results were saved' % (vars[0].name))
 
                     if isinstance(vars[0], Link):
                         data_dict[output_label] = np.zeros(tvecs[result_label].shape)
@@ -218,16 +219,22 @@ class PlotData():
                             data_dict[output_label] += link.vals
                             compsize[output_label] += (link.source.vals if not link.source.is_junction else link.source.outflow)
 
-                        if t_bins is None:  # Annualize if not time aggregating
+                        # Annualize if not time aggregating
+                        # Do the conversion here because if the user does a time-average of flow rates,
+                        # they would want them to still be annualized
+                        if t_bins is None:
                             data_dict[output_label] /= dt
-                            output_units[output_label] = vars[0].units + '/year'
+                            output_units[output_label] = vars[0].units
+                            output_timescales[output_label] = 1.0
                         else:
                             output_units[output_label] = vars[0].units  # If we sum links in a bin, we get a number of people
+                            output_timescales[output_label] = None # Note that if the units are 'Number of people' then there is no time period associated with it (because this is a binned number of people, not a rate)
                         data_label[output_label] = vars[0].parameter.name if vars[0].parameter.units == FS.QUANTITY_TYPE_NUMBER else None  # Only use parameter data points if the units match
 
                     elif isinstance(vars[0], Parameter):
                         data_dict[output_label] = vars[0].vals
                         output_units[output_label] = vars[0].units
+                        output_timescales[output_label] = vars[0].timescale # The timescale attribute for non-transition parameters will already be set to None
                         data_label[output_label] = vars[0].name
 
                         # If there are links, we can retrieve a compsize for the user to do a weighted average
@@ -241,6 +248,7 @@ class PlotData():
                         data_dict[output_label] = vars[0].vals
                         compsize[output_label] = vars[0].vals
                         output_units[output_label] = vars[0].units
+                        output_timescales[output_label] = None
                         data_label[output_label] = vars[0].name
 
                     else:
@@ -276,6 +284,7 @@ class PlotData():
                     par.update()
                     data_dict[output_label] = par.vals
                     output_units[output_label] = par.units
+                    output_timescales[output_label] = None
 
                 # Third pass, aggregate them according to any aggregations present
                 for output in outputs:  # For each final output
@@ -287,9 +296,11 @@ class PlotData():
                         if sc.isstring(labels):
                             aggregated_outputs[pop_label][output_name] = data_dict[output_name]
                             aggregated_units[output_name] = 'unknown'  # Also, we don't know what the units of a function are
+                            aggregated_timescales[output_name] = np.nan # Timescale is lost
                             continue
 
                         units = list(set([output_units[x] for x in labels]))
+                        timescales = list(set([output_timescales[x] for x in labels]))
 
                         # Set default aggregation method depending on the units of the quantity
                         if output_aggregation is None:
@@ -306,6 +317,13 @@ class PlotData():
                                 logger.warning("Output '%s' is not in number units, so output aggregation probably should not be 'sum'.", output_name)
                             aggregated_units[output_name] = output_units[labels[0]]
 
+                        if len(timescales) > 1:
+                            logger.warning("Aggregation for output '%s' is mixing timescales, this is almost certainly not desired.", output_name)
+                            aggregated_timescales[output_name] = None
+                        else:
+                            aggregated_timescales[output_name] = output_timescales[labels[0]]
+
+
                         if output_aggregation == 'sum':
                             aggregated_outputs[pop_label][output_name] = sum(data_dict[x] for x in labels)  # Add together all the outputs
                         elif output_aggregation == 'average':
@@ -317,6 +335,7 @@ class PlotData():
                     else:
                         aggregated_outputs[pop_label][output] = data_dict[output]
                         aggregated_units[output] = output_units[output]
+                        aggregated_timescales[output] = output_timescales[output]
 
             # Now aggregate over populations
             # If we have requested a reduction over populations, this is done for every output present
@@ -345,10 +364,10 @@ class PlotData():
                             vals /= sum([popsize[x] for x in pop_labels])
                         else:
                             raise Exception('Unknown pop aggregation method')
-                        self.series.append(Series(tvecs[result_label], vals, result_label, pop_name, output_name, data_label[output_name], units=aggregated_units[output_name]))
+                        self.series.append(Series(tvecs[result_label], vals, result_label, pop_name, output_name, data_label[output_name], units=aggregated_units[output_name], timescale=aggregated_timescales[output_name]))
                     else:
                         vals = aggregated_outputs[pop][output_name]
-                        self.series.append(Series(tvecs[result_label], vals, result_label, pop, output_name, data_label[output_name], units=aggregated_units[output_name]))
+                        self.series.append(Series(tvecs[result_label], vals, result_label, pop, output_name, data_label[output_name], units=aggregated_units[output_name], timescale=aggregated_timescales[output_name]))
 
         self.results = sc.odict()
         for result in results:
@@ -378,13 +397,16 @@ class PlotData():
         Accumulation methods are
 
         :param accumulation_method: Select whether to add or integrate. Supported methods are:
-                                    - 'sum' : runs `cumsum` on all quantities - should not be used if units are flow rates (so will check for '/year')
+                                    - 'sum' : runs `cumsum` on all quantities - should not be used if units are flow rates (so will check for '/year').
+                                              Summation should be used for compartment-based quantities, such as DALYs
                                     - 'integrate' : integrate using trapezoidal rule, assuming initial value of 0
                                             Note that here there is no concept of 'dt' because we might have non-uniform time aggregation bins
                                             Therefore, we need to use the time vector actually contained in the Series object (via `cumtrapz()`)
 
         """
 
+        # Note, in general we need to be able to explicitly specify the method to use, because we don't
+        # know how to deal with parameter functions that have unknown units
         assert accumulation_method in ['sum', 'integrate']
 
         for s in self.series:
@@ -393,12 +415,12 @@ class PlotData():
                     raise Exception('Quantity "%s" has timescale %g which means it should be accumulated by integration, not summation' % (s.output, s.timescale))
                 s.vals = np.cumsum(s.vals)
             elif accumulation_method == 'integrate':
-                s.vals = scipy.integrate.cumtrapz(s.vals, s.tvec)
-                s.vals = np.insert(s.vals, 0, 0.0)
-                if '/year' in s.units:
-                    s.units = s.units.replace('/year', '')
+                if s.timescale:
+                    s.vals = scipy.integrate.cumtrapz(s.vals, s.tvec)
                 else:
-                    s.units += ' years'
+                    s.vals = scipy.integrate.cumtrapz(s.vals, s.tvec/s.timescale)
+                s.vals = np.insert(s.vals, 0, 0.0)
+                s.timescale = None
             else:
                 raise Exception('Unknown accumulation type')
 
@@ -408,28 +430,41 @@ class PlotData():
         """
         Internal method for time aggregation
 
-        Note that accumulation is effectively a running total, whereas aggregation refers to binning
+        Note that *accumulation* is a running total, whereas *aggregation* refers to binning. The two can be
+        both be applied (with aggregation occuring prior to accumulation).
 
         :param t_bins: Vector of bin edges OR a scalar bin size, which will be automatically expanded to a vector of bin edges
-        :param time_aggregation: can be 'sum' or 'average'
+        :param time_aggregation: can be 'sum' or 'average'. Note that for quantities that have a timescale, 'sum' behaves like integration
+                                 so flow parameters in number units will be adjusted accordingly (e.g. a parameter in units of 'people/day'
+                                 aggregated over a 1 year period will display as the equivalent number of people that year)
 
         """
+
+        # TODO - Consider rewriting this to formally perform integration? Could be more
+        # robust to partial bins?
 
         assert time_aggregation in ['sum', 'average']
 
         if not hasattr(t_bins, '__len__'):
-            # TODO - here is where the code to handle t_bins > sim duration goes
-            if not (self.series[0].tvec[-1] - self.series[0].tvec[0]) % t_bins:
-                upper = self.series[0].tvec[-1] + t_bins
+            # If a scalar bin is provided, then it is
+            if t_bins > (self.series[0].tvec[-1] - self.series[0].tvec[0]):
+                # If bin width is greater than the sim duration, treat it the same as aggregating over all times
+                t_bins = 'all'
             else:
-                upper = self.series[0].tvec[-1]
-            t_bins = np.arange(self.series[0].tvec[0], upper, t_bins)
+                if not (self.series[0].tvec[-1] - self.series[0].tvec[0]) % t_bins:
+                    upper = self.series[0].tvec[-1] + t_bins
+                else:
+                    upper = self.series[0].tvec[-1]
+                t_bins = np.arange(self.series[0].tvec[0], upper, t_bins)
+        elif len(t_bins) < 2:
+            raise Exception('If passing in t_bins as a list of bin edges, at least two values must be provided')
 
         if sc.isstring(t_bins) and t_bins == 'all':
             t_out = np.zeros((1,))
             lower = [-np.inf]
             upper = [np.inf]
         else:
+            t_bins = sc.promotetoarray(t_bins)
             lower = t_bins[0:-1]
             upper = t_bins[1:]
             if time_aggregation == 'sum':
@@ -442,6 +477,16 @@ class PlotData():
         for s in self.series:
             tvec = []
             vals = []
+
+            if time_aggregation == 'sum' and s.units not in {FS.QUANTITY_TYPE_NUMBER,FS.QUANTITY_TYPE_PROBABILITY,FS.QUANTITY_TYPE_DURATION} and s.timescale is not None:
+                # Make sure all of the numbers are converted to the correct timestep size
+                # Because `model.py` only supports fixed timesteps and this method gets called on the
+                # raw model times, we can assume that the step size is fixed here. Thus the conversion is from
+                # scalar timescale to scalar dt. This if statement is only expected to run for number Parameters
+                dt = s.tvec[1]-s.tvec[0] # Fails if there is only one time point, but in that case there are bigger problems (because user is wanting to aggregate over time)
+                s.vals *= dt/s.timescale # Rescale
+                s.timescale = dt
+
             for i, low, high, t in zip(range(len(lower)), lower, upper, t_out):
                 tvec.append(t)
                 if (not np.isinf(low) and low < s.tvec[0]) or (not np.isinf(high) and high > s.tvec[-1]):
@@ -453,15 +498,17 @@ class PlotData():
                         flt = (s.tvec >= low) & (s.tvec < high)
 
                     if time_aggregation == 'sum':
-                        if s.units in ['', 'fraction', 'proportion', 'probability']:
-                            logger.warning("'{0}' is not in number units, so time aggregation probably should not "
-                                           "be 'sum'.".format(s))
+                        if s.units in ['', FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY]:
+                            logger.warning('"%s" is not in number units, so time aggregation probably should not be "sum"', s) # Still allowed though, because empty units might be OK to sum
                         vals.append(np.sum(s.vals[flt]))
                     elif time_aggregation == 'average':
                         vals.append(np.average(s.vals[flt]))
 
             s.tvec = np.array(tvec)
             s.vals = np.array(vals)
+            if time_aggregation == 'sum':
+                s.timescale = None # Any flow rates get integrated over the bin width, so change the timescale to None
+
             if sc.isstring(t_bins) and t_bins == 'all':
                 s.t_labels = ['All']
             else:
@@ -529,16 +576,29 @@ class PlotData():
 
             if quantity == 'spending':
                 all_vals = result.get_alloc()
-                units = '$/year'
+                units = '$'
+                timescales = dict.fromkeys(all_vals,1.0)
             elif quantity == 'coverage_number':
                 all_vals = result.get_coverage('number')
-                units = 'Number of people/year'
+                units = 'Number of people'
+                # Coverage comes out as a number of people at each timestep, but we need to know
+                # whether that value is distributed across the year or not. A dt-coverage of 100 for a
+                # treatment program implies 400 people/year, while a dt-coverage of 100 for ART only
+                # has 100 people/year. Therefore, we keep the coverage number as it is, but use the
+                # timescale to track whether there was a denominator in the units or not
+                timescales = dict.fromkeys(all_vals,1.0)
+                for prog_name in all_vals:
+                    if '/year' not in result.model.progset.programs[prog_name].unit_cost.units:
+                        all_vals[prog_name] /= result.dt
+
             elif quantity == 'coverage_denominator':
                 all_vals = result.get_coverage('denominator')
                 units = 'Number of people'
+                timescales = dict.fromkeys(all_vals,None)
             elif quantity == 'coverage_fraction':
                 all_vals = result.get_coverage('fraction')
-                units = 'Fraction covered/year'
+                units = 'Fraction covered'
+                timescales = dict.fromkeys(all_vals,None)
             else:
                 raise Exception('Unknown quantity')
 
@@ -553,21 +613,17 @@ class PlotData():
                         vals = sum(all_vals[x] for x in labels)
                         output_name = output_name
                         data_label = None  # No data present for aggregations
+                        timescale = timescales[labels[0]]
                     else:
                         raise Exception('Cannot use program aggregation for anything other than spending yet')
                 else:
                     vals = all_vals[output]
                     output_name = output
                     data_label = output  # Can look up program spending by the program name
-
-                if quantity in ['spending', 'coverage_number'] and t_bins is not None:
-                    # If we are time-aggregating, then the annual quantities which are going to be summed need to be
-                    # converted back to timestep values - for both spending and number coverage, this is simply multiplicative
-                    vals *= result.dt
-                    units = units.replace('/year', '')
+                    timescale = timescales[output]
 
                 # Accumulate the Series
-                plotdata.series.append(Series(result.t, vals, result=result.name, pop=FS.DEFAULT_SYMBOL_INAPPLICABLE, output=output_name, data_label=data_label, units=units))  # The program should specify the units for its unit cost
+                plotdata.series.append(Series(result.t, vals, result=result.name, pop=FS.DEFAULT_SYMBOL_INAPPLICABLE, output=output_name, data_label=data_label, units=units, timescale=timescale))  # The program should specify the units for its unit cost
 
         plotdata.results = sc.odict()
         for result in results:
@@ -585,8 +641,6 @@ class PlotData():
                 plotdata._time_aggregate(t_bins, 'sum')
             elif quantity in ['coverage_denominator', 'coverage_fraction']:
                 plotdata._time_aggregate(t_bins, 'average')
-            else:
-                raise Exception('Unknown quantity')
 
         if accumulate is not None:
             plotdata._accumulate(accumulate)
@@ -738,25 +792,27 @@ class Series():
     :param data_label: name of a quantity in project data to plot in conjunction with this `Series`
     :param color: the color to render the `Series` with
     :param units: the units for the values
-
+    :param timescale: For Number, Probability and Duration units, there are timescales associated with them
+    :timescale_numerator: Boolean flag. If True, the timescale a
     """
 
-    def __init__(self, tvec, vals, result='default', pop='default', output='default', data_label='', color=None, units='', timescale=None):
-        self.tvec = np.copy(tvec)
-        self.t_labels = np.copy(self.tvec)  # Iterable array of time labels - could become strings like [2010-2014]
-        self.vals = np.copy(vals)
-        self.result = result
-        self.pop = pop
-        self.output = output
-        self.color = color
-        self.data_label = data_label  # Used to identify data for plotting
+    def __init__(self, tvec, vals, result='default', pop='default', output='default', data_label='', color=None, units='', timescale=None, timescale_numerator=False):
+        self.tvec = np.copy(tvec) #: array of time values
+        self.t_labels = np.copy(self.tvec) #: Iterable array of time labels - could be set to strings like [2010-2014]
+        self.vals = np.copy(vals) #: array of values
+        self.result = result #: name of the result associated with ths data
+        self.pop = pop #: name of the pop associated with the data
+        self.output = output #: name of the output associated with the data
+        self.color = color #: the color to render the `Series` with
+        self.data_label = data_label  #: Used to identify data for plotting
         self.units = units #: The units for the quantity to display on the plot
 
         #: If the quantity has a time-like denominator (e.g. number/year, probability/day) then the denominator is stored here (in units of years)
         #: This enables quantities to be time-aggregated correctly (e.g. number/day must be converted to number/timestep prior to summation or integration)
         #: For links, the timescale is normally just ``dt``. This also enables more rigorous checking for quantities with time denominators than checking
         #: for a string like ``'/year'`` because users may not set this specifically.
-        self.timescale = None
+        self.timescale = timescale
+        self.timescale_numerator = timescale_numerator
 
         if np.any(np.isnan(vals)):
             logger.warning('%s contains NaNs', self)
@@ -764,12 +820,26 @@ class Series():
     @property
     def unit_string(self):
         """
-        The unit of the quantity is interpreted as a numerator if the Timescale is not none. For example,
+        Return the units for the quantity including timescale
+
+        When making plots, it is useful for the axis label to have the units of the quantity. The units should
+        also include the time scale e.g. "Death rate (probability per day)". However, if the timescale changes
+        due to aggregation or accumulation, then the value might be different. In that case,
+        The unit of the quantity is interpreted as a numerator if the Timescale is not None. For example,
         Compartments have units of 'number', while Links have units of 'number/timestep' which is stored as
         ``Series.units='number'`` and ``Series.timescale=0.25`` (if ``dt=0.25``). The `unit_string` attribute
 
         :return:
         """
+
+        if self.timescale is not None:
+            if self.units == FS.QUANTITY_TYPE_DURATION:
+                return '%s' % (format_duration(self.timescale,True))
+            else:
+                return '%s per %s' % (self.units, format_duration(self.timescale))
+        else:
+            return self.units
+
     def __repr__(self):
         return 'Series(%s,%s,%s)' % (self.result, self.pop, self.output)
 
@@ -1065,12 +1135,12 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
 
     # Calculate the units. As all bar patches are shown on the same axis, they are all expected to have the
     # same units. If they do not, the plot could be misleading
-    units = list(set([x.units for x in plotdata.series]))
+    units = list(set([x.unit_string for x in plotdata.series]))
     if len(units) == 1:
         if orientation == 'horizontal':
-            ax.set_xlabel(units[0].title())
+            ax.set_xlabel(units[0])
         else:
-            ax.set_ylabel(units[0].title())
+            ax.set_ylabel(units[0])
     else:
         logger.warning('Warning - bar plot quantities mix units, double check that output selection is correct')
 
@@ -1185,9 +1255,9 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
                 fig.set_label('%s_%s' % (pop, output))
                 figs.append(fig)
 
-                units = list(set([plotdata[result, pop, output].units for result in plotdata.results]))
+                units = list(set([plotdata[result, pop, output].unit_string for result in plotdata.results]))
                 if len(units) == 1 and units[0]:
-                    ax.set_ylabel('%s (%s)' % (plotdata.outputs[output], units[0].title()))
+                    ax.set_ylabel('%s (%s)' % (plotdata.outputs[output], units[0]))
                 else:
                     ax.set_ylabel('%s' % (plotdata.outputs[output]))
 
@@ -1221,9 +1291,9 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
                 fig.set_label('%s_%s' % (result, output))
                 figs.append(fig)
 
-                units = list(set([plotdata[result, pop, output].units for pop in plotdata.pops]))
+                units = list(set([plotdata[result, pop, output].unit_string for pop in plotdata.pops]))
                 if len(units) == 1 and units[0]:
-                    ax.set_ylabel('%s (%s)' % (plotdata.outputs[output], units[0].title()))
+                    ax.set_ylabel('%s (%s)' % (plotdata.outputs[output], units[0]))
                 else:
                     ax.set_ylabel('%s' % (plotdata.outputs[output]))
 
@@ -1255,9 +1325,9 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
                 fig.set_label('%s_%s' % (result, pop))
                 figs.append(fig)
 
-                units = list(set([plotdata[result, pop, output].units for output in plotdata.outputs]))
+                units = list(set([plotdata[result, pop, output].unit_string for output in plotdata.outputs]))
                 if len(units) == 1 and units[0]:
-                    ax.set_ylabel(units[0].title())
+                    ax.set_ylabel(units[0])
 
                 if plotdata.pops[pop] != FS.DEFAULT_SYMBOL_INAPPLICABLE:
                     ax.set_title('%s-%s' % (plotdata.results[result], plotdata.pops[pop]))

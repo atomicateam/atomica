@@ -778,6 +778,7 @@ class ProgramSet(NamedItem):
         :param instructions: optionally specify instructions, which can supply a spending overwrite
         :param sample: TODO implement sampling
         :return: Dict like {prog_name: np.array()} with number of people covered at each timestep (in units of people)
+
         """
 
         # Validate inputs
@@ -884,7 +885,17 @@ class Program(NamedItem):
             return self.spend_data.interpolate(year)
 
     def get_num_covered(self, tvec, spending, dt, sample=False):
-        '''Returns number covered for a time/spending vector'''
+        """
+        Returns number of people covered
+
+        :param tvec: A vector of times
+        :param spending: A vector of spending values, the same size as ``tvec``
+        :param dt: The time step size
+        :param sample: TODO: Implement sampling
+        :return: Array the same size as tvec, with coverage in units of 'people'
+
+        """
+        ''''''
         # INPUTS
         # - tvec : scalar tvec
         # - dt : timestep (to adjust spending)

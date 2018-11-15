@@ -268,3 +268,22 @@ def remove_target_pars(proj):
 def remove_target_pars(proj):
     proj._result_update_required = False
     return proj
+
+@migration('1.0.12', '1.0.13', 'Add timescale to parameters')
+def add_timescale(proj):
+    for _, spec in proj.framework.pars.iterrows():
+        if proj.framework.transitions[spec.name]:
+            proj.framework.pars.at[spec.name, 'timescale'] = 1.0  # Default timescale - note that currently only transition parameters are allowed to have a timescale that is not None
+
+            if not spec['format']:
+                if not proj.data:
+                    raise Exception('The Framework now needs to define the units for transition parameters, but the current one does not define units for Parameter "%s" and data was not saved either, so cannot infer the unit type. Please modify the Framework spreadsheet to add units' % (spec.name))
+                else:
+                    # Get the units from the first ts associated with the table
+                    units = set([x.units.lower().strip() for x in proj.data.tdve[spec.name].ts.values()])
+                    if len(units) == 1:
+                        proj.framework.pars.at[spec.name, 'format'] = list(units)[0]
+                    else:
+                        raise Exception('Parameters must now have a single unit for all populations. However, the existing data has more than one unit type associated with Parameter "%s" so it is no longer valid.' % (spec.name))
+
+    return proj
