@@ -12,6 +12,13 @@
       </label>
     </div>
 
+    <div class="year-slider">
+      <year-slider
+        :years="yearOptions"
+        @yearChanged="yearChanged"
+      ></year-slider>
+    </div>
+
     <div class="scenarios-vis">
       <div class="multi-bar-vis">
         <multibar
@@ -29,10 +36,12 @@
 <script>
 import { transformCascadeData } from '../data-transform'
 import Multibar from './Multibar.vue'
+import YearSlider from '../YearSlider.vue'
 
 export default {
   components: {
     Multibar,
+    YearSlider,
   },
   props: {
     scenariosData: Object,
@@ -69,7 +78,10 @@ export default {
       this.year = transformed.years[0]
 
       this.cascadeData = transformed
-    }
+    },
+    yearChanged(year) {
+      this.year = year
+    },
   }
 }
 </script>
@@ -92,6 +104,23 @@ export default {
     .chart {
       width: 33%;
     }
+  }
+}
+
+.year-slider {
+  width: 100%;
+  margin: 0 auto;
+}
+
+@media only screen and (min-width: 800px) {
+  .year-slider {
+    width: 80%;
+  }
+}
+
+@media only screen and (min-width: 1200px) {
+  .year-slider {
+    width: 60%;
   }
 }
 </style>

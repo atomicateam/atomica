@@ -19,6 +19,13 @@
       </label>
     </div>
 
+    <div class="year-slider">
+      <year-slider
+        :years="yearOptions"
+        @yearChanged="yearChanged"
+      ></year-slider>
+    </div>
+
     <div class="chart">
       <stacked-cascade class="cascade"
         :h="300"
@@ -35,10 +42,12 @@
 <script>
 import { transformCascadeData } from '../data-transform'
 import StackedCascade from './StackedCascade.vue'
+import YearSlider from '../YearSlider.vue'
 
 export default {
   components: {
     StackedCascade,
+    YearSlider,
   },
   props: {
     cascadeData: Object,
@@ -79,7 +88,10 @@ export default {
       this.year = transformed.years[0]
 
       this.updatedData = transformed
-    }
+    },
+    yearChanged(year) {
+      this.year = year
+    },
   }
 }
 </script>
@@ -96,5 +108,22 @@ export default {
 .chart {
   max-width: 1200px;
   margin: 1rem auto;
+}
+
+.year-slider {
+  width: 100%;
+  margin: 0 auto;
+}
+
+@media only screen and (min-width: 800px) {
+  .year-slider {
+    width: 80%;
+  }
+}
+
+@media only screen and (min-width: 1200px) {
+  .year-slider {
+    width: 60%;
+  }
 }
 </style>
