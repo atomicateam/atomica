@@ -3,6 +3,7 @@
     <div class="year-slider">
       <year-slider
         :years="yearOptions"
+        :selected="yearOptions.length - 1"
         @yearChanged="yearChanged"
       ></year-slider>
     </div>

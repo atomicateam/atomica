@@ -11,7 +11,11 @@ export default {
   name: 'year-slider',
 
   props: {
-    years: Array
+    years: Array,
+    selected: {
+      type: Number,
+      default: 0
+    },
   },
 
   data() {
@@ -29,7 +33,7 @@ export default {
   watch: {
     years(newData) {
       if (newData.length > 0) {
-        this.sliderYear = this.years[this.years.length - 1]
+        this.sliderYear = this.years[this.selected]
         this.draw()
       }
     },
