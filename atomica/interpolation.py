@@ -6,9 +6,65 @@ This module implements basic interpolation used in Atomica
 """
 
 import numpy as np
+import sciris as sc
 
 
 # General interpolation wrapper
+def floor_interpolator(x, y):
+    """
+    Stepped (single-sided nearest neighbour) interpolation
+
+    This returns a function that does interpolation where the return value
+    corresponds to the nearest smaller neighbour (and NaN if extrapolating)
+
+    :param x: Original x values
+    :param y: Original y values
+    :return: Function object `f(x)` that performs interpolation
+
+    Example usage:
+
+    >>> (f(0.5) )
+    [nan]
+    >>> (f(1))
+    [1.]
+    >>> (f(1.5))
+    [1.]
+    >>> (f(2))
+    [2.]
+    >>> (f(4))
+    [4.]
+    >>> (f(5))
+    [nan]
+    >>> (f([0.5,1,1.5,2,4,5]))
+    [nan  1.  1.  2.  4. nan]
+
+    """
+    # Return a function that returns the floor interpolation for given values (and NaN if out of range)
+    x = sc.promotetoarray(x)
+    y = sc.promotetoarray(y)
+
+    idx = np.argsort(x)
+    x = x[idx]
+    y = y[idx]
+
+    def f(x2):
+        x2 = sc.promotetoarray(x2)
+        out = np.full(x2.shape, np.nan)
+        for i, v in enumerate(x2):
+            if v > x[-1]:
+                continue
+
+            flt = np.where(x <= v)[0]
+            if not len(flt):
+                continue
+
+            out[i] = y[flt[-1]]
+
+        return out
+
+    return f
+
+
 
 def interpolate_func(x, y, xnew, method='pchip', extrapolate_nan=False):
     """

@@ -1,6 +1,4 @@
 
-Rates and Probabilities
-=======================
 
 There are broadly two ways of specifying how rapidly people move across a transition in the model
 

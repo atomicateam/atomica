@@ -409,15 +409,25 @@ class PlotData():
                 s.vals = np.cumsum(s.vals)
             elif accumulation_method == 'integrate':
                 if s.timescale:
-                    s.vals = scipy.integrate.cumtrapz(s.vals, s.tvec)
-                else:
                     s.vals = scipy.integrate.cumtrapz(s.vals, s.tvec/s.timescale)
+                else:
+                    s.vals = scipy.integrate.cumtrapz(s.vals, s.tvec)
                 s.vals = np.insert(s.vals, 0, 0.0)
-                s.timescale = None
+
+                # If integrating a quantity with a timescale, then lose the timescale factor
+                # Otherwise, the units pick up a factor of time
+                if s.timescale is not None:
+                    s.timescale = None
+                else:
+                    if s.units == 'Number of people':
+                        s.units = 'Number of person-years'
+                    else:
+                        s.units += ' years'
+
             else:
                 raise Exception('Unknown accumulation type')
 
-            s.units = 'Cumulative ' + s.units
+            s.units = 'Cumulative ' + s.units.lower()
 
     def _time_aggregate(self, t_bins, time_aggregation = None) -> None:
         """
@@ -501,7 +511,7 @@ class PlotData():
             elif method == 'average':
                 s.tvec = (lower + upper) / 2.0
                 s.vals = np.array(vals) / np.diff(t_bins/scale) # Divide by bin width if averaging within the bins
-
+                s.units = 'Average %s' % (s.units) # It will look odd to do 'Cumulative Average Number of people' but that's will accurately what the user has requested (combining aggregation and accumulation is permitted, but not likely to be necessary)
             else:
                 raise Exception('Unknown time aggregation type "%s"' % (time_aggregation))
 
@@ -558,7 +568,6 @@ class PlotData():
             outputs = [outputs]
 
         outputs = _expand_dict(outputs)
-#        progs_required = _extract_labels(outputs)
 
         assert quantity in ['spending', 'coverage_number', 'coverage_denominator', 'coverage_fraction']
         # Make a new PlotData instance
@@ -1141,9 +1150,9 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer=None, legend_
     units = list(set([x.unit_string for x in plotdata.series]))
     if len(units) == 1:
         if orientation == 'horizontal':
-            ax.set_xlabel(units[0])
+            ax.set_xlabel(units[0].capitalize())
         else:
-            ax.set_ylabel(units[0])
+            ax.set_ylabel(units[0].capitalize())
     else:
         logger.warning('Warning - bar plot quantities mix units, double check that output selection is correct')
 
@@ -1248,6 +1257,8 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
     ax = None
 
     plotdata = sc.dcp(plotdata)
+    if min([len(s.vals) for s in plotdata.series]) == 1:
+        logger.warning('At least one Series has only one timepoint. Series must have at least 2 time points to be rendered as a line - `plot_bars` may be more suitable for such data')
 
     if axis == 'results':
         plotdata.set_colors(results=plotdata.results.keys())
@@ -1330,7 +1341,7 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
 
                 units = list(set([plotdata[result, pop, output].unit_string for output in plotdata.outputs]))
                 if len(units) == 1 and units[0]:
-                    ax.set_ylabel(units[0])
+                    ax.set_ylabel(units[0].capitalize())
 
                 if plotdata.pops[pop] != FS.DEFAULT_SYMBOL_INAPPLICABLE:
                     ax.set_title('%s-%s' % (plotdata.results[result], plotdata.pops[pop]))
