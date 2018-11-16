@@ -128,7 +128,7 @@ class PlotData():
                               can first sum 'sus'+'vac' within populations, and then take weighted
                               average across populations)
     :param project: Optionally provide a :py:class:`Project` object, which will be used to convert names to labels in the outputs for plotting.
-    :param time_aggregation: Optionally specify time aggregation method. Supported methods are 'sum' and 'average' (no weighting). When aggregating
+    :param time_aggregation: Optionally specify time aggregation method. Supported methods are 'integrate' and 'average' (no weighting). When aggregating
                                 times, *non-annualized* flow rates will be used.
     :param t_bins: Optionally specify time bins, which will enable time aggregation. Supported inputs are
                       - A vector of bin edges. Time points are included if the time
@@ -145,7 +145,7 @@ class PlotData():
     """
 
     # TODO: Make sure to chuck a useful error when t_bins is greater than sim duration, rather than just crashing.
-    def __init__(self, results, outputs=None, pops=None, output_aggregation=None, pop_aggregation=None, project=None, time_aggregation='sum', t_bins=None, accumulate=None):
+    def __init__(self, results, outputs=None, pops=None, output_aggregation=None, pop_aggregation=None, project=None, time_aggregation=None, t_bins=None, accumulate=None):
         # Validate inputs
         if isinstance(results, sc.odict):
             results = [result for _, result in results.items()]
@@ -219,16 +219,10 @@ class PlotData():
                             data_dict[output_label] += link.vals
                             compsize[output_label] += (link.source.vals if not link.source.is_junction else link.source.outflow)
 
-                        # Annualize if not time aggregating
-                        # Do the conversion here because if the user does a time-average of flow rates,
-                        # they would want them to still be annualized
-                        if t_bins is None:
-                            data_dict[output_label] /= dt
-                            output_units[output_label] = vars[0].units
-                            output_timescales[output_label] = 1.0
-                        else:
-                            output_units[output_label] = vars[0].units  # If we sum links in a bin, we get a number of people
-                            output_timescales[output_label] = None # Note that if the units are 'Number of people' then there is no time period associated with it (because this is a binned number of people, not a rate)
+                        # Annualize the units, and record that they correspond to a flow per year
+                        data_dict[output_label] /= dt
+                        output_units[output_label] = vars[0].units
+                        output_timescales[output_label] = 1.0
                         data_label[output_label] = vars[0].parameter.name if vars[0].parameter.units == FS.QUANTITY_TYPE_NUMBER else None  # Only use parameter data points if the units match
 
                     elif isinstance(vars[0], Parameter):
@@ -275,8 +269,7 @@ class PlotData():
                     for dep_label in dep_labels:
                         vars = pop.get_variable(dep_label)
                         if t_bins is not None and (isinstance(vars[0], Link) or isinstance(vars[0], Parameter)) and time_aggregation == "sum" and not displayed_annualization_warning:
-                            raise Exception("Function includes Parameter/Link so annualized rates are being "
-                                            "used. Aggregation should use 'average' rather than 'sum'.")
+                            raise Exception("Function includes Parameter/Link so annualized rates are being used. Aggregation should therefore use 'average' rather than 'sum'.")
                         deps[dep_label] = vars
                     par._fcn = fcn
                     par.deps = deps
@@ -296,7 +289,7 @@ class PlotData():
                         if sc.isstring(labels):
                             aggregated_outputs[pop_label][output_name] = data_dict[output_name]
                             aggregated_units[output_name] = 'unknown'  # Also, we don't know what the units of a function are
-                            aggregated_timescales[output_name] = np.nan # Timescale is lost
+                            aggregated_timescales[output_name] = None # Timescale is lost
                             continue
 
                         units = list(set([output_units[x] for x in labels]))
@@ -426,7 +419,7 @@ class PlotData():
 
             s.units = 'Cumulative ' + s.units
 
-    def _time_aggregate(self, t_bins, time_aggregation) -> None:
+    def _time_aggregate(self, t_bins, time_aggregation = None) -> None:
         """
         Internal method for time aggregation
 
@@ -440,10 +433,8 @@ class PlotData():
 
         """
 
-        # TODO - Consider rewriting this to formally perform integration? Could be more
-        # robust to partial bins?
+        assert time_aggregation in [None, 'integrate', 'average']
 
-        assert time_aggregation in ['sum', 'average']
 
         if not hasattr(t_bins, '__len__'):
             # If a scalar bin is provided, then it is
@@ -460,54 +451,59 @@ class PlotData():
             raise Exception('If passing in t_bins as a list of bin edges, at least two values must be provided')
 
         if sc.isstring(t_bins) and t_bins == 'all':
-            t_out = np.zeros((1,))
-            lower = [-np.inf]
-            upper = [np.inf]
-        else:
-            t_bins = sc.promotetoarray(t_bins)
-            lower = t_bins[0:-1]
-            upper = t_bins[1:]
-            if time_aggregation == 'sum':
-                t_out = upper
-            elif time_aggregation == 'average':
-                t_out = (lower + upper) / 2.0
-            else:
-                raise Exception('Unknown time aggregation type')
+            t_bins = self.series[0].tvec[[0,-1]].ravel()
+
+        t_bins = sc.promotetoarray(t_bins)
+        lower = t_bins[0:-1]
+        upper = t_bins[1:]
 
         for s in self.series:
-            tvec = []
-            vals = []
 
-            if time_aggregation == 'sum' and s.units not in {FS.QUANTITY_TYPE_NUMBER,FS.QUANTITY_TYPE_PROBABILITY,FS.QUANTITY_TYPE_DURATION} and s.timescale is not None:
-                # Make sure all of the numbers are converted to the correct timestep size
-                # Because `model.py` only supports fixed timesteps and this method gets called on the
-                # raw model times, we can assume that the step size is fixed here. Thus the conversion is from
-                # scalar timescale to scalar dt. This if statement is only expected to run for number Parameters
-                dt = s.tvec[1]-s.tvec[0] # Fails if there is only one time point, but in that case there are bigger problems (because user is wanting to aggregate over time)
-                s.vals *= dt/s.timescale # Rescale
-                s.timescale = dt
-
-            for i, low, high, t in zip(range(len(lower)), lower, upper, t_out):
-                tvec.append(t)
-                if (not np.isinf(low) and low < s.tvec[0]) or (not np.isinf(high) and high > s.tvec[-1]):
-                    vals.append(np.nan)
+            # Decide automatic aggregation method if not specified - this is done on a per-quantity basis
+            if time_aggregation is None:
+                if s.units in {FS.QUANTITY_TYPE_DURATION, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_FRACTION}:
+                    method = 'average'
                 else:
-                    if low == high:
-                        flt = s.tvec == low
+                    method = 'integrate'
+            else:
+                method = time_aggregation
+                if method == 'integrate' and s.units in {FS.QUANTITY_TYPE_DURATION, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_FRACTION}:
+                    logger.warning('Units for series "%s" are "%s" so time aggregation should probably be "average", not "integrate"', s, s.units)
+
+            if s.timescale is not None:
+                scale = s.timescale
+            else:
+                scale = 1.0
+
+            f = scipy.interpolate.PchipInterpolator(s.tvec/scale, s.vals, axis=0, extrapolate=False)
+            vals = np.array([scipy.integrate.quad(f, l, u)[0] for l, u in zip(lower/scale, upper/scale)])
+
+            if method == 'integrate':
+                s.tvec = upper
+                s.vals = np.array(vals)
+
+                # If integrating the units might change
+                if s.timescale is not None:
+                    # Any flow rates get integrated over the bin width, so change the timescale to None
+                    # If the units were 'duration', this doesn't make sense, but integrating a duration doesn't
+                    # make sense either. This would only happen if the user explicitly requests it anyway. For example,
+                    # a parameter might go from 'number of people per month' to 'number of people'
+                    s.timescale = None
+                else:
+                    # For quantities that don't have a timescale and are being integrated, the scale is 1.0 and
+                    # it picks up 'years' in the units. So for example, 'number of people' becomes 'number of person years'
+                    # This would be the usage 99% of the time (esp. for DALYs that are interested in number of person-years)
+                    if s.units == 'Number of people':
+                        s.units = 'Number of person-years'
                     else:
-                        flt = (s.tvec >= low) & (s.tvec < high)
+                        s.units += ' years'
 
-                    if time_aggregation == 'sum':
-                        if s.units in ['', FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY]:
-                            logger.warning('"%s" is not in number units, so time aggregation probably should not be "sum"', s) # Still allowed though, because empty units might be OK to sum
-                        vals.append(np.sum(s.vals[flt]))
-                    elif time_aggregation == 'average':
-                        vals.append(np.average(s.vals[flt]))
+            elif method == 'average':
+                s.tvec = (lower + upper) / 2.0
+                s.vals = np.array(vals) / np.diff(t_bins/scale) # Divide by bin width if averaging within the bins
 
-            s.tvec = np.array(tvec)
-            s.vals = np.array(vals)
-            if time_aggregation == 'sum':
-                s.timescale = None # Any flow rates get integrated over the bin width, so change the timescale to None
+            else:
+                raise Exception('Unknown time aggregation type "%s"' % (time_aggregation))
 
             if sc.isstring(t_bins) and t_bins == 'all':
                 s.t_labels = ['All']
@@ -638,7 +634,7 @@ class PlotData():
 
         if t_bins is not None:
             if quantity in ['spending', 'coverage_number']:
-                plotdata._time_aggregate(t_bins, 'sum')
+                plotdata._time_aggregate(t_bins, 'integrate')
             elif quantity in ['coverage_denominator', 'coverage_fraction']:
                 plotdata._time_aggregate(t_bins, 'average')
 
@@ -868,7 +864,7 @@ class Series():
         return f(sc.promotetoarray(new_tvec))
 
 
-def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', legend_mode=None, show_all_labels=False, orientation='vertical') -> list:
+def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer=None, legend_mode=None, show_all_labels=False, orientation='vertical') -> list:
     """
     Produce a bar plot
 
@@ -878,7 +874,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
                        in the first bar, and only one population in the second bar. Items not appearing in this list
                        will be rendered unstacked.
     :param stack_outputs: Same as `stack_pops`, but for outputs.
-    :param outer: Select whether the outermost/highest level of grouping is by `'times'` or by `'results'`
+    :param outer: Optionally select whether the outermost/highest level of grouping is by `'times'` or by `'results'`
     :param legend_mode: override the default legend mode in settings
     :param show_all_labels: If True, then inner/outer labels will be shown even if there is only one label
     :param orientation: 'vertical' (default) or 'horizontal'
@@ -890,8 +886,15 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer='times', lege
     if legend_mode is None:
         legend_mode = settings['legend_mode']
 
-    assert outer in ['times', 'results'], 'Supported outer groups are "times" or "results"'
+    assert outer in [None, 'times', 'results'], 'Supported outer groups are "times" or "results"'
     assert orientation in ['vertical', 'horizontal'], 'Supported orientations are "vertical" or "horizontal"'
+
+    if outer is None:
+        if len(plotdata.results) == 1:
+            # If there is only one Result, then use 'outer=results' so that times can be promoted to axis labels
+            outer = 'results'
+        else:
+            outer = 'times'
 
     plotdata = sc.dcp(plotdata)
 
