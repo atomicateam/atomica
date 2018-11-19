@@ -1491,13 +1491,13 @@ def get_json_budget(results):
     results = sc.promotetolist(results)
     budget_data = dict()
     budget_data['results'] = [x.name for x in results]
-    budget_data['programs'] = set()
+    budget_data['programs'] = []
     budget_data['t'] = dict()
     budget_data['spending'] = dict()
 
     for result in results:
 
-        budget_data['programs'].update(result.model.progset.programs.keys())
+        budget_data['programs'] += list(result.model.progset.programs.keys())
         budget_data['t'][result.name] = np.arange(np.ceil(result.model.t[0]),np.floor(result.model.t[-1]))
         budget_data['spending'][result.name] = dict()
 
@@ -1506,6 +1506,7 @@ def get_json_budget(results):
         for s in d.series:
             budget_data['spending'][result.name][s.output] = s.vals
 
+    budget_data['programs'] = list(dict.fromkeys(budget_data['programs'])) # De-duplicate, preserving order
     jsondata = sc.sanitizejson(budget_data)
     jsoncolors = sc.gridcolors(len(budget_data['programs']), ashex=True)
     return jsondata, jsoncolors
