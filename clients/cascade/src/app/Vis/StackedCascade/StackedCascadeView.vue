@@ -1,22 +1,20 @@
 <template>
   <div class="stacked-cascade-view">
-    <div class="selections">
-      <label v-if="resultsOptions.length > 1">
+    <div class="selections" v-if="resultsOptions.length > 1">
+      <label>
         <select class="select" v-model="result">
           <option v-for="option in resultsOptions" :key="option" :value="option">
             {{ option }}
           </option>
         </select>
       </label>
-      
-      <label>
-        Year
-        <select class="select" v-model="year">
-          <option v-for="option in yearOptions" :key="option" :value="option">
-            {{ option }}
-          </option>
-        </select>
-      </label>
+    </div>
+
+    <div class="year-slider">
+      <year-slider
+        :years="yearOptions"
+        @yearChanged="yearChanged"
+      ></year-slider>
     </div>
 
     <div class="chart">
@@ -35,10 +33,12 @@
 <script>
 import { transformCascadeData } from '../data-transform'
 import StackedCascade from './StackedCascade.vue'
+import YearSlider from '../YearSlider.vue'
 
 export default {
   components: {
     StackedCascade,
+    YearSlider,
   },
   props: {
     cascadeData: Object,
@@ -79,7 +79,10 @@ export default {
       this.year = transformed.years[0]
 
       this.updatedData = transformed
-    }
+    },
+    yearChanged(year) {
+      this.year = year
+    },
   }
 }
 </script>
@@ -96,5 +99,22 @@ export default {
 .chart {
   max-width: 1200px;
   margin: 1rem auto;
+}
+
+.year-slider {
+  width: 100%;
+  margin: 0 auto;
+}
+
+@media only screen and (min-width: 800px) {
+  .year-slider {
+    width: 80%;
+  }
+}
+
+@media only screen and (min-width: 1200px) {
+  .year-slider {
+    width: 60%;
+  }
 }
 </style>

@@ -1,5 +1,13 @@
 <template>
   <div class="stacked-cascade">
+    <!-- Arrow def -->
+    <svg width="0" height="0">
+      <defs>
+        <marker id="arrow" markerWidth="7" markerHeight="5" refX="0" refY="2.5" orient="auto">
+          <polygon points="0 0, 7 2.5, 0 5" />
+        </marker>
+      </defs>
+    </svg>
 
     <table class="legend-table table is-narrow" v-if="legendDisplay">
       <thead>
@@ -39,7 +47,7 @@
 </template>
 
 <script>
-import * as d3 from '../../../../static/d3.v5.min.js' // CK: Warning, replace with import * as d3 from 'd3'
+import * as d3 from '../../../../static/d3.v5.min.js'
 import { transformDataForChartRender } from '../data-transform'
 import cascadeStep from '../cascade-step'
 
@@ -146,7 +154,7 @@ export default {
     this.setup()
   },
 
-  beforeDestroy: function () {
+  beforeDestroy() {
     window.removeEventListener('resize', this.handleResize)
   },
 
@@ -316,11 +324,10 @@ export default {
           .append('g')
           .attr('class', 'layer')
           .append('path')
-            .attr('class', (d) => `area ${this.getUniqueName(d.key, 'area')}`)
+            .attr('class', d => `area ${this.getUniqueName(d.key, 'area')}`)
             .style('opacity', 0)
-            .style('fill', (d) => this.z(d.key))
+            .style('fill', d => this.z(d.key))
             .attr('d', area)
-          // .transition(d3.transition().duration(100))
             .style('opacity', 0.3)
         
       const stackedBar = this.g.append('g')
@@ -329,8 +336,8 @@ export default {
         .data(stack(data))
 
       const stackedFillBar = stackedBar.enter().append('g')
-        .attr('class', (d) => `fill-bar ${this.getUniqueName(d.key, 'bar')}`)
-        .attr('fill', (d) => this.z(d.key))
+        .attr('class', d => `fill-bar ${this.getUniqueName(d.key, 'bar')}`)
+        .attr('fill', d => this.z(d.key))
 
       const rects = stackedFillBar.selectAll('rect')
         .data((d) => {
@@ -341,9 +348,9 @@ export default {
         })
 
       rects.enter().append('rect')
-        .attr('x', (d) => this.x(d.data.stage))
-        .attr('y', (d) => { return this.y(d[1]) })
-        .attr('height', (d) => { return this.y(d[0]) - this.y(d[1]) })
+        .attr('x', d => this.x(d.data.stage))
+        .attr('y', d => this.y(d[1]))
+        .attr('height', d => this.y(d[0]) - this.y(d[1]))
         .attr('width', this.x.bandwidth)
         .style('fillOpacity', 0)
         .on('mouseover', (d) => {
@@ -401,28 +408,32 @@ export default {
 
       stageTotal
         .enter().append('text')
-        .attr('x', (d) => this.x(d.stage) + 2)
-        .attr('y', (d) => this.y(d._total) - 2)
+        .attr('x', d => this.x(d.stage) + 2)
+        .attr('y', d => this.y(d._total) - 2)
         .style('font-size', '12px')
         .style('font-weight', 'bold')
         .style('fill', '#00267a')
         .text(d => d3.format(',.0f')(d._total))
       
+      // Arrow
+      stageTotal.enter()
+        .append('line')
+        .style('stroke', '#00267a')
+        .style('stroke-width', 2)
+        .style('stroke-dasharray', '10,3')
+        .style('marker-end','url(#arrow)')
+        .style('display', (d, i) => lastDataIndex === i ? 'none' : 'block')
+        .attr('x1', d => this.x(d.stage) + this.x.bandwidth())
+        .attr('x2', d => this.x(d.stage) + this.x.bandwidth() * 2)
+        .attr('y1', () => this.y(0) + 15)
+        .attr('y2', () => this.y(0) + 15)
+
       stageTotal
         .enter().append('text')
-        .attr('x', (d) => this.x(d.stage) + this.x.bandwidth(d.stage) + 2)
-        .attr('y', (d) => this.y(d._total))
-        .style('font-size', '10px')
-        .style('font-weight', 'bold')
-        .style('fill', '#C74523')
-        .text((d, i) => { return lastDataIndex === i ? '' : `Loss: ${d3.format(',.0f')(d.loss)}` })
-      
-      stageTotal
-        .enter().append('text')
-        .attr('x', (d) => this.x(d.stage) + this.x.bandwidth(d.stage) + this.x.bandwidth(d.stage)/2)
-        .attr('y', () => this.y(0) + 9)
-        .attr('text-anchor', 'middle')
-        .style('font-size', '9px')
+        .attr('x', d => this.x(d.stage) + this.x.bandwidth())
+        .attr('y', () => this.y(0) + 12)
+        .attr('text-anchor', 'start')
+        .style('font-size', '12px')
         .style('font-weight', 'bold')
         .style('fill', '#00267a')
         .text((d, i) => { return lastDataIndex === i ? '' : `${d3.format('.1f')(d.conversion)}%` })
@@ -451,33 +462,33 @@ export default {
         })
       
       categoryText.enter().append('text')
-        .attr('class', (d) => `cat-text ${this.getUniqueName(d.key, 'cat-text')}`)
-        .attr('x', (d) => this.x(d.data.stage) + 2)
-        .attr('y', (d) => this.y(d[1]) - 2)
-        // .attr('y', (d) => { return (this.y(d[1]) - this.y(d[0])) / 2 + this.y(d[0]) })
+        .attr('class', d => `cat-text ${this.getUniqueName(d.key, 'cat-text')}`)
+        .attr('x', d => this.x(d.data.stage) + 2)
+        .attr('y', d => this.y(d[1]) - 2)
         .style('font-size', '12px')
         .style('font-weight', 'bold')
         .style('fill', '#00267a')
         .style('display', 'none')
-        .text((d) => { return `${d3.format(',.0f')(d[1] - d[0])}` })
-      
-      categoryText.enter().append('text')
-        .attr('class', (d) => `cat-text ${this.getUniqueName(d.key, 'cat-text')}`)
-        .attr('x', (d) => this.x(d.data.stage) + this.x.bandwidth(d.data.stage) + 2)
-        .attr('y', (d) => this.y(d[1]))
-        .style('font-size', '10px')
-        .style('font-weight', 'bold')
-        .style('fill', '#C74523')
-        .style('display', 'none')
-        .text((d, i) => { return lastDataIndex === i ? '' : `Loss: ${d3.format(',.0f')(d.loss)}` })
+        .text(d => `${d3.format(',.0f')(d[1] - d[0])}`)
+            
+      categoryText.enter()
+        .append('line')
+        .style('stroke', '#00267a')
+        .style('stroke-width', 2)
+        .style('stroke-dasharray', '10,3')
+        .style('marker-end','url(#arrow)')
+        .style('display', (d, i) => lastDataIndex === i ? 'none' : 'block')
+        .attr('x1', d => this.x(d.data.stage) + this.x.bandwidth())
+        .attr('x2', d => this.x(d.data.stage) + this.x.bandwidth() * 2)
+        .attr('y1', () => this.y(0) + 15)
+        .attr('y2', () => this.y(0) + 15)
 
       categoryText.enter().append('text')
-        .attr('class', (d) => `cat-text ${this.getUniqueName(d.key, 'cat-text')}`)
-        .attr('x', (d) => this.x(d.data.stage) + this.x.bandwidth(d.data.stage) + this.x.bandwidth(d.data.stage)/2)
-        // .attr('y', d => this.y(d[0]) - 2)
-        .attr('y', () => this.y(0) + 9)
-        .attr('text-anchor', 'middle')
-        .style('font-size', '9px')
+        .attr('class', d => `cat-text ${this.getUniqueName(d.key, 'cat-text')}`)
+        .attr('x', d => this.x(d.data.stage) + this.x.bandwidth())
+        .attr('y', () => this.y(0) + 12)
+        .attr('text-anchor', 'start')
+        .style('font-size', '12px')
         .style('font-weight', 'bold')
         .style('fill', '#00267a')
         .style('display', 'none')
@@ -591,5 +602,3 @@ export default {
   }
 }
 </style>
-
-

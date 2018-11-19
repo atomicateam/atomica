@@ -1,15 +1,11 @@
 <template>
   <div class="multi-bar-view">
-    <div class="selections">
-      
-      <label>
-        Year
-        <select class="select" v-model="year">
-          <option v-for="option in yearOptions" :key="option" :value="option">
-            {{ option }}
-          </option>
-        </select>
-      </label>
+    <div class="year-slider">
+      <year-slider
+        :years="yearOptions"
+        :selected="yearOptions.length - 1"
+        @yearChanged="yearChanged"
+      ></year-slider>
     </div>
 
     <div class="scenarios-vis">
@@ -29,10 +25,12 @@
 <script>
 import { transformCascadeData } from '../data-transform'
 import Multibar from './Multibar.vue'
+import YearSlider from '../YearSlider.vue'
 
 export default {
   components: {
     Multibar,
+    YearSlider,
   },
   props: {
     scenariosData: Object,
@@ -69,21 +67,14 @@ export default {
       this.year = transformed.years[0]
 
       this.cascadeData = transformed
-    }
+    },
+    yearChanged(year) {
+      this.year = year
+    },
   }
 }
 </script>
 <style lang="scss" scoped>
-.selections {
-  border-bottom: 1px solid #e4ecfc;
-  padding: 1rem;
-  margin-bottom: 1rem;
-
-  .select {
-    margin-right: 1rem;
-  }
-}
-
 .scenarios-vis {
   .stacked-cascade-vis {
     display: flex;
@@ -92,6 +83,23 @@ export default {
     .chart {
       width: 33%;
     }
+  }
+}
+
+.year-slider {
+  width: 100%;
+  margin: 0 auto;
+}
+
+@media only screen and (min-width: 800px) {
+  .year-slider {
+    width: 80%;
+  }
+}
+
+@media only screen and (min-width: 1200px) {
+  .year-slider {
+    width: 60%;
   }
 }
 </style>
