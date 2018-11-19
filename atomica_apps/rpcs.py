@@ -1405,33 +1405,30 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plo
 
 
 def get_json_cascade(results,data):
-    '''
+    """
     Return all data to render cascade in FE, for multiple results
-   
-    INPUTS
-    - results - A Result, or list of Results
-    - data - A ProjectData instance (e.g. proj.data)
-   
-    OUTPUTS
-    - dict/json containing the data required to make the cascade plot on the FE
-      The dict has the following structure. Suppose we have
-   
-      cascade_data = get_json_cascade(results,data)
-   
-      Then the output of this function is (JSON equivalent of?):
-   
-      cascade_data['results'] - List of names of all results included (could render as checkboxes)
-      cascade_data['pops'] - List of names of all pops included (could render as checkboxes)
-      cascade_data['cascades'] - List of names of all cascades included (could render as dropdown)
-      cascade_data['stages'][cascade_name] - List of the names of the stages in a given cascade
-      cascade_data['t'][result_name] - Array of time values for the given result
-      cascade_data['model'][result_name][cascade_name][pop_name][stage_name] - Array of values, same size as cascade_data['t'][result_name] (this contains the values that end up in the bar)
-      cascade_data['data_t'] - Array of time values for the data
-      cascade_data['data'][cascade_name][pop_name][stage_name] - Array of values, same size as cascade_data['data_t'] (this contains the values to be plotted as scatter points)
-   
-      Note - the data values entered in the databook are sparse (typically there isn't a data point at every time). The arrays all have
-      the same size as cascade_data['data_t'], but contain `NaN` if the data was missing
-    '''
+
+    :param results: A Result, or list of Results
+    :param data: A ProjectData instance (e.g. proj.data)
+    :return: Tuple with
+        - A dict/json containing the data required to make the cascade plot on the FE (``jsondata``)
+        - A dict/json of colors to use (``jsoncolors``)
+
+    The structure of the output data dictionary is:
+
+    - jsondata['results'] - List of names of all results included (could render as checkboxes)
+    - jsondata['pops'] - List of names of all pops included (could render as checkboxes)
+    - jsondata['cascades'] - List of names of all cascades included (could render as dropdown)
+    - jsondata['stages'][cascade_name] - List of the names of the stages in a given cascade
+    - jsondata['t'][result_name] - Array of time values for the given result
+    - jsondata['model'][result_name][cascade_name][pop_name][stage_name] - Array of values, same size as jsondata['t'][result_name] (this contains the values that end up in the bar)
+    - jsondata['data_t'] - Array of time values for the data
+    - jsondata['data'][cascade_name][pop_name][stage_name] - Array of values, same size as jsondata['data_t'] (this contains the values to be plotted as scatter points)
+
+    Note that the data values entered in the databook are sparse (typically there isn't a data point at every time). The arrays all have
+    the same size as jsondata['data_t'], but contain `NaN` if the data was missing
+
+    """
 
     results = sc.promotetolist(results)
 
@@ -1471,7 +1468,47 @@ def get_json_cascade(results,data):
     jsondata = sc.sanitizejson(cascade_data)
     ncolors = len(result.pop_names)
     jsoncolors = sc.gridcolors(ncolors, ashex=True)
-    return jsondata,jsoncolors
+    return jsondata, jsoncolors
+
+def get_json_budget(results):
+    """
+    Return all data to render budget plots in FE, for multiple results
+
+    :param results: A Result, or list of Results
+    :return: Tuple with
+        - A dict/json containing the data required to make the budget plot on the FE (``jsondata``)
+        - A dict/json of colors to use (``jsoncolors``)
+
+    The structure of the output data dictionary is:
+
+    - budget_data['results'] - List of names of all results included (could render as checkboxes)
+    - budget_data['programs'][result_name] - List of all of the programs that are present across all results
+    - budget_data['t'][result_name] - List of all time values that are present for the given result
+    - budget_data['spending'][result_name][program_name] - Array of values, same size as budget_data[t][result_name], with the values to plot
+
+    """
+
+    results = sc.promotetolist(results)
+    budget_data = dict()
+    budget_data['results'] = [x.name for x in results]
+    budget_data['programs'] = set()
+    budget_data['t'] = dict()
+    budget_data['spending'] = dict()
+
+    for result in results:
+
+        budget_data['programs'].update(result.model.progset.programs.keys())
+        budget_data['t'][result.name] = np.arange(np.ceil(result.model.t[0]),np.floor(result.model.t[-1]))
+        budget_data['spending'][result.name] = dict()
+
+        d = au.PlotData.programs(results, quantity='spending')
+        d.interpolate(budget_data['t'][result.name])
+        for s in d.series:
+            budget_data['spending'][result.name][s.output] = s.vals
+
+    jsondata = sc.sanitizejson(budget_data)
+    jsoncolors = sc.gridcolors(len(budget_data['programs']), ashex=True)
+    return jsondata, jsoncolors
 
 
 @RPC()  
