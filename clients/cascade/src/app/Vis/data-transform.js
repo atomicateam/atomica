@@ -1,8 +1,8 @@
 function transformCascadeData(response) {
   let model = {}
 
-  const stageName = response.cascades
-  const stages = response.stages[stageName]
+  const cascade = response.cascades
+  const stages = response.stages[cascade]
   const pops = response.pops
   const results = response.results
 
@@ -16,9 +16,11 @@ function transformCascadeData(response) {
   })
 
   let years = []
+  let dataT = []
 
   results.forEach(r => {
     years = response.t[r]
+    dataT = response.data_t
     model[r] = {}
 
     years.forEach((y, i) => {
@@ -30,14 +32,27 @@ function transformCascadeData(response) {
         })
 
         pops.forEach(p => {
-          const value = response.model[r][stageName][p][stage][i]
+          const value = response.model[r][cascade][p][stage][i]
           const key = p.replace(/ +/g, '').toLowerCase()
 
           model[r][y][stageIndex][key] = value
           // console.log(`${r} ${key} ${stage} ${y} ${i} — ${value}`)
         })
       })
-    })            
+    })
+
+    dataT.forEach((y, i) => {
+      stages.forEach((stage, stageIndex) => {
+        pops.forEach(p => {
+          const value = response.data[cascade][p][stage][i]
+          const key = p.replace(/ +/g, '').toLowerCase() + '_data'
+
+          model[r][y][stageIndex][key] = value
+          // console.log(`${r} ${key} ${stage} ${y} ${i} — ${value}`)
+        })
+      })
+    })
+
   })
 
   const dataObj = {
@@ -56,13 +71,19 @@ function transformDataForChartRender(keys, data) {
   const transformed = data.map(d => {
     let obj = { stage: d.stage }
     let total = 0;
+    let dataTotal = 0;
 
     keys.forEach(key => {
+      const dataKey = `${key}_data`;
+
       total += d[key]
+      dataTotal += d[dataKey] || 0
       obj[key] = d[key]
+      obj[dataKey] = d[dataKey] || 0
     })
 
     obj._total = total
+    obj._dataTotal = dataTotal
 
     return obj
   })

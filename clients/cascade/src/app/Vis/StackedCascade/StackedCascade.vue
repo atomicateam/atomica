@@ -53,6 +53,7 @@ import cascadeStep from '../cascade-step'
 
 const TOTAL = '_total'
 const TOTAL_COLOUR = '#00267a'
+const DATA_TOTAL_COLOUR = '#ff7f0e'
 
 export default {
   name: 'stacked-cascade',
@@ -406,6 +407,17 @@ export default {
         .selectAll('.stage-total-texts')
         .data(data)
 
+      // Data Total circle
+      stageTotal
+        .enter().append('circle')
+        .attr('cx', d => this.x(d.stage) + this.x.bandwidth() / 2)
+        .attr('cy', d => this.y(d._dataTotal))
+        .attr('r', d => d._dataTotal === 0 ? '0' : '6')
+        .style('stroke', DATA_TOTAL_COLOUR)
+        .style('stroke-width', '2px')
+        .style('fill', '#fff')
+
+      // Total text
       stageTotal
         .enter().append('text')
         .attr('x', d => this.x(d.stage) + 2)
@@ -424,7 +436,7 @@ export default {
         .style('marker-end','url(#arrow)')
         .style('display', (d, i) => lastDataIndex === i ? 'none' : 'block')
         .attr('x1', d => this.x(d.stage) + this.x.bandwidth())
-        .attr('x2', d => this.x(d.stage) + this.x.bandwidth() * 2)
+        .attr('x2', d => this.x(d.stage) + this.x.bandwidth() * 1.8)
         .attr('y1', () => this.y(0) + 15)
         .attr('y2', () => this.y(0) + 15)
 
@@ -479,7 +491,7 @@ export default {
         .style('marker-end','url(#arrow)')
         .style('display', (d, i) => lastDataIndex === i ? 'none' : 'block')
         .attr('x1', d => this.x(d.data.stage) + this.x.bandwidth())
-        .attr('x2', d => this.x(d.data.stage) + this.x.bandwidth() * 2)
+        .attr('x2', d => this.x(d.data.stage) + this.x.bandwidth() * 1.8)
         .attr('y1', () => this.y(0) + 15)
         .attr('y2', () => this.y(0) + 15)
 
