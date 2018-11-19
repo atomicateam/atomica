@@ -1,5 +1,5 @@
 function transformCascadeData(response) {
-  let data = {}
+  let model = {}
 
   const stageName = response.cascades
   const stages = response.stages[stageName]
@@ -19,13 +19,13 @@ function transformCascadeData(response) {
 
   results.forEach(r => {
     years = response.t[r]
-    data[r] = {}
+    model[r] = {}
 
     years.forEach((y, i) => {
-      data[r][y] = []
+      model[r][y] = []
 
       stages.forEach((stage, stageIndex) => {
-        data[r][y].push({
+        model[r][y].push({
           stage
         })
 
@@ -33,7 +33,7 @@ function transformCascadeData(response) {
           const value = response.model[r][stageName][p][stage][i]
           const key = p.replace(/ +/g, '').toLowerCase()
 
-          data[r][y][stageIndex][key] = value
+          model[r][y][stageIndex][key] = value
           // console.log(`${r} ${key} ${stage} ${y} ${i} — ${value}`)
         })
       })
@@ -45,7 +45,7 @@ function transformCascadeData(response) {
     dict,
     results,
     years,
-    data
+    model
   }
 
   return dataObj;
@@ -92,7 +92,7 @@ function transformMultiData(keys, cascadeData, year, categories) {
   let stages = []
 
   keys.forEach((key, index) => {
-    const currentData = cascadeData.data[key][year]
+    const currentData = cascadeData.model[key][year]
     scenarios[key] = transformDataForChartRender(categories, currentData)
     if (index === 0) {
       stages = currentData.map(d => d.stage)

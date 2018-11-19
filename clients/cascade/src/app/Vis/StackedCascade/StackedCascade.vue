@@ -212,7 +212,7 @@ export default {
       this.keys = updated.keys
       this.dict = updated.dict
 
-      this.currentData = updated.data
+      this.currentData = updated.model
       this.update()
     },
 

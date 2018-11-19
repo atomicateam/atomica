@@ -161,7 +161,7 @@ export default {
       this.categories = updated.keys
       this.dict = updated.dict
 
-      this.currentData = updated.data
+      this.currentData = updated.model
       this.update()
     },
 
