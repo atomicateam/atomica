@@ -1,7 +1,7 @@
 function transformCascadeData(response) {
   let model = {}
 
-  const cascade = response.cascades
+  const cascade = response.cascades[0]
   const stages = response.stages[cascade]
   const pops = response.pops
   const results = response.results
