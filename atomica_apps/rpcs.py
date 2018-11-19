@@ -1482,7 +1482,7 @@ def get_json_budget(results):
     The structure of the output data dictionary is:
 
     - budget_data['results'] - List of names of all results included (could render as checkboxes)
-    - budget_data['programs'][result_name] - List of all of the programs that are present across all results
+    - budget_data['programs'] - List of all of the programs that are present across all results
     - budget_data['t'][result_name] - List of all time values that are present for the given result
     - budget_data['spending'][result_name][program_name] - Array of values, same size as budget_data[t][result_name], with the values to plot
 
