@@ -21,71 +21,129 @@ from . import logger
 from .system import FrameworkSettings as FS
 from collections import defaultdict
 
-# Data maps to a databook
-# On construction, we first make some blank data, and then we write a databook in the same way as if we actually had
-# data values
-
 
 class ProjectData(sc.prettyobj):
+    """
+    Store project data: class-equivalent of Databooks
+
+    This class is used to load and work with data that is entered in databooks. It
+    provides the interface for
+
+    - Loading data
+    - Modifying data (values, adding/removing populations etc.
+    - Saving modified data
+    - Writing new databooks
+
+    To instantiate, the ``ProjectData`` constructor is normally not used. Instead, use
+    the static methods
+
+    - ``ProjectData.new()`` to create a new instance/databook given a :py:class:`ProjectFramework`
+    - ``ProjectData.from_spreadsheet()`` to load a databook
+
+    """
 
     def __init__(self):
         # This is just an overview of the structure of ProjectData
         # There are two pathways to a ProjectData
         # - Could load an existing one, with ProjectData.from_spreadsheet()
         # - Could make a new one, with ProjectData.new()
-        self.pops = sc.odict()  # This is an odict mapping code_name:{'label':full_name}
-        self.transfers = list()
-        self.interpops = list()
-        self.tvec = None  # This is the data's tvec used when instantiating new tables. Not _guaranteed_ to be the same for every TDVE/TDC table
-        self.tdve = sc.odict()
-        self.tdve_pages = sc.odict()
+        self.pops = sc.odict()  #: This is an odict mapping code_name:{'label':full_name}
+        self.transfers = list() #: This stores a list of :py:class:`TimeDependentConnections` instances for transfers
+        self.interpops = list() #: This stores a list of :py:class:`TimeDependentConnections` instances for interactions
+        self.tvec = None  #: This is the data's tvec used when instantiating new tables. Not _guaranteed_ to be the same for every TDVE/TDC table
+        self.tdve = sc.odict() #: This is an odict storing :py:class:`TimeDependentValuesEntry` instances keyed by the code name of the TDVE
+        self.tdve_pages = sc.odict() #: This is an odict mapping worksheet name to a list of TDVE code names appearing on that sheet
 
         # Internal storage used with methods while writing
-        self._formats = None
-        self._book = None
-        self._references = None
+        self._formats = None #: Temporary storage for the Excel formatting while writing a databook
+        self._book = None #: Temporary storage for the workbook while writing a databook
+        self._references = None #: Temporary storage for cell references while writing a databook
 
     @property
-    def start_year(self):
-        # The ProjectData start year is defined as the earliest time point in
-        # any of the TDVE/TDC tables. This should be used when changing the simulation
-        # start year
+    def start_year(self) -> float:
+        """
+        Return the start year from the databook
+
+        The ProjectData start year is defined as the earliest time point in
+        any of the TDVE/TDC tables (noting that it it is possible for the TDVE tables to
+        have different time values). This quantity should be used when changing the simulation
+        start year, if using all of the data in the databook is desired.
+
+        :return: The earliest year in the databook
+
+        """
+
         start_year = np.inf
         for td_table in list(self.tdve.values()) + self.transfers + self.interpops:
             start_year = min(start_year, np.amin(td_table.tvec))
         return start_year
 
     @property
-    def end_year(self):
-        # The ProjectData start year is defined as the earliest time point in
-        # any of the TDVE/TDC tables. This should be used when changing the simulation
-        # start year
+    def end_year(self) -> float:
+        """
+        Return the start year from the databook
+
+        The ProjectData end year is defined as the latest time point in
+        any of the TDVE/TDC tables (noting that it it is possible for the TDVE tables to
+        have different time values). This quantity should be used when changing the simulation
+        end year, if using all of the data in the databook is desired.
+
+        :return: The latest year in the databook
+
+        """
+
         end_year = -np.inf
         for td_table in list(self.tdve.values()) + self.transfers + self.interpops:
             end_year = max(end_year, np.amax(td_table.tvec))
         return end_year
 
-    def change_tvec(self, tvec):
-        # Set tvec in all TDVE/TDC tables contained in the ProjectData
-        # - Setting `ProjectData.tvec = <>` will only affect tables created afterwards
-        # - Calling `ProjectData.change_tvec()` will modify all existing tables
-        self.tvec = tvec.copy()
+    def change_tvec(self, tvec: np.array) -> None:
+        """
+        Change the databook years
+
+        This function can be used to change the time vector in all of the TDVE/TDC tables.
+        There are two ways to change the time arrays:
+
+        - Setting ``ProjectData.tvec`` directly will only affect newly added tables, and will keep existing tables
+          as they are
+        - Calling ``ProjectData.change_tvec()`` will modify all existing tables
+
+        Note that the TDVE/TDC tables store time/value pairs sparsely within their :py:class:`TimeSeries` objects.
+        Therefore, changing the time array won't modify any of the data - it will only have an effect the next time
+        a databook is written (so typically this method would be called as part of preparing a modified databook).
+
+        :param tvec: A float, list, or array containing time values (in years) for the databook
+
+        """
+
+        self.tvec = sc.promotetoarray(tvec).copy()
         for td_table in list(self.tdve.values()) + self.transfers + self.interpops:
             td_table.tvec = tvec
 
-    def get_ts(self, name, key=None):
-        # This extracts a TimeSeries from a TDVE table or TDC table
-        #
-        # INPUTS
-        # - name: - The code name of a transfer, interaction, or compartment/characteristic/parameter
-        #         - The name of a transfer parameter instantiated in model.build e.g. 'age_0-4_to_5-14'.
-        #           this is mainly useful when retrieving data for plotting, where variables are organized according
-        #           to names like 'age_0-4_to_5-14'
-        # - key: - If `name` is a comp/charac/par, then key should be a pop name
-        #        - If `name` is a transfer or interaction, then key should be a tuple (from_pop,to_pop)
-        #        - If `name` is the name of a model transfer parameter, then `key` should be left as `None`
-        #
-        # If the key was not found, return None
+    def get_ts(self, name: str, key=None):
+        """
+        Extract a TimeSeries from a TDVE table or TDC table
+
+        :param name: The code name for the container storing the :py:class:`TimeSeries`
+                    - The code name of a transfer, interaction, or compartment/characteristic/parameter
+                    - The name of a transfer parameter instantiated in model.build e.g. 'age_0-4_to_5-14'.
+                    this is mainly useful when retrieving data for plotting, where variables are organized according
+                    to names like 'age_0-4_to_5-14'
+        :param key: Specify the identifier for the :py:class:`TimeSeries`
+                        - If `name` is a comp/charac/par, then key should be a pop name
+                        - If `name` is a transfer or interaction, then key should be a tuple (from_pop,to_pop)
+                        - If `name` is the name of a model transfer parameter, then `key` should be left as `None`
+        :return: A :py:class:`TimeSeries`, or ``None`` if there were no matches
+
+        Regarding the specification of the key - the same transfer could be specified as
+
+        - ``name='age', key=('0-4','5-14')``
+        - ``name='age_0-4_to_5-14', key=None``
+
+        where the former is typically used when working with data and calibrations, and the latter is used in :py:class:`Model` and
+        is therefore encountered on the :py:class:`Result` and plotting side.
+
+        """
 
         # First, check if it's the name of a TDVE
         if name in self.tdve:
@@ -106,8 +164,15 @@ class ProjectData(sc.prettyobj):
 
         return None
 
-    def get_tdve_page(self, code_name):
-        # Given a code name for a TDVE quantity, find which page it is on
+    def get_tdve_page(self, code_name) -> str:
+        """
+        Given a code name for a TDVE quantity, find which page it is on
+
+        :param code_name: The code name for a TDVE quantity
+        :return: The sheet that it appears on
+
+        """
+
         for sheet, content in self.tdve_pages.items():
             if code_name in content:
                 return sheet
@@ -116,10 +181,20 @@ class ProjectData(sc.prettyobj):
 
     @staticmethod
     def new(framework, tvec, pops, transfers):
-        # Make a brand new databook
-        # pops - Can be a number, or an odict with names and labels
-        # transfers - Can be a number, or an odict with names and labels
-        # interactions - Can be a number, or an odict with names and labels
+        """
+        Make a new databook/``ProjectData`` instance
+
+        This method should be used (instead of the standard constructor) to produce a new
+        class instance (e.g. if creating a new databook).
+
+        :param framework: A :py:class:`ProjectFramework` instance
+        :param tvec: A scalar, list, or array of times (typically would be generated with ``numpy.arange()``)
+        :param pops: A number of populations, or a dict with specific names and labels for the pops
+        :param transfers: A number of transfers, or a dict with names and labels for the transfers
+        :return: A new :py:class:`ProjectData` instance
+
+        """
+
 
         if sc.isnumber(pops):
             new_pops = sc.odict()
@@ -140,7 +215,7 @@ class ProjectData(sc.prettyobj):
 
         # Make all of the empty TDVE objects - need to store them by page, and the page information is in the Framework
         data = ProjectData()
-        data.tvec = tvec
+        data.tvec = sc.promotetoarray(tvec)
         pages = defaultdict(list)  # This will store {sheet_name:(code_name,databook_order)} which will then get sorted further
 
         for df in [framework.comps, framework.characs, framework.pars]:
