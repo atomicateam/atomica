@@ -784,11 +784,11 @@ class Population(object):
         # Construct the characteristic value vector (b) and the includes matrix (A)
         for i, c in enumerate(characs):
             # Look up the characteristic value
-            par = parset.get_par(c.name)
+            par = parset.pars[c.name]
             b[i] = par.interpolate(tvec=np.array([t_init]), pop_name=self.name)[0] * par.y_factor[self.name] * par.meta_y_factor
             if isinstance(c, Characteristic):
                 if c.denominator is not None:
-                    denom_par = parset.get_par(c.denominator.name)
+                    denom_par = parset.pars[c.denominator.name]
                     b[i] *= denom_par.interpolate(tvec=np.array([t_init]), pop_name=self.name)[0] * denom_par.y_factor[self.name] * denom_par.meta_y_factor
                 for inc in c.get_included_comps():
                     A[i, comp_indices[inc.name]] = 1.0
@@ -1001,7 +1001,7 @@ class Model(object):
         for pop in self.pops:
             for par in pop.pars:
                 if par.name in parset.pars:
-                    cascade_par = parset.get_par(par.name)
+                    cascade_par = parset.pars[par.name]
                     par.scale_factor = cascade_par.y_factor[pop_name] * cascade_par.meta_y_factor
                     if not par.fcn_str and cascade_par.has_values(pop.name):
                         par.vals = cascade_par.interpolate(tvec=self.t, pop_name=pop.name) * par.scale_factor

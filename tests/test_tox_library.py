@@ -43,7 +43,7 @@ def run_parameter_scenario(proj):
     else:
         raise Exception('No Framework parameters appeared in the databook')
 
-    par = proj.parsets[0].get_par(spec.name) # Get the parameter
+    par = proj.parsets[0].pars[spec.name] # Get the parameter
     pop_name = par.pops[0]
 
     # Add overwrite with a slight increase in the 2020 value

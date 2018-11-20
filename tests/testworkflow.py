@@ -13,7 +13,7 @@ import numpy as np
 np.seterr(all='raise')
 
 # test = "sir"
-#test = "tb"
+test = "tb"
 #test = "tb_simple_dyn"
 #test = "tb_simple"
 #test = "hypertension"
@@ -24,7 +24,7 @@ np.seterr(all='raise')
 # test = "cervicalcancer"
 #test = "hiv"
 #test = "hiv_dyn"
-test = "diabetes"
+# test = "diabetes"
 #test = "service"
 
 torun = [
@@ -39,12 +39,12 @@ torun = [
 # "makeblankprogbook",
 # "writeprogbook",
 # "testprograms",
-"runsim_programs",
+# "runsim_programs",
 # "makeplots",
 # "export",
 # "manualcalibrate",
 # "autocalibrate",
-# "parameterscenario",
+"parameterscenario",
 # "coveragescenario",
 # 'budgetscenarios',
 # 'optimization',
@@ -453,7 +453,7 @@ if "parameterscenario" in torun:
     if test == "tb":
         scen_par = "spd_infxness"
         scen_pop = "15-64"
-        scen_outputs = ["lt_inf", "ac_inf"]
+        scen_outputs = ["spd_infxness","lt_inf", "ac_inf"]
 
     if test == "udt":
         scen_par = "test_pharm"

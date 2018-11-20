@@ -254,7 +254,7 @@ class ProgramSet(NamedItem):
         return framework, data
 
     @staticmethod
-    def from_spreadsheet(spreadsheet=None, framework=None, data=None, project=None, name=None):
+    def from_spreadsheet(spreadsheet=None, framework=None, data=None, project=None, name=None, _allow_missing_data=False):
         """
         Instantiate a ProgramSet from a spreadsheet
 
@@ -268,6 +268,7 @@ class ProgramSet(NamedItem):
         :param data: A :py:class:`ProjectData` instance
         :param project: A :py:class:`Project` instance
         :param name: Optionally specify the name of the ProgramSet to create
+        :param _allow_missing_data: Internal only - optionally allow missing unit costs and spending (used for loading template progbook files)
         :return: A :py:class:`ProgramSet`
 
         """
@@ -288,7 +289,7 @@ class ProgramSet(NamedItem):
 
         # Load individual sheets
         self._read_targeting(workbook['Program targeting'])
-        self._read_spending(workbook['Spending data'])
+        self._read_spending(workbook['Spending data'], _allow_missing_data=_allow_missing_data)
         self._read_effects(workbook['Program effects'])
 
         return self
@@ -451,7 +452,16 @@ class ProgramSet(NamedItem):
 
         apply_widths(sheet, widths)
 
-    def _read_spending(self, sheet):
+    def _read_spending(self, sheet, _allow_missing_data=False):
+        """
+        Internal method to read the spending data
+
+        :param sheet:
+        :param _allow_missing_data: If False, an error will be raised if unit costs or total spending is missing.
+                                   However, the FE requires loading in a progset with missing spending data. In that case,
+                                   having these values missing is be allowed
+        :return:
+        """
         # Read the spending table and populate the program data
         tables, start_rows = read_tables(sheet)
         times = set()
@@ -480,8 +490,9 @@ class ProgramSet(NamedItem):
             set_ts(prog, 'coverage', tdve.ts['Coverage'])
             set_ts(prog, 'saturation', tdve.ts['Saturation'])
 
-            assert prog.unit_cost.has_data, 'Unit cost data for %s not was not entered (in table on sheet "%s" starting on row %d' % (prog.name, sheet.title, start_row)
-            assert prog.spend_data.has_data, 'Spending data for %s not was not entered (in table on sheet "%s" starting on row %d' % (prog.name, sheet.title, start_row)
+            if not _allow_missing_data:
+                assert prog.unit_cost.has_data, 'Unit cost data for %s not was not entered (in table on sheet "%s" starting on row %d' % (prog.name, sheet.title, start_row)
+                assert prog.spend_data.has_data, 'Spending data for %s not was not entered (in table on sheet "%s" starting on row %d' % (prog.name, sheet.title, start_row)
 
             if '/year' in prog.unit_cost.units and '/year' in prog.coverage.units:
                 logger.warning('Program %s: Typically if the unit cost is `/year` then the coverage would not be `/year`', prog.label)

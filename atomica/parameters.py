@@ -26,7 +26,7 @@ class Parameter(NamedItem):
     def __init__(self, name: str, ts: dict):
         NamedItem.__init__(self, name)
         self.ts = ts #: Population-specific data is stored in TimeSeries within this dict, keyed by population name
-        self.y_factor = dict.fromkeys(self.ts,1.0) #: Calibration scale factors for the parameter in each population
+        self.y_factor = sc.odict.fromkeys(self.ts,1.0) #: Calibration scale factors for the parameter in each population
         self.meta_y_factor = 1.0 #: Calibration scale factor for all populations
 
 
@@ -104,8 +104,8 @@ class ParameterSet(NamedItem):
         self.pop_names = data.pops.keys() #: List of all population code names contained in the ``ParameterSet``
         self.pop_labels = [pop["label"] for pop in data.pops.values()] #: List of corresponding full names for populations
         self.pars = sc.odict() #: Stores the Parameter instances contained by this ParameterSet associated with framework comps, characs, and parameters
-        self.transfers = sc.odict() #: Stores the Parameter instances contained by this ParameterSet associated with databook transfers
-        self.interactions = sc.odict() #: Stores the Parameter instances contained by this ParameterSet associated with framework interactions
+        self.transfers = sc.odict() #: Stores the Parameter instances contained by this ParameterSet associated with databook transfers, keyed by source population
+        self.interactions = sc.odict() #: Stores the Parameter instances contained by this ParameterSet associated with framework interactions, keyed by source population
 
         # Instantiate all quantities that appear in the databook (compartments, characteristics, parameters)
         for name, tdve in data.tdve.items():
@@ -161,21 +161,15 @@ class ParameterSet(NamedItem):
                 yield par
 
     def copy(self, new_name=None):
+        """
+        Deep copy the parameter set, optionally changing the name
+
+        :param new_name:
+        :return: A new ``ParameterSet`` instance
+
+        """
+
         x = sc.dcp(self)
         if new_name is not None:
             x.name = new_name
         return x
-
-    def set_scaling_factor(self, par_name, pop_name, scale):
-        par = self.get_par(par_name)
-        par.y_factor[pop_name] = scale
-        return None
-
-    def get_scaling_factor(self, par_name, pop_name):
-        return self.get_par(par_name).y_factor[pop_name]
-
-    def get_par(self, name):
-        if name in self.pars:
-            return self.pars[name]
-        else:
-            raise Exception("Name '{0}' cannot be found in parameter set '{1}'".format(name, self.name))

@@ -762,7 +762,7 @@ def get_y_factors(project_id, parsetname=-1, tool=None, verbose=False):
     count = -1
     for par in parset.pars.values():
         parname = par.name
-        this_par = parset.get_par(parname)
+        this_par = parset.pars[parname]
         this_spec = proj.framework.get_variable(parname)[0]
         if 'calibrate' in this_spec and this_spec['calibrate'] is not None:
             count += 1
@@ -806,7 +806,7 @@ def set_y_factors(project_id, parsetname=-1, parlist=None, tool=None, verbose=Fa
     parset = proj.parsets[parsetname]
     for newpar in parlist:
         parname = newpar['parname']
-        this_par = parset.get_par(parname)
+        this_par = parset.pars[parname]
         this_par.meta_y_factor = to_float(newpar['meta_y_factor'])
         if verbose: print('Metaparameter %10s: %s' % (parname, this_par.meta_y_factor))
         for newpoppar in newpar['pop_y_factors']:
@@ -1014,7 +1014,7 @@ def get_default_programs(fulloutput=False, verbose=True):
     D = at.ProjectData.new(F, tvec=np.array([0]), pops=default_pops, transfers=0)
     if verbose: print('get_default_programs(): Loading spreadsheet...')
     spreadsheetpath = at.LIBRARY_PATH + "tb_progbook_defaults.xlsx"
-    default_progset = at.ProgramSet.from_spreadsheet(spreadsheetpath, framework=F, data=D)
+    default_progset = at.ProgramSet.from_spreadsheet(spreadsheetpath, framework=F, data=D, _allow_missing_data=True)
 
 
     # Assemble dictionary

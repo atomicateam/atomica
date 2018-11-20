@@ -30,10 +30,10 @@ def _update_parset(parset, y_factors, pars_to_adjust):
 
         if par_name in parset.pars:
             if pop_name == 'all':
-                par = parset.get_par(par_name)
+                par = parset.pars[par_name]
                 par.meta_y_factor = y_factors[i]
             else:
-                parset.set_scaling_factor(par_name, pop_name, y_factors[i])
+                parset.pars[par_name].y_factor[pop_name] = y_factors[i]
         else:
             # Handle transfers here
             tokens = par_name.split('_from_')
@@ -134,7 +134,7 @@ def perform_autofit(project, parset, pars_to_adjust, output_quantities, max_time
     p2 = []
     for par_tuple in pars_to_adjust:
         if par_tuple[1] is None:  # If the pop name is None
-            par = parset.get_par(par_tuple[0])
+            par = parset.pars[par_tuple[0]]
             for pop_name in par.pops:
                 p2.append((par_tuple[0], pop_name, par_tuple[2], par_tuple[3]))
         else:
@@ -168,7 +168,7 @@ def perform_autofit(project, parset, pars_to_adjust, output_quantities, max_time
     for i, x in enumerate(pars_to_adjust):
         par_name, pop_name, scale_min, scale_max = x
         if par_name in parset.pars:
-            par = parset.get_par(par_name)
+            par = parset.pars[par_name]
             if pop_name == 'all':
                 x0.append(par.meta_y_factor)
             else:
@@ -204,7 +204,7 @@ def perform_autofit(project, parset, pars_to_adjust, output_quantities, max_time
         pop_name = x[1]
 
         if par_name in parset.pars:
-            par = args['parset'].get_par(par_name)
+            par = args['parset'].pars[par_name]
 
             if pop_name is None or pop_name == 'all':
                 print("parset.get_par('{}').meta_y_factor={:.2f}".format(par_name, par.meta_y_factor))

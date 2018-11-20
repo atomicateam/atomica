@@ -82,7 +82,7 @@ class ParameterScenario(Scenario):
         new_parset = sc.dcp(parset)
 
         for par_label in self.scenario_values.keys():
-            par = new_parset.get_par(par_label)  # This is the parameter we are updating
+            par = new_parset.pars[par_label]  # This is the parameter we are updating
 
             for pop_label, overwrite in self.scenario_values[par_label].items():
 
