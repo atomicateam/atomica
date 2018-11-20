@@ -19,7 +19,6 @@ from collections import defaultdict
 import sciris as sc
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.optimize import lsq_linear
 
 model_settings = dict()
 model_settings['tolerance'] = 1e-6
@@ -796,22 +795,12 @@ class Population(object):
             else:
                 A[i, comp_indices[c.name]] = 1.0
 
-        # Solve the linear system
-        if np.linalg.matrix_rank(A) < A.shape[1]:
-            # If the system is rank deficient, then attempt to solve it with positive compartment sizes
-            # This will allow `x+y+z=10`, `x=10` to resolve `y+z=0`
-            res = lsq_linear(A, b.ravel(), bounds=(0, np.inf))  # Do non-negative least squares - for omitted characs, this _SHOULD_ lead to 0
-        else:
-            # If the system is NOT rank deficient, then attempt to solve it with negative compartment sizes. This way,
-            # errors that result in negative compartments will be limited to the part of the system that is incorrect,
-            # rather than manifesting is a large residual distributed over the entire system
-            res = lsq_linear(A, b.ravel())  # Do non-negative least squares - for omitted characs, this _SHOULD_ lead to 0
-
-        x = res['x'].reshape(-1, 1)
-        residual = res['cost']
+        # Solve the linear system (nb. lstsq returns the minimum norm solution
+        x = np.linalg.lstsq(A, b.ravel(), rcond=None)[0].reshape(-1, 1)
+        proposed = np.matmul(A, x)
+        residual = np.sum((proposed.ravel()-b.ravel())**2)
 
         # Print warning for characteristics that are not well matched by the compartment size solution
-        proposed = np.matmul(A, x)
         for i in range(0, len(characs)):
             if abs(proposed[i] - b[i]) > model_settings['tolerance']:  # project_settings.model_settings['tolerance']:
                 logger.warning("Characteristic '{0}' '{1}' - Requested {2}, "
