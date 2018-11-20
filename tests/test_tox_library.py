@@ -183,4 +183,6 @@ if __name__ == '__main__':
     np.seterr(all='raise')
 
     for m in models:
+        if m == 'malaria':
+            continue
         test_model(m)
