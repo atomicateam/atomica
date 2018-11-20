@@ -91,10 +91,9 @@ class ParameterScenario(Scenario):
 
                 original_y_end = par.interpolate(np.array([max(overwrite['t']) + 1e-5]), pop_label)
 
-                # If the Parameter had an assumption, then expand the assumption out first
-                if len(par.t[pop_label]) == 1 and np.isnan(par.t[pop_label][0]):
-                    par.t[pop_label] = np.array([settings.sim_start, settings.sim_end])
-                    par.y[pop_label] = par.y[pop_label] * np.ones(par.t[pop_label].shape)
+                # If the Parameter had an assumption, then insert the assumption value in the start year
+                if not par.ts[pop_label].has_time_data:
+                    par.ts[pop_label].insert(settings.sim_start, par.ts[pop_label].assumption)
 
                 if 'smooth_onset' not in overwrite:
                     overwrite['smooth_onset'] = 1e-5
