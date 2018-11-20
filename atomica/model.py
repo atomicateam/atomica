@@ -1030,7 +1030,7 @@ class Model(object):
 
                     pop = self.get_pop(pop_source)
 
-                    for pop_target in transfer_parameter.y:
+                    for pop_target in transfer_parameter.ts:
 
                         # Create the parameter object for this link (shared across all compartments)
                         par_name = trans_type + '_' + pop_source + '_to_' + pop_target  # e.g. 'aging_0-4_to_15-64'
@@ -1038,7 +1038,7 @@ class Model(object):
                         par.preallocate(self.t, self.dt)
                         par.scale_factor = transfer_parameter.y_factor[pop_target] * transfer_parameter.meta_y_factor
                         par.vals = transfer_parameter.interpolate(tvec=self.t, pop_name=pop_target) * par.scale_factor
-                        par.units = transfer_parameter.y_format[pop_target].strip().split()[0].strip().lower()
+                        par.units = transfer_parameter.ts[pop_target].units.strip().split()[0].strip().lower()
                         pop.pars.append(par)
                         pop.par_lookup[par_name] = par
 

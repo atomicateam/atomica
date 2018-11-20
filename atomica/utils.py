@@ -75,8 +75,8 @@ class NDict(sc.odict):
 class TimeSeries(object):
     def __init__(self, t=None, vals=None, units=None, assumption=None):
 
-        t = sc.promotetoarray(t) if t is not None else list()
-        vals = sc.promotetoarray(vals) if vals is not None else list()
+        t = sc.promotetolist(t) if t is not None else list()
+        vals = sc.promotetolist(vals) if vals is not None else list()
 
         assert len(t) == len(vals)
 
@@ -92,6 +92,18 @@ class TimeSeries(object):
     def __repr__(self):
         output = sc.prepr(self)
         return output
+
+    def __deepcopy__(self, memodict={}):
+        new = TimeSeries.__new__(TimeSeries)
+        new.t = self.t.copy()
+        new.vals = self.vals.copy()
+        new.units = self.units
+        new.assumption = self.assumption
+        new.sigma = self.sigma
+        return new
+
+    def copy(self):
+        return self.__deepcopy__(self)
 
     @property
     def has_data(self) -> bool:
