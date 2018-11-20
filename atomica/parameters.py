@@ -78,7 +78,7 @@ class Parameter(NamedItem):
         # Note that the endpoints are not included!
         self.ts[pop_name].remove_between(t_remove)
 
-    def interpolate(self, tvec, pop_name):  # , extrapolate_nan = False):
+    def interpolate(self, tvec, pop_name):
         """ Take parameter values and construct an interpolated array corresponding to the input time vector. """
 
         return self.ts[pop_name].interpolate(tvec)
@@ -151,6 +151,22 @@ class ParameterSet(NamedItem):
             for source_pop,ts in ts_dict.items():
                 item_storage[name][source_pop] = Parameter(name + "_from_" + source_pop, sc.dcp(ts))
 
+    def all_pars(self):
+        """
+        A generator that returns an iterator over all Parameters
+
+        This is useful because transfers and interaction Parameters are stored in
+        nested dictionaries, so it's not trivial to iterate over all parameters
+
+        :return: Generator over all Parameters
+
+        """
+
+        for par in self.pars.values():
+            yield par
+        for obj in self.transfers.values() + self.interactions.values():
+            for par in obj.values():
+                yield par
 
     def copy(self, new_name=None):
         x = sc.dcp(self)

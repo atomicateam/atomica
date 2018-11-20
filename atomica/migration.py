@@ -20,6 +20,7 @@ from .results import Result
 from .system import FrameworkSettings as FS
 import atomica
 import types
+import numpy as np
 
 # MODULE MIGRATIONS
 #
@@ -285,5 +286,29 @@ def add_timescale(proj):
                         proj.framework.pars.at[spec.name, 'format'] = list(units)[0]
                     else:
                         raise Exception('Parameters must now have a single unit for all populations. However, the existing data has more than one unit type associated with Parameter "%s" so it is no longer valid.' % (spec.name))
+
+    return proj
+
+@migration('1.0.13', '1.0.14', 'Parameters use TimeSeries internally')
+def parameter_use_timeseries(proj):
+    for parset in proj.parsets.values():
+        for par in parset.all_pars():
+
+            par.ts = dict()
+            for pop in par.t.keys():
+                par.ts[pop] = atomica.TimeSeries(units=par.y_format[pop])
+                if par.t[pop] is None:
+                    continue
+                elif len(par.t[pop]) == 1 and not np.isfinite(par.t[pop][0]):
+                    # It was an assumption
+                    par.ts[pop].assumption = par.y[pop][0]
+                else:
+                    par.ts[pop].t = par.t[pop].tolist()
+                    par.ts[pop].vals = par.y[pop].tolist()
+
+            del par.y_format
+            del par.t
+            del par.y
+            del par.autocalibrate
 
     return proj
