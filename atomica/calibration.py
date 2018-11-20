@@ -65,10 +65,14 @@ def _calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, p
         var = result.model.get_pop(pop_name).get_variable(var_label)
         data_t, data_v = target.get_arrays()
 
+        # Interpolate the model outputs onto the data times
+        # If there is data outside the range when the model was simulated, don't
+        # extrapolate the model outputs
         y = data_v
-        y2 = interpolate(var[0].t, var[0].vals, data_t)
+        y2 = interpolate(var[0].t, var[0].vals, data_t, extrapolate=False)
+        idx = ~np.isnan(y) & ~np.isnan(y2)
 
-        objective += weight * sum(_calculate_fitscore(y, y2, metric))
+        objective += weight * sum(_calculate_fitscore(y[idx], y2[idx], metric))
 
     return objective
 

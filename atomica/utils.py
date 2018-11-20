@@ -346,7 +346,8 @@ def interpolate(x: np.array,y: np.array,x2: np.array, extrapolate=True) -> np.ar
     :param y: Original function values
     :param x2: New desired x values
     :param extrapolate: If True, use constant interpolation outside the original domain. Otherwise,
-                        the function value will be NaN
+                        the function value will be NaN. Note that in general, model outputs
+                        should not be extrapolated
     :return: Array the same size as ``x2`` with interpolated values
 
     """
