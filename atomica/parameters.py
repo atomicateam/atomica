@@ -23,15 +23,22 @@ class Parameter(NamedItem):
 
     """
 
-    def __init__(self, name, ts):
+    def __init__(self, name: str, ts: dict):
         NamedItem.__init__(self, name)
-        self.ts = ts
+        self.ts = ts #: Population-specific data is stored in TimeSeries within this dict, keyed by population name
         self.y_factor = dict.fromkeys(self.ts,1.0) #: Calibration scale factors for the parameter in each population
         self.meta_y_factor = 1.0 #: Calibration scale factor for all populations
 
 
     @property
     def pops(self):
+        """
+        Get populations contained in the Parameter
+
+        :return: Generator/list of available populations
+
+        """
+
         return self.ts.keys()
 
 
@@ -56,30 +63,15 @@ class Parameter(NamedItem):
         else:
             return False
 
-    def insert_value_pair(self, t, y, pop_name):
+    def interpolate(self, tvec, pop_name: str) -> np.array:
         """
-        Check if the inserted t value already exists for the population parameter.
-        If not, append y value. If so, overwrite y value.
+        Return interpolated parameter values for a given population
+
+        :param tvec: A scalar, list, or array or time values
+        :param pop_name: The population to interpolate data for
+        :return: An array with the interpolated values
+
         """
-        self.ts[pop_name].insert(t,y)
-
-    def remove_value_at(self, t, pop_name):
-        """ Remove value at time point 't' and the time point itself if no other time point exists. """
-
-        if len(self.ts[pop_name].vals) > 1:
-            self.ts[pop_name].remove(t,y)
-            return True
-        else:
-            return False
-
-    def remove_between(self, t_remove, pop_name):
-        # t is a two element vector [min,max] such that
-        # times > min and < max are removed
-        # Note that the endpoints are not included!
-        self.ts[pop_name].remove_between(t_remove)
-
-    def interpolate(self, tvec, pop_name):
-        """ Take parameter values and construct an interpolated array corresponding to the input time vector. """
 
         return self.ts[pop_name].interpolate(tvec)
 

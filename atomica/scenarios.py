@@ -122,24 +122,24 @@ class ParameterScenario(Scenario):
                             # If the smooth onset extends to before the previous point, then just use the
                             # previous point directly instead
                             y = overwrite['y'][i - 1] / par.y_factor[pop_label] / par.meta_y_factor
-                            par.remove_between([overwrite['t'][i - 1], overwrite['t'][i]], pop_label)
-                            par.insert_value_pair(t, y, pop_label)
+                            par.ts[pop_label].remove_between([overwrite['t'][i - 1], overwrite['t'][i]])
+                            par.ts[pop_label].insert(t,y)
                         else:
                             # Otherwise, get the value at the smooth onset time, add it as a control
                             # point, and remove any intermediate points
                             y = par.interpolate(np.array([t]), pop_label)
-                            par.remove_between([t, overwrite['t'][i]], pop_label)  # Remove values during onset period
-                            par.insert_value_pair(t, y, pop_label)
+                            par.ts[pop_label].remove_between([t, overwrite['t'][i]])  # Remove values during onset period
+                            par.ts[pop_label].insert(t,y)
                     elif i > 0:
                         # If not doing smooth onset, and this is not the first point being overwritten,
                         # then remove all control points between this point and the last one
-                        par.remove_between([overwrite['t'][i - 1], overwrite['t'][i]], pop_label)
+                        par.ts[pop_label].remove_between([overwrite['t'][i - 1], overwrite['t'][i]])
 
                     # Insert the overwrite value - assume scenario value is AFTER y-factor rescaling
-                    par.insert_value_pair(overwrite['t'][i], overwrite['y'][i] / par.y_factor[pop_label] / par.meta_y_factor, pop_label)
+                    par.ts[pop_label].insert(overwrite['t'][i], overwrite['y'][i] / par.y_factor[pop_label] / par.meta_y_factor)
 
                 # Add an extra point to return the parset back to it's original value after the final overwrite
-                par.insert_value_pair(max(overwrite['t']) + 1e-5, original_y_end, pop_label)
+                par.ts[pop_label].insert(max(overwrite['t']) + 1e-5, original_y_end)
 
             new_parset.name = self.name + '_' + parset.name
             return new_parset
