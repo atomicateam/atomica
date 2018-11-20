@@ -8,7 +8,7 @@ automatic calibration
 
 import numpy as np
 import sciris as sc
-from .interpolation import interpolate_func
+from .utils import interpolate
 from .model import BadInitialization
 
 # TODO: Determine whether this is necessary.
@@ -66,7 +66,7 @@ def _calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, p
         data_t, data_v = target.get_arrays()
 
         y = data_v
-        y2 = interpolate_func(var[0].t, var[0].vals, data_t)
+        y2 = interpolate(var[0].t, var[0].vals, data_t)
 
         objective += weight * sum(_calculate_fitscore(y, y2, metric))
 

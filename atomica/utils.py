@@ -157,6 +157,19 @@ class TimeSeries(object):
             raise Exception('Item not found')
 
     def get_arrays(self):
+        """
+        Return arrays with the contents of this TimeSeries
+
+        The TimeSeries instance may have time values, or may simply have
+        an assumption. If obtaining raw arrays is desired, this function will
+        return arrays with values extracted from the appropriate attribute of the
+        TimeSeries. However, in general, it is usually `.interpolate()` that is
+        desired, rather than `.get_arrays()`
+
+        :return: Tuple with two arrays - the first item is times (with a single NaN if
+                 the TimeSeries only has an assumption) and the second item is values
+
+        """
         if len(self.t) == 0:
             t = np.array([np.nan])
             v = np.array([self.assumption])
@@ -184,8 +197,15 @@ class TimeSeries(object):
             if t_remove[0] < tval < t_remove[1]:
                 self.remove(tval)
 
-    def interpolate(self, t2):
-        # Output is guaranteed to be of type np.array
+    def interpolate(self, t2: np.array) -> np.array:
+        """
+        Return interpolated values
+
+        :param t2: float, list, or array, with times
+        :return: array the same length as t2, with interpolated values
+
+        """
+
         t2 = sc.promotetoarray(t2)  # Deal with case where user prompts for single time point
 
         if not self.has_data:
@@ -194,23 +214,7 @@ class TimeSeries(object):
             return np.full(t2.shape, self.assumption)
 
         t1, v1 = self.get_arrays()
-
-        # Remove NaNs
-        idx = ~np.isnan(t1) & ~np.isnan(v1)
-        t1 = t1[idx]
-        v1 = v1[idx]
-
-        if t1.size == 0:
-            raise Exception('No time points remained after removing NaNs from the TimeSeries')
-        elif t1.size == 1:
-            return np.full(t2.shape, v1[0])
-        else:
-            v2 = np.zeros(t2.shape)
-            f = scipy.interpolate.PchipInterpolator(t1, v1, axis=0, extrapolate=False)
-            v2[(t2 >= t1[0]) & (t2 <= t1[-1])] = f(t2[(t2 >= t1[0]) & (t2 <= t1[-1])])
-            v2[t2 < t1[0]] = v1[0]
-            v2[t2 > t1[-1]] = v1[-1]
-            return v2
+        return interpolate(t1, v1, t2)
 
     def sample(self, t2):
         """
@@ -327,3 +331,98 @@ def format_duration(t: float, pluralize=False) -> str:
         return '%d %ss' % (converted_t, timescale)
     else:
         return '%s %ss' % (sc.sigfig(converted_t, keepints=True,sigfigs=3), timescale)
+
+
+def interpolate(x: np.array,y: np.array,x2: np.array, extrapolate=True) -> np.array:
+    """
+    pchip interpolation with constant extrapolation
+
+    Atomica's standard interpolation routine is based on the pchip method. However, when
+    extrapolation is desired (such as when interpolating parameters), it is most useful to
+    assume the derivative is zero outside the original range of the function, rather than
+    the default pchip behaviour of extrapolating with constant gradient.
+
+    :param x: Original x values
+    :param y: Original function values
+    :param x2: New desired x values
+    :param extrapolate: If True, use constant interpolation outside the original domain. Otherwise,
+                        the function value will be NaN
+    :return: Array the same size as ``x2`` with interpolated values
+
+    """
+
+    # Remove NaNs - note that advanced indexing means that the variable is copied
+    idx = ~np.isnan(x) & ~np.isnan(y)
+    x = x[idx]
+    y = y[idx]
+
+    if x.size == 0:
+        raise Exception('No time points remained after removing NaNs from the TimeSeries')
+    elif x.size == 1:
+        return np.full(x2.shape, y[0])
+    else:
+        f = scipy.interpolate.PchipInterpolator(x, y, axis=0, extrapolate=False)
+        if extrapolate:
+            y2 = np.zeros(x2.shape)
+            y2[(x2 >= x[0]) & (x2 <= x[-1])] = f(x2[(x2 >= x[0]) & (x2 <= x[-1])])
+            y2[x2 < x[0]] = y[0]
+            y2[x2 > x[-1]] = y[-1]
+        else:
+            y2 = f(x2) # PchipInterpolator will return NaNs outside the domain
+        return y2
+
+
+def floor_interpolator(x, y):
+    """
+    Stepped (single-sided nearest neighbour) interpolation
+
+    This returns a function that does interpolation where the return value
+    corresponds to the nearest smaller neighbour (and NaN if extrapolating)
+
+    :param x: Original x values
+    :param y: Original y values
+    :return: Function object `f(x)` that performs interpolation
+
+    Example usage:
+
+    >>> f = floor_interpolator([1,2,3,4],[1,2,3,4])
+    >>> (f(0.5) )
+    [nan]
+    >>> (f(1))
+    [1.]
+    >>> (f(1.5))
+    [1.]
+    >>> (f(2))
+    [2.]
+    >>> (f(4))
+    [4.]
+    >>> (f(5))
+    [nan]
+    >>> (f([0.5,1,1.5,2,4,5]))
+    [nan  1.  1.  2.  4. nan]
+
+    """
+    # Return a function that returns the floor interpolation for given values (and NaN if out of range)
+    x = sc.promotetoarray(x)
+    y = sc.promotetoarray(y)
+
+    idx = np.argsort(x)
+    x = x[idx]
+    y = y[idx]
+
+    def f(x2):
+        x2 = sc.promotetoarray(x2)
+        out = np.full(x2.shape, np.nan)
+        for i, v in enumerate(x2):
+            if v > x[-1]:
+                continue
+
+            flt = np.where(x <= v)[0]
+            if not len(flt):
+                continue
+
+            out[i] = y[flt[-1]]
+
+        return out
+
+    return f

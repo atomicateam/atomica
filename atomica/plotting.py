@@ -28,7 +28,7 @@ from .model import Compartment, Characteristic, Parameter, Link
 from .results import Result
 from .system import logger
 from .function_parser import parse_function
-from .interpolation import interpolate_func
+from .utils import interpolate
 from .system import FrameworkSettings as FS
 from .utils import format_duration
 
@@ -1411,7 +1411,7 @@ def _render_data(ax, data, series, baseline=None, filled=False) -> None:
     t, y = ts.get_arrays()
 
     if baseline is not None:
-        y_data = interpolate_func(series.tvec, baseline, t, method='pchip', extrapolate_nan=False)
+        y_data = interpolate(series.tvec, baseline, t, extrapolate=False)
         y = y + y_data
 
     if filled:
