@@ -205,11 +205,23 @@ class TimeSeries(object):
         elif t1.size == 1:
             return np.full(t2.shape, v1[0])
         else:
-            v2 = np.zeros(t2.shape)
-            f = scipy.interpolate.PchipInterpolator(t1, v1, axis=0, extrapolate=False)
-            v2[(t2 >= t1[0]) & (t2 <= t1[-1])] = f(t2[(t2 >= t1[0]) & (t2 <= t1[-1])])
-            v2[t2 < t1[0]] = v1[0]
-            v2[t2 > t1[-1]] = v1[-1]
+
+            if t2[-1] >= t1[-1]:
+                t1 = np.append(t1,t1[-1]+1000)
+                v1 = np.append(v1,v1[-1])
+
+            if t2[0] < t1[0]:
+                t1 = np.insert(t1, 0, t1[0]-1000)
+                v1 = np.insert(v1, 0, v1[0])
+            f = scipy.interpolate.PchipInterpolator(t1, v1, axis=0, extrapolate=True)
+            return f(t2)
+
+
+            # v2 = np.zeros(t2.shape)
+            # f = scipy.interpolate.PchipInterpolator(t1, v1, axis=0, extrapolate=False)
+            # v2[(t2 >= t1[0]) & (t2 <= t1[-1])] = f(t2[(t2 >= t1[0]) & (t2 <= t1[-1])])
+            # v2[t2 < t1[0]] = v1[0]
+            # v2[t2 > t1[-1]] = v1[-1]
             return v2
 
     def sample(self, t2):
