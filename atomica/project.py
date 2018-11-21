@@ -439,8 +439,7 @@ class Project(object):
         tm = sc.tic()
         result = run_model(settings=self.settings, framework=self.framework, parset=parset, progset=progset,
                            program_instructions=progset_instructions, name=result_name)
-        sc.toc(tm, label="running '{0}' model".format(self.name))
-
+        logger.info('Elapsed time for running "%s": %ss',self.name,sc.sigfig(sc.toc(tm,output=True),3))
         if store_results:
             self.results.append(result)
 
