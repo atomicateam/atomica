@@ -358,6 +358,9 @@ class ProjectFramework(object):
             if (row['databook page'] is None) and (row['databook order'] is not None):
                 logger.warning('Compartment "%s" has a databook order, but no databook page', row.name)
 
+            if (row['databook page'] is not None) and not (row['databook page'] in self.sheets['databook pages'][0]['datasheet code name'].values):
+                raise InvalidFramework('Compartment "%s" has databook page "%s" but that page does not appear on the "databook pages" sheet' % (row.name,row['databook page']))
+
         # VALIDATE CHARACTERISTICS
 
         required_columns = ['display name']
@@ -410,6 +413,9 @@ class ProjectFramework(object):
 
             if (row['databook page'] is None) and (row['calibrate'] is not None):
                 raise InvalidFramework('Compartment "%s" is marked as being eligible for calibration, but it does not appear in the databook' % row.name)
+
+            if (row['databook page'] is not None) and not (row['databook page'] in self.sheets['databook pages'][0]['datasheet code name'].values):
+                raise InvalidFramework('Characteristic "%s" has databook page "%s" but that page does not appear on the "databook pages" sheet' % (row.name,row['databook page']))
 
             for component in row['components'].split(','):
                 if not (component.strip() in self.comps.index or component.strip() in self.characs.index):
@@ -478,6 +484,9 @@ class ProjectFramework(object):
             # Convert case for standard units - this is required for validation
             if par['format'] and par['format'].lower() in FS.STANDARD_UNITS:
                 par['format'] = par['format'].lower()
+
+            if (par['databook page'] is not None) and not (par['databook page'] in self.sheets['databook pages'][0]['datasheet code name'].values):
+                raise InvalidFramework('Compartment "%s" has databook page "%s" but that page does not appear on the "databook pages" sheet' % (par.name,par['databook page']))
 
             if par['function'] is None:
                 # In order to have a value, a transition parameter must either be
