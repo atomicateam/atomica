@@ -899,7 +899,18 @@ def generate_framework_doc(framework,fname, databook_only=False):
             if spec['function']:
                 _, deps = parse_function(spec['function'])  # Parse the function to get dependencies
                 for dep in deps:
-                    fcn_deps[spec.name].add(framework.get_label(dep))
+                    if dep.endswith('___flow'):
+                        fcn_deps[spec.name].add(framework.get_label(dep.replace('___flow','')) + ' flow rate')
+                    elif '___' in dep:
+                        from_comp, to_comp = dep.split('___')
+                        label = 'Flow'
+                        if from_comp:
+                            label += ' from %s' % (framework.get_label(from_comp))
+                        if to_comp:
+                            label += ' to %s' % (framework.get_label(to_comp))
+                        fcn_deps[spec.name].add(label)
+                    else:
+                        fcn_deps[spec.name].add(framework.get_label(dep))
 
                     if dep in fcn_deps:
                         fcn_used_in[dep].add(spec['display name'])
