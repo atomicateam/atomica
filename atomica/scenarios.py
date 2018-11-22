@@ -1,14 +1,22 @@
 """
 Define classes and functions for handling scenarios
-Version: 2018mar26
+
+This module implements the classes used to represent the three
+main types of scenarios in Atomica:
+
+* parameter scenarios
+* budget scenarios
+* coverage scenarios
+
 """
+
 
 import numpy as np
 import sciris as sc
-from .system import AtomicaException, logger
+from .system import logger
 from .utils import NamedItem
 from .programs import ProgramInstructions
-from .structure import TimeSeries
+from .utils import TimeSeries
 
 
 class Scenario(NamedItem):
@@ -74,19 +82,18 @@ class ParameterScenario(Scenario):
         new_parset = sc.dcp(parset)
 
         for par_label in self.scenario_values.keys():
-            par = new_parset.get_par(par_label)  # This is the parameter we are updating
+            par = new_parset.pars[par_label]  # This is the parameter we are updating
 
             for pop_label, overwrite in self.scenario_values[par_label].items():
 
                 if not par.has_values(pop_label):
-                    raise AtomicaException("You cannot specify overwrites for a parameter with a function, instead you should overwrite its dependencies")
+                    raise Exception("You cannot specify overwrites for a parameter with a function, instead you should overwrite its dependencies")
 
                 original_y_end = par.interpolate(np.array([max(overwrite['t']) + 1e-5]), pop_label)
 
-                # If the Parameter had an assumption, then expand the assumption out first
-                if len(par.t[pop_label]) == 1 and np.isnan(par.t[pop_label][0]):
-                    par.t[pop_label] = np.array([settings.sim_start, settings.sim_end])
-                    par.y[pop_label] = par.y[pop_label] * np.ones(par.t[pop_label].shape)
+                # If the Parameter had an assumption, then insert the assumption value in the start year
+                if not par.ts[pop_label].has_time_data:
+                    par.ts[pop_label].insert(settings.sim_start, par.ts[pop_label].assumption)
 
                 if 'smooth_onset' not in overwrite:
                     overwrite['smooth_onset'] = 1e-5
@@ -100,7 +107,7 @@ class ParameterScenario(Scenario):
 
                 # Now, insert all of the program overwrites
                 if len(overwrite['t']) != len(overwrite['y']):
-                    raise AtomicaException('Number of time points in overwrite does not match number of values')
+                    raise Exception('Number of time points in overwrite does not match number of values')
 
                 if len(overwrite['t']) == 1:
                     logger.warning('Only one time point was specified in the overwrite, which means that the overwrite will not have any effect')
@@ -115,24 +122,24 @@ class ParameterScenario(Scenario):
                             # If the smooth onset extends to before the previous point, then just use the
                             # previous point directly instead
                             y = overwrite['y'][i - 1] / par.y_factor[pop_label] / par.meta_y_factor
-                            par.remove_between([overwrite['t'][i - 1], overwrite['t'][i]], pop_label)
-                            par.insert_value_pair(t, y, pop_label)
+                            par.ts[pop_label].remove_between([overwrite['t'][i - 1], overwrite['t'][i]])
+                            par.ts[pop_label].insert(t,y)
                         else:
                             # Otherwise, get the value at the smooth onset time, add it as a control
                             # point, and remove any intermediate points
                             y = par.interpolate(np.array([t]), pop_label)
-                            par.remove_between([t, overwrite['t'][i]], pop_label)  # Remove values during onset period
-                            par.insert_value_pair(t, y, pop_label)
+                            par.ts[pop_label].remove_between([t, overwrite['t'][i]])  # Remove values during onset period
+                            par.ts[pop_label].insert(t,y)
                     elif i > 0:
                         # If not doing smooth onset, and this is not the first point being overwritten,
                         # then remove all control points between this point and the last one
-                        par.remove_between([overwrite['t'][i - 1], overwrite['t'][i]], pop_label)
+                        par.ts[pop_label].remove_between([overwrite['t'][i - 1], overwrite['t'][i]])
 
                     # Insert the overwrite value - assume scenario value is AFTER y-factor rescaling
-                    par.insert_value_pair(overwrite['t'][i], overwrite['y'][i] / par.y_factor[pop_label] / par.meta_y_factor, pop_label)
+                    par.ts[pop_label].insert(overwrite['t'][i], overwrite['y'][i] / par.y_factor[pop_label] / par.meta_y_factor)
 
                 # Add an extra point to return the parset back to it's original value after the final overwrite
-                par.insert_value_pair(max(overwrite['t']) + 1e-5, original_y_end, pop_label)
+                par.ts[pop_label].insert(max(overwrite['t']) + 1e-5, original_y_end)
 
             new_parset.name = self.name + '_' + parset.name
             return new_parset

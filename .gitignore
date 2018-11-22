@@ -108,3 +108,6 @@ ENV/
 package-lock.json
 temp
 vueapp
+
+# Excel temp files
+~$*

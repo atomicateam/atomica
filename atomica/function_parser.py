@@ -1,12 +1,51 @@
+"""
+Implements the parameter function parser
+
+Parameter functions are entered as strings in the Framework file.
+This module implements the function parser that converts the string into
+an executable Python representation.
+
+"""
+
 import ast
 import numpy as np
 
 
 def to_timestep(p, dt):
+    """ Convert from annual to timestep probability
+
+    The timestep-probability of an event is different to the annual probability.
+    This function provides a clean syntax for this transformation in the Framework
+
+    :param p: Annual probability
+    :param dt: Timestep (in years)
+    :return: Timestep probability
+
+    Example usage:
+    >>> to_timestep(0.9,0.25)
+    0.4376586748096509
+
+    """
+
     return 1. - (1. - p)**dt
 
 
 def to_annual(p, dt):
+    """
+    Convert from timestep probability to annual probability
+
+    This function is the inverse of py:function:`to_timestep`. The main usage
+    case would be for implementation proportional outcomes for transition parameters
+    out of non-junction compartments. Users may enter proportions of outcomes as
+    per-timestep probabilities, and this function will convert the value to the
+    corresponding annualized probability required by the model.
+
+    :param p: Timestep probability
+    :param dt: Timestep (in years)
+    :return: Annual probability
+
+    """
+
     return 1 - (1 - p)**(1. / dt)
 
 
@@ -23,6 +62,7 @@ supported_functions = {
     'pi': np.pi,
     'cos': np.cos,
     'sin': np.sin,
+    'sqrt': np.sqrt,
     'to_timestep': to_timestep,
     'to_annual': to_annual,
 }

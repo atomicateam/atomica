@@ -1,7 +1,19 @@
+"""
+Implements the automatic reconciliation algorithm
+
+In any given model run, the parameters calculated by the :py:class:`ProgramSet`
+should ideally match up with the values in the :py:class:`ParameterSet` so that
+there are no discontinuities in parameter value. This may not be the case depending
+on the data gathered and the calibration. Reconciliation aims to adjust the
+internal parameters of the :py:class:`ProgramSet` to best match a :py:class:`ParameterSet`
+in a particular year.
+
+"""
+
 import numpy as np
 import sciris as sc
 from .system import logger
-from .structure import FrameworkSettings as FS
+from .system import FrameworkSettings as FS
 import pandas as pd
 
 
@@ -189,33 +201,37 @@ def _convert_to_single_year(progset, reconciliation_year):
 # ASD takes in a list of values. So we need to map all of the things we are optimizing onto
 
 
-def reconcile(project, parset, progset, reconciliation_year, max_time=10, unit_cost_bounds=0.0, baseline_bounds=0.0, capacity_bounds=0.0, outcome_bounds=0.0, eval_pars=None, eval_range=None):
-    # INTERIM
-    #
-    # unit_cost_bounds = 0.2 means +/- 20%
-    # Same for the other bounds
+def reconcile(project, parset, progset, reconciliation_year: float, max_time=10, unit_cost_bounds=0.0, baseline_bounds=0.0, capacity_bounds=0.0, outcome_bounds=0.0, eval_pars=None, eval_range=None):
     """
-    Reconciles progset to identified parset, the objective being to match the parameters as closely as possible with identified standard deviation sigma
+    Modify a progset to optimally match a parset in a specified year
 
-    Params:
-        project                    Project object to run simulations for reconciliation process (type: Python object)
-        reconciliation year: The year in which reconciliation is to be performed
+    Reconciliation is a mapping from one progset to another. The output progset generates optimally matched output parameter
+    values compared to the specified parset, in the reconciliation year for the progset's default spending. The output progset
+    has internal attributes (such as unit costs) with values that are defined only in the reconciliation year. So while the
+    input progset may have time varying unit costs etc. after reconciliation, they will be constant.
 
+    The upper and lower bounds for unit costs, baseline, capacity, and outcome are specified as fractions of the initial value. For
+    example, entering ``unit_cost_bounds=0.2`` would mean that unit costs would be allowed to range from 0.8 to 1.2 times the
+    value in the input progset.
 
-        limits : Specifies how much each quantity can be adjusted by. Can be
-                 - A single number. This is shorthard for the limits being `value*[(1-limit),(1+limit)]` e.g. 0.2 would mean +/- 20%
-                 - A single number, specific to a particular quantity. A quantity can be:
-                 - A program unit cost - limits[prog_name]['unit_cost'] = 0.2
-
-
-        constrain_budget        Flag to inform algorithm whether to constrain total budget or not (type: bool)
-
-        eval_years  : Optional, [start_year,stop_year] can evaluate match between progset and parset over this range of times
-    Returns:
-        progset                 Updated progset with reconciled values
-        outcome                 String denoting original and reconciled parset/progset impact comparison
+    :param project: A :py:class:`Project` instance
+    :param parset: A :py:class:`ParameterSet` instance (or name of a parset contained in the project)
+    :param progset: A :py:class:`ProgramSet` instance (or name of a progset contained in the project)
+    :param reconciliation_year: Year to perform reconciliation in
+    :param max_time: Optionally override the maximum execution time in ASD
+    :param unit_cost_bounds: Optionally specify bounds for unit costs. Default is 0.0 (unit costs will not be changed)
+    :param baseline_bounds: Optionally specify bounds for baseline spending. Default is 0.0 (no changes)
+    :param capacity_bounds: Optionally specify bounds for capacity constraints. Default is 0.0 (no changes)
+    :param outcome_bounds: Optionally specify bounds for outcome values. Default is 0.0 (no changes)
+    :param eval_pars: Optionally select a subset of parameters for comparison. By default, all parameters overwritten by the progset will be used.
+    :param eval_range: Optionally specify a range of years over which to evaluate the progset-parset match. By default, it will only use the reconciliation year
+    :return: tuple containing
+            - A reconciled :py:class:`ProgramSet` instance
+            - A DataFrame comparing the unreconciled and reconciled progsets
+            - A DataFrame comparing the parset parameters and progset
 
     """
+
     # Sanitize inputs
     parset = project.parset(parset)
     progset = project.progset(progset)

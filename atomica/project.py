@@ -1,7 +1,8 @@
 """
-PROJECT
+Implements the :py:class:`Project` user interface for Atomica
 
-The main project class. Almost all functionality is provided by this class.
+The :py:class:`Project` class serves as the primary user interface for
+Atomica. Almost all functionality can be accessed via this interface.
 
 A project is based around 5 major lists:
     1. parsets -- an odict of parameter sets
@@ -15,13 +16,6 @@ In addition, a project contains:
     2. settings -- timestep, indices, etc.
     3. various kinds of metadata -- project name, creation date, etc.
 
-Methods for structure lists:
-    1. add -- add a new structure to the odict
-    2. remove -- remove a structure from the odict
-    3. copy -- copy a structure in the odict
-    4. rename -- rename a structure in the odict
-
-Version: 2018sep25
 """
 
 from .version import version
@@ -34,11 +28,11 @@ from .parameters import ParameterSet
 from .programs import ProgramSet
 from .scenarios import Scenario, ParameterScenario, BudgetScenario, CoverageScenario
 from .optimization import Optimization, optimize, OptimInstructions, InvalidInitialConditions
-from .system import logger, AtomicaException
+from .system import logger
 from .cascade import get_cascade_outputs
-from .utils import NDict
+from .utils import NDict, evaluate_plot_string
 from .plotting import PlotData, plot_series
-from .results import Result, evaluate_plot_string
+from .results import Result
 from .migration import migrate
 import sciris as sc
 import numpy as np
@@ -105,7 +99,7 @@ class Project(object):
         # Define metadata
         self.uid = sc.uuid()
         self.version = version
-        self.gitinfo = sc.gitinfo(__file__)
+        self.gitinfo = sc.gitinfo(__file__, verbose=False)
         self.created = sc.now()
         self.modified = sc.now()
         self.filename = None
@@ -174,24 +168,33 @@ class Project(object):
         data.save(databook_path)
         return data
 
-    def load_databook(self, databook_path=None, make_default_parset=True, do_run=True):
+    def load_databook(self, databook_path=None, make_default_parset=True, do_run=True) -> None:
         """
-        Load a data spreadsheet.
+        Load a data spreadsheet
 
-        INPUTS:
-        - databook_path: a path string, which will load a file from disk, or an AtomicaSpreadsheet
-                         containing the contents of a databook
-        - make_default_parset: If True, a Parset called "default" will be immediately created from the
-                               newly-added data
-        - do_run: If True, a simulation will be run using the new parset
+        :param databook_path: a path string, which will load a file from disk, or an AtomicaSpreadsheet
+                                containing the contents of a databook
+        :param make_default_parset: If True, a Parset called "default" will be immediately created from the
+                                    newly-added data
+        :param do_run: If True, a simulation will be run using the new parset
+
         """
+
         if sc.isstring(databook_path):
             full_path = sc.makefilepath(filename=databook_path, default=self.name, ext='xlsx', makedirs=False)
             databook_spreadsheet = AtomicaSpreadsheet(full_path)
         else:
             databook_spreadsheet = databook_path
 
-        self.data = ProjectData.from_spreadsheet(databook_spreadsheet, self.framework)
+        data = ProjectData.from_spreadsheet(databook_spreadsheet, self.framework)
+
+        # If there are existing progsets, make sure the new data is consistent with them
+        if self.progsets:
+            data_pops = set((x,y['label']) for x,y in data.pops.items())
+            for progset in self.progsets.values():
+                assert data_pops == set((x,y) for x,y in progset.pops.items()), 'Existing progsets exist with populations that do not match the new databook'
+
+        self.data = data
         self.data.validate(self.framework)  # Make sure the data is suitable for use in the Project (as opposed to just manipulating the databook)
         self.databook = sc.dcp(databook_spreadsheet)  # Actually a shallow copy is fine here because AtomicaSpreadsheet contains no mutable properties
         self.modified = sc.now()
@@ -210,16 +213,15 @@ class Project(object):
 
     def make_parset(self, name="default"):
         """ Transform project data into a set of parameters that can be used in model simulations. """
-        self.parsets.append(ParameterSet(name))
-        self.parsets[name].make_pars(self.framework, self.data)
+        self.parsets.append(ParameterSet(self.framework, self.data, name))
         return self.parsets[name]
 
-    def make_progbook(self, progbook_path=None, progs=None, data_start=None, data_end=None, blh_effects=False):
+    def make_progbook(self, progbook_path=None, progs=None, data_start=None, data_end=None):
         ''' Make a blank program databook'''
         # Get filepath
         if self.data is None:
             errormsg = 'Please upload a databook before creating a program book. The databook defines which populations will appear in the program book.'
-            raise AtomicaException(errormsg)
+            raise Exception(errormsg)
         full_path = sc.makefilepath(filename=progbook_path, default=self.name, ext='xlsx', makedirs=False)  # Directory will be created later in progset.save()
         if data_start is None:
             data_start = self.data.tvec[0]
@@ -228,15 +230,22 @@ class Project(object):
         progset = ProgramSet.new(tvec=np.arange(data_start, data_end + 1), progs=progs, framework=self.framework, data=self.data)
         progset.save(full_path)
 
-    def load_progbook(self, progbook_path=None, name="default", blh_effects=False, verbose=False):
-        ''' Load a programs databook'''
-        if verbose:
-            print('Making ProgramSet')
-        if verbose:
-            print('Uploading program data')
+    def load_progbook(self, progbook_path=None, name="default"):
+        """
+        Create a ProgramSet given a progbook
+
+        :param progbook_path: Path to a program spreadsheet
+        :param name: The name to assign to the new ProgramSet
+        :return: The newly created ProgramSet (also stored in ``self.progsets``)
+
+        """
+
+        logger.debug('Making ProgramSet')
+        logger.debug('Uploading program data')
+
         if self.data is None:
             errormsg = 'Please upload a databook before uploading a program book. The databook contains the population definitions required to read the program book.'
-            raise AtomicaException(errormsg)
+            raise Exception(errormsg)
 
         if sc.isstring(progbook_path):
             full_path = sc.makefilepath(filename=progbook_path, default=self.name, ext='xlsx', makedirs=False)
@@ -244,15 +253,14 @@ class Project(object):
         else:
             progbook_spreadsheet = progbook_path
 
-        progset = ProgramSet.from_spreadsheet(spreadsheet=progbook_spreadsheet, framework=self.framework, data=self.data)
+        progset = ProgramSet.from_spreadsheet(spreadsheet=progbook_spreadsheet, framework=self.framework, data=self.data, name=name)
         progset.validate()
         self.progbook = sc.dcp(progbook_spreadsheet)  # Actually a shallow copy is fine here because AtomicaSpreadsheet contains no mutable properties
 
-        if verbose:
-            print('Updating program sets')
+        logger.debug('Updating program sets')
         self.progsets.append(progset)
-        if verbose:
-            print('Done with make_progset().')
+        logger.debug('Done with make_progset().')
+
 
     def make_scenario(self, name="default", which=None, instructions=None, json=None):
         if json is not None:
@@ -390,15 +398,25 @@ class Project(object):
         """ Modify the project settings, e.g. the simulation time vector. """
         self.settings.update_time_vector(start=sim_start, end=sim_end, dt=sim_dt)
 
-    def run_sim(self, parset=None, progset=None, progset_instructions=None,
-                store_results=True, result_type=None, result_name=None):
+    def run_sim(self, parset=None, progset=None, progset_instructions=None, store_results=True, result_name=None):
         """
-        Run model using a selected parset and store/return results.
-        An optional program set and use instructions can be passed in to simulate budget-based interventions.
+        Run a single simulation
+
+        This function is the main entry point for running model simulations, given a
+        parset and optionally program set + instructions.
+
+        :param parset: A :py:class:`ParameterSet` instance, or the name of a parset contained in ``self.parsets``.
+                        If ``None``, then the most recently added parset will be used (the last entry in ``self.parsets``)
+        :param progset: Optionally pass in a :py:class:`ProgramSet` instance, or the name of a progset contained in ``self.progsets``
+        :param progset_instructions: A :py:class:`ProgramInstructions` instance. Programs will only be used if a instructions are provided
+        :param store_results: If True (default) then the result will automatically be stored in ``self.results``
+        :param result_name: Optionally assign a specific name to the result (otherwise, a unique default name will automatically be selected)
+        :return: A :py:class:`Result` instance
+
         """
 
         parset = self.parset(parset)
-        if progset is not None:     # Do not grab a default program set in case one does not exist.
+        if progset is not None:
             progset = progset if isinstance(progset, ProgramSet) else self.progset(progset)
 
         if progset is None:
@@ -406,15 +424,12 @@ class Project(object):
         elif progset_instructions is None:
             logger.info("Program set '%s' will be ignored while running project '%s' due to the absence of program set instructions", progset.name, self.name)
         else:
-            logger.info("Initiating a run of project '%s' with programs", self.name)
+            logger.info("Initiating a run of project '%s' (with programs)", self.name)
 
         if result_name is None:
             base_name = "parset_" + parset.name
             if progset is not None:
                 base_name = base_name + "_progset_" + progset.name
-            if result_type is not None:
-                base_name = result_type + "_" + base_name
-
             k = 1
             result_name = base_name
             while result_name in self.results:
@@ -424,8 +439,7 @@ class Project(object):
         tm = sc.tic()
         result = run_model(settings=self.settings, framework=self.framework, parset=parset, progset=progset,
                            program_instructions=progset_instructions, name=result_name)
-        sc.toc(tm, label="running '{0}' model".format(self.name))
-
+        logger.info('Elapsed time for running "%s": %ss',self.name,sc.sigfig(sc.toc(tm,output=True),3))
         if store_results:
             self.results.append(result)
 
@@ -510,7 +524,7 @@ class Project(object):
             optimized_instructions = optimize(self, optim, parset, progset, unoptimized_instructions)
         except InvalidInitialConditions:
             if optim_ins.json['optim_type'] == 'money':
-                raise AtomicaException('It was not possible to achieve the optimization target even with an increased budget. Specify or raise upper limits for spending, or decrease the optimization target')
+                raise Exception('It was not possible to achieve the optimization target even with an increased budget. Specify or raise upper limits for spending, or decrease the optimization target')
             else:
                 raise  # Just raise it as-is
 
@@ -606,7 +620,7 @@ class Project(object):
                 elif optim_type == 'money':
                     json['objective_weights']['conversion:%s' % (cascade_name)] = 0.
                 else:
-                    raise AtomicaException('Unknown optim_type')
+                    raise Exception('Unknown optim_type')
 
                 if cascade_name.lower() == 'cascade':
                     json['objective_labels']['conversion:%s' % (cascade_name)] = 'Maximize the conversion rates along each stage of the cascade'
@@ -624,7 +638,7 @@ class Project(object):
                     elif optim_type == 'money':
                         json['objective_weights'][objective_name] = 0
                     else:
-                        raise AtomicaException('Unknown optim_type')
+                        raise Exception('Unknown optim_type')
 
                     if cascade_name.lower() == 'cascade':
                         json['objective_labels'][objective_name] = 'Maximize the number of people in cascade stage "%s"' % (stage_name)
@@ -651,10 +665,10 @@ class Project(object):
                                             'xdr_inf': 'Prevalence of active XDR-TB'}
 
             else:
-                raise AtomicaException('Unknown optim_type')
+                raise Exception('Unknown optim_type')
 
         else:
-            raise AtomicaException('Tool "%s" not recognized' % tool)
+            raise Exception('Tool "%s" not recognized' % tool)
         json['maxtime'] = 30  # WARNING, default!
         json['prog_spending'] = sc.odict()
         for prog_name in self.progset().programs.keys():

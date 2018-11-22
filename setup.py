@@ -39,6 +39,7 @@ setup(
         'xlsxwriter',
         'scipy',
         'pyswarm',
+        'hyperopt',
         'sciris',
         'gitpython',
     ],

@@ -1,12 +1,46 @@
-# Central file for migrating Projects
+"""
+Manage Project versions and migration
+
+Migration refers to updating old :py:class:`Project` instances so that they
+can be run with more recent versions of Atomica. This module defines
+
+- A set of 'migration functions' that each transform a :py:class:`Project` instance from one
+  version to another
+- An entry-point that sequentially calls the migration functions to update a project to
+  the current version used in Atomica
+
+"""
+
+import sys
 from distutils.version import LooseVersion
-from .system import logger, AtomicaException
+from .system import logger
 from .version import version
 import sciris as sc
 from .results import Result
-from .structure import FrameworkSettings as FS
+from .system import FrameworkSettings as FS
+import atomica
+import types
+import numpy as np
 
-available_migrations = []  # This list stores all of the migrations that are possible
+# MODULE MIGRATIONS
+#
+# In this section, make changes to the Atomica module structure to enable pickle files
+# to be loaded at all
+
+# First, add any placeholder modules that have been subsequently removed
+atomica.structure = types.ModuleType('structure')  # Removed 'structure' module in 1.0.12 20181107
+sys.modules['atomica.structure'] = atomica.structure
+
+# Then, remap any required classes
+atomica.structure.TimeSeries = atomica.utils.TimeSeries  # Moved 'TimeSeries' in 1.0.12 20181107
+
+# PROJECT MIGRATIONS
+#
+# The remaining code manages upgrading Project objects and their contents after they
+# have been unpickled and instantiated
+
+# This list stores all of the migrations that are possible
+available_migrations = []
 
 
 class Migration:
@@ -30,7 +64,7 @@ class Migration:
         logger.debug('MIGRATION: Upgrading %s -> %s (%s)' % (self.original_version, self.new_version, self.description))
         proj = self.fcn(proj)  # Run the migration function
         if proj is None:
-            raise AtomicaException('Migration "%s" returned None, it is likely missing a return statement' % (str(self)))
+            raise Exception('Migration "%s" returned None, it is likely missing a return statement' % (str(self)))
         proj.version = self.new_version  # Update the version
         if self.changes_results:
             proj._result_update_required = True
@@ -234,4 +268,47 @@ def remove_target_pars(proj):
 @migration('1.0.10', '1.0.11', 'Add result update flag to Project')
 def remove_target_pars(proj):
     proj._result_update_required = False
+    return proj
+
+@migration('1.0.12', '1.0.13', 'Add timescale to parameters')
+def add_timescale(proj):
+    for _, spec in proj.framework.pars.iterrows():
+        if proj.framework.transitions[spec.name]:
+            proj.framework.pars.at[spec.name, 'timescale'] = 1.0  # Default timescale - note that currently only transition parameters are allowed to have a timescale that is not None
+
+            if not spec['format']:
+                if not proj.data:
+                    raise Exception('The Framework now needs to define the units for transition parameters, but the current one does not define units for Parameter "%s" and data was not saved either, so cannot infer the unit type. Please modify the Framework spreadsheet to add units' % (spec.name))
+                else:
+                    # Get the units from the first ts associated with the table
+                    units = set([x.units.lower().strip() for x in proj.data.tdve[spec.name].ts.values()])
+                    if len(units) == 1:
+                        proj.framework.pars.at[spec.name, 'format'] = list(units)[0]
+                    else:
+                        raise Exception('Parameters must now have a single unit for all populations. However, the existing data has more than one unit type associated with Parameter "%s" so it is no longer valid.' % (spec.name))
+
+    return proj
+
+@migration('1.0.13', '1.0.14', 'Parameters use TimeSeries internally')
+def parameter_use_timeseries(proj):
+    for parset in proj.parsets.values():
+        for par in parset.all_pars():
+
+            par.ts = dict()
+            for pop in par.t.keys():
+                par.ts[pop] = atomica.TimeSeries(units=par.y_format[pop])
+                if par.t[pop] is None:
+                    continue
+                elif len(par.t[pop]) == 1 and not np.isfinite(par.t[pop][0]):
+                    # It was an assumption
+                    par.ts[pop].assumption = par.y[pop][0]
+                else:
+                    par.ts[pop].t = par.t[pop].tolist()
+                    par.ts[pop].vals = par.y[pop].tolist()
+
+            del par.y_format
+            del par.t
+            del par.y
+            del par.autocalibrate
+
     return proj

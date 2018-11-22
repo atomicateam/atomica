@@ -1,3 +1,16 @@
+"""
+Utility functions for working with cascades
+
+Cascades are defined in a :py:class:`ProjectFramework` object. This module
+implements functions that are useful for working with the cascades, including
+
+- Validation
+- Plotting
+- Value extraction
+
+"""
+
+
 from .plotting import plot_legend
 import matplotlib.pyplot as plt
 import numpy as np
@@ -6,13 +19,13 @@ import sciris as sc
 import matplotlib
 from .utils import NDict
 from .results import Result
-from .system import logger, AtomicaException
+from .system import logger
 
 default_figsize = (10, 4)
 default_ax_position = [0.15, 0.2, 0.35, 0.7]
 
 
-class InvalidCascade(AtomicaException):
+class InvalidCascade(Exception):
     # Throw this error if a cascade was not valid. This error should result in the
     # FE printing a persistent diagnosic message
     pass
@@ -175,7 +188,7 @@ def plot_single_cascade(result=None, cascade=None, pops=None, year=None, data=No
     ax.set_ylim(-data_yrange * 0.2, data_yrange * 1.1)
     ax.set_yticks(yticks)
     for i, val in enumerate(cascade_array):
-        plt.text(i, val * 1.01, '%s' % sc.sigfig(val, sigfigs=3, sep=True), verticalalignment='bottom', horizontalalignment='center', zorder=200)
+        plt.text(i, val * 1.01, '%s' % sc.sigfig(val, sigfigs=3, sep=True, keepints=True), verticalalignment='bottom', horizontalalignment='center', zorder=200)
 
     bars = h.get_children()
     conversion = cascade_array[1:] / cascade_array[0:-1]  # Fraction not lost

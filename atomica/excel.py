@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-Atomica Excel utilities file.
-Contains functionality specific to Excel input and output.
-"""
+Miscellaneous utility functions for Excel files
 
-from .system import AtomicaException
+This module implements utility functions for Excel functionality that is common
+to different kinds of spreadsheets used in Atomica (e.g. Databooks and Program Books).
+For example, Excel formatting, and time-varying data entry tables, are implemented here.
+
+"""
 
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 import sciris as sc
@@ -12,8 +14,8 @@ import io
 import openpyxl
 from openpyxl.comments import Comment
 import numpy as np
-from .structure import FrameworkSettings as FS
-from .system import logger, reraise_modify
+from .system import FrameworkSettings as FS
+from .system import logger
 
 
 def standard_formats(workbook):
@@ -265,7 +267,7 @@ def write_matrix(worksheet, start_row, nodes, entries, formats, references=None,
     for interaction, value in entries.items():
         from_node, to_node = interaction
         if not enable_diagonal and from_node == to_node:
-            raise AtomicaException('Trying to write a diagonal entry to a table that is not allowed to contain diagonal terms')  # This is because data loss will occur if the user adds entries on the diagonal, then writes the table, and then reads it back in
+            raise Exception('Trying to write a diagonal entry to a table that is not allowed to contain diagonal terms')  # This is because data loss will occur if the user adds entries on the diagonal, then writes the table, and then reads it back in
         from_idx = nodes.index(from_node)
         to_idx = nodes.index(to_node)
         if boolean_choice:
@@ -323,12 +325,12 @@ class TimeDependentConnections(object):
 
         if self.type == 'transfer':
             self.enable_diagonal = False
-            self.allowed_units = [FS.QUANTITY_TYPE_NUMBER, FS.QUANTITY_TYPE_PROBABILITY]
+            self.allowed_units = [FS.QUANTITY_TYPE_NUMBER + ' (per year)', FS.QUANTITY_TYPE_PROBABILITY + ' (per year)']
         elif self.type == 'interaction':
             self.enable_diagonal = True
             self.allowed_units = [FS.DEFAULT_SYMBOL_INAPPLICABLE]
         else:
-            raise AtomicaException('Unknown TimeDependentConnections type - must be "transfer" or "interaction"')
+            raise Exception('Unknown TimeDependentConnections type - must be "transfer" or "interaction"')
 
     def __repr__(self):
         return '<TDC %s "%s">' % (self.type.title(), self.code_name)
@@ -336,7 +338,7 @@ class TimeDependentConnections(object):
     @staticmethod
     def from_tables(tables, interaction_type):
         # interaction_type is 'transfer' or 'interaction'
-        from .structure import TimeSeries  # Import here to avoid circular reference
+        from .utils import TimeSeries  # Import here to avoid circular reference
 
         # Read the names
         code_name = tables[0][1][0].value
@@ -359,7 +361,7 @@ class TimeDependentConnections(object):
                 to_pop = vals[2]
                 units = vals[3].lower().strip() if vals[3] else None
                 if units is None:
-                    raise AtomicaException(str('The units for transfer "%s" ("%s"->"%s") cannot be empty' % (full_name, from_pop, to_pop)))
+                    raise Exception(str('The units for transfer "%s" ("%s"->"%s") cannot be empty' % (full_name, from_pop, to_pop)))
                 assumption = vals[4]  # This is the assumption cell
                 assert vals[5].strip().lower() == 'or'  # Double check we are reading a time-dependent row with the expected shape
                 ts = TimeSeries(units=units)
@@ -500,7 +502,6 @@ class TimeDependentConnections(object):
 
 
 class TimeDependentValuesEntry(object):
-
     """ Table for time-dependent data entry
 
     This class is Databooks and Program books to enter potentially time-varying data.
@@ -513,37 +514,26 @@ class TimeDependentValuesEntry(object):
     which each map to properties on the underlying TimeSeries objects. It also contains a
     time vector corresponding to the time values that appear or will appear in the spreadsheet.
 
+    Note that the units are stored within the TimeSeries objects, which means that they can
+    are able to differ across rows.
+
+    :param name: The name/title for this table
+    :param tvec: Specify the time values for this table. All TimeSeries in the ts dict should have corresponding time values
+    :param ts: Optionally specify an odict() of TimeSeries objects populating the rows. Could be populated after
+    :param allowed_units: Optionally specify a list of allowed units that will appear as a dropdown
+    :param comment: Optionally specify descriptive text that will be added as a comment to the name cell
+
     """
 
-    # A TDVE table is used for representing Characteristics and Parameters that appear in the Parset, a quantity
-    # that has one sparse time array for each population. A TDVE table contains
-    # - An ordered list of TimeSeries objects
-    # - A name for the quantity (as this is what gets printed and read, it's usually a full name rather than a code name)
-    # - Optionally a list of allowed units - All TimeSeries objects must have units contained in this list
-    # - A time axis (e.g. np.arange(2000,2019)) - all TimeSeries time values must exactly match one of the values here
-    #   i.e. you cannot try to write a TimeSeries that has a time value that doesn't appear as a table heading
-
     def __init__(self, name, tvec, ts=None, allowed_units=None, comment=None):
-        """ Instantiate a new TimeDepedentValuesEntry table object
 
-        :param name: The name/title for this table
-        :param tvec: Specify the time values for this table. All TimeSeries in the ts dict should have corresponding time values
-        :param ts: Optionally specify an odict() of TimeSeries objects populating the rows. Could be populated after
-        :param allowed_units: Optionally specify a list of allowed units that will appear as a dropdown
-        :param comment: Optionally specify descriptive text that will be added as a comment to the name cell
-        """
-
-        # ts - An odict where the key is a population name and the value is a TimeSeries
-        # name - This is the name of the quantity i.e. the full name of the characteristic or parameter
-        # tvec - The time values that will be written in the headings
-        # allowed_units - Possible values for the unit selection dropdown
         if ts is None:
             ts = sc.odict()
 
-        self.name = name
-        self.comment = comment
-        self.tvec = tvec
-        self.ts = ts
+        self.name = name #: Name for th quantity printed in Excel
+        self.comment = comment #: A comment that will be added in Excel
+        self.tvec = tvec #: time axis (e.g. np.arange(2000,2019)) - all TimeSeries time values must exactly match one of the values here
+        self.ts = ts #: dict of :py:class:`TimeSeries` objects
         self.allowed_units = [x.title() if x in FS.STANDARD_UNITS else x for x in allowed_units] if allowed_units is not None else None  # Otherwise, can be an odict with keys corresponding to ts - leave as None for no restriction
 
     def __repr__(self):
@@ -565,15 +555,15 @@ class TimeDependentValuesEntry(object):
         # 'units', 'uncertainty', and 'constant' are optional - if 'constant' is present then expect
         # that the column after it contains 'or'
 
-        from .structure import TimeSeries  # Import here to avoid circular reference
+        from .utils import TimeSeries  # Import here to avoid circular reference
 
         # First, read the headings
         vals = [x.value for x in rows[0]]
 
         if vals[0] is None:
-            raise AtomicaException('The name of the table is missing. This can also happen if extra rows have been added without a "#ignore" entry in the first column')
+            raise Exception('The name of the table is missing. This can also happen if extra rows have been added without a "#ignore" entry in the first column')
         elif not sc.isstring(vals[0]):
-            raise AtomicaException('In cell %s of the spreadsheet, the name of the quantity assigned to this table needs to be a string' % rows[0][0].coordinate)
+            raise Exception('In cell %s of the spreadsheet, the name of the quantity assigned to this table needs to be a string' % rows[0][0].coordinate)
         name = vals[0].strip()
 
         lowered_headings = [x.lower().strip() if sc.isstring(x) else x for x in vals]
@@ -617,7 +607,7 @@ class TimeDependentValuesEntry(object):
         for row in rows[1:]:
             vals = [x.value for x in row]
             if not sc.isstring(vals[0]):
-                raise AtomicaException('In cell %s of the spreadsheet, the name of the entry was expected to be a string, but it was not. The left-most column is expected to be a name. If you are certain the value is correct, add an single quote character at the start of the cell to ensure it remains as text' % row[0].coordinate)
+                raise Exception('In cell %s of the spreadsheet, the name of the entry was expected to be a string, but it was not. The left-most column is expected to be a name. If you are certain the value is correct, add an single quote character at the start of the cell to ensure it remains as text' % row[0].coordinate)
             series_name = vals[0].strip()
 
             if units_index is not None:
@@ -644,7 +634,7 @@ class TimeDependentValuesEntry(object):
                 ts.assumption = None
 
             if constant_index is not None:
-                assert vals[offset - 1].strip().lower() == 'or', 'Error with validating row in TDVE table "%s" (did not find the text "OR" in the expected place)' % (name)  # Check row is as expected
+                assert sc.isstring(vals[offset - 1]) and vals[offset - 1].strip().lower() == 'or', 'Error with validating row in TDVE table "%s" (did not find the text "OR" in the expected place)' % (name)  # Check row is as expected
 
             data_cells = row[offset:t_end]
 
@@ -783,7 +773,7 @@ class TimeDependentValuesEntry(object):
 def cell_require_string(cell):
     # Take in an openpyxl Cell instance, if it doesn't contain a string, then throw a helpful error
     if not sc.isstring(cell.value):
-        raise AtomicaException('Cell %s needs to contain a string (i.e. not a number, date, or other cell type)' % cell.coordinate)
+        raise Exception('Cell %s needs to contain a string (i.e. not a number, date, or other cell type)' % cell.coordinate)
 
 
 def cell_get_number(cell, dtype=float):
@@ -800,4 +790,27 @@ def cell_get_number(cell, dtype=float):
         elif not s.replace('-', ''):
             return None
 
-    raise AtomicaException('Cell %s needs to contain a number' % cell.coordinate)
+    raise Exception('Cell %s needs to contain a number' % cell.coordinate)
+
+
+def validate_category(workbook, expected_category):
+    """
+    Check Atomica workbook type
+
+    This function makes sure that a workbook has a particular category property
+    stored within it, and displays an appropriate error message if not. If the
+    category isn't present or doesn't start with 'atomica', just ignore it for
+    robustness (instead, a parsing error will likely be raised)
+
+    :param workbook: An openpyxl workbook
+    :param category: The expected string category
+    :return: None
+    """
+
+    category = workbook.properties.category
+    if category and sc.isstring(category) and category.startswith('atomica:'):
+        if category.strip() != expected_category.strip():
+            expected_type = expected_category.split(':')[1].title()
+            actual_type = category.split(':')[1].title()
+            message = 'Error loading %s - the provided file was a %s file' % (expected_type, actual_type)
+            raise Exception(message)

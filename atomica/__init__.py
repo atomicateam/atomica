@@ -31,14 +31,13 @@ License:
         model
         optimization
         parameters
-        parser_function
+        function_parser
         plotting
         programs
         project
         reconciliation
         results
         scenarios
-        structure
         system
         utils
 
@@ -65,8 +64,8 @@ if not any([isinstance(h, logging.StreamHandler) and not isinstance(h, logging.F
     logger.addHandler(h1)
     logger.addHandler(h2)
 
-from atomica.version import version as __version__, versiondate as __versiondate__
-logger.critical('Atomica %s (%s) -- (c) the Atomica development team' % (__version__, __versiondate__)) # Log with the highest level
+from .version import version as __version__, versiondate as __versiondate__
+logger.critical('Atomica %s (%s) -- (c) the Atomica development team' % (__version__, __versiondate__))  # Log with the highest level
 logger.critical(datetime.now())
 
 try:
@@ -83,3 +82,19 @@ logger.setLevel('INFO')
 # Increase Framework performance by not calling garbage collection all the time
 import pandas as pd
 pd.set_option('mode.chained_assignment', None)
+
+# The Atomica user interface -- import from submodules
+from .framework import *
+from .project import *
+from .calibration import *
+from .scenarios import *
+from .defaults import *
+from .plotting import *
+from .programs import *
+from .reconciliation import *
+from .optimization import *
+from .cascade import *
+from .results import *
+from .migration import *
+from .utils import *
+from .system import *

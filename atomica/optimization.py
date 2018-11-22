@@ -1,30 +1,33 @@
 """
-Functions for running optimizations.
-Version: 2018mar26
+Implements various Optimizations in Atomica
+
+This module implements the :py:class:`Optimization` class, which contains the
+information required to perform an optimization in Atomica. An Optimization
+effectively serves as a mapping from one set of program instructions to another.
+
 """
 
 import sciris as sc
-from .system import AtomicaException, NotAllowedError, logger
+from .system import logger
 from .utils import NamedItem
 import numpy as np
 from .model import Model, Link
 import pickle
 import scipy.optimize
 from collections import defaultdict
-from .structure import TimeSeries
-import logging
+from .utils import TimeSeries
 from .results import Result
 from .cascade import get_cascade_vals
 from .programs import ProgramInstructions
 
 
-class InvalidInitialConditions(AtomicaException):
+class InvalidInitialConditions(Exception):
     # This error gets thrown if the initial conditions yield an objective value
     # that is not finite
     pass
 
 
-class UnresolvableConstraint(AtomicaException):
+class UnresolvableConstraint(Exception):
     # This error gets thrown if it is _impossible_ to satisfy the constraints. There are
     # two modes of constraint failure
     # - The constraint might not be satisfied on this iteration, but could be satisfied by other
@@ -420,7 +423,7 @@ class TotalSpendConstraint(Constraint):
             # corresponding spending adjustments available for use
             missing_times = set(self.t) - set(hard_constraints['programs'].keys())
             if missing_times:
-                raise AtomicaException('Total spending constraint was specified in %s but the optimization does not have any adjustments at those times' % (missing_times))
+                raise Exception('Total spending constraint was specified in %s but the optimization does not have any adjustments at those times' % (missing_times))
 
         # Now we have a set of times and programs for which we need to get total spend, and
         # also which programs should be included in the total for that year
@@ -563,7 +566,12 @@ class OptimInstructions(NamedItem):
         adjustments = []
         default_spend = progset.get_alloc(tvec=adjustment_year, instructions=progset_instructions)  # Record the default spend for scale-up in money minimization
         for prog_name in progset.programs:
-            limits = prog_spending[prog_name]
+            limits = sc.dcp(prog_spending[prog_name])
+            if limits[0] is None:
+                limits[0] = 0.0
+            if limits[1] is None and optim_type == 'money':
+                # Money minimization requires an absolute upper bound. Limit it to 5x default spend by default
+                limits[1] = 5 * default_spend[prog_name]
             adjustments.append(SpendingAdjustment(prog_name, t=adjustment_year, limit_type='abs', lower=limits[0], upper=limits[1]))
 
             if optim_type == 'money':
@@ -594,7 +602,7 @@ class OptimInstructions(NamedItem):
                 elif tokens[0] == 'conversion':  # Parse a measurable name like 'conversions:Default'
                     measurables.append(MaximizeCascadeConversionRate(cascade_name=tokens[1], t=[end_year], pop_names='all', weight=mweight))
                 else:
-                    raise AtomicaException('Unknown measurable "%s"' % (mname))
+                    raise Exception('Unknown measurable "%s"' % (mname))
             else:
                 if optim_type == 'money':
                     # For money minimization, use at AtMostMeasurable to meet the target by the end year.
@@ -628,7 +636,19 @@ class OptimInstructions(NamedItem):
 
 
 class Optimization(NamedItem):
-    """ An object that defines an Optimization to perform """
+    """
+    Instructions on how to perform an optimization
+
+    The Optimization object stores the information that defines an optimization operation.
+    Optimization can be thought of as a function mapping one set of program instructions
+    to another set of program instructions. The parameters of that function are stored in the
+    Optimization object, and amount to
+
+    - A definition of optimality
+    - A specification of allowed changes to the program instructions
+    - Any additional information required by a particular optimization algorithm e.g. ASD
+
+    """
 
     def __init__(self, name=None, parsetname=None, progsetname=None, adjustments=None, measurables=None, constraints=None, maxtime=None, maxiters=None, method='asd'):
 
@@ -654,7 +674,7 @@ class Optimization(NamedItem):
             self.constraints = None
 
         if adjustments is None or measurables is None:
-            raise AtomicaException('Must supply either a json or an adjustments+measurables')
+            raise Exception('Must supply either a json or an adjustments+measurables')
         return
 
     def __repr__(self):
@@ -738,12 +758,35 @@ def _objective_fcn(asd_values, pickled_model=None, optimization=None, hard_const
 
 
 def optimize(project, optimization, parset, progset, instructions, x0=None, xmin=None, xmax=None, hard_constraints=None):
+    """
+    Main user entry point for optimization
+
+    The optional inputs `x0`, `xmin`, `xmax` and `hard_constraints` are used when
+    performing parallel optimization (implementation not complete yet), in which case
+    they are computed by the parallel wrapper to `optimize()`. Normally these variables
+    would not be specified by users, because they are computed from the `Optimization`
+    together with the instructions (because relative constraints in the Optimization are
+    interpreted as being relative to the allocation in the instructions).
+
+    :param project: A :py:class:`Project` instance
+    :param optimization: An :py:class:`Optimization` instance
+    :param parset: A :py:class:`ParameterSet` instance or name of a parset
+    :param progset: A :py:class:`ProgramSet` instance or name of a progset
+    :param instructions: A :py:class:`ProgramInstructions` instance
+    :param x0: Not for manual use - override initial values
+    :param xmin: Not for manual use - override lower bounds
+    :param xmax: Not for manual use - override upper bounds
+    :param hard_constraints: Not for manual use - override hard constraints
+    :return: A :py:class:`ProgramInstructions` instance representing optimal instructions
+
+    """
     # The ASD initialization, xmin and xmax values can optionally be
     # method can be one of
     # - asd (to use normal ASD)
     # - pso (to use particle swarm optimization from pyswarm)
+    # - hyperopt (to use hyperopt's Bayesian optimization function)
 
-    assert optimization.method in ['asd', 'pso']
+    assert optimization.method in ['asd', 'pso', 'hyperopt']
 
     model = Model(project.settings, project.framework, parset, progset, instructions)
     pickled_model = pickle.dumps(model)
@@ -768,13 +811,6 @@ def optimize(project, optimization, parset, progset, instructions, x0=None, xmin
     if not np.isfinite(initial_objective):
         raise InvalidInitialConditions()
 
-    if optimization.method == 'pso':
-        try:
-            import pyswarm
-        except Exception as E:
-            print('Could not import pyswarm, defaulting to ASD: %s' % str(E))
-            optimization.method = 'asd'
-
     if optimization.method == 'asd':
         optim_args = {
             # 'stepsize': proj.settings.autofit_params['stepsize'],
@@ -788,6 +824,9 @@ def optimize(project, optimization, parset, progset, instructions, x0=None, xmin
         }
         x_opt = sc.asd(_objective_fcn, x0, args, **optim_args)[0]
     elif optimization.method == 'pso':
+
+        import pyswarm
+
         optim_args = {
             'maxiter': 3,
             'lb': xmin,
@@ -797,10 +836,30 @@ def optimize(project, optimization, parset, progset, instructions, x0=None, xmin
         }
         if np.any(~np.isfinite(xmin)) or np.any(~np.isfinite(xmax)):
             errormsg = 'PSO optimization requires finite upper and lower bounds to specify the search domain (i.e. every Adjustable needs to have finite bounds)'
-            logger.warning(errormsg)
-            xmin[~np.isfinite(xmin)] = 0.0
-            xmax[~np.isfinite(xmax)] = 1e9
+            raise Exception(errormsg)
+
         x_opt, _ = pyswarm.pso(_objective_fcn, kwargs=args, **optim_args)
+    elif optimization.method == 'hyperopt':
+
+        import hyperopt
+        import functools
+
+        if np.any(~np.isfinite(xmin)) or np.any(~np.isfinite(xmax)):
+            errormsg = 'hyperopt optimization requires finite upper and lower bounds to specify the search domain (i.e. every Adjustable needs to have finite bounds)'
+            raise Exception(errormsg)
+
+        space = []
+        for i, (lower, upper) in enumerate(zip(xmin,xmax)):
+            space.append(hyperopt.hp.uniform(str(i),lower,upper))
+        fcn = functools.partial(_objective_fcn,**args) # Partial out the extra arguments to the objective
+
+        optim_args = {
+            'max_evals': optimization.maxiters if optimization.maxiters is not None else 100,
+            'algo': hyperopt.tpe.suggest
+        }
+
+        x_opt = hyperopt.fmin(fcn, space, **optim_args)
+        x_opt = np.array([x_opt[str(n)] for n in range(len(x_opt.keys()))])
 
     optimization.update_instructions(x_opt, model.program_instructions)
     optimization.constrain_instructions(model.program_instructions, hard_constraints)

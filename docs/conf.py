@@ -42,17 +42,34 @@ extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
     'sphinx.ext.napoleon',
-    'nbsphinx',
+    'sphinx_autodoc_typehints',
+    'sphinx_markdown_tables',
+    # 'nbsphinx',
 ]
+#
+# autoclass_content = "both"  # include both class docstring and __init__
+# autodoc_default_flags = [
+#         # Make sure that any autodoc declarations show the right members
+#         "members",
+#         'undoc-members',
+#         # 'special-members',
+#         "inherited-members",
+#         "private-members",
+#         # "show-inheritance",
+# ]
 
-autoclass_content = "both"  # include both class docstring and __init__
-autodoc_default_flags = [
-        # Make sure that any autodoc declarations show the right members
-        "members",
-        "inherited-members",
-        "private-members",
-        "show-inheritance",
-]
+autodoc_default_options = {
+    'members': None,
+    'member-order': 'bysource',
+    # 'special-members': '__init__',
+    'undoc-members': None,
+    # "inherited-members": None,
+    "private-members": None,
+    # 'exclude-members': '__weakref__'
+}
+
+
+
 autosummary_generate = True
 
 nbsphinx_kernel_name = 'python'

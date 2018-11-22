@@ -1,19 +1,19 @@
 """
-This module defines the Program and Programset classes, which are
+Classes for implementing Programs
+
+This module principally defines the Program and ProgramSet classes, which are
 used to define a single program/modality (e.g., FSW programs) and a
 set of programs, respectively.
 
-
-Version: 2018jul30
 """
 
 import sciris as sc
-from .system import AtomicaException, logger, reraise_modify
+from .system import logger
 from .utils import NamedItem
 from numpy import array, exp, minimum, inf
-from .structure import TimeSeries
-from .structure import FrameworkSettings as FS
-from .excel import standard_formats, AtomicaSpreadsheet, apply_widths, update_widths, read_tables, TimeDependentValuesEntry
+from .utils import TimeSeries
+from .system import FrameworkSettings as FS
+from .excel import standard_formats, AtomicaSpreadsheet, apply_widths, update_widths, read_tables, TimeDependentValuesEntry, validate_category
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 import openpyxl
 import xlsxwriter as xw
@@ -76,15 +76,12 @@ class ProgramSet(NamedItem):
     A Program object will be instantiated for every program listed on the 'Program Targeting'
     sheet in the program book
 
+    :param name: Optionally specify the name of the ProgramSet
+    :param tvec: Optionally specify the years for data entry
+
     """
 
     def __init__(self, name="default", tvec=None):
-        """
-
-        :param name: Optionally specify the name of the ProgramSet
-        :param tvec: Optionally specify the years for data entry
-
-        """
 
         NamedItem.__init__(self, name)
 
@@ -140,7 +137,7 @@ class ProgramSet(NamedItem):
             if name == prog.label:
                 return prog.name
 
-        raise AtomicaException('Could not find full name for quantity "%s" (n.b. this is case sensitive)' % (name))
+        raise Exception('Could not find full name for quantity "%s" (n.b. this is case sensitive)' % (name))
 
     def add_program(self, code_name, full_name):
         # To add a program, we just need to construct one
@@ -238,32 +235,49 @@ class ProgramSet(NamedItem):
         # they get drawn from the project
         if (framework is None and project is None) or (data is None and project is None):
             errormsg = 'To read in a ProgramSet, please supply one of the following sets of inputs: (a) a Framework and a ProjectData, (b) a Project.'
-            raise AtomicaException(errormsg)
+            raise Exception(errormsg)
 
         if framework is None:
             if project.framework is None:
                 errormsg = 'A Framework was not provided, and the Project has not been initialized with a Framework'
-                raise AtomicaException(errormsg)
+                raise Exception(errormsg)
             else:
                 framework = project.framework
 
         if data is None:
             if project.data is None:
                 errormsg = 'Project data has not been loaded yet'
-                raise AtomicaException(errormsg)
+                raise Exception(errormsg)
             else:
                 data = project.data
 
         return framework, data
 
     @staticmethod
-    def from_spreadsheet(spreadsheet=None, framework=None, data=None, project=None):
+    def from_spreadsheet(spreadsheet=None, framework=None, data=None, project=None, name=None, _allow_missing_data=False):
+        """
+        Instantiate a ProgramSet from a spreadsheet
+
+        To load a spreadsheet, need to either pass in
+
+            - A Project containing a framework and data
+            - ProjectFramework and ProjectData instances without a project
+
+        :param spreadsheet: A string file path, or an AtomicaSpreadsheet
+        :param framework: A :py:class:`ProjectFramework` instance
+        :param data: A :py:class:`ProjectData` instance
+        :param project: A :py:class:`Project` instance
+        :param name: Optionally specify the name of the ProgramSet to create
+        :param _allow_missing_data: Internal only - optionally allow missing unit costs and spending (used for loading template progbook files)
+        :return: A :py:class:`ProgramSet`
+
+        """
         '''Make a program set by loading in a spreadsheet.'''
 
         framework, data = ProgramSet.validate_inputs(framework, data, project)
 
         # Populate the available pops, comps, and pars based on the framework and data provided at this step
-        self = ProgramSet()
+        self = ProgramSet(name=name)
         self._set_available(framework, data)
 
         # Create and load spreadsheet
@@ -271,10 +285,11 @@ class ProgramSet(NamedItem):
             spreadsheet = AtomicaSpreadsheet(spreadsheet)
 
         workbook = openpyxl.load_workbook(spreadsheet.get_file(), read_only=True, data_only=True)  # Load in read-only mode for performance, since we don't parse comments etc.
+        validate_category(workbook, 'atomica:progbook')
 
         # Load individual sheets
         self._read_targeting(workbook['Program targeting'])
-        self._read_spending(workbook['Spending data'])
+        self._read_spending(workbook['Spending data'], _allow_missing_data=_allow_missing_data)
         self._read_effects(workbook['Program effects'])
 
         return self
@@ -284,6 +299,7 @@ class ProgramSet(NamedItem):
         f = io.BytesIO()  # Write to this binary stream in memory
 
         self._book = xw.Workbook(f)
+        self._book.set_properties({'category': 'atomica:progbook'})
         self._formats = standard_formats(self._book)
         self._references = {}  # Reset the references dict
 
@@ -351,7 +367,7 @@ class ProgramSet(NamedItem):
                     if pop_idx[i] not in pop_codenames:
                         message = 'There was a mismatch between the populations in the databook and the populations in the program book'
                         message += '\nThe program book contains population "%s", while the databook contains: %s' % (pop_idx[i], [str(x) for x in pop_codenames.keys()])
-                        raise AtomicaException(message)
+                        raise Exception(message)
 
                     target_pops.append(pop_codenames[pop_idx[i]])  # Append the pop's codename
 
@@ -360,13 +376,13 @@ class ProgramSet(NamedItem):
                     if comp_idx[i] not in comp_codenames:
                         message = 'There was a mismatch between the compartments in the databook and the compartments in the Framework file'
                         message += '\nThe program book contains compartment "%s", while the Framework contains: %s' % (comp_idx[i], [str(x) for x in comp_codenames.keys()])
-                        raise AtomicaException(message)
+                        raise Exception(message)
 
                     target_comps.append(comp_codenames[comp_idx[i]])  # Append the pop's codename
 
             short_name = row[0].value.strip()
             if short_name.lower() == 'all':
-                raise AtomicaException('A program was named "all", which is a reserved keyword and cannot be used as a program name')
+                raise Exception('A program was named "all", which is a reserved keyword and cannot be used as a program name')
             long_name = row[1].value.strip()
 
             self.programs[short_name] = Program(name=short_name, label=long_name, target_pops=target_pops, target_comps=target_comps)
@@ -436,7 +452,16 @@ class ProgramSet(NamedItem):
 
         apply_widths(sheet, widths)
 
-    def _read_spending(self, sheet):
+    def _read_spending(self, sheet, _allow_missing_data=False):
+        """
+        Internal method to read the spending data
+
+        :param sheet:
+        :param _allow_missing_data: If False, an error will be raised if unit costs or total spending is missing.
+                                   However, the FE requires loading in a progset with missing spending data. In that case,
+                                   having these values missing is be allowed
+        :return:
+        """
         # Read the spending table and populate the program data
         tables, start_rows = read_tables(sheet)
         times = set()
@@ -445,7 +470,7 @@ class ProgramSet(NamedItem):
                 tdve = TimeDependentValuesEntry.from_rows(table)
             except Exception as e:
                 message = 'Error on sheet "%s" while trying to read a TDVE table starting on row %d -> ' % (sheet.title, start_row)
-                reraise_modify(e, message)
+                raise Exception('%s -> %s' % (message, e)) from e
 
             prog = self.programs[tdve.name]
 
@@ -464,6 +489,10 @@ class ProgramSet(NamedItem):
             set_ts(prog, 'unit_cost', tdve.ts['Unit cost'])
             set_ts(prog, 'coverage', tdve.ts['Coverage'])
             set_ts(prog, 'saturation', tdve.ts['Saturation'])
+
+            if not _allow_missing_data:
+                assert prog.unit_cost.has_data, 'Unit cost data for %s not was not entered (in table on sheet "%s" starting on row %d' % (prog.name, sheet.title, start_row)
+                assert prog.spend_data.has_data, 'Spending data for %s not was not entered (in table on sheet "%s" starting on row %d' % (prog.name, sheet.title, start_row)
 
             if '/year' in prog.unit_cost.units and '/year' in prog.coverage.units:
                 logger.warning('Program %s: Typically if the unit cost is `/year` then the coverage would not be `/year`', prog.label)
@@ -541,7 +570,7 @@ class ProgramSet(NamedItem):
                             uncertainty = float(x.value)
                     elif x.value is not None:  # If the header isn't empty, then it should be one of the program names
                         if idx_to_header[i] not in self.programs:
-                            raise AtomicaException('The heading "%s" was not recognized as a program name or a special token - spelling error?' % (idx_to_header[i]))
+                            raise Exception('The heading "%s" was not recognized as a program name or a special token - spelling error?' % (idx_to_header[i]))
                         progs[idx_to_header[i]] = float(x.value)
 
                 if baseline is not None or progs:  # Only instantiate covout objects if they have programs associated with them
@@ -660,7 +689,7 @@ class ProgramSet(NamedItem):
             pass
         else:
             errormsg = 'Please just supply a number of programs, not "%s"' % (type(progs))
-            raise AtomicaException(errormsg)
+            raise Exception(errormsg)
 
         framework, data = ProgramSet.validate_inputs(framework, data, project)
 
@@ -720,14 +749,14 @@ class ProgramSet(NamedItem):
     def validate(self):
         """ Perform basic validation checks
 
-        :raises AtomicaException is anything is invalid
+        :raises Exception is anything is invalid
         :return: None
         """
         for prog in self.programs.values():
             if not prog.target_comps:
-                raise AtomicaException('Program "%s" does not target any compartments' % (prog.name))
+                raise Exception('Program "%s" does not target any compartments' % (prog.name))
             if not prog.target_pops:
-                raise AtomicaException('Program "%s" does not target any populations' % (prog.name))
+                raise Exception('Program "%s" does not target any populations' % (prog.name))
 
     #######################################################################################################
     # Methods for getting core response summaries: budget, allocations, coverages, outcomes, etc
@@ -760,6 +789,7 @@ class ProgramSet(NamedItem):
         :param instructions: optionally specify instructions, which can supply a spending overwrite
         :param sample: TODO implement sampling
         :return: Dict like {prog_name: np.array()} with number of people covered at each timestep (in units of people)
+
         """
 
         # Validate inputs
@@ -866,7 +896,17 @@ class Program(NamedItem):
             return self.spend_data.interpolate(year)
 
     def get_num_covered(self, tvec, spending, dt, sample=False):
-        '''Returns number covered for a time/spending vector'''
+        """
+        Returns number of people covered
+
+        :param tvec: A vector of times
+        :param spending: A vector of spending values, the same size as ``tvec``
+        :param dt: The time step size
+        :param sample: TODO: Implement sampling
+        :return: Array the same size as tvec, with coverage in units of 'people'
+
+        """
+        ''''''
         # INPUTS
         # - tvec : scalar tvec
         # - dt : timestep (to adjust spending)
@@ -1086,7 +1126,7 @@ class Covout(object):
             combination_coverage = np.product(self.combinations * cov + (self.combinations ^ 1) * (1 - cov), axis=1)
             outcome += np.sum(combination_coverage.ravel() * self.combination_outcomes.ravel())
         else:
-            raise AtomicaException('Unknown reachability type "%s"', self.cov_interaction)
+            raise Exception('Unknown reachability type "%s"', self.cov_interaction)
 
         return outcome
 
