@@ -228,7 +228,7 @@ class ProjectData(sc.prettyobj):
                         order = np.inf
                     else:
                         order = databook_order
-                    pages[databook_page].append((full_name, order))
+                    pages[databook_page].append((spec.name, order))
                     data.tdve[spec.name] = TimeDependentValuesEntry(full_name, tvec, allowed_units=[framework.get_databook_units(full_name)], comment=spec['guidance'])
 
         # Now convert pages to full names and sort them into the correct order
