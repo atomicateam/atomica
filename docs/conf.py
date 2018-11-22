@@ -44,29 +44,29 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx_autodoc_typehints',
     'sphinx_markdown_tables',
-    # 'nbsphinx',
+    'nbsphinx',
 ]
 #
 # autoclass_content = "both"  # include both class docstring and __init__
-# autodoc_default_flags = [
-#         # Make sure that any autodoc declarations show the right members
-#         "members",
-#         'undoc-members',
-#         # 'special-members',
-#         "inherited-members",
-#         "private-members",
-#         # "show-inheritance",
-# ]
+autodoc_default_flags = [
+        # Make sure that any autodoc declarations show the right members
+        "members",
+        'undoc-members',
+        # 'special-members',
+        # "inherited-members",
+        "private-members",
+        # "show-inheritance",
+]
 
-autodoc_default_options = {
-    'members': None,
-    'member-order': 'bysource',
-    # 'special-members': '__init__',
-    'undoc-members': None,
-    # "inherited-members": None,
-    "private-members": None,
-    # 'exclude-members': '__weakref__'
-}
+# autodoc_default_options = {
+#     # 'members': None,
+#     'member-order': 'bysource',
+#     # 'special-members': '__init__',
+#     'undoc-members': None,
+#     # "inherited-members": None,
+#     "private-members": None,
+#     # 'exclude-members': '__weakref__'
+# }
 
 
 
