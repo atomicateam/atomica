@@ -497,21 +497,33 @@ class ProjectFramework(object):
                     if dep in ['t', 'dt']:
                         # These are special variables passed in by model.py
                         continue
-                    elif dep.endswith('___flow'):  # Note that the parser replaces ':' with '___'
-                        dep_name = dep.replace('___flow', '')
+                    elif '___' in dep: # Note that the parser replaces ':' with '___'
 
                         if self.transitions[par.name]:
-                            message = 'The function for parameter "%s" depends on a flow rate ("%s:flow"). However, "%s" also governs a flow rate, because it appears in the transition matrix. Transition parameters cannot depend on flow rates, so no flow rates can appear in the function for "%s"' % (par.name, dep_name, par.name, par.name)
+                            message = 'The function for parameter "%s" depends on a flow rate ("%s"). However, "%s" also governs a flow rate, because it appears in the transition matrix. Transition parameters cannot depend on flow rates, so no flow rates can appear in the function for "%s"' % (par.name, dep.replace('___',':'), par.name, par.name)
                             raise InvalidFramework(message)
 
-                        if dep_name not in self.pars.index:
-                            message = 'The function for parameter "%s" depends on the flow rate "%s:flow". This requires a parameter called "%s" to be defined in the Framework, but no parameter with that name was found' % (par.name, dep_name, dep_name)
-                            raise InvalidFramework(message)
+                        if dep.endswith('___flow'):
+                            # If the user requested the flow associated with a parameter
+                            dep_name = dep.replace('___flow', '')
 
-                        if not self.transitions[dep_name]:
-                            # If the user is trying to get the flow rate for a non-transition parameter
-                            message = 'The function for parameter "%s" depends on the flow rate "%s:flow". Flow rates are only associated with transition parameters, but "%s" does not appear in the transition matrix, and there is therefore no flow rate associated with it' % (par.name, dep_name, dep_name)
-                            raise InvalidFramework(message)
+                            if dep_name not in self.pars.index:
+                                message = 'The function for parameter "%s" depends on the flow rate "%s:flow". This requires a parameter called "%s" to be defined in the Framework, but no parameter with that name was found' % (par.name, dep_name, dep_name)
+                                raise InvalidFramework(message)
+
+                            if not self.transitions[dep_name]:
+                                # If the user is trying to get the flow rate for a non-transition parameter
+                                message = 'The function for parameter "%s" depends on the flow rate "%s:flow". Flow rates are only associated with transition parameters, but "%s" does not appear in the transition matrix, and there is therefore no flow rate associated with it' % (par.name, dep_name, dep_name)
+                                raise InvalidFramework(message)
+                        else:
+                            # If the user requested the flow between compartments
+                            deps = dep.split('___')
+                            if deps[0] and deps[0] not in self.comps.index:
+                                message = 'The function for parameter "%s" depends on the flow rate "%s". This requires a source compartment called "%s" to be defined in the Framework, but no compartment with that name was found' % (par.name, dep.replace('___',':'), deps[0])
+                                raise InvalidFramework(message)
+                            if deps[1] and deps[1] not in self.comps.index:
+                                message = 'The function for parameter "%s" depends on the flow rate "%s". This requires a destination compartment called "%s" to be defined in the Framework, but no compartment with that name was found' % (par.name, dep.replace('___',':'), deps[1])
+                                raise InvalidFramework(message)
 
                     elif dep in self.comps.index:
                         continue
