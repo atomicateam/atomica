@@ -6,5 +6,6 @@ Examples
 
     Databooks
     Frameworks
-    Plot-Programs
     Plotting
+    Plot-Programs
+    Probability-Rescaling

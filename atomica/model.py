@@ -1117,16 +1117,20 @@ class Model(object):
 
                     # Convert from duration to equivalent probability
                     if quantity_type == FS.QUANTITY_TYPE_DURATION:
-                        converted_frac = 1.0 - np.exp(-self.dt / (transition * par.timescale))
+                        converted_frac = min(1,self.dt / (transition * par.timescale))
                         for link in par.links:
                             link.vals[ti] = link.source.vals[ti] * converted_frac
 
                     # Convert probability by Poisson distribution formula to a value appropriate for timestep.
                     elif quantity_type == FS.QUANTITY_TYPE_PROBABILITY:
-                        if transition > 1.0:
-                            converted_frac = 1.0
-                        else:
-                            converted_frac = 1 - (1 - transition) ** (self.dt / par.timescale)
+                        # Note that we convert the transition to the timestep before checking whether it is greater than 1 or not. That way,
+                        # durations get preserved until we limit them based on the timestep size. The rationale is that the annual probability
+                        # will come out at 1.0 if the *mean* duration is the same as the step size, but that doesn't mean that if the step size
+                        # was smaller the timestep probability is also 1.0 - it's a consequence of the discretization. Essentially, a value
+                        # greater than 1 simply implies that the mean duration is less than the timescale in question, and we need to retain that value
+                        # to be able to correctly convert between timescales. The subsequent call to min() then ensures that the fraction moved never
+                        # exceeds 1.0 once operating on the timestep level
+                        converted_frac = min(1,transition * (self.dt / par.timescale))
                         for link in par.links:
                             link.vals[ti] = link.source.vals[ti] * converted_frac
 
