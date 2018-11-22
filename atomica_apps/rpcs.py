@@ -164,6 +164,13 @@ def admin_reset_projects(username):
     return output
     
 
+def admin_grab_projects(username1, username2):
+    ''' For use with run_query '''
+    user1 = datastore.loaduser(username1)
+    for projectkey in user1.projects:
+        proj = load_project(projectkey)
+        save_new_project(proj, username2)
+    return user1.projects
 
 ##################################################################################
 ### Datastore functions
