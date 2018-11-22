@@ -8,3 +8,4 @@ nbsphinx
 ipykernel
 pandoc
 sphinx>=1.8
+sphinx-autodoc-typehints
