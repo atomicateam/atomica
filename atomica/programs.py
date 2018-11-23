@@ -747,7 +747,8 @@ class ProgramSet(NamedItem):
         return newps
 
     def validate(self):
-        """ Perform basic validation checks
+        """
+        Perform basic validation checks
 
         :raises Exception is anything is invalid
         :return: None
@@ -762,12 +763,13 @@ class ProgramSet(NamedItem):
     # Methods for getting core response summaries: budget, allocations, coverages, outcomes, etc
     #######################################################################################################
 
-    def get_alloc(self, tvec, instructions=None):
-        """ Return the spending allocation for each program
+    def get_alloc(self, tvec, instructions=None) -> dict:
+        """
+        Return the spending allocation for each program
 
         :param tvec: array of times (in years) - this is required to interpolate time-varying spending values
         :param instructions: optionally specify instructions, which can supply a spending overwrite
-        :return: Dict like {prog_name: np.array()} with spending on each program (in units of $/year or currency equivalent)
+        :return: Dict like ``{prog_name: np.array()}`` with spending on each program (in units of '$/year' or currency equivalent)
         """
 
         tvec = sc.promotetoarray(tvec)
@@ -781,14 +783,14 @@ class ProgramSet(NamedItem):
 
         return alloc
 
-    def get_num_coverage(self, tvec, dt, instructions=None, sample=False):
+    def get_num_coverage(self, tvec, dt, instructions=None, sample=False) -> dict:
         """ Return the number coverage of each program
 
         :param tvec: array of times (in years) - this is required to interpolate time-varying unit costs and capacity constraints
         :param dt: scalar timestep size - this is required to adjust spending on incidence-type programs
         :param instructions: optionally specify instructions, which can supply a spending overwrite
         :param sample: TODO implement sampling
-        :return: Dict like {prog_name: np.array()} with number of people covered at each timestep (in units of people)
+        :return: Dict like ``{prog_name: np.array()}`` with number of people covered at each timestep (in units of people)
 
         """
 
@@ -807,19 +809,21 @@ class ProgramSet(NamedItem):
 
         return num_coverage
 
-    def get_prop_coverage(self, tvec, num_coverage, denominator, instructions=None, sample=False):
+    def get_prop_coverage(self, tvec, num_coverage, denominator, instructions=None, sample=False) -> dict:
         """ Return the fractional coverage of each program
 
         Note the evaluating the proportion coverage for a ProgramSet is not a straight division because
+
         - instructions can override the coverage (for coverage scenarios)
         - Programs can contain saturation constraints
 
         :param tvec: array of times (in years) - this is required to interpolate time-varying saturation values
-        :param num_coverage: dict of program coverages, should match the available programs (typically the output of ProgramSet.get_num_coverage()
+        :param num_coverage: dict of program coverages, should match the available programs (typically the output of ``ProgramSet.get_num_coverage()``)
         :param denominator: dict of number of people covered by each program, computed externally and with one entry for each program
         :param instructions: optionally specify instructions, which can supply a coverage overwrite
         :param sample: TODO implement sampling
-        :return: Dict like {prog_name: np.array()} with fractional coverage values (dimensionless)
+        :return: Dict like ``{prog_name: np.array()}`` with fractional coverage values (dimensionless)
+
         """
 
         prop_coverage = sc.odict()  # Initialise outputs
@@ -830,16 +834,16 @@ class ProgramSet(NamedItem):
                 prop_coverage[prog.name] = instructions.coverage[prog.name].interpolate(tvec)
         return prop_coverage
 
-    def get_outcomes(self, prop_coverage=None, sample=False):
+    def get_outcomes(self, prop_coverage=None, sample=False) -> dict:
         """ Get a dictionary of parameter values associated with coverage levels (at a single point in time)
 
         Since the modality interactions in Covout.get_outcome() assume that the coverage is scalar, this function
         will also only work for scalar coverage. Therefore, the prop coverage would normally come from
         ProgramSet.get_prop_coverage(tvec,...) where tvec was only one year
 
-        :param prop_coverage: dict with coverage values {prog_name:val}
+        :param prop_coverage: dict with coverage values ``{prog_name:val}``
         :param sample: TODO implement sampling
-        :return: dict {(par,pop):val} containing parameter value overwrites
+        :return: dict ``{(par,pop):val}`` containing parameter value overwrites
         """
 
         return {(covout.par, covout.pop): covout.get_outcome(prop_coverage, sample=sample) for covout in self.covouts.values()}
@@ -863,7 +867,7 @@ class Program(NamedItem):
         :param label: Full name of the program
         :param target_pops: List of population code names for pops targeted by the program
         :param target_comps: List of compartment code names for compartments targeted by the program
-        :param currency: The currency to use (for display purposes only) - normally this would be set to `ProgramSet.currency` by `ProgramSet.add_program()`
+        :param currency: The currency to use (for display purposes only) - normally this would be set to ``ProgramSet.currency`` by ``ProgramSet.add_program()``
         """
 
         NamedItem.__init__(self, name)
@@ -897,22 +901,15 @@ class Program(NamedItem):
 
     def get_num_covered(self, tvec, spending, dt, sample=False):
         """
-        Returns number of people covered
+        Return number of people covered
 
         :param tvec: A vector of times
         :param spending: A vector of spending values, the same size as ``tvec``
         :param dt: The time step size
         :param sample: TODO: Implement sampling
-        :return: Array the same size as tvec, with coverage in units of 'people'
+        :return: Array the same size as ``tvec``, with coverage in units of 'people'
 
         """
-        ''''''
-        # INPUTS
-        # - tvec : scalar tvec
-        # - dt : timestep (to adjust spending)
-        # - num_covered : scalar num covered e.g. from `Prog.get_num_coverage(tvec,dt)`
-        # - denominator : scalar denominator (computed from a model object/Result)
-        # TODO - implement sampling
 
         # Validate inputs
         spending = sc.promotetoarray(spending)
@@ -935,12 +932,17 @@ class Program(NamedItem):
         return num_covered
 
     def get_prop_covered(self, tvec, num_covered, denominator, sample=False):
-        '''Returns proportion covered for a time/spending vector and denominator, taking into account any coverage saturation contained within this program'''
-        # INPUTS
-        # - tvec : scalar tvec
-        # - num_covered : scalar num covered e.g. from `Prog.get_num_coverage(tvec,dt)`
-        # - denominator : scalar denominator (computed from a model object/Result)
-        # TODO - implement sampling
+        """
+        Return proportion of people covered
+
+        :param tvec:  An array of times
+        :param num_covered: An array of number of people covered (e.g. the output of ``Program.get_num_covered()``)
+        :param denominator: The number of people in the denominator (computed from a model object or a Result)
+        :param sample: TODO - implement sampling
+        :return: The fractional coverage (used to compute outcomes)
+
+        """
+
 
         tvec = sc.promotetoarray(tvec)
         denominator = sc.promotetoarray(denominator)
@@ -1047,12 +1049,12 @@ class Covout(object):
     def get_outcome(self, prop_covered, sample=False):
         """ Return parameter value given program coverages
 
-        The :py:class:`Covout` object contains a set of programs and outcomes. The :py:meth:`Covout.get_outcome`
+        The :py:class:`Covout` object contains a set of programs and outcomes. The :py:meth:`Covout.get_outcome` method
         returns the outcome value associated for coverage of each program. Don't forget that any given Covout instance
-        is already specific to a (par,pop) combination
+        is already specific to a ``(par,pop)`` combination
 
-        :param prop_covered: A `dict` with {prog_name:coverage} containing at least all of the
-                             programs in `self.progs`. Note that `coverage` is expected to be a `np.array`
+        :param prop_covered: A dict with ``{prog_name:coverage}`` containing at least all of the
+                             programs in `self.progs`. Note that `coverage` is expected to be a ``np.array``
                              (such that that generated by :py:meth:`ProgramSet.get_prop_coverage`). However,
                              because the modality calculations only work for scalars, only the first entry
                              in the array will be used.

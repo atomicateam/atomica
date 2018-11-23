@@ -11,7 +11,7 @@ import ast
 import numpy as np
 
 
-def to_timestep(p, dt):
+def to_timestep(p: float, dt: float) -> float:
     """ Convert from annual to timestep probability
 
     The timestep-probability of an event is different to the annual probability.
@@ -22,6 +22,7 @@ def to_timestep(p, dt):
     :return: Timestep probability
 
     Example usage:
+
     >>> to_timestep(0.9,0.25)
     0.4376586748096509
 
@@ -30,7 +31,7 @@ def to_timestep(p, dt):
     return 1. - (1. - p)**dt
 
 
-def to_annual(p, dt):
+def to_annual(p: float, dt: float) -> float:
     """
     Convert from timestep probability to annual probability
 
@@ -68,7 +69,38 @@ supported_functions = {
 }
 
 
-def parse_function(fcn_str):
+def parse_function(fcn_str: str) -> tuple:
+    """
+    Parses a string into a Python function
+
+    This function takes in the string representation of a function e.g. ``'x+y'``. It
+    returns an Python function object that takes in a keyword arguments corresponding to the
+    original quantities that appeared in the function. For example:
+
+    >>> fcn, deps = atomica.parse_function('x+y')
+    >>> fcn
+    <function atomica.function_parser.parse_function.<locals>.fcn(**deps)>
+    >>> deps
+    ['x', 'y']
+    >>> fcn(x=2,y=3)
+    5
+
+    Note that for security, only a subset of Python functions are allowed to be called. These
+    are mainly mathematical operations such as ``max`` or ``exp``. A full listing can be found
+    in ``function_parser.py``.
+
+    A common usage pattern is to construct a dict of inputs to the parsed function using the list
+    of dependencies returned by ``parse_function``. For example:
+
+    >>> argdict = dict.fromkeys(deps,2)
+    >>> fcn(**argdict)
+    4
+
+    :param fcn_str: A string containing a single Python expression
+    :return: A tuple containing a function, and a list of arguments required by the function
+
+    """
+
     # Returns (fcn,dep_list)
     # Where dep_list corresponds to a list of keys for
     # the dict that needs to be passed to fcn()

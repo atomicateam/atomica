@@ -17,7 +17,7 @@ def parent_dir():
     return os.path.join(os.path.abspath(os.path.join(inspect.stack()[1][1], os.pardir)), '')
 
 
-class NamedItem(object):
+class NamedItem():
     def __init__(self, name=None):
         if name is None:
             name = '<unnamed>'
@@ -66,10 +66,21 @@ class NDict(sc.odict):
         return None
 
     def copy(self, old, new):
+        """
+        Copy an item and return the copy
+
+        :param old: The key of the existing item
+        :param new: The new name for the item
+        :return: The copied item
+
+        Example usage:
+        >>> new_parset = proj.parsets.copy('old_name','new_name')
+
+        """
         sc.odict.copy(self, old, new)
         if isinstance(self[new], NamedItem):
             self[new].name = new
-        return None
+        return self[new]
 
 
 class TimeSeries(object):
