@@ -1,21 +1,8 @@
 """
-Atomica module initialization file.
+Atomica root module
 
-
-License:
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Lesser General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU Lesser General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+The Atomica module is the entry point for running simulations and performing analysis
+using Atomica. It consists of the following submodules:
 
     .. autosummary::
         :toctree: _autosummary
@@ -41,6 +28,21 @@ License:
         utils
 
 """
+
+# License:
+#
+#     This program is free software: you can redistribute it and/or modify
+#     it under the terms of the GNU Lesser General Public License as published by
+#     the Free Software Foundation, either version 3 of the License, or
+#     (at your option) any later version.
+#
+#     This program is distributed in the hope that it will be useful,
+#     but WITHOUT ANY WARRANTY; without even the implied warranty of
+#     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#     GNU General Public License for more details.
+#
+#     You should have received a copy of the GNU Lesser General Public License
+#     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # Display version information using logging
 
@@ -69,7 +71,7 @@ logger.critical(datetime.now())
 
 try:
     import sciris as sc
-    atomica_git = sc.gitinfo(__file__)
+    atomica_git = sc.gitinfo(__file__, verbose=False)
     logger.critical('git branch: %s (%s)' % (atomica_git['branch'], atomica_git['hash']))
     del atomica_git
 except:

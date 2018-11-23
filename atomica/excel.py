@@ -541,9 +541,14 @@ class TimeDependentValuesEntry(object):
         return output
 
     @property
-    def has_data(self):
-        # Returns True if any of the time series
-        return any([x.has_data for x in self.ts.values()])
+    def has_data(self) -> bool:
+        """
+        Check whether all time series have data entered
+
+        :return: True if all of the TimeSeries objects stored in the TDVE have data
+        """
+
+        return all([x.has_data for x in self.ts.values()])
 
     @staticmethod
     def from_rows(rows):

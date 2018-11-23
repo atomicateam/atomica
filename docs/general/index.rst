@@ -5,5 +5,5 @@ General content
     :maxdepth: 1
 
     Compartment-Initialization
-    Rates-Probabilities-Durations
     File-Logging
+    Optimization
