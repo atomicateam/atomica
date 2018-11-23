@@ -36,7 +36,7 @@ class ProjectFramework(object):
         # Define metadata
         self.uid = sc.uuid()
         self.version = version
-        self.gitinfo = sc.gitinfo(__file__)
+        self.gitinfo = sc.gitinfo(__file__, verbose=False)
         self.created = sc.now()
         self.modified = sc.now()
 

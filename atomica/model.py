@@ -867,7 +867,7 @@ class Model(object):
         # Record version info for the model run. These are generally NOT updated in migration. Thus, they serve
         # as a record of which specific version of the code was used to generate the results
         self.version = version
-        self.gitinfo = sc.gitinfo(__file__)
+        self.gitinfo = sc.gitinfo(__file__, verbose=False)
         self.created = sc.now()
 
         self.pops = list()  # List of population groups that this model subdivides into.
