@@ -867,7 +867,7 @@ class Model(object):
         # Record version info for the model run. These are generally NOT updated in migration. Thus, they serve
         # as a record of which specific version of the code was used to generate the results
         self.version = version
-        self.gitinfo = sc.gitinfo(__file__)
+        self.gitinfo = sc.gitinfo(__file__, verbose=False)
         self.created = sc.now()
 
         self.pops = list()  # List of population groups that this model subdivides into.
@@ -1002,7 +1002,7 @@ class Model(object):
             for par in pop.pars:
                 if par.name in parset.pars:
                     cascade_par = parset.pars[par.name]
-                    par.scale_factor = cascade_par.y_factor[pop_name] * cascade_par.meta_y_factor
+                    par.scale_factor = cascade_par.y_factor[pop.name] * cascade_par.meta_y_factor
                     if not par.fcn_str and cascade_par.has_values(pop.name):
                         par.vals = cascade_par.interpolate(tvec=self.t, pop_name=pop.name) * par.scale_factor
 

@@ -10,6 +10,7 @@ import numpy as np
 import sciris as sc
 from .utils import interpolate
 from .model import BadInitialization
+from .system import logger
 
 # TODO: Determine whether this is necessary.
 calibration_settings = dict()
@@ -199,6 +200,7 @@ def perform_autofit(project, parset, pars_to_adjust, output_quantities, max_time
 
     _update_parset(args['parset'], x1, pars_to_adjust)
 
+    # Log out the commands required for equivalent manual calibration if desired
     for i, x in enumerate(pars_to_adjust):
         par_name = x[0]
         pop_name = x[1]
@@ -207,14 +209,14 @@ def perform_autofit(project, parset, pars_to_adjust, output_quantities, max_time
             par = args['parset'].pars[par_name]
 
             if pop_name is None or pop_name == 'all':
-                print("parset.get_par('{}').meta_y_factor={:.2f}".format(par_name, par.meta_y_factor))
+                logger.debug("parset.get_par('{}').meta_y_factor={:.2f}".format(par_name, par.meta_y_factor))
             else:
-                print("parset.get_par('{}').y_factor['{}']={:.2f}".format(par_name, pop_name, par.y_factor[pop_name]))
+                logger.debug("parset.get_par('{}').y_factor['{}']={:.2f}".format(par_name, pop_name, par.y_factor[pop_name]))
 
         else:
             tokens = par_name.split('_from_')
             par = args['parset'].transfers[tokens[0]][tokens[1]]
-            print("parset.transfers['{}']['{}'].y_factor['{}']={:.2f}".format(tokens[0], tokens[1], pop_name,
+            logger.debug("parset.transfers['{}']['{}'].y_factor['{}']={:.2f}".format(tokens[0], tokens[1], pop_name,
                                                                               par.y_factor[pop_name]))
             raise NotImplemented  # Transfers might be handled differently in Atomica
 
