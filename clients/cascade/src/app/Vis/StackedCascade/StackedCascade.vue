@@ -1,14 +1,5 @@
 <template>
   <div class="stacked-cascade">
-    <!-- Arrow def -->
-    <svg width="0" height="0">
-      <defs>
-        <marker id="arrow" markerWidth="7" markerHeight="5" refX="0" refY="2.5" orient="auto">
-          <polygon points="0 0, 7 2.5, 0 5" />
-        </marker>
-      </defs>
-    </svg>
-
     <table class="legend-table table is-narrow" v-if="legendDisplay">
       <thead>
         <tr>
@@ -85,7 +76,7 @@ export default {
       tColour: this.totalColour || TOTAL_COLOUR,
       width: 0,
       height: 0,
-      margin: { left: 60, right: 190, top: 10, bottom: 20 },
+      margin: { left: 60, right: 30, top: 10, bottom: 20 },
       t: d3.transition().duration(0),
       svg: null,
       g: null,
@@ -222,8 +213,9 @@ export default {
     },
 
     setupWidthHeight() {
-      this.svgWidth = this.$el.offsetWidth
-      this.width = this.$el.offsetWidth - this.margin.left - this.margin.right
+      const chartWidth = this.$el.offsetWidth - 190
+      this.svgWidth = chartWidth
+      this.width = chartWidth - this.margin.left - this.margin.right
       this.height = this.svgHeight - this.margin.top - this.margin.bottom
     },
 
@@ -251,6 +243,18 @@ export default {
         .append('svg')
         .attr('width', this.svgWidth)
         .attr('height', this.svgHeight)
+
+      // arrow def
+      this.svg.append('defs')
+        .append('marker')
+          .attr('id', 'arrow')
+          .attr('markerWidth', '7')
+          .attr('markerHeight', '5')
+          .attr('refX', '0')
+          .attr('refY', '2.5')
+          .attr('orient', 'auto')
+        .append('polygon')
+          .attr('points', '0 0, 7 2.5, 0 5')
       
       this.g = this.svg.append('g')
         .attr('transform', `translate(${this.margin.left},${this.margin.top})`)
@@ -276,6 +280,7 @@ export default {
         .attr('x', -(this.height/2))
         .attr('y', -50)
         .attr('transform', 'rotate(-90)')
+        .style('font-family', 'Helvetica, Arial')
         .style('font-size', '13px')
         .style('font-weight', 'bold')
         .style('text-anchor', 'middle')
@@ -422,6 +427,7 @@ export default {
         .enter().append('text')
         .attr('x', d => this.x(d.stage) + 2)
         .attr('y', d => this.y(d._total) - 2)
+        .style('font-family', 'Helvetica, Arial')
         .style('font-size', '12px')
         .style('font-weight', 'bold')
         .style('fill', '#00267a')
@@ -445,6 +451,7 @@ export default {
         .attr('x', d => this.x(d.stage) + this.x.bandwidth())
         .attr('y', () => this.y(0) + 12)
         .attr('text-anchor', 'start')
+        .style('font-family', 'Helvetica, Arial')
         .style('font-size', '12px')
         .style('font-weight', 'bold')
         .style('fill', '#00267a')
@@ -477,6 +484,7 @@ export default {
         .attr('class', d => `cat-text ${this.getUniqueName(d.key, 'cat-text')}`)
         .attr('x', d => this.x(d.data.stage) + 2)
         .attr('y', d => this.y(d[1]) - 2)
+        .style('font-family', 'Helvetica, Arial')
         .style('font-size', '12px')
         .style('font-weight', 'bold')
         .style('fill', '#00267a')
@@ -500,11 +508,14 @@ export default {
         .attr('x', d => this.x(d.data.stage) + this.x.bandwidth())
         .attr('y', () => this.y(0) + 12)
         .attr('text-anchor', 'start')
+        .style('font-family', 'Helvetica, Arial')
         .style('font-size', '12px')
         .style('font-weight', 'bold')
         .style('fill', '#00267a')
         .style('display', 'none')
         .text((d, i) => { return lastDataIndex === i ? '' : `${d3.format('.1f')(d.conversion)}%` })
+
+      this.$emit('chartUpdated', this.svg, this.width, this.height)
     }
   }
 }
@@ -513,6 +524,8 @@ export default {
 <style lang="scss" scoped>
 .stacked-cascade {
   position: relative;
+  display: flex;
+  flex-direction: row-reverse;
 }
 
 .legend-colour {
@@ -523,9 +536,9 @@ export default {
 
 .legend-table.table {
   border: none;
-  position: absolute;
-  right: 2rem;
-  top: 0;
+  // position: absolute;
+  // right: 2rem;
+  // top: 0;
   width: 160px;
   border-collapse: collapse;
 

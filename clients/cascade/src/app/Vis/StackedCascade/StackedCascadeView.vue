@@ -10,11 +10,19 @@
       </label>
     </div>
 
-    <div class="year-slider">
-      <year-slider
-        :years="yearOptions"
-        @yearChanged="yearChanged"
-      ></year-slider>
+    <div class="chart-options">
+      <div class="year-slider">
+        <year-slider
+          :years="yearOptions"
+          @yearChanged="yearChanged"
+        ></year-slider>
+      </div>
+
+      <export-graph
+        :chartSvg="chartSvg"
+        :chartWidth="chartWidth"
+        :chartHeight="chartHeight"
+      />
     </div>
 
     <div class="chart">
@@ -25,7 +33,8 @@
         :year="year"
         :scenario="result"
         :colourScheme="colours"
-        :legendDisplay="true" />
+        :legendDisplay="true" 
+        @chartUpdated="chartUpdated" />
     </div>
   </div>
 </template>
@@ -34,11 +43,13 @@
 import { transformCascadeData } from '../data-transform'
 import StackedCascade from './StackedCascade.vue'
 import YearSlider from '../YearSlider.vue'
+import ExportGraph from '../ExportGraph.vue'
 
 export default {
   components: {
     StackedCascade,
     YearSlider,
+    ExportGraph,
   },
   props: {
     cascadeData: Object,
@@ -51,7 +62,10 @@ export default {
       year: null,
       yearOptions: [],
       updatedData: {},
-      colours: this.colourScheme || null
+      colours: this.colourScheme || null,
+      chartSvg: null,
+      chartWidth: 300,
+      chartHeight: 400,
     }
   },
   computed: {
@@ -83,6 +97,11 @@ export default {
     yearChanged(year) {
       this.year = year
     },
+    chartUpdated(chartSvg, width, height) {
+      this.chartSvg = chartSvg
+      this.chartWidth = width
+      this.chartHeight = height
+    },
   }
 }
 </script>
@@ -96,9 +115,28 @@ export default {
     margin-right: 1rem;
   }
 }
+
+.chart-options {
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.save-options {
+  vertical-align: bottom;
+  text-align: right;
+  width: 100%;
+  padding-bottom: 5px;
+}
+
 .chart {
   max-width: 1200px;
-  margin: 1rem auto;
+  margin: 0 auto 20px;
+  padding: 20px;
+  border: 1px solid #dedede;
+  background: #fff;
+  border-radius: 3px;
+  box-shadow: 0 2px 3px rgba(0,0,0,.05);
 }
 
 .year-slider {
@@ -107,14 +145,17 @@ export default {
 }
 
 @media only screen and (min-width: 800px) {
+  .chart-options {
+    display: flex;
+    width: 90%;
+  }
+  .save-options {
+    width: 20%;
+    padding-top: 30px;
+  }
   .year-slider {
     width: 80%;
   }
 }
 
-@media only screen and (min-width: 1200px) {
-  .year-slider {
-    width: 60%;
-  }
-}
 </style>

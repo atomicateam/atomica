@@ -1,11 +1,19 @@
 <template>
   <div class="multi-bar-view">
-    <div class="year-slider">
-      <year-slider
-        :years="yearOptions"
-        :selected="yearOptions.length - 1"
-        @yearChanged="yearChanged"
-      ></year-slider>
+    <div class="chart-options">
+      <div class="year-slider">
+        <year-slider
+          :years="yearOptions"
+          :selected="yearOptions.length - 1"
+          @yearChanged="yearChanged"
+        ></year-slider>
+      </div>
+
+      <export-graph
+        :chartSvg="chartSvg"
+        :chartWidth="chartWidth"
+        :chartHeight="chartHeight"
+      />
     </div>
 
     <div class="scenarios-vis">
@@ -15,6 +23,7 @@
           :yAxisTitle="'Number of people'"
           :multiData="cascadeData"
           :year="year"
+          @chartUpdated="chartUpdated"
         />
       </div>
 
@@ -26,11 +35,13 @@
 import { transformCascadeData } from '../data-transform'
 import Multibar from './Multibar.vue'
 import YearSlider from '../YearSlider.vue'
+import ExportGraph from '../ExportGraph.vue'
 
 export default {
   components: {
     Multibar,
     YearSlider,
+    ExportGraph,
   },
   props: {
     scenariosData: Object,
@@ -43,7 +54,10 @@ export default {
       year: null,
       yearOptions: [],
       cascadeData: {},
-      colorScheme: this.colourScheme || null
+      colorScheme: this.colourScheme || null,
+      chartSvg: null,
+      chartWidth: 300,
+      chartHeight: 400,
     }
   },
   watch: {
@@ -71,35 +85,54 @@ export default {
     yearChanged(year) {
       this.year = year
     },
+    chartUpdated(chartSvg, width, height) {
+      this.chartSvg = chartSvg
+      this.chartWidth = width
+      this.chartHeight = height
+    },
   }
 }
 </script>
 <style lang="scss" scoped>
-.scenarios-vis {
-  .stacked-cascade-vis {
-    display: flex;
-    flex-wrap: wrap;
 
-    .chart {
-      width: 33%;
-    }
-  }
-}
-
-.year-slider {
+.chart-options {
+  max-width: 1200px;
   width: 100%;
   margin: 0 auto;
 }
 
-@media only screen and (min-width: 800px) {
-  .year-slider {
-    width: 80%;
-  }
+.save-options {
+  vertical-align: bottom;
+  text-align: right;
+  width: 100%;
+  padding-bottom: 5px;
 }
 
-@media only screen and (min-width: 1200px) {
+.multi-bar-vis {
+  max-width: 1200px;
+  margin: 0 auto 20px;
+  padding: 20px;
+  border: 1px solid #dedede;
+  background: #fff;
+  border-radius: 3px;
+  box-shadow: 0 2px 3px rgba(0,0,0,.05);
+}
+
+.year-slider {
+  width: 100%;
+}
+
+@media only screen and (min-width: 800px) {
+  .chart-options {
+    display: flex;
+    width: 90%;
+  }
+  .save-options {
+    width: 20%;
+    padding-top: 30px;
+  }
   .year-slider {
-    width: 60%;
+    width: 80%;
   }
 }
 </style>
