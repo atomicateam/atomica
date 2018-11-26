@@ -233,15 +233,15 @@ class Characteristic(Variable):
         self.denominator = None
         # The following flag indicates if another variable depends on this one.
         # This indicates a value needs computation during integration.
-        self.dynamic = False
-        self.internal_vals = None
+        self._is_dynamic = False
+        self._vals = None
 
     def preallocate(self, tvec, dt):
         # Note that we don't use Variable.preallocate() here because we cannot
         # preallocate self.vals because it is a property method
         self.t = tvec
         self.dt = dt
-        self.internal_vals = np.ones(tvec.shape) * np.nan
+        self._vals = np.ones(tvec.shape) * np.nan
 
     def get_included_comps(self):
         includes = []
@@ -254,7 +254,7 @@ class Characteristic(Variable):
 
     @property
     def vals(self):
-        if self.internal_vals is None:
+        if self._vals is None:
             vals = np.zeros(self.t.shape)
 
             for comp in self.includes:
@@ -269,10 +269,10 @@ class Characteristic(Variable):
 
             return vals
         else:
-            return self.internal_vals
+            return self._vals
 
     def set_dynamic(self):
-        self.dynamic = True
+        self._is_dynamic = True
 
         for inc in self.includes:
             inc.set_dynamic()
@@ -301,17 +301,17 @@ class Characteristic(Variable):
         self.units = ''
 
     def update(self, ti):
-        self.internal_vals[ti] = 0
+        self._vals[ti] = 0
         for comp in self.includes:
-            self.internal_vals[ti] += comp.vals[ti]
+            self._vals[ti] += comp.vals[ti]
         if self.denominator is not None:
             denom = self.denominator.vals[ti]
             if denom > 0:
-                self.internal_vals[ti] /= denom
-            elif self.internal_vals[ti] < model_settings['tolerance']:
-                self.internal_vals[ti] = 0  # Given a zero/zero case, make the answer zero.
+                self._vals[ti] /= denom
+            elif self._vals[ti] < model_settings['tolerance']:
+                self._vals[ti] = 0  # Given a zero/zero case, make the answer zero.
             else:
-                self.internal_vals[ti] = np.inf  # Given a non-zero/zero case, keep the answer infinite.
+                self._vals[ti] = np.inf  # Given a non-zero/zero case, keep the answer infinite.
 
 
 class Parameter(Variable):
@@ -332,9 +332,6 @@ class Parameter(Variable):
 
         Variable.__init__(self, pop=pop, id=(pop.name, name))
         self.limits = None  #: Can be a two element vector [min,max]
-
-        self.precompute = False #: If True, the parameter function will be computed in a vector operation prior to integration
-        self.dynamic = False #: If True, this parameter will be updated during integration. Note that `precompute` and `dynamic` are mutually exclusive
         self.pop_aggregation = None  #: If not None, stores list of population aggregation information (special function, which weighting comp/charac and which interaction term to use)
         self.scale_factor = 1.0  #: This should be set to the product of the population-specific ``y_factor`` and the ``meta_y_factor`` from the ParameterSet
         self.links = []  #: References to links that derive from this parameter
@@ -343,6 +340,8 @@ class Parameter(Variable):
         self.fcn_str = None  #: String representation of parameter function
         self.deps = None  #: Dict of dependencies containing lists of integration objects
         self._fcn = None  #: Internal cache for parsed parameter function (this will be dropped when pickled)
+        self._precompute = False #: If True, the parameter function will be computed in a vector operation prior to integration
+        self._is_dynamic = False #: If True, this parameter will be updated during integration. Note that `precompute` and `dynamic` are mutually exclusive
 
         #: For transition parameters, the ``vals`` stored by the parameter is effectively a rate. The ``timescale``
         #: attribute informs the time period corresponding to the units in which the rate has been provided.
@@ -443,17 +442,17 @@ class Parameter(Variable):
                         raise Exception("A Parameter that depends on transition flow rates cannot be a dependency, it must be output only.")
                     elif isinstance(dep, Compartment) or isinstance(dep, Characteristic):
                         dep.set_dynamic()
-                        self.dynamic = True
+                        self._is_dynamic = True
                     elif isinstance(dep, Parameter):
                         dep.set_dynamic() # Run `set_dynamic()` on the parameter which will descend further to see if the Parameter depends on comps/characs or on overwritten parameters
-                        if dep.dynamic or (progset and dep.name in progset.pars):
-                            self.dynamic = True
+                        if dep._is_dynamic or (progset and dep.name in progset.pars):
+                            self._is_dynamic = True
                     else:
                         raise Exception('Unexpected dependency type')
 
         # If not dynamic, then we need to precompute the function
-        if not self.dynamic:
-            self.precompute = True
+        if not self._is_dynamic:
+            self._precompute = True
 
 
     def unlink(self):
@@ -1077,7 +1076,7 @@ class Model(object):
                         par.vals = cascade_par.interpolate(tvec=self.t, pop_name=pop.name) * par.scale_factor
                         par.constrain() # Sampling might results in the parameter value going out of bounds (or user might have entered bad values in the databook) so ensure they are clipped here
 
-                if par.fcn_str and par.precompute: # Note that a parameter might appear in the databook and have a function - in which case, the function takes precedence (the databook values only get used for plotting)
+                if par.fcn_str and par._precompute: # Note that a parameter might appear in the databook and have a function - in which case, the function takes precedence (the databook values only get used for plotting)
                     par.update()
                     par.constrain()
 
@@ -1149,9 +1148,9 @@ class Model(object):
             self.update_junctions()
 
         for pop in self.pops:
-            [par.update() for par in pop.pars if (par.fcn_str and not (par.dynamic or par.precompute))]  # Update any remaining parameters
+            [par.update() for par in pop.pars if (par.fcn_str and not (par._is_dynamic or par._precompute))]  # Update any remaining parameters
             for charac in pop.characs:
-                charac.internal_vals = None  # Wipe out characteristic vals to save space
+                charac._vals = None  # Wipe out characteristic vals to save space
 
                 # TODO: Consider whether it is worth reimplementing space-saving measures.
                 # if not full_output:
@@ -1352,7 +1351,7 @@ class Model(object):
         # First, compute dependent characteristics, as parameters might depend on them
         for pop in self.pops:
             for charac in pop.characs:
-                if charac.dynamic:
+                if charac._is_dynamic:
                     charac.update(ti)
 
         do_program_overwrite = self.programs_active and self.program_instructions.start_year <= self.t[ti] <= self.program_instructions.stop_year
@@ -1376,7 +1375,7 @@ class Model(object):
 
             # First - update parameters that are dependencies, evaluating f_stack if required
             for par in pars:
-                if par.dynamic:
+                if par._is_dynamic:
                     par.update(ti)
 
             # Then overwrite with program values
