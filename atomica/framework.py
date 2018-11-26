@@ -13,7 +13,7 @@ import sciris as sc
 from .system import NotFoundError, FrameworkSettings as FS
 from .system import logger
 from .excel import read_tables, AtomicaSpreadsheet, validate_category
-from .version import version
+from .version import version, gitinfo
 import numpy as np
 from .cascade import validate_cascade
 from .function_parser import parse_function
@@ -36,7 +36,7 @@ class ProjectFramework(object):
         # Define metadata
         self.uid = sc.uuid()
         self.version = version
-        self.gitinfo = sc.gitinfo(__file__, verbose=False)
+        self.gitinfo = sc.dcp(gitinfo)
         self.created = sc.now()
         self.modified = sc.now()
 

@@ -14,7 +14,7 @@ from .system import logger
 from .system import FrameworkSettings as FS
 from .results import Result
 from .function_parser import parse_function
-from .version import version
+from .version import version, gitinfo
 from collections import defaultdict
 import sciris as sc
 import numpy as np
@@ -936,7 +936,7 @@ class Model(object):
         # Record version info for the model run. These are generally NOT updated in migration. Thus, they serve
         # as a record of which specific version of the code was used to generate the results
         self.version = version
-        self.gitinfo = sc.gitinfo(__file__, verbose=False)
+        self.gitinfo = sc.dcp(gitinfo)
         self.created = sc.now()
 
         self.pops = list()  # List of population groups that this model subdivides into.
