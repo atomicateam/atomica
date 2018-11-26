@@ -422,7 +422,12 @@ class Parameter(Variable):
         before integration starts, taking advantage of vector operations.
 
         If a parameter is overwritten by a program in this simulation, then its value may change
-        during integration, and we again need to make this parameter dynamic.
+        during integration, and we again need to make this parameter dynamic. Note that this doesn't
+        apply to the parameter *being* overwritten - if it gets overwritten, that has no bearing on
+        when its function gets evaluated. But if a parameter depends on a value that has changed, then
+        the function must be re-evaluated. Technically this only needs to be done after the time index
+        where programs turn on, but it's simpler just to mark it as dynamic for the entire simulation,
+        the gains aren't large enough to justify the extra complexity otherwise.
 
         :param progset: A ``ProgramSet`` instance (the one contained in the Model containing this Parameter)
 
@@ -440,7 +445,7 @@ class Parameter(Variable):
                         dep.set_dynamic()
                         self.dynamic = True
                     elif isinstance(dep, Parameter):
-                        dep.set_dynamic() # Run `set_dynamic()` on the parameter which will descend further to see if the Parameter depends on comps/characs
+                        dep.set_dynamic() # Run `set_dynamic()` on the parameter which will descend further to see if the Parameter depends on comps/characs or on overwritten parameters
                         if dep.dynamic or (progset and dep.name in progset.pars):
                             self.dynamic = True
                     else:

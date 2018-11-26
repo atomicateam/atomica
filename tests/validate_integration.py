@@ -21,7 +21,7 @@ import numpy as np
 # List available models based on which framework files exist
 models = list()
 for f in os.listdir(at.LIBRARY_PATH):
-    if f.endswith('_framework.xlsx'):
+    if f.endswith('_framework.xlsx') and not f.startswith('~$'):
         models.append(f.replace('_framework.xlsx', ''))
 
 def validate(r1,r2):
