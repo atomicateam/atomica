@@ -114,13 +114,13 @@ class Variable(object):
 
         return
 
-    def set_dependent(self) -> None:
+    def set_dynamic(self) -> None:
         """
         Make the variable a dependency
 
         For Compartments and Links, this does nothing. For Characteristics and
-        Parameters, it will set the dependent flag, but in addition, any validation constraints e.g. a Parameter
-        that depends on Links cannot itself be a dependency, will be enforced
+        Parameters, it will set the dynamic flag, but in addition, any validation constraints e.g. a Parameter
+        that depends on Links cannot itself be dynamic, will be enforced
 
         """
 
@@ -233,7 +233,7 @@ class Characteristic(Variable):
         self.denominator = None
         # The following flag indicates if another variable depends on this one.
         # This indicates a value needs computation during integration.
-        self.dependency = False
+        self.dynamic = False
         self.internal_vals = None
 
     def preallocate(self, tvec, dt):
@@ -271,14 +271,14 @@ class Characteristic(Variable):
         else:
             return self.internal_vals
 
-    def set_dependent(self):
-        self.dependency = True
+    def set_dynamic(self):
+        self.dynamic = True
 
         for inc in self.includes:
-            inc.set_dependent()
+            inc.set_dynamic()
 
         if self.denominator is not None:
-            self.denominator.set_dependent()
+            self.denominator.set_dynamic()
 
     def unlink(self):
         Variable.unlink(self)
@@ -332,7 +332,9 @@ class Parameter(Variable):
 
         Variable.__init__(self, pop=pop, id=(pop.name, name))
         self.limits = None  #: Can be a two element vector [min,max]
-        self.dependency = False #: If True, this parameter will be updated during integration
+
+        self.precompute = False #: If True, the parameter function will be computed in a vector operation prior to integration
+        self.dynamic = False #: If True, this parameter will be updated during integration. Note that `precompute` and `dynamic` are mutually exclusive
         self.pop_aggregation = None  #: If not None, stores list of population aggregation information (special function, which weighting comp/charac and which interaction term to use)
         self.scale_factor = 1.0  #: This should be set to the product of the population-specific ``y_factor`` and the ``meta_y_factor`` from the ParameterSet
         self.links = []  #: References to links that derive from this parameter
@@ -353,7 +355,7 @@ class Parameter(Variable):
         self.timescale = 1.0
 
 
-    def set_fcn(self, framework, fcn_str) -> None:
+    def set_fcn(self, framework, fcn_str, progset) -> None:
         """
         Add a function to this parameter
 
@@ -362,10 +364,11 @@ class Parameter(Variable):
             - The function is parsed and stored in the ``._fcn`` attribute (until the Parameter is pickled)
             - The dependencies are extracted, and are stored as references to the actual integration objects
               to increase performance during integration
-            - If this is a transition parameter, then dependencies will have their `dependent` flag updated
+            - If this is a transition parameter, then dependencies will have their `dynamic` flag updated
 
         :param framework: A py:class:`ProjectFramework` instance, used to identify and retrieve interaction terms
         :param fcn_str: The string containing the function to add
+        :param progset: A py:class:`ProgramSet` instance, used to identify parameters that will be overwritten
 
         """
 
@@ -402,18 +405,51 @@ class Parameter(Variable):
                 deps[dep_name] = self.pop.get_variable(dep_name)
         self.deps = deps
 
-        # If this Parameter has links, it must be marked as dependent for evaluation during integration
-        if self.links or self.pop_aggregation:
-            self.set_dependent()
+        # If this Parameter has links and a function, it must be updated during computation
+        if self.links and self.fcn_str:
+            self.set_dynamic(progset)
 
-    def set_dependent(self):
-        self.dependency = True
-        if self.deps is not None:  # Make all dependencies dependent, this will propagate through dependent parameters.
-            for deps in self.deps.values():
+    def set_dynamic(self, progset=None) -> None:
+        """
+        Mark this parameter as needing evaluation for integration
+
+        If a parameter has a function and `set_dynamic()` has been called, that means the
+        result of the function is required to drive a transition in the model. In this context,
+        'dynamic' means that the parameter depends on values that are only known during integration
+        (i.e. compartment sizes). It could also depend on compartment sizes indirectly, if
+        it depends on characteristics, or if it depends on parameters that depend on compartments
+        or characteristics. If none of these are true, then the parameter function can be evaluated
+        before integration starts, taking advantage of vector operations.
+
+        If a parameter is overwritten by a program in this simulation, then its value may change
+        during integration, and we again need to make this parameter dynamic.
+
+        :param progset: A ``ProgramSet`` instance (the one contained in the Model containing this Parameter)
+
+        """
+
+
+        if self.fcn_str is None:
+            return # Only parameters with functions need to be made dynamic
+        elif self.deps is not None: # If there are no dependencies, then we know that this is precompute-only
+            for deps in self.deps.values(): # deps is {'dep_name':[dep_objects]}
                 for dep in deps:
                     if isinstance(dep, Link):
                         raise Exception("A Parameter that depends on transition flow rates cannot be a dependency, it must be output only.")
-                    dep.set_dependent()
+                    elif isinstance(dep, Compartment) or isinstance(dep, Characteristic):
+                        dep.set_dynamic()
+                        self.dynamic = True
+                    elif isinstance(dep, Parameter):
+                        dep.set_dynamic() # Run `set_dynamic()` on the parameter which will descend further to see if the Parameter depends on comps/characs
+                        if dep.dynamic or (progset and dep.name in progset.pars):
+                            self.dynamic = True
+                    else:
+                        raise Exception('Unexpected dependency type')
+
+        # If not dynamic, then we need to precompute the function
+        if not self.dynamic:
+            self.precompute = True
+
 
     def unlink(self):
         Variable.unlink(self)
@@ -438,13 +474,28 @@ class Parameter(Variable):
         if self.pop_aggregation and len(self.pop_aggregation) == 4:
             self.pop_aggregation[3] = objs[self.pop_aggregation[3]]
 
-    def constrain(self, ti):
-        # NB. Must be an array, so ti must must not be supplied
+    def constrain(self, ti=None) -> None:
+        """
+        Constrain the parameter value to allowed range
+
+        If ``Parameter.limits`` is not None, then the parameter values at the specified
+        time will be clipped to the limits. If no time index is provided, clipping will
+        be performed on all values in a vectorized operation. Vector clipping is used
+        for data parameters that are not evaluated during integration, while index-specific
+        clipping is used for dependencies that are calculated during integration.
+
+        :param ti: An integer index, or None (to operate on all time points)
+
+        """
+
         if self.limits is not None:
-            if self.vals[ti] < self.limits[0]:
-                self.vals[ti] = self.limits[0]
-            if self.vals[ti] > self.limits[1]:
-                self.vals[ti] = self.limits[1]
+            if ti is None:
+                self.vals = np.clip(self.vals,self.limits[0],self.limits[1])
+            else:
+                if self.vals[ti] < self.limits[0]:
+                    self.vals[ti] = self.limits[0]
+                if self.vals[ti] > self.limits[1]:
+                    self.vals[ti] = self.limits[1]
 
     def update(self, ti=None):
         # Update the value of this Parameter at time indices ti
@@ -549,7 +600,20 @@ class Population(object):
     Each model population must contain a set of compartments with equivalent names.
     """
 
-    def __init__(self, framework, name, label):
+    def __init__(self, framework, name: str, label: str, progset):
+        """
+        Construct a Population
+
+        This function constructs a population instance. Aside from creating the Population, it also
+        instantiates all of the integration objects defined in the Framework. Note that transfers
+        and interactions aren't added at this point - because they transcend populations, they are
+        instantiated one level higher up, in ``model.build()``
+
+        :param framework: A ProjectFramework
+        :param name: The code name of the population
+        :param label: The full name of the population
+        :param progset: A ProgramSet instance
+        """
 
         self.name = name  # This is the code name
         self.label = label  # This is the full name
@@ -566,7 +630,7 @@ class Population(object):
         self.par_lookup = dict()
         self.link_lookup = dict()  # Map name of Link to a list of Links with that name
 
-        self.gen_cascade(framework=framework)  # Convert compartmental cascade into lists of compartment and link objects.
+        self.gen_cascade(framework=framework, progset=progset)  # Convert compartmental cascade into lists of compartment and link objects.
 
         self.popsize_cache_time = None
         self.popsize_cache_val = None
@@ -687,7 +751,7 @@ class Population(object):
         """ Allow dependencies to be retrieved by name rather than index. Returns a Variable. """
         return self.par_lookup[par_name]
 
-    def gen_cascade(self, framework):
+    def gen_cascade(self, framework, progset):
         """
         Generate a compartmental cascade as defined in a settings object.
         Fill out the compartment, transition and dependency lists within the model population object.
@@ -756,7 +820,7 @@ class Population(object):
 
             fcn_str = pars.at[par_name, 'function']
             if fcn_str is not None:
-                par.set_fcn(framework, fcn_str)
+                par.set_fcn(framework, fcn_str, progset)
 
     def preallocate(self, tvec, dt):
         """
@@ -982,7 +1046,7 @@ class Model(object):
         self.dt = settings.sim_dt
 
         for k, (pop_name, pop_label) in enumerate(zip(parset.pop_names, parset.pop_labels)):
-            self.pops.append(Population(framework=self.framework, name=pop_name, label=pop_label))
+            self.pops.append(Population(framework=self.framework, name=pop_name, label=pop_label, progset=self.progset))
             # Memory is allocated, speeding up model. However, values are NaN to enforce proper parset value saturation.
             self.pops[-1].preallocate(self.t, self.dt)
             self._pop_ids[pop_name] = k
@@ -999,12 +1063,17 @@ class Model(object):
         # Insert values for Framework parameters
         # The units for these come from the framework
         for pop in self.pops:
-            for par in pop.pars:
-                if par.name in parset.pars:
+            for par in pop.pars: # Note - parameters are stored in the population in framework order - the same order they should be evaluated in
+                if par.name in parset.pars: # Add in data parameters
                     cascade_par = parset.pars[par.name]
                     par.scale_factor = cascade_par.y_factor[pop.name] * cascade_par.meta_y_factor
                     if not par.fcn_str and cascade_par.has_values(pop.name):
                         par.vals = cascade_par.interpolate(tvec=self.t, pop_name=pop.name) * par.scale_factor
+                        par.constrain() # Sampling might results in the parameter value going out of bounds (or user might have entered bad values in the databook) so ensure they are clipped here
+
+                if par.fcn_str and par.precompute: # Note that a parameter might appear in the databook and have a function - in which case, the function takes precedence (the databook values only get used for plotting)
+                    par.update()
+                    par.constrain()
 
         # Propagating transfer parameter parset values into Model object.
         # For each population pair, instantiate a Parameter with the values from the databook
@@ -1074,7 +1143,7 @@ class Model(object):
             self.update_junctions()
 
         for pop in self.pops:
-            [par.update() for par in pop.pars if not par.dependency]  # Update any remaining parameters
+            [par.update() for par in pop.pars if (par.fcn_str and not (par.dynamic or par.precompute))]  # Update any remaining parameters
             for charac in pop.characs:
                 charac.internal_vals = None  # Wipe out characteristic vals to save space
 
@@ -1277,7 +1346,7 @@ class Model(object):
         # First, compute dependent characteristics, as parameters might depend on them
         for pop in self.pops:
             for charac in pop.characs:
-                if charac.dependency:
+                if charac.dynamic:
                     charac.update(ti)
 
         do_program_overwrite = self.programs_active and self.program_instructions.start_year <= self.t[ti] <= self.program_instructions.stop_year
@@ -1301,7 +1370,7 @@ class Model(object):
 
             # First - update parameters that are dependencies, evaluating f_stack if required
             for par in pars:
-                if par.dependency:
+                if par.dynamic:
                     par.update(ti)
 
             # Then overwrite with program values
