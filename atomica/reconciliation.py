@@ -147,12 +147,12 @@ def _prepare_asd_inputs(progset, bounds):
 
 def _objective(x, mapping, progset, eval_years, target_vals, coverage_denominator, dt):
     _update_progset(x, mapping, progset)  # Apply the changes to the progset
-    num_coverage = progset.get_num_coverage(tvec=eval_years, dt=dt, sample=False)  # Get number coverage using latest unit costs but default spending
-    prop_coverage = progset.get_prop_coverage(tvec=eval_years, num_coverage=num_coverage, denominator=coverage_denominator, sample=False)
+    num_coverage = progset.get_num_coverage(tvec=eval_years, dt=dt)  # Get number coverage using latest unit costs but default spending
+    prop_coverage = progset.get_prop_coverage(tvec=eval_years, num_coverage=num_coverage, denominator=coverage_denominator)
 
     obj = 0.0
     for i in range(0, len(eval_years)):
-        outcomes = progset.get_outcomes(prop_coverage=prop_coverage, sample=False)
+        outcomes = progset.get_outcomes(prop_coverage=prop_coverage)
         for key in target_vals:  # Key is a (par,pop) tuple
             obj += (target_vals[key][i] - outcomes[key]) ** 2  # Add squared difference in parameter value
     return obj

@@ -95,7 +95,7 @@ class Result(NamedItem):
                             num_eligible[prog.name] = self.get_variable(pop_name, comp_name)[0].vals.copy()
                         else:
                             num_eligible[prog.name] += self.get_variable(pop_name, comp_name)[0].vals
-            prop_coverage = self.model.progset.get_prop_coverage(tvec=self.t, num_coverage=num_coverage, denominator=num_eligible, instructions=self.model.program_instructions, sample=False)
+            prop_coverage = self.model.progset.get_prop_coverage(tvec=self.t, num_coverage=num_coverage, denominator=num_eligible, instructions=self.model.program_instructions)
 
             if quantity == 'fraction':
                 return prop_coverage
