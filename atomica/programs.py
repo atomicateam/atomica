@@ -892,7 +892,7 @@ class ProgramSet(NamedItem):
         return {(covout.par, covout.pop): covout.get_outcome(prop_coverage) for covout in self.covouts.values()}
 
 
-    def sample(self, coverage=True, outcomes=True) -> None:
+    def sample(self):
         """
         Perturb programs based on uncertainties
 
@@ -901,13 +901,10 @@ class ProgramSet(NamedItem):
         the caches based on the sigma values. A simulation subsequently run using the ProgramSet will
         use the perturbed outcomes.
 
-
-        To undo sampling, set `perturb=False` which will regenerate the caches based on the progbook values.
-
-        :param coverage: If True, program attributes like
-        :param outcomes:
+        :return: A new ``ProgramSet`` with values perturbed by sampling
 
         """
+
         new = sc.dcp(self)
         for prog in new.programs.values():
             prog.sample()
@@ -959,12 +956,15 @@ class Program(NamedItem):
 
         """
 
-        self.sampled = True
+        if self.sampled:
+            raise Exception('Sampling has already been performed - can only sample once')
+
         self.spend_data = self.spend_data.sample()
         self.unit_cost = self.unit_cost.sample()
         self.capacity = self.capacity.sample()
         self.saturation = self.saturation.sample()
         self.coverage = self.coverage.sample()
+        self.sampled = True
 
     def __repr__(self):
         ''' Print out useful info'''
@@ -1113,6 +1113,9 @@ class Covout(object):
         Perturb the values entered in the databook
 
         """
+
+        if self.sampled:
+            raise Exception('Sampling has already been performed - can only sample once')
 
         if self.sigma is None:
             return
