@@ -68,7 +68,7 @@ class ProjectSettings(object):
 
 
 class Project(object):
-    def __init__(self, name="default", framework=None, frw_name=None, databook_path=None, do_run=True, **kwargs):
+    def __init__(self, name="default", framework=None, databook=None, do_run=True, **kwargs):
         """ Initialize the project. Keywords are passed to ProjectSettings. """
         # INPUTS
         # - framework : a Framework to use. This could be
@@ -76,13 +76,13 @@ class Project(object):
         #               - An AtomicaSpreadsheet instance
         #               - A ProjectFramework instance
         #               - None (this should generally not be used though!)
-        # - databook_path : The path to a databook file. The databook will be loaded into Project.data and the spreadsheet saved to Project.databook
+        # - databook : The path to a databook file. The databook will be loaded into Project.data and the spreadsheet saved to Project.databook
         # - do_run : If True, a simulation will be run upon project construction
 
         self.name = name
 
         if sc.isstring(framework) or isinstance(framework, AtomicaSpreadsheet):
-            self.framework = ProjectFramework(inputs=framework, name=frw_name)
+            self.framework = ProjectFramework(inputs=framework)
         elif isinstance(framework, ProjectFramework):
             self.framework = framework
         else:
@@ -110,12 +110,11 @@ class Project(object):
         self._result_update_required = False  # This flag is set to True by migration is the result objects contained in this Project are out of date due to a migration change
 
         # Load project data, if available
-        if framework and databook_path:
-            # TODO: Consider compatibility checks for framework/databook.
-            self.load_databook(databook_path=databook_path, do_run=do_run)
-        elif databook_path:
+        if framework and databook:
+            self.load_databook(databook_path=databook, do_run=do_run)
+        elif databook:
             logger.warning('Project was constructed without a Framework - databook spreadsheet is being saved to project, but data is not being loaded')
-            self.databook = AtomicaSpreadsheet(databook_path)  # Just load the spreadsheet in so that it isn't lost
+            self.databook = AtomicaSpreadsheet(databook)  # Just load the spreadsheet in so that it isn't lost
             self.data = None
         else:
             self.databook = None  # This will contain an AtomicaSpreadsheet when the user loads one
@@ -234,7 +233,7 @@ class Project(object):
         """
         Create a ProgramSet given a progbook
 
-        :param progbook_path: Path to a program spreadsheet
+        :param progbook_path: Path to a program spreadsheet or an AtomicaSpreadsheet instance
         :param name: The name to assign to the new ProgramSet
         :return: The newly created ProgramSet (also stored in ``self.progsets``)
 

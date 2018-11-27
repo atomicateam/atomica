@@ -432,7 +432,6 @@ class Parameter(Variable):
 
         """
 
-
         if self.fcn_str is None:
             return # Only parameters with functions need to be made dynamic
         elif self.deps is not None: # If there are no dependencies, then we know that this is precompute-only
@@ -501,14 +500,17 @@ class Parameter(Variable):
                 if self.vals[ti] > self.limits[1]:
                     self.vals[ti] = self.limits[1]
 
-    def update(self, ti=None):
-        # Update the value of this Parameter at time indices ti
-        #
-        # INPUTS
-        # - ti : An int, or a numpy array with index values. If None, all time values will be used
-        #
-        # OUTPUTS
-        # - No outputs, the parameter value is updated in-place
+    def update(self, ti=None) -> None:
+        """
+        Update the value of this Parameter
+
+        If the parameter contains a function, this entails evaluating the function.
+        Typically this is done at a single time point during integration, or over all
+        time points for precomputing and postcomputing
+
+        :param ti: An ``int``, or a numpy array with index values. If ``None``, all time values will be used
+
+        """
 
         if not self._fcn or self.pop_aggregation:
             return
@@ -1365,7 +1367,7 @@ class Model(object):
                     n = 0.0
                     for comp in comp_list:
                         n += comp.vals[ti]
-                    prop_coverage[k] = self.progset.programs[k].get_prop_covered(self.t[ti], self._program_cache['num_coverage'][k][ti], n, sample=False)
+                    prop_coverage[k] = self.progset.programs[k].get_prop_covered(self.t[ti], self._program_cache['num_coverage'][k][ti], n)
             prog_vals = self.progset.get_outcomes(prop_coverage)
 
         for par_name in self._par_list:

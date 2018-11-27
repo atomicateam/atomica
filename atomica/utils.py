@@ -84,8 +84,19 @@ class NDict(sc.odict):
 
 
 class TimeSeries(object):
-    def __init__(self, t=None, vals=None, units=None, assumption=None):
+    """
+    Class to store time-series data
 
+
+    :param t: Optionally specify a scalar, list, or array of time values
+    :param vals: Optionally specify a scalar, list, or array of values (must be same size as ``t``)
+    :param units: Optionally specify units (as a string)
+    :param assumption: Optionally specify a scalar assumption
+    :param sigma: Optionally specify a scalar uncertainty
+
+    """
+
+    def __init__(self, t=None, vals=None, units=None, assumption=None, sigma=None):
         t = sc.promotetolist(t) if t is not None else list()
         vals = sc.promotetolist(vals) if vals is not None else list()
 
@@ -95,7 +106,7 @@ class TimeSeries(object):
         self.vals = []
         self.units = units
         self.assumption = assumption
-        self.sigma = None  # Uncertainty value
+        self.sigma = sigma  # Uncertainty value
 
         for tx, vx in zip(t, vals):
             self.insert(tx, vx)
@@ -114,6 +125,12 @@ class TimeSeries(object):
         return new
 
     def copy(self):
+        """
+        Return a copy of the ``TimeSeries``
+
+        :return: An independent copy of the ``TimeSeries``
+        """
+
         return self.__deepcopy__(self)
 
     @property
@@ -140,8 +157,16 @@ class TimeSeries(object):
         return len(self.t) > 0
 
     def insert(self, t, v) -> None:
-        # Insert value v at time t maintaining sort order
-        # To set the assumption, set t=None
+        """
+        Insert a value at a particular time
+
+        If the value already exists in the ``TimeSeries``, it will be overwritten/updated.
+        The arrays are internally sorted by time value, and this order will be maintained.
+
+        :param t: Time value to insert or update. If ``None``, the value will be assigned to the assumption
+        :param v: Value to insert. If ``None``, this function will return immediately without doing anything
+
+        """
 
         if v is None:  # Can't cast a None to a float, just skip it
             return
@@ -158,8 +183,26 @@ class TimeSeries(object):
             self.t.insert(idx, t)
             self.vals.insert(idx, v)
 
-    def get(self, t):
-        # To get the assumption, set t=None
+    def get(self, t) -> float:
+        """
+        Retrieve value at a particular time
+
+        This function will automatically retrieve the value of the assumption if
+        no time specific values have been provided, or if any time specific values
+        are provided, will return the value entered at that time. If time specific
+        values have been entered and the requested time is not explicitly present,
+        an error will be raised.
+
+        This function may be deprecated in future because generally it is more useful
+        to either call ``TimeSeries.interpolate()`` if interested in getting values at
+        arbitrary times, or ``TimeSeries.get_arrays()`` if interested in retrieving
+        values that have been entered.
+
+        :param t: A time value. If ``None``, will return assumption regardless of whether
+                  time data has been entered or not
+        :return: The value at the corresponding time
+        """
+
         if t is None or len(self.t) == 0:
             return self.assumption
         elif t in self.t:
@@ -227,21 +270,22 @@ class TimeSeries(object):
         t1, v1 = self.get_arrays()
         return interpolate(t1, v1, t2)
 
-    def sample(self, t2):
+    def sample(self):
         """
-        Not yet implemented
+        Return a sampled copy of the TimeSeries
 
-        This method might sample from the TimeSeries for the given years
-        e.g. `ts.interpolate([2011,2012])` would give the values without uncertainty
-        while `ts.sample([2011,2012])` would perturb the values depending on sigma
-        (and perhaps some other distribution information too)
+        This method returns a copy of the TimeSeries in which the values have been
+        perturbed based on the uncertainty value
 
-        :param t2:
-        :return: None
+        :return: A copied ``TimeSeries`` with perturbed values
 
         """
 
-        raise NotImplementedError()
+        new = self.copy()
+        if self.sigma is not None:
+            for i,(v,delta) in enumerate(zip(new.vals,self.sigma*np.random.randn(len(new.vals)))):
+                new.vals[i] = v+delta
+        return new
 
 
 def evaluate_plot_string(plot_string: str):

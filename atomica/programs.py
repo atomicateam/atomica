@@ -11,6 +11,7 @@ import sciris as sc
 from .system import logger
 from .utils import NamedItem
 from numpy import array, exp, minimum, inf
+from numpy.random import randn
 from .utils import TimeSeries
 from .system import FrameworkSettings as FS
 from .excel import standard_formats, AtomicaSpreadsheet, apply_widths, update_widths, read_tables, TimeDependentValuesEntry, validate_category
@@ -828,13 +829,12 @@ class ProgramSet(NamedItem):
 
         return alloc
 
-    def get_num_coverage(self, tvec, dt, instructions=None, sample=False) -> dict:
+    def get_num_coverage(self, tvec, dt, instructions=None) -> dict:
         """ Return the number coverage of each program
 
         :param tvec: array of times (in years) - this is required to interpolate time-varying unit costs and capacity constraints
         :param dt: scalar timestep size - this is required to adjust spending on incidence-type programs
         :param instructions: optionally specify instructions, which can supply a spending overwrite
-        :param sample: TODO implement sampling
         :return: Dict like ``{prog_name: np.array()}`` with number of people covered at each timestep (in units of people)
 
         """
@@ -850,11 +850,11 @@ class ProgramSet(NamedItem):
                 spending = alloc[prog.name]
             else:
                 spending = None
-            num_coverage[prog.name] = prog.get_num_covered(tvec=tvec, dt=dt, spending=spending, sample=False)
+            num_coverage[prog.name] = prog.get_num_covered(tvec=tvec, dt=dt, spending=spending)
 
         return num_coverage
 
-    def get_prop_coverage(self, tvec, num_coverage: dict, denominator: dict, instructions=None, sample=False) -> dict:
+    def get_prop_coverage(self, tvec, num_coverage: dict, denominator: dict, instructions=None) -> dict:
         """ Return the fractional coverage of each program
 
         Note the evaluating the proportion coverage for a ProgramSet is not a straight division because
@@ -866,7 +866,6 @@ class ProgramSet(NamedItem):
         :param num_coverage: dict of program coverages, should match the available programs (typically the output of ``ProgramSet.get_num_coverage()``)
         :param denominator: dict of number of people covered by each program, computed externally and with one entry for each program
         :param instructions: optionally specify instructions, which can supply a coverage overwrite
-        :param sample: TODO implement sampling
         :return: Dict like ``{prog_name: np.array()}`` with fractional coverage values (dimensionless)
 
         """
@@ -893,7 +892,7 @@ class ProgramSet(NamedItem):
         return {(covout.par, covout.pop): covout.get_outcome(prop_coverage) for covout in self.covouts.values()}
 
 
-    def sample(self, coverage=True, outcomes=True, perturb: bool=True) -> None:
+    def sample(self, coverage=True, outcomes=True) -> None:
         """
         Perturb programs based on uncertainties
 
@@ -907,9 +906,15 @@ class ProgramSet(NamedItem):
 
         :param coverage: If True, program attributes like
         :param outcomes:
-        :param perturb:
 
         """
+        new = sc.dcp(self)
+        for prog in new.programs.values():
+            prog.sample()
+        for covout in new.covouts.values():
+            covout.sample()
+        return new
+
 # --------------------------------------------------------------------
 # Program class
 # --------------------------------------------------------------------
@@ -952,8 +957,6 @@ class Program(NamedItem):
         Calling this function will perturb the original values based on their uncertainties. The
         values will change in-place
 
-        :param perturb: If True, sample the values. Otherwise, restore the original values
-
         """
 
         self.sampled = True
@@ -962,13 +965,6 @@ class Program(NamedItem):
         self.capacity = self.capacity.sample()
         self.saturation = self.saturation.sample()
         self.coverage = self.coverage.sample()
-        else:
-            self._spend_data = self.spend_data
-            self._unit_cost = self.unit_cost
-            self._capacity = self.capacity
-            self._saturation = self.saturation
-            self._coverage = self.coverage
-
 
     def __repr__(self):
         ''' Print out useful info'''
@@ -987,14 +983,13 @@ class Program(NamedItem):
         else:
             return self.spend_data.interpolate(year)
 
-    def get_num_covered(self, tvec, spending, dt, sample=False):
+    def get_num_covered(self, tvec, spending, dt):
         """
         Return number of people covered
 
         :param tvec: A vector of times
         :param spending: A vector of spending values, the same size as ``tvec``
         :param dt: The time step size
-        :param sample: TODO: Implement sampling
         :return: Array the same size as ``tvec``, with coverage in units of 'people'
 
         """
@@ -1019,14 +1014,13 @@ class Program(NamedItem):
 
         return num_covered
 
-    def get_prop_covered(self, tvec, num_covered, denominator, sample=False):
+    def get_prop_covered(self, tvec, num_covered, denominator):
         """
         Return proportion of people covered
 
         :param tvec:  An array of times
         :param num_covered: An array of number of people covered (e.g. the output of ``Program.get_num_covered()``)
         :param denominator: The number of people in the denominator (computed from a model object or a Result)
-        :param sample: TODO - implement sampling
         :return: The fractional coverage (used to compute outcomes)
 
         """
@@ -1088,35 +1082,9 @@ class Covout(object):
         self.progs = sc.dcp(progs)
         self.sigma = uncertainty
         self.baseline = baseline
-        self.update_outcomes(progs)
+        self.sampled = False
 
-    @property
-    def n_progs(self):
-        return len(self.progs)
-
-    def update_outcomes(self, progs, sample=False) -> None:
-        """
-        Program outcomes are pre-cached for use during integration. This initialization could optionally
-        include a sampling step
-
-        :param progs: Dictionary of program names and single program outcomes
-        :param sample: Flag for sampling. If true, cached outcomes will be perturbed according to ``self.sigma``
-
-        """
-        # Call this function with the program outcomes are changed
-        # Could be because program outcomes were sampled using sigma?
-        # This is important because it also updates the modality interaction outcomes
-        # These are otherwise expensive to compute
-
-        # First, sort the program dict by the magnitude of the outcome
-        prog_tuple = [(k, v) for k, v in progs.items()]
-        prog_tuple = sorted(prog_tuple, key=lambda x: -abs(x[1]))
-        self._cached_progs = sc.odict() # This list contains the perturbed/sampled values, in order
-        for item in prog_tuple:
-            self._cached_progs[item[0]] = item[1]
-        self._deltas = np.array([x[1] - self.baseline for x in prog_tuple])  # Internally cache the deltas which are used
-
-        # Parse any impact interactions that are present
+        # Parse the interactions into a numeric representation
         self._interactions = dict()
         if self.imp_interaction and not self.imp_interaction.lower() in ['best', 'synergistic']:
             for interaction in self.imp_interaction.split(','):
@@ -1125,6 +1093,62 @@ class Covout(object):
                 for x in combo:
                     assert x in self._cached_progs, 'The impact interaction refers to a program "%s" which does not appear in the available programs' % (x)
                 self._interactions[combo] = float(val) - self.baseline
+
+        self.update_outcomes()
+
+
+    @property
+    def n_progs(self) -> int:
+        """
+        Return the number of programs
+
+        :return: The number of programs with defined outcomes (usually this is a subset of all available programs)
+
+        """
+
+        return len(self.progs)
+
+    def sample(self) -> None:
+        """
+        Perturb the values entered in the databook
+
+        """
+
+        if self.sigma is None:
+            return
+
+        for k,v in self.progs.items():
+            self.progs[k] = v + self.sigma*randn(1)[0]
+        # Perturb the interactions
+        if self._interactions:
+            for k, v in self.interactions.items():
+                self.interactions[k] = v + self.sigma * randn(1)[0]
+            tokens = ['%s=%.4f' % ('+'.join(k),v) for k,v in self.interactions.items()]
+            self.imp_interaction = ','.join(tokens)
+
+        self.update_outcomes()
+        self.sampled = True
+
+    def update_outcomes(self) -> None:
+        """
+        Update cache when outcomes change
+
+        This method should be called whenever the baseline, program outcomes, or interaction outcomes change.
+        It updates the internal cache so that get_outcome() uses the correct values. It's responsible for
+
+        1. Sorting the programs by outcome value
+        2. Compute the deltas relative to baseline
+        3. Pre-compute the outcomes associated with every possible combination of programs
+
+        """
+
+        # First, sort the program dict by the magnitude of the outcome
+        prog_tuple = [(k, v) for k, v in self.progs.items()]
+        prog_tuple = sorted(prog_tuple, key=lambda x: -abs(x[1]))
+        self._cached_progs = sc.odict() # This list contains the perturbed/sampled values, in order
+        for item in prog_tuple:
+            self._cached_progs[item[0]] = item[1]
+        self._deltas = np.array([x[1] - self.baseline for x in prog_tuple])  # Internally cache the deltas which are used
 
         # Precompute the combinations and associated modality interaction outcomes - it's computationally expensive otherwise
         # We need to store it in two forms

@@ -766,11 +766,13 @@ class TimeDependentValuesEntry(object):
                 else:
                     worksheet.write(current_row, offset + idx, v, format)
 
-            # Conditional formatting for the assumption
-            fcn_empty_times = 'COUNTIF(%s:%s,"<>" & "")>0' % (xlrc(current_row, offset), xlrc(current_row, offset + idx))
-            # Hatched out if the cell will be ignored
-            worksheet.conditional_format(xlrc(current_row, 2), {'type': 'formula', 'criteria': '=' + fcn_empty_times, 'format': formats['ignored']})
-            worksheet.conditional_format(xlrc(current_row, 2), {'type': 'formula', 'criteria': '=AND(%s,NOT(ISBLANK(%s)))' % (fcn_empty_times, xlrc(current_row, 2)), 'format': formats['ignored_warning']})
+            if write_assumption:
+                # Conditional formatting for the assumption
+                # Do this here, because after the loop above, we have easy and clear access to the range of cells to include in the formula
+                fcn_empty_times = 'COUNTIF(%s:%s,"<>" & "")>0' % (xlrc(current_row, offset), xlrc(current_row, offset + idx))
+                # Hatched out if the cell will be ignored
+                worksheet.conditional_format(xlrc(current_row, constant_index), {'type': 'formula', 'criteria': '=' + fcn_empty_times, 'format': formats['ignored']})
+                worksheet.conditional_format(xlrc(current_row, constant_index), {'type': 'formula', 'criteria': '=AND(%s,NOT(ISBLANK(%s)))' % (fcn_empty_times, xlrc(current_row, constant_index)), 'format': formats['ignored_warning']})
 
         return current_row + 2  # Add two so there is a blank line after this table
 
