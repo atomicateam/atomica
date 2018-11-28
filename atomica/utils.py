@@ -40,6 +40,7 @@ class NDict(sc.odict):
     Store and sync items with a name property
 
     """
+
     def __init__(self, *args, **kwargs):
         sc.odict.__init__(self, *args, **kwargs)
         return None
@@ -87,6 +88,11 @@ class TimeSeries(object):
     """
     Class to store time-series data
 
+    Internally values are stored as lists rather than numpy arrays because
+    insert/remove operations on lists tend to be faster (and working with sparse
+    data is a key role of TimeSeries objects). Note that methods like :meth:`interpolate()`
+    return numpy arrays, so the output types from such functions should generally match up
+    with what is required by the calling function.
 
     :param t: Optionally specify a scalar, list, or array of time values
     :param vals: Optionally specify a scalar, list, or array of values (must be same size as ``t``)
@@ -96,17 +102,18 @@ class TimeSeries(object):
 
     """
 
-    def __init__(self, t=None, vals=None, units=None, assumption=None, sigma=None):
+    def __init__(self, t=None, vals=None, units: str = None, assumption: float = None, sigma: float = None):
         t = sc.promotetolist(t) if t is not None else list()
         vals = sc.promotetolist(vals) if vals is not None else list()
 
         assert len(t) == len(vals)
 
-        self.t = []
-        self.vals = []
-        self.units = units
-        self.assumption = assumption
-        self.sigma = sigma  # Uncertainty value
+        self.t = []  #: Sorted array of time points. Normally interacted with via methods like :meth:`insert()`
+        self.vals = []  #: Time-specific values - indices correspond to ``self.t``
+        self.units = units  #: The units of the quantity
+        self.assumption = assumption  #: The time-independent scalar assumption
+        self.sigma = sigma  #: Uncertainty value, assumed to be a standard deviation
+        self._sampled = False  #: Flag to indicate whether sampling has been performed. Once sampling has been performed, cannot sample again
 
         for tx, vx in zip(t, vals):
             self.insert(tx, vx)
@@ -122,6 +129,7 @@ class TimeSeries(object):
         new.units = self.units
         new.assumption = self.assumption
         new.sigma = self.sigma
+        new._sampled = self._sampled
         return new
 
     def copy(self):
@@ -270,21 +278,40 @@ class TimeSeries(object):
         t1, v1 = self.get_arrays()
         return interpolate(t1, v1, t2)
 
-    def sample(self):
+    def sample(self, constant=True):
         """
         Return a sampled copy of the TimeSeries
 
         This method returns a copy of the TimeSeries in which the values have been
-        perturbed based on the uncertainty value
+        perturbed based on the uncertainty value.
 
+        :param constant: If True, time series will be perturbed by a single constant offset. If False,
+                         an different perturbation will be applied to each time specific value independently.
         :return: A copied ``TimeSeries`` with perturbed values
 
         """
 
+        if self._sampled:
+            raise Exception('Sampling has already been performed - can only sample once')
+
         new = self.copy()
         if self.sigma is not None:
-            for i,(v,delta) in enumerate(zip(new.vals,self.sigma*np.random.randn(len(new.vals)))):
-                new.vals[i] = v+delta
+            delta = self.sigma * np.random.randn(1)[0]
+            if self.assumption is not None:
+                new.assumption += delta
+
+            if constant:
+                # Use the same delta for all data points
+                new.vals = [v+delta for v in new.vals]
+            else:
+                # Sample again for each data point
+                for i, (v, delta) in enumerate(zip(new.vals, self.sigma * np.random.randn(len(new.vals)))):
+                    new.vals[i] = v+delta
+
+        # Sampling flag only needs to be set if the TimeSeries had data to change
+        if new.has_data:
+            new._sampled = True
+
         return new
 
 
@@ -363,32 +390,32 @@ def format_duration(t: float, pluralize=False) -> str:
     if t >= 1.0:
         base_scale = 1
         timescale = 'year'
-    elif t >= 1/12:
-        base_scale = 1/12
+    elif t >= 1 / 12:
+        base_scale = 1 / 12
         timescale = 'month'
-    elif t >= 1/26:
-        base_scale = 1/26
+    elif t >= 1 / 26:
+        base_scale = 1 / 26
         timescale = 'fortnight'
-    elif t >= 1/52:
-        base_scale = 1/52
+    elif t >= 1 / 52:
+        base_scale = 1 / 52
         timescale = 'week'
     else:
-        base_scale = 1/365
+        base_scale = 1 / 365
         timescale = 'day'
 
     # Then, work out how many of the base unit there are
-    converted_t = t/base_scale
+    converted_t = t / base_scale
 
     # If there is only one of the base unit, then return the timescale as the final string
-    if abs(converted_t-1.0) < 1e-5:
+    if abs(converted_t - 1.0) < 1e-5:
         return (timescale + 's') if pluralize else timescale
-    elif converted_t%1 < 1e-3: # If it's sufficiently close to an integer, show it as an integer
+    elif converted_t % 1 < 1e-3:  # If it's sufficiently close to an integer, show it as an integer
         return '%d %ss' % (converted_t, timescale)
     else:
-        return '%s %ss' % (sc.sigfig(converted_t, keepints=True,sigfigs=3), timescale)
+        return '%s %ss' % (sc.sigfig(converted_t, keepints=True, sigfigs=3), timescale)
 
 
-def interpolate(x: np.array,y: np.array,x2: np.array, extrapolate=True) -> np.array:
+def interpolate(x: np.array, y: np.array, x2: np.array, extrapolate=True) -> np.array:
     """
     pchip interpolation with constant extrapolation
 
@@ -424,7 +451,7 @@ def interpolate(x: np.array,y: np.array,x2: np.array, extrapolate=True) -> np.ar
             y2[x2 < x[0]] = y[0]
             y2[x2 > x[-1]] = y[-1]
         else:
-            y2 = f(x2) # PchipInterpolator will return NaNs outside the domain
+            y2 = f(x2)  # PchipInterpolator will return NaNs outside the domain
         return y2
 
 

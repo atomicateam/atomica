@@ -75,6 +75,20 @@ class Parameter(NamedItem):
 
         return self.ts[pop_name].interpolate(tvec)
 
+    def sample(self,constant:bool) -> None:
+        """
+        Perturb parameter based on uncertainties
+
+        This function modifies the parameter in-place. It would normally be called via
+        :meth:`ParameterSet.sample()` which is responsible for copying this instance first.
+
+        :param constant: If True, time series will be perturbed by a single constant offset. If False,
+                         an different perturbation will be applied to each time specific value independently.
+
+        """
+
+        for k,ts in self.ts.items():
+            self.ts[k] = ts.sample(constant)
 
 class ParameterSet(NamedItem):
     """
@@ -145,12 +159,12 @@ class ParameterSet(NamedItem):
 
     def all_pars(self):
         """
-        A generator that returns an iterator over all Parameters
+        Return an iterator over all Parameters
 
-        This is useful because transfers and interaction Parameters are stored in
-        nested dictionaries, so it's not trivial to iterate over all parameters
+        This is useful because transfers and interaction :class:`Parameter` instances are stored in
+        nested dictionaries, so it's not trivial to iterate over all of them.
 
-        :return: Generator over all Parameters
+        :return: Generator over all :class:`Parameter` instances contained in the ``ParameterSet``
 
         """
 
@@ -160,16 +174,17 @@ class ParameterSet(NamedItem):
             for par in obj.values():
                 yield par
 
-    def copy(self, new_name=None):
+    def sample(self,constant=True):
         """
-        Deep copy the parameter set, optionally changing the name
+        Return a sampled copy of the ParameterSet
 
-        :param new_name:
-        :return: A new ``ParameterSet`` instance
+        :param constant: If True, time series will be perturbed by a single constant offset. If False,
+                         an different perturbation will be applied to each time specific value independently.
+        :return: A new :class:`ParameterSet` with perturbed values
 
         """
 
-        x = sc.dcp(self)
-        if new_name is not None:
-            x.name = new_name
-        return x
+        new = sc.dcp(self)
+        for par in new.all_pars():
+            par.sample(constant)
+        return new

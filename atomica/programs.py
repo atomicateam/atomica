@@ -11,7 +11,6 @@ import sciris as sc
 from .system import logger
 from .utils import NamedItem
 from numpy import array, exp, minimum, inf
-from numpy.random import randn
 from .utils import TimeSeries
 from .system import FrameworkSettings as FS
 from .excel import standard_formats, AtomicaSpreadsheet, apply_widths, update_widths, read_tables, TimeDependentValuesEntry, validate_category
@@ -65,10 +64,6 @@ class ProgramInstructions(object):
                     self.coverage[prog_name] = sc.dcp(cov_values)
                 else:
                     self.coverage[prog_name] = TimeSeries(t=self.start_year, vals=cov_values)
-
-# --------------------------------------------------------------------
-# ProgramSet class
-# --------------------------------------------------------------------
 
 
 class ProgramSet(NamedItem):
@@ -891,8 +886,7 @@ class ProgramSet(NamedItem):
 
         return {(covout.par, covout.pop): covout.get_outcome(prop_coverage) for covout in self.covouts.values()}
 
-
-    def sample(self):
+    def sample(self, constant: bool = True):
         """
         Perturb programs based on uncertainties
 
@@ -901,20 +895,18 @@ class ProgramSet(NamedItem):
         the caches based on the sigma values. A simulation subsequently run using the ProgramSet will
         use the perturbed outcomes.
 
+        :param constant: If True, time series will be perturbed by a single constant offset. If False,
+                         an different perturbation will be applied to each time specific value independently.
         :return: A new ``ProgramSet`` with values perturbed by sampling
 
         """
 
         new = sc.dcp(self)
         for prog in new.programs.values():
-            prog.sample()
+            prog.sample(constant)
         for covout in new.covouts.values():
             covout.sample()
         return new
-
-# --------------------------------------------------------------------
-# Program class
-# --------------------------------------------------------------------
 
 
 class Program(NamedItem):
@@ -945,26 +937,24 @@ class Program(NamedItem):
         self.capacity = TimeSeries(units='people/year')  # TimeSeries with capacity of program - optional - if not supplied, cost function is assumed to be linear
         self.saturation = TimeSeries(units=FS.DEFAULT_SYMBOL_INAPPLICABLE)
         self.coverage = TimeSeries(units='people/year')  # TimeSeries with capacity of program - optional - if not supplied, cost function is assumed to be linear
-        self.sampled = False #: Flag to indicate sampling. If `True`, then the program values have been sampled (and thus the sigma values need to be interpreted accordingly)
 
-    def sample(self) -> None:
+    def sample(self,constant:bool) -> None:
         """
         Perturb program values based on uncertainties
 
         Calling this function will perturb the original values based on their uncertainties. The
-        values will change in-place
+        values will change in-place. Normally, this method would be called by
+        :meth:`ProgramSet.sample()` which will copy the ``Program`` instance first.
 
+        :param constant: If True, time series will be perturbed by a single constant offset. If False,
+                         an different perturbation will be applied to each time specific value independently.
         """
 
-        if self.sampled:
-            raise Exception('Sampling has already been performed - can only sample once')
-
-        self.spend_data = self.spend_data.sample()
-        self.unit_cost = self.unit_cost.sample()
-        self.capacity = self.capacity.sample()
-        self.saturation = self.saturation.sample()
-        self.coverage = self.coverage.sample()
-        self.sampled = True
+        self.spend_data = self.spend_data.sample(constant)
+        self.unit_cost = self.unit_cost.sample(constant)
+        self.capacity = self.capacity.sample(constant)
+        self.saturation = self.saturation.sample(constant)
+        self.coverage = self.coverage.sample(constant)
 
     def __repr__(self):
         ''' Print out useful info'''
@@ -1025,7 +1015,6 @@ class Program(NamedItem):
 
         """
 
-
         tvec = sc.promotetoarray(tvec)
         denominator = sc.promotetoarray(denominator)
         num_covered = sc.promotetoarray(num_covered)
@@ -1042,33 +1031,25 @@ class Program(NamedItem):
 
         return prop_covered
 
-# --------------------------------------------------------------------
-# Covout
-# --------------------------------------------------------------------
-
 
 class Covout(object):
-    '''
-    Coverage-outcome object
+    """
+    Store and compute program outcomes
 
-    Example:
-    Covout(par='contacts',
-           pop='Adults',
-           baseline=120,
-           progs={'Prog1':5, 'Prog2':20}
-           )
-    '''
+    The :class:`Covout` object is responsible for storing the
 
-    def __init__(self, par, pop, progs, cov_interaction=None, imp_interaction=None, uncertainty=0.0, baseline=0.0):
-        # Construct new Covout instance
-        # INPUTS
-        # - par : string with the code name of the parameter being overwritten
-        # - pop : string with the code name of the population being overwritten
-        # - progs : a dict containing {prog_name:outcome} with the single program outcomes
-        # - cov_interaction: one of 'additive', 'random', 'nested'
-        # - imp_interaction : a parsable string like 'Prog1+Prog2=10,Prog2+Prog3=20' with the interaction outcomes
-        # - uncertainty : a scalar standard deviation for the outcomes
-        # - baseline : the zero coverage baseline value
+
+    :param par: string with the code name of the parameter being overwritten
+    :param pop: string with the code name of the population being overwritten
+    :param progs: a dict containing ``{prog_name:outcome}`` with the single program outcomes
+    :param cov_interaction: one of 'additive', 'random', 'nested'
+    :param imp_interaction: a parsable string like ``'Prog1+Prog2=10,Prog2+Prog3=20'`` with the interaction outcomes
+    :param uncertainty: a scalar standard deviation for the outcomes
+    :param baseline: the zero coverage baseline value
+
+    """
+
+    def __init__(self, par:str, pop:str, progs:dict, cov_interaction:str=None, imp_interaction:str=None, uncertainty=0.0, baseline=0.0):
 
         if cov_interaction is None:
             cov_interaction = 'additive'
@@ -1082,7 +1063,6 @@ class Covout(object):
         self.progs = sc.dcp(progs)
         self.sigma = uncertainty
         self.baseline = baseline
-        self.sampled = False
 
         # Parse the interactions into a numeric representation
         self._interactions = dict()
@@ -1095,7 +1075,6 @@ class Covout(object):
                 self._interactions[combo] = float(val) - self.baseline
 
         self.update_outcomes()
-
 
     @property
     def n_progs(self) -> int:
@@ -1112,25 +1091,25 @@ class Covout(object):
         """
         Perturb the values entered in the databook
 
-        """
+        The :class:`Covout` instance is modified in-place. Note that the program outcomes are scalars
+        that do not vary over time - therefore, :meth:`Covout.sample()` does not have a ``constant``
+        argument.
 
-        if self.sampled:
-            raise Exception('Sampling has already been performed - can only sample once')
+        """
 
         if self.sigma is None:
             return
 
-        for k,v in self.progs.items():
-            self.progs[k] = v + self.sigma*randn(1)[0]
+        for k, v in self.progs.items():
+            self.progs[k] = v + self.sigma * np.random.randn(1)[0]
         # Perturb the interactions
         if self._interactions:
             for k, v in self.interactions.items():
-                self.interactions[k] = v + self.sigma * randn(1)[0]
-            tokens = ['%s=%.4f' % ('+'.join(k),v) for k,v in self.interactions.items()]
+                self.interactions[k] = v + self.sigma * np.random.randn(1)[0]
+            tokens = ['%s=%.4f' % ('+'.join(k), v) for k, v in self.interactions.items()]
             self.imp_interaction = ','.join(tokens)
 
         self.update_outcomes()
-        self.sampled = True
 
     def update_outcomes(self) -> None:
         """
@@ -1148,7 +1127,7 @@ class Covout(object):
         # First, sort the program dict by the magnitude of the outcome
         prog_tuple = [(k, v) for k, v in self.progs.items()]
         prog_tuple = sorted(prog_tuple, key=lambda x: -abs(x[1]))
-        self._cached_progs = sc.odict() # This list contains the perturbed/sampled values, in order
+        self._cached_progs = sc.odict()  # This list contains the perturbed/sampled values, in order
         for item in prog_tuple:
             self._cached_progs[item[0]] = item[1]
         self._deltas = np.array([x[1] - self.baseline for x in prog_tuple])  # Internally cache the deltas which are used
@@ -1220,7 +1199,7 @@ class Covout(object):
                 net_random = self.combinations * random_portion + (self.combinations ^ 1) * (1 - random_portion)
                 combination_coverage = np.zeros((net_random.shape[0],))
                 for i in range(0, net_random.shape[1]):
-                    contribution = np.ones((net_random.shape[0], ))
+                    contribution = np.ones((net_random.shape[0],))
                     for j in range(0, net_random.shape[1]):
                         if i == j:
                             contribution *= additive_portion_coverage[:, j]
