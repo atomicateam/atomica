@@ -337,6 +337,15 @@ class TimeDependentConnections(object):
 
     @staticmethod
     def from_tables(tables, interaction_type):
+        """
+        Instantiate based on list of tables
+
+        This method instantiates and initializes a new TimeDependentConnections object from
+        tables that have been read in using :
+        :param tables:
+        :param interaction_type:
+        :return:
+        """
         # interaction_type is 'transfer' or 'interaction'
         from .utils import TimeSeries  # Import here to avoid circular reference
 
@@ -533,7 +542,7 @@ class TimeDependentValuesEntry(object):
         self.name = name #: Name for th quantity printed in Excel
         self.comment = comment #: A comment that will be added in Excel
         self.tvec = tvec #: time axis (e.g. np.arange(2000,2019)) - all TimeSeries time values must exactly match one of the values here
-        self.ts = ts #: dict of :py:class:`TimeSeries` objects
+        self.ts = ts #: dict of :class:`TimeSeries` objects
         self.allowed_units = [x.title() if x in FS.STANDARD_UNITS else x for x in allowed_units] if allowed_units is not None else None  # Otherwise, can be an odict with keys corresponding to ts - leave as None for no restriction
 
     def __repr__(self):

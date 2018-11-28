@@ -127,7 +127,7 @@ class PlotData():
                               aggregation can be used to combine already aggregated outputs (e.g.
                               can first sum 'sus'+'vac' within populations, and then take weighted
                               average across populations)
-    :param project: Optionally provide a :py:class:`Project` object, which will be used to convert names to labels in the outputs for plotting.
+    :param project: Optionally provide a :class:`Project` object, which will be used to convert names to labels in the outputs for plotting.
     :param time_aggregation: Optionally specify time aggregation method. Supported methods are 'integrate' and 'average' (no weighting). When aggregating
                                 times, *non-annualized* flow rates will be used.
     :param t_bins: Optionally specify time bins, which will enable time aggregation. Supported inputs are
@@ -138,7 +138,7 @@ class PlotData():
     :param accumulate: Optionally accumulate outputs over time. Can be 'sum' or 'integrate' to either sum quantities or integrate by multiplying by the timestep. Accumulation happens *after* time aggregation.
                    The logic is extremely simple - the quantities in the Series pass through `cumsum`. If 'integrate' is selected, then the quantities are multiplied
                    by `dt` and the units are multiplied by `years`
-    :return: A `PlotData` instance that can be passed to :py:func:`plot_series` or :py:func:`plot_bars`
+    :return: A `PlotData` instance that can be passed to :func:`plot_series` or :func:`plot_bars`
 
     .. automethod:: __getitem__
 
@@ -545,7 +545,7 @@ class PlotData():
         :param quantity: can be 'spending', 'coverage_number', 'coverage_denominator', or 'coverage_fraction'. The 'coverage_denominator' is
                         the sum of compartments reached by a program, such that coverage_fraction = coverage_number/coverage_denominator
         :param accumulate: can be 'sum' or 'integrate'
-        :return: A new :py:class:`PlotData` instance
+        :return: A new :class:`PlotData` instance
 
         """
 
@@ -702,15 +702,15 @@ class PlotData():
         """
         Implement custom indexing
 
-        The :py:class:`Series` objects stored within :py:class:`PlotData` are each bound to a single
+        The :class:`Series` objects stored within :class:`PlotData` are each bound to a single
         result, population, and output. This operator makes it possible to easily retrieve
-        a particular :py:class:`Series` instance. For example,
+        a particular :class:`Series` instance. For example,
 
         >>> d = PlotData(results)
         ... d['default','0-4','sus']
 
         :param key: A tuple of (result,pop,output)
-        :return: A :py:class:`Series` instance
+        :return: A :class:`Series` instance
 
         """
 
@@ -877,7 +877,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer=None, legend_
     """
     Produce a bar plot
 
-    :param plotdata: a :py:class:`PlotData` instance to plot
+    :param plotdata: a :class:`PlotData` instance to plot
     :param stack_pops: A list of lists with populations to stack. A bar is rendered for each item in the list.
                        For example, `[['0-4','5-14'],['15-64']]` will render two bars, with two populations stacked
                        in the first bar, and only one population in the second bar. Items not appearing in this list
@@ -1230,7 +1230,7 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
     """
     Produce a time series plot
 
-    :param plotdata: a :py:class:`PlotData` instance to plot
+    :param plotdata: a :class:`PlotData` instance to plot
     :param plot_type: 'line', 'stacked', or 'proportion' (stacked, normalized to 1)
     :param axis: Specify which quantity to group outputs on plots by - can be 'outputs', 'results', or 'pops'. A line will
                  be drawn for each of the selected quantity, and any other quantities will appear as separate figures.
@@ -1594,7 +1594,7 @@ def _get_full_name(code_name: str, proj=None) -> str:
     """
     Return the label of an object retrieved by name
 
-    If a :py:class:`Project` has been provided, code names can be converted into
+    If a :class:`Project` has been provided, code names can be converted into
     labels for plotting. This function is different to `framework.get_label()` though,
     because it supports converting population names to labels as well (this information is
     in the project's data, not in the framework), and it also supports converting
@@ -1602,7 +1602,7 @@ def _get_full_name(code_name: str, proj=None) -> str:
     returned by `_get_full_name` can be as specific as necessary for plotting.
 
     :param code_name: The code name for a variable (e.g. `'sus'`, `'pris'`, `'sus:vac'`)
-    :param proj: Optionally specify a :py:class:`Project` instance
+    :param proj: Optionally specify a :class:`Project` instance
     :return: If a project was provided, returns the full name. Otherwise, just returns the code name
     """
 
@@ -1654,10 +1654,10 @@ def _nested_loop(inputs, loop_order):
     """
     Zip list of lists in order
 
-    This is used in :py:func:`plot_bars` to control whether 'times' or 'results' are the
+    This is used in :func:`plot_bars` to control whether 'times' or 'results' are the
     outer grouping. This function takes in a list of lists to iterate over, and their
     nesting order. It then yields tuples of items in the given order. Only tested
-    for two levels (which are all that get used in :py:func:`plot_bars` but in theory
+    for two levels (which are all that get used in :func:`plot_bars` but in theory
     supports an arbitrary number of items.
 
     :param inputs: List of lists. All lists should have the same length

@@ -1,7 +1,7 @@
 """
 Implementation of Databook functionality
 
-This module defines the :py:class:`ProjectData` class, which serves as a
+This module defines the :class:`ProjectData` class, which serves as a
 Python-based representation of the Databook, as well as providing methods for
 reading Databooks into `ProjectData` instances, and saving `ProjectData` back
 to Excel files.
@@ -37,7 +37,7 @@ class ProjectData(sc.prettyobj):
     To instantiate, the ``ProjectData`` constructor is normally not used. Instead, use
     the static methods
 
-    - ``ProjectData.new()`` to create a new instance/databook given a :py:class:`ProjectFramework`
+    - ``ProjectData.new()`` to create a new instance/databook given a :class:`ProjectFramework`
     - ``ProjectData.from_spreadsheet()`` to load a databook
 
     """
@@ -48,10 +48,10 @@ class ProjectData(sc.prettyobj):
         # - Could load an existing one, with ProjectData.from_spreadsheet()
         # - Could make a new one, with ProjectData.new()
         self.pops = sc.odict()  #: This is an odict mapping code_name:{'label':full_name}
-        self.transfers = list() #: This stores a list of :py:class:`TimeDependentConnections` instances for transfers
-        self.interpops = list() #: This stores a list of :py:class:`TimeDependentConnections` instances for interactions
+        self.transfers = list() #: This stores a list of :class:`TimeDependentConnections` instances for transfers
+        self.interpops = list() #: This stores a list of :class:`TimeDependentConnections` instances for interactions
         self.tvec = None  #: This is the data's tvec used when instantiating new tables. Not _guaranteed_ to be the same for every TDVE/TDC table
-        self.tdve = sc.odict() #: This is an odict storing :py:class:`TimeDependentValuesEntry` instances keyed by the code name of the TDVE
+        self.tdve = sc.odict() #: This is an odict storing :class:`TimeDependentValuesEntry` instances keyed by the code name of the TDVE
         self.tdve_pages = sc.odict() #: This is an odict mapping worksheet name to a list of TDVE code names appearing on that sheet
 
         # Internal storage used with methods while writing
@@ -108,7 +108,7 @@ class ProjectData(sc.prettyobj):
           as they are
         - Calling ``ProjectData.change_tvec()`` will modify all existing tables
 
-        Note that the TDVE/TDC tables store time/value pairs sparsely within their :py:class:`TimeSeries` objects.
+        Note that the TDVE/TDC tables store time/value pairs sparsely within their :class:`TimeSeries` objects.
         Therefore, changing the time array won't modify any of the data - it will only have an effect the next time
         a databook is written (so typically this method would be called as part of preparing a modified databook).
 
@@ -124,24 +124,24 @@ class ProjectData(sc.prettyobj):
         """
         Extract a TimeSeries from a TDVE table or TDC table
 
-        :param name: The code name for the container storing the :py:class:`TimeSeries`
+        :param name: The code name for the container storing the :class:`TimeSeries`
                     - The code name of a transfer, interaction, or compartment/characteristic/parameter
                     - The name of a transfer parameter instantiated in model.build e.g. 'age_0-4_to_5-14'.
                     this is mainly useful when retrieving data for plotting, where variables are organized according
                     to names like 'age_0-4_to_5-14'
-        :param key: Specify the identifier for the :py:class:`TimeSeries`
+        :param key: Specify the identifier for the :class:`TimeSeries`
                         - If `name` is a comp/charac/par, then key should be a pop name
                         - If `name` is a transfer or interaction, then key should be a tuple (from_pop,to_pop)
                         - If `name` is the name of a model transfer parameter, then `key` should be left as `None`
-        :return: A :py:class:`TimeSeries`, or ``None`` if there were no matches
+        :return: A :class:`TimeSeries`, or ``None`` if there were no matches
 
         Regarding the specification of the key - the same transfer could be specified as
 
         - ``name='age', key=('0-4','5-14')``
         - ``name='age_0-4_to_5-14', key=None``
 
-        where the former is typically used when working with data and calibrations, and the latter is used in :py:class:`Model` and
-        is therefore encountered on the :py:class:`Result` and plotting side.
+        where the former is typically used when working with data and calibrations, and the latter is used in :class:`Model` and
+        is therefore encountered on the :class:`Result` and plotting side.
 
         """
 
@@ -187,11 +187,11 @@ class ProjectData(sc.prettyobj):
         This method should be used (instead of the standard constructor) to produce a new
         class instance (e.g. if creating a new databook).
 
-        :param framework: A :py:class:`ProjectFramework` instance
+        :param framework: A :class:`ProjectFramework` instance
         :param tvec: A scalar, list, or array of times (typically would be generated with ``numpy.arange()``)
         :param pops: A number of populations, or a dict with specific names and labels for the pops
         :param transfers: A number of transfers, or a dict with names and labels for the transfers
-        :return: A new :py:class:`ProjectData` instance
+        :return: A new :class:`ProjectData` instance
 
         """
 
@@ -395,7 +395,7 @@ class ProjectData(sc.prettyobj):
 
         This function throws an informative error if there are any problems identified or otherwise returns True
 
-        :param framework: A :py:class:`ProjectFramework` instance to validate the data against
+        :param framework: A :class:`ProjectFramework` instance to validate the data against
         :return: True if ProjectData is valid. An error will be raised otherwise
 
         """
@@ -439,7 +439,7 @@ class ProjectData(sc.prettyobj):
 
         return True
 
-    def to_spreadsheet(self):
+    def to_spreadsheet(self, write_uncertainty=False):
         # Initialize the bytestream
         f = io.BytesIO()
 
@@ -470,9 +470,9 @@ class ProjectData(sc.prettyobj):
         # Return the spreadsheet
         return spreadsheet
 
-    def save(self, fname):
+    def save(self, fname, write_uncertainty=False):
         # Shortcut for saving to disk - FE RPC will probably use `to_spreadsheet()` but BE users will probably use `save()`
-        ss = self.to_spreadsheet()
+        ss = self.to_spreadsheet(write_uncertainty=write_uncertainty)
         ss.save(fname)
 
     def add_pop(self, code_name, full_name):
@@ -743,7 +743,7 @@ class ProjectData(sc.prettyobj):
             next_row = interpop.write(sheet, next_row, self._formats, self._references, widths)
         apply_widths(sheet, widths)
 
-    def _write_tdve(self) -> None:
+    def _write_tdve(self, write_uncertainty) -> None:
         """
         Writes the TDVE tables
 
@@ -760,7 +760,7 @@ class ProjectData(sc.prettyobj):
             has_editable_content = False
             for code_name in code_names:
                 has_editable_content = has_editable_content or (not self.tdve[code_name].has_data)  # there is editable content if any TDVE is missing data, so blue cells are present
-                next_row = self.tdve[code_name].write(sheet, next_row, self._formats, self._references, widths)
+                next_row = self.tdve[code_name].write(sheet, next_row, self._formats, references=self._references, widths=widths, write_uncertainty=write_uncertainty)
 
             if has_editable_content:
                 sheet.set_tab_color('#92D050')

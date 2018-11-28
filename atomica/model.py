@@ -41,7 +41,7 @@ class Variable(object):
     functionality that is common to all integration objects, and defines the interface to be implemented
     by derived classes.
 
-        :param pop: A :py:class:`Population` instance. This allows references back to the population containing an object
+        :param pop: A :class:`Population` instance. This allows references back to the population containing an object
                     (which facilitates a number of operations such as those that require the population's size)
         :param id: ID is a tuple that uniquely identifies the Variable within a model.
                     By convention, this is a ``population:code_name`` tuple
@@ -50,7 +50,7 @@ class Variable(object):
 
     def __init__(self, pop, id):
         self.id = id  #: Unique identifier for the integration object
-        self.t = None #: Array of time values. This should be a reference to the base array stored in a :py:class:`model` object
+        self.t = None #: Array of time values. This should be a reference to the base array stored in a :class:`model` object
         self.dt = None #: Time step size
         if 'vals' not in dir(self):
             self.vals = None #: The fundamental values stored by this object. Note that Characteristics implement this as a property method
@@ -323,7 +323,7 @@ class Parameter(Variable):
     Parameters sheet. A parameter that maps to multiple transitions (e.g. ``doth_rate``) will have one parameter
     and multiple Link instances that depend on the same Parameter instance
 
-    :param pop: A :py:class:`Population` instance corresponding to the population that will contain this parameter
+    :param pop: A :class:`Population` instance corresponding to the population that will contain this parameter
     :param name: The code name for this parameter
 
     """

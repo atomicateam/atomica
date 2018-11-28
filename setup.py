@@ -39,6 +39,6 @@ setup(
         'pyswarm',
         'hyperopt',
         'sciris',
-        'gitpython',
+        'openpyxl',
     ],
 )

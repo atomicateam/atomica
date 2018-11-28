@@ -1,7 +1,7 @@
 """
-Implements data-based model parameters (:py:class:`ParameterSet`)
+Implements data-based model parameters (:class:`ParameterSet`)
 
-A :py:class:`ParameterSet` (or 'parset') is an intermediate representation of
+A :class:`ParameterSet` (or 'parset') is an intermediate representation of
 model parameters. The main role of the parset is to store the calibration
 values that are used to scale model parameters. Therefore, every parameter
 in the model appears in the parset, not just the parameters in the databook.
@@ -89,11 +89,11 @@ class ParameterSet(NamedItem):
         - The ParameterSet contains calibration scale factors
         - The ParameterSet expands transfers and interactions into per-population parameters
           so they are stored on an equal basis (whereas ProjectData segregates them in
-          :py:class:`TimeDependentValuesEntry` and :py:class:`TimeDependentConnections` due to
+          :class:`TimeDependentValuesEntry` and :class:`TimeDependentConnections` due to
           the difference in how they are formatted in the databook
 
-    :param framework: A :py:class:`ProjectFramework` instance
-    :param data: A :py:class:`ProjectData` instance
+    :param framework: A :class:`ProjectFramework` instance
+    :param data: A :class:`ProjectData` instance
     :param name: Optionally specify the name of the parset
 
     """

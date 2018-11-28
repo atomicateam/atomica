@@ -1,11 +1,11 @@
 """
 Implements the automatic reconciliation algorithm
 
-In any given model run, the parameters calculated by the :py:class:`ProgramSet`
-should ideally match up with the values in the :py:class:`ParameterSet` so that
+In any given model run, the parameters calculated by the :class:`ProgramSet`
+should ideally match up with the values in the :class:`ParameterSet` so that
 there are no discontinuities in parameter value. This may not be the case depending
 on the data gathered and the calibration. Reconciliation aims to adjust the
-internal parameters of the :py:class:`ProgramSet` to best match a :py:class:`ParameterSet`
+internal parameters of the :class:`ProgramSet` to best match a :class:`ParameterSet`
 in a particular year.
 
 """
@@ -214,9 +214,9 @@ def reconcile(project, parset, progset, reconciliation_year: float, max_time=10,
     example, entering ``unit_cost_bounds=0.2`` would mean that unit costs would be allowed to range from 0.8 to 1.2 times the
     value in the input progset.
 
-    :param project: A :py:class:`Project` instance
-    :param parset: A :py:class:`ParameterSet` instance (or name of a parset contained in the project)
-    :param progset: A :py:class:`ProgramSet` instance (or name of a progset contained in the project)
+    :param project: A :class:`Project` instance
+    :param parset: A :class:`ParameterSet` instance (or name of a parset contained in the project)
+    :param progset: A :class:`ProgramSet` instance (or name of a progset contained in the project)
     :param reconciliation_year: Year to perform reconciliation in
     :param max_time: Optionally override the maximum execution time in ASD
     :param unit_cost_bounds: Optionally specify bounds for unit costs. Default is 0.0 (unit costs will not be changed)
@@ -226,7 +226,7 @@ def reconcile(project, parset, progset, reconciliation_year: float, max_time=10,
     :param eval_pars: Optionally select a subset of parameters for comparison. By default, all parameters overwritten by the progset will be used.
     :param eval_range: Optionally specify a range of years over which to evaluate the progset-parset match. By default, it will only use the reconciliation year
     :return: tuple containing
-            - A reconciled :py:class:`ProgramSet` instance
+            - A reconciled :class:`ProgramSet` instance
             - A DataFrame comparing the unreconciled and reconciled progsets
             - A DataFrame comparing the parset parameters and progset
 

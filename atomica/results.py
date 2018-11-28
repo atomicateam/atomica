@@ -1,7 +1,7 @@
 """
 Implements interface for working with model outputs
 
-The :py:class:`Result` class is a wrapper for a :py:class:`Model` instance,
+The :class:`Result` class is a wrapper for a :class:`Model` instance,
 providing methods to conveniently access, plot, and export model outputs.
 
 """
@@ -238,11 +238,11 @@ def export_results(results, filename=None, output_ordering=('output', 'result', 
     Optionally can specify a list/set of names of the plots/cascades to include in the export
     Set to an empty list to omit that category e.g.
 
-      plot_names = None # export all plots in framework
-      plot_names = ['a','b'] # export only plots 'a' and 'b'
-      plot_names = [] # don't export any plots e.g. to only export cascades
+    >>> plot_names = None # export all plots in framework
+    >>> plot_names = ['a','b'] # export only plots 'a' and 'b'
+    >>> plot_names = [] # don't export any plots e.g. to only export cascades
 
-    :param results: A :py:class:`Result`, or list of `Results`. Results must all have different names. Outputs are drawn from the first result, normally
+    :param results: A :class:`Result`, or list of `Results`. Results must all have different names. Outputs are drawn from the first result, normally
                     all results would have the same framework and populations.
     :param filename: Write an excel file. If 'None', no file will be written (but dataframes will be returned)
     :param output_ordering: A tuple specifying the grouping of outputs, results, and pops for the Plots and targetable parameters sheet.
@@ -413,7 +413,7 @@ def _output_to_df(results, output_name, output, tvals):
     """
     Convert an output to a DataFrame for a group of results
 
-    This function takes in a list of results, and an output specification recognised by :py:class:`PlotData`.
+    This function takes in a list of results, and an output specification recognised by :class:`PlotData`.
     It extracts the outputs from all results and stores them in a 3-level MultiIndexed dataframe, which is
     returned. The index levels are the name of the output, the name of the results, and the populations.
 

@@ -1,7 +1,7 @@
 """
 Utility functions for working with cascades
 
-Cascades are defined in a :py:class:`ProjectFramework` object. This module
+Cascades are defined in a :class:`ProjectFramework` object. This module
 implements functions that are useful for working with the cascades, including
 
 - Validation

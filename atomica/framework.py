@@ -2,7 +2,7 @@
 Implements Framework functionality
 
 A Framework contains all of the information defining a model that can be
-run using Atomica. This module implements the :py:class:`ProjectFramework`
+run using Atomica. This module implements the :class:`ProjectFramework`
 class, which provides a Python representation of a Framework file.
 
 """
@@ -785,7 +785,7 @@ def generate_framework_doc(framework,fname, databook_only=False):
     This function takes in a Framework and a file name, and writes a
     Markdown template file for the framework
 
-    :param F: A :py:class:`ProjectFramework` instance
+    :param F: A :class:`ProjectFramework` instance
     :param fname: The filename to write
     :param databook_only: If True, only quantities appearing in the databook will be shown
     :return: None

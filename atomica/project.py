@@ -1,7 +1,7 @@
 """
-Implements the :py:class:`Project` user interface for Atomica
+Implements the :class:`Project` user interface for Atomica
 
-The :py:class:`Project` class serves as the primary user interface for
+The :class:`Project` class serves as the primary user interface for
 Atomica. Almost all functionality can be accessed via this interface.
 
 A project is based around 5 major lists:
@@ -404,13 +404,13 @@ class Project(object):
         This function is the main entry point for running model simulations, given a
         parset and optionally program set + instructions.
 
-        :param parset: A :py:class:`ParameterSet` instance, or the name of a parset contained in ``self.parsets``.
+        :param parset: A :class:`ParameterSet` instance, or the name of a parset contained in ``self.parsets``.
                         If ``None``, then the most recently added parset will be used (the last entry in ``self.parsets``)
-        :param progset: Optionally pass in a :py:class:`ProgramSet` instance, or the name of a progset contained in ``self.progsets``
-        :param progset_instructions: A :py:class:`ProgramInstructions` instance. Programs will only be used if a instructions are provided
+        :param progset: Optionally pass in a :class:`ProgramSet` instance, or the name of a progset contained in ``self.progsets``
+        :param progset_instructions: A :class:`ProgramInstructions` instance. Programs will only be used if a instructions are provided
         :param store_results: If True (default) then the result will automatically be stored in ``self.results``
         :param result_name: Optionally assign a specific name to the result (otherwise, a unique default name will automatically be selected)
-        :return: A :py:class:`Result` instance
+        :return: A :class:`Result` instance
 
         """
 
