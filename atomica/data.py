@@ -48,16 +48,16 @@ class ProjectData(sc.prettyobj):
         # - Could load an existing one, with ProjectData.from_spreadsheet()
         # - Could make a new one, with ProjectData.new()
         self.pops = sc.odict()  #: This is an odict mapping code_name:{'label':full_name}
-        self.transfers = list() #: This stores a list of :class:`TimeDependentConnections` instances for transfers
-        self.interpops = list() #: This stores a list of :class:`TimeDependentConnections` instances for interactions
+        self.transfers = list()  #: This stores a list of :class:`TimeDependentConnections` instances for transfers
+        self.interpops = list()  #: This stores a list of :class:`TimeDependentConnections` instances for interactions
         self.tvec = None  #: This is the data's tvec used when instantiating new tables. Not _guaranteed_ to be the same for every TDVE/TDC table
-        self.tdve = sc.odict() #: This is an odict storing :class:`TimeDependentValuesEntry` instances keyed by the code name of the TDVE
-        self.tdve_pages = sc.odict() #: This is an odict mapping worksheet name to a list of TDVE code names appearing on that sheet
+        self.tdve = sc.odict()  #: This is an odict storing :class:`TimeDependentValuesEntry` instances keyed by the code name of the TDVE
+        self.tdve_pages = sc.odict()  #: This is an odict mapping worksheet name to a list of TDVE code names appearing on that sheet
 
         # Internal storage used with methods while writing
-        self._formats = None #: Temporary storage for the Excel formatting while writing a databook
-        self._book = None #: Temporary storage for the workbook while writing a databook
-        self._references = None #: Temporary storage for cell references while writing a databook
+        self._formats = None  #: Temporary storage for the Excel formatting while writing a databook
+        self._book = None  #: Temporary storage for the workbook while writing a databook
+        self._references = None  #: Temporary storage for cell references while writing a databook
 
     @property
     def start_year(self) -> float:
@@ -195,7 +195,6 @@ class ProjectData(sc.prettyobj):
 
         """
 
-
         if sc.isnumber(pops):
             new_pops = sc.odict()
             for i in range(0, pops):
@@ -306,19 +305,19 @@ class ProjectData(sc.prettyobj):
                 try:
                     self._read_pops(sheet)
                 except Exception as e:
-                    message = 'An error was detected on the "Population Definitions" sheet -> '
+                    message = 'An error was detected on the "Population Definitions" sheet'
                     raise Exception('%s -> %s' % (message, e)) from e
             elif sheet.title == 'Transfers':
                 try:
                     self._read_transfers(sheet)
                 except Exception as e:
-                    message = 'An error was detected on the "Transfers" sheet -> '
+                    message = 'An error was detected on the "Transfers" sheet'
                     raise Exception('%s -> %s' % (message, e)) from e
             elif sheet.title == 'Interactions':
                 try:
                     self._read_interpops(sheet)
                 except Exception as e:
-                    message = 'An error was detected on the "Interactions" sheet -> '
+                    message = 'An error was detected on the "Interactions" sheet'
                     raise Exception('%s -> %s' % (message, e)) from e
             elif sheet.title == 'Metadata':
                 continue
@@ -326,7 +325,6 @@ class ProjectData(sc.prettyobj):
                 self.tdve_pages[sheet.title] = []
                 tables, start_rows = read_tables(sheet)
                 for table, start_row in zip(tables, start_rows):
-
 
                     try:
                         tdve = TimeDependentValuesEntry.from_rows(table)
@@ -361,7 +359,6 @@ class ProjectData(sc.prettyobj):
                     self.tdve[code_name] = tdve
                     # Store the TDVE on the page it was actually on, rather than the one in the framework. Then, if users move anything around, the change will persist
                     self.tdve_pages[sheet.title].append(code_name)
-
 
         # Set the ProjectData's tvec based on the first TDVE table
         # 99.9% of the time, all of the tables will have the same values and so this is generally safe
@@ -412,7 +409,7 @@ class ProjectData(sc.prettyobj):
                     if spec.name not in self.tdve:
                         raise Exception('The databook did not contain a necessary TDVE table named "%s" (code name "%s")' % (spec['display name'], spec.name))
                     else:
-                        framework_units = framework.get_databook_units(spec.name) # Get the expected databook units
+                        framework_units = framework.get_databook_units(spec.name)  # Get the expected databook units
                         tdve = self.tdve[spec.name]
                         tdve_sheet = self.get_tdve_page(spec.name)
                         for name, ts in self.tdve[spec.name].ts.items():
@@ -429,14 +426,20 @@ class ProjectData(sc.prettyobj):
             for tdc in self.interpops:
                 if tdc.code_name == spec.name:
                     for (to_pop, from_pop), ts in tdc.ts.items():
-                        assert to_pop in self.pops, 'Population "%s" in "%s" not recognized. Should be one of: %s' % (name, self.tdve[spec.name].name, self.pops.keys())
-                        assert from_pop in self.pops, 'Population "%s" in "%s" not recognized. Should be one of: %s' % (name, self.tdve[spec.name].name, self.pops.keys())
+                        assert to_pop in self.pops, 'Population "%s" in "%s" not recognized. Should be one of: %s' % (to_pop, spec.name, self.pops.keys())
+                        assert from_pop in self.pops, 'Population "%s" in "%s" not recognized. Should be one of: %s' % (from_pop, spec.name, self.pops.keys())
                         assert ts.has_data, 'Data values missing for interaction %s, %s->%s' % (spec.name, to_pop, from_pop)
-                        assert ts.units.strip().title() == FS.DEFAULT_SYMBOL_INAPPLICABLE.title() # Units should be
+                        assert ts.units.lower().title() == FS.DEFAULT_SYMBOL_INAPPLICABLE.lower().title(), 'Units error in interaction %s, %s->%s. Interaction units must be "N.A."' % (spec.name, to_pop, from_pop)
                     break
             else:
                 raise Exception('Required interaction "%s" not found in databook' % spec.name)
 
+        for tdc in self.transfers:
+            for (to_pop, from_pop), ts in tdc.ts.items():
+                assert to_pop in self.pops, 'Population "%s" in "%s" not recognized. Should be one of: %s' % (to_pop, tdc.full.name, self.pops.keys())
+                assert from_pop in self.pops, 'Population "%s" in "%s" not recognized. Should be one of: %s' % (from_pop, tdc.full.name, self.pops.keys())
+                assert ts.has_data, 'Data values missing for transfer %s, %s->%s' % (tdc.full_name, to_pop, from_pop)
+                assert ts.units is not None, 'Units are missing for transfer %s, %s->%s' % (tdc.full_name, to_pop, from_pop)
         return True
 
     def to_spreadsheet(self, write_uncertainty=False):
@@ -451,9 +454,9 @@ class ProjectData(sc.prettyobj):
 
         # Write the contents
         self._write_pops()
-        self._write_tdve()
-        self._write_interpops()
-        self._write_transfers()
+        self._write_tdve(write_uncertainty=write_uncertainty)
+        self._write_interpops(write_uncertainty=write_uncertainty)
+        self._write_transfers(write_uncertainty=write_uncertainty)
 
         # Close the workbook
         self._book.close()
@@ -678,7 +681,6 @@ class ProjectData(sc.prettyobj):
 
         apply_widths(sheet, widths)
 
-
     def _read_transfers(self, sheet) -> None:
         """
         Writes the 'Transfers' sheet
@@ -691,8 +693,7 @@ class ProjectData(sc.prettyobj):
         for i in range(0, len(tables), 3):
             self.transfers.append(TimeDependentConnections.from_tables(tables[i:i + 3], 'transfer'))
 
-
-    def _write_transfers(self) -> None:
+    def _write_transfers(self, write_uncertainty) -> None:
         """
         Writes the 'Transfers' sheet
 
@@ -709,9 +710,8 @@ class ProjectData(sc.prettyobj):
         widths = dict()
         next_row = 0
         for transfer in self.transfers:
-            next_row = transfer.write(sheet, next_row, self._formats, self._references, widths)
+            next_row = transfer.write(sheet, next_row, self._formats, self._references, widths, write_uncertainty=write_uncertainty)
         apply_widths(sheet, widths)
-
 
     def _read_interpops(self, sheet) -> None:
         """
@@ -725,7 +725,7 @@ class ProjectData(sc.prettyobj):
             self.interpops.append(TimeDependentConnections.from_tables(tables[i:i + 3], 'interaction'))
         return
 
-    def _write_interpops(self) -> None:
+    def _write_interpops(self, write_uncertainty) -> None:
         """
         Writes the 'Interactions' sheet
 
@@ -740,7 +740,7 @@ class ProjectData(sc.prettyobj):
         widths = dict()
         next_row = 0
         for interpop in self.interpops:
-            next_row = interpop.write(sheet, next_row, self._formats, self._references, widths)
+            next_row = interpop.write(sheet, next_row, self._formats, self._references, widths, write_uncertainty=write_uncertainty)
         apply_widths(sheet, widths)
 
     def _write_tdve(self, write_uncertainty) -> None:

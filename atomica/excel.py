@@ -17,7 +17,6 @@ import numpy as np
 from .system import FrameworkSettings as FS
 from .system import logger
 
-
 def standard_formats(workbook):
     # Add standard formatting to a workbook and return the set of format objects
     # for use when writing within the workbook
@@ -226,96 +225,38 @@ def read_tables(worksheet):
 
     return tables, start_rows
 
-
-def write_matrix(worksheet, start_row, nodes, entries, formats, references=None, enable_diagonal=True, boolean_choice=False, widths=None):
-    # This function writes a matrix
-    # It gets used for
-    # - Transfer matrix
-    # - Interactions matrix
-    # - Framework transition/link matrix
-    #
-    # - nodes is a list of strings used to label the rows and columns
-    # - entries is a dict where where key is a tuple specifying (from,to) = (row,col) and
-    # the value is the string to write to the matrix
-    # - If 'enable_diagonal' is False, then the diagonal will be forced to be 'N.A.'. If an entry
-    #   is specified for an entry on the diagonal and enable_diagonal=False, an error will be thrown
-    # - boolean_choice is like namer/marker mode. If True, entries can only be Y/N based on the truthiness of the value in the entries dict
-    #
-    # table_references is a dict that contains a mapping between the tuple (to,from) and a cell. This can be
-    # subsequently used to programatically block out time-dependent rows
-
-    if not references:
-        references = {x: x for x in nodes}  # This is a null-mapping that takes say 'adults'->'adults' thus simplifying the workflow. Otherwise, it's assumed a reference exists for every node
-
-    table_references = {}
-    values_written = {}
-
-    # Write the headers
-    for i, node in enumerate(nodes):
-        worksheet.write_formula(start_row + i + 1, 0, references[node], formats['center_bold'], value=node)
-        update_widths(widths, 0, node)
-        worksheet.write_formula(start_row, i + 1, references[node], formats['center_bold'], value=node)
-        update_widths(widths, i + 1, node)
-
-    # Prepare the content - first replace the dict with one keyed by index. This is because we cannot apply formatting
-    # after writing content, so have to do the writing in a single pass over the entire matrix
-    if boolean_choice:
-        content = np.full((len(nodes), len(nodes)), 'N', dtype=object)  # This will also coerce the value to string in preparation for writing
-    else:
-        content = np.full((len(nodes), len(nodes)), '', dtype=object)  # This will also coerce the value to string in preparation for writing
-
-    for interaction, value in entries.items():
-        from_node, to_node = interaction
-        if not enable_diagonal and from_node == to_node:
-            raise Exception('Trying to write a diagonal entry to a table that is not allowed to contain diagonal terms')  # This is because data loss will occur if the user adds entries on the diagonal, then writes the table, and then reads it back in
-        from_idx = nodes.index(from_node)
-        to_idx = nodes.index(to_node)
-        if boolean_choice:
-            value = 'Y' if value else 'N'
-        content[from_idx, to_idx] = value
-
-    # Write the content
-    for from_idx in range(0, len(nodes)):
-        for to_idx in range(0, len(nodes)):
-            row = start_row + 1 + from_idx
-            col = to_idx + 1
-            if not enable_diagonal and to_idx == from_idx:  # Disable the diagonal if that's what's desired
-                val = FS.DEFAULT_SYMBOL_INAPPLICABLE
-                worksheet.write(row, col, val, formats["center"])
-                worksheet.data_validation(xlrc(row, col), {"validate": "list", "source": ["N.A."]})
-            else:
-                val = content[from_idx, to_idx]
-                worksheet.write(row, col, content[from_idx, to_idx], formats["center_unlocked"])
-                if boolean_choice:
-                    worksheet.data_validation(xlrc(row, col), {"validate": "list", "source": ["Y", "N"]})
-                    worksheet.conditional_format(xlrc(row, col), {'type': 'cell', 'criteria': 'equal to', 'value': '"Y"', 'format': formats['unlocked_boolean_true']})
-                    worksheet.conditional_format(xlrc(row, col), {'type': 'cell', 'criteria': 'equal to', 'value': '"N"', 'format': formats['unlocked_boolean_false']})
-            table_references[(nodes[from_idx], nodes[to_idx])] = xlrc(row, col, True, True)  # Store reference to this interaction
-            values_written[table_references[(nodes[from_idx], nodes[to_idx])]] = val
-
-    next_row = start_row + 1 + len(nodes) + 1
-    return next_row, table_references, values_written
-
-
 class TimeDependentConnections(object):
-    # A TimeDependentConnection structure is suitable when there are time dependent interactions between two quantities
-    # This class is used for transfers and interactions
-    # The content that it writes consists of
-    # - A connection matrix table that has Y/N selection of which interactions are present between two things
-    # - A set of pairwise connections specifying to, from, units, assumption, and time
-    # Interactions can have a diagonal, whereas transfers cannot (e.g. a population can infect itself but cannot transfer to itself)
+    """
+    Structure for reading/writing interactions
 
-    def __init__(self, code_name, full_name, tvec, pops, type, ts=None):
-        # INPUTS
-        # - code_name -
-        # - full_name - the name of this quantity e.g. 'Aging'
-        # - tvec - time values for the time-dependent rows
-        # - pops - list of strings to use as the rows and columns - these are typically lists of population code names
-        # - ts - all of the non-empty TimeSeries objects used. An interaction can only be Y/N for clarity, if it is Y then
-        #   a row is displayed for the TimeSeries. Actually, the Y/N can be decided in the first instance based on the provided TimeSeries i.e.
-        #   if a TimeSeries is provided for an interaction, then the interaction must have been marked with Y
-        # type - 'transfer' or 'interaction'. A transfer cannot have diagonal entries, and can have Number or Probability formats. An Interaction can have
-        # diagonal entries and only has N.A. formats
+    A :class:`TimeDependentConnections` object is suitable when there are time dependent interactions between two quantities
+    This class is used for both transfers and interactions. The content that it writes consists of
+
+    - A connection matrix table that has Y/N selection of which interactions are present between two things
+    - A set of pairwise connections specifying to, from, units, assumption, and time
+
+    Interactions can have a diagonal, whereas transfers cannot (e.g. a population can infect itself but cannot transfer to itself).
+
+    In Excel, a :class:`TimeDependentConnections` maps to three tables
+
+    1. A table to enter the code name and full name
+    2. An interactions matrix with Y/N indicating whether an interaction between two populations exists
+    3. A set of rows for entering time varying data for each pair of populations
+
+    :param code_name: the code name of this quantity e.g. 'aging'
+    :param full_name: the full name of this quantity e.g. 'Aging'
+    :param tvec: time values for the time-dependent rows
+    :param pops: list of strings to use as the rows and columns - these are typically lists of population code names
+    :param type: 'transfer' or 'interaction'. A transfer cannot have diagonal entries, and can have Number or Probability formats. An Interaction can have
+                 diagonal entries and only has N.A. formats
+    :param ts: Optionally specify a dict containing all of the non-empty TimeSeries objects used. The format is ``{(from_pop, to_pop):TimeSeries}``.
+               An interaction can only be Y/N for clarity, if it is Y then a row is displayed for the TimeSeries. Actually, the Y/N can be
+               decided in the first instance based on the provided TimeSeries i.e. if a TimeSeries is provided for an interaction, then the
+               interaction must have been marked with Y
+
+    """
+
+    def __init__(self, code_name:str, full_name:str, tvec, pops:list, type:str, ts:dict=None):
         self.code_name = code_name
         self.full_name = full_name
         self.type = type
@@ -336,31 +277,72 @@ class TimeDependentConnections(object):
         return '<TDC %s "%s">' % (self.type.title(), self.code_name)
 
     @staticmethod
-    def from_tables(tables, interaction_type):
+    def from_tables(tables:list, interaction_type):
         """
         Instantiate based on list of tables
 
-        This method instantiates and initializes a new TimeDependentConnections object from
-        tables that have been read in using :
-        :param tables:
-        :param interaction_type:
-        :return:
+        This method instantiates and initializes a new :class:`TimeDependentConnections` object from
+        tables that have been read in using :func:`read_tables`. Note that the parent object
+        such as :class:`ProjectData` is responsible for extracting the tables and passing them
+        to this function. For instance, the transfers sheet might contain more than one set of
+        tables, so it is the calling function's responsibility to split those tables up into
+        the groups of three expected by this method.
+
+        :param tables: A list of tables. A table here is a list of rows, and a row is a list of cells.
+        :param interaction_type: A string identifying the interaction type - either 'transfer' or 'interaction'
+        :return: A new :class:`TimeDependentConnections` instance
+
         """
-        # interaction_type is 'transfer' or 'interaction'
+
         from .utils import TimeSeries  # Import here to avoid circular reference
 
-        # Read the names
+        assert interaction_type in {'transfer','interaction'}, 'Unknown interaction type'
+
+        # Read the name table
         code_name = tables[0][1][0].value
         full_name = tables[0][1][1].value
         interaction_type = interaction_type
 
-        # Read the pops
+        # Read the pops from the Y/N table. The Y/N content of the table depends on the timeseries objects that
+        # are present. That is, if the Y/N matrix contains a Y then a TimeSeries must be read in, and vice versa.
+        # Therefore, we don't actually parse the matrix, and instead just read in all the TimeSeries instances
+        # that are defined and infer the matrix that way.
         pops = [x.value for x in tables[1][0][1:] if x.value]
-        # TODO - At the moment, the Y/N content of the table depends on what timeseries is provided
-        # Therefore, we only need to read in the TimeSeries to tell whether or not a connection exists
-        # The convention is that the connection will be read if the TO and FROM pop match something in the pop list
-        tvec = np.array([x.value for x in tables[2][0][6:]], dtype=float)  # The 6 matches the offset in write() below
+
+        # Now read any TimeSeries entries that are present. First we need to work out which columns are which, and
+        # what times are present
+        vals = [x.value for x in tables[2][0]]
+        lowered_headings = [x.lower().strip() if sc.isstring(x) else x for x in vals]
+        offset = 3 # The column where time values normally start
+
+        if 'units' in lowered_headings:
+            units_index = lowered_headings.index('units')
+            offset += 1
+        else:
+            units_index = None
+
+        if 'uncertainty' in lowered_headings:
+            uncertainty_index = lowered_headings.index('uncertainty')
+            offset += 1
+        else:
+            uncertainty_index = None
+
+        if 'constant' in lowered_headings:
+            constant_index = lowered_headings.index('constant')
+            offset += 2
+        elif 'assumption' in lowered_headings:
+            constant_index = lowered_headings.index('assumption')
+            offset += 2
+        else:
+            constant_index = None
+
+        if None in vals[offset:]: # This handles the case where an empty column is followed by comments
+            t_end = offset + vals[offset:].index(None)
+        else:
+            t_end = len(vals)
+        tvec = np.array(vals[offset:t_end], dtype=float)
         ts_entries = sc.odict()
+
         for row in tables[2][1:]:
             if row[0].value != '...':
                 assert row[0].value in pops, 'Population "%s" not found - should be contained in %s' % (row[0].value, pops)
@@ -368,30 +350,63 @@ class TimeDependentConnections(object):
                 vals = [x.value for x in row]
                 from_pop = vals[0]
                 to_pop = vals[2]
-                units = vals[3].lower().strip() if vals[3] else None
-                if units is None:
-                    raise Exception(str('The units for transfer "%s" ("%s"->"%s") cannot be empty' % (full_name, from_pop, to_pop)))
-                assumption = vals[4]  # This is the assumption cell
-                assert vals[5].strip().lower() == 'or'  # Double check we are reading a time-dependent row with the expected shape
-                ts = TimeSeries(units=units)
-                if assumption is not None:
-                    ts.insert(None, assumption)
-                for t, v in zip(tvec, vals[6:]):
-                    if v is not None:
-                        ts.insert(t, v)
-                ts_entries[(from_pop, to_pop)] = ts
 
-        if not ts_entries:
-            logger.warning('TDC "%s" did not contain any data - is this intentional?', full_name)
+                if units_index is not None and vals[units_index]:
+                    assert sc.isstring(vals[units_index]), "The 'units' quantity needs to be specified as text e.g. 'probability'"
+                    units = vals[units_index]
+                    if units.lower().strip() in FS.STANDARD_UNITS:
+                        units = units.lower().strip()  # Only lower and strip units if they are standard units
+                else:
+                    units = None
+
+                ts = TimeSeries(units=units)
+
+                if uncertainty_index is not None:
+                    ts.sigma = cell_get_number(row[uncertainty_index])
+                else:
+                    ts.sigma = None
+
+                if constant_index is not None:
+                    ts.assumption = cell_get_number(row[constant_index])
+                else:
+                    ts.assumption = None
+
+                if constant_index is not None:
+                    assert sc.isstring(vals[offset - 1]) and vals[offset - 1].strip().lower() == 'or', 'Error with validating row in TDC table "%s" (did not find the text "OR" in the expected place)' % (code_name)  # Check row is as expected
+
+                data_cells = row[offset:t_end]
+
+                for t, cell in zip(tvec, data_cells):
+                    if np.isfinite(t):  # Ignore any times that are NaN - this happens if the cell was empty and casted to a float
+                        ts.insert(t, cell_get_number(cell))  # If cell_get_number returns None, this gets handled accordingly by ts.insert()
+                ts_entries[(from_pop, to_pop)] = ts
 
         return TimeDependentConnections(code_name, full_name, tvec, pops, interaction_type, ts=ts_entries)
 
-    def write(self, worksheet, start_row, formats, references=None, widths=None):
+    def write(self, worksheet, start_row, formats, references:dict=None, widths:dict=None, assumption_heading='Constant', write_units=True, write_uncertainty=False, write_assumption=True) -> int:
+        """
+        Write to cells in a worksheet
+
+        :param worksheet: An xlsxwriter worksheet instance
+        :param start_row: The first row in which to write values
+        :param formats: Format dict for the opened workbook - typically the return value of :func:`standard_formats` when the workbook was opened
+        :param references: References dict containing cell references for strings in the current workbook
+        :param widths: ``dict`` storing column widths
+        :param assumption_heading: String to use for assumption/constant column heading - either 'Constant' or 'Assumption' (they are functionally identical and
+                                   both map to the ``assumption`` attribute of the underlying :class:`TimeSeries` object)
+        :param write_units: If True, write the units column to the spreadsheet
+        :param write_uncertainty: If True, write the uncertainty column to the spreadsheet
+        :param write_assumption: If True, write the constant/assumption column to the spreadsheet
+        :return: The row index for the next available row for writing in the spreadsheet
+
+        """
+
+        assert assumption_heading in {'Constant','Assumption'}, 'Unsupported assumption heading'
 
         if not references:
             references = {x: x for x in self.pops}  # Default null mapping for populations
 
-        # First, write the titles
+        # First, write the name entry table
         current_row = start_row
         worksheet.write(current_row, 0, 'Abbreviation', formats["center_bold"])
         update_widths(widths, 0, 'Abbreviation')
@@ -405,24 +420,38 @@ class TimeDependentConnections(object):
         references[self.code_name] = "='%s'!%s" % (worksheet.name, xlrc(current_row, 0, True, True))
         references[self.full_name] = "='%s'!%s" % (worksheet.name, xlrc(current_row, 1, True, True))  # Reference to the full name
 
-        # Then, write the matrix
+        # Then, write the Y/N matrix
         current_row += 2  # Leave a blank row below the matrix
-
         # Note - table_references are local to this TimeDependentConnections instance
         # For example, there could be two transfers, and each of them could potentially transfer between 0-4 and 5-14
         # so the worksheet might contain two references from 0-4 to 5-14 but they would be for different transfers and thus
         # the time-dependent rows would depend on different boolean table cells
-        current_row, table_references, values_written = write_matrix(worksheet, current_row, self.pops, self.ts, formats, references, enable_diagonal=self.enable_diagonal, boolean_choice=True, widths=widths)
+        current_row, table_references, values_written = self._write_pop_matrix(worksheet, current_row, formats, references, boolean_choice=True, widths=widths)
 
         # Finally, write the time dependent part
         headings = []
         headings.append('')  # From
         headings.append('')  # --->
         headings.append('')  # To
-        headings.append('Units')
-        headings.append('Constant')
-        headings.append('')  # OR
-        headings += [float(x) for x in self.tvec]  # Times
+        offset = len(headings)
+
+        if write_units:
+            headings.append('Units')
+            units_index = offset  # Column to write the units in
+            offset += 1
+
+        if write_uncertainty:
+            headings.append('Uncertainty')
+            uncertainty_index = offset  # Column to write the units in
+            offset += 1
+
+        if write_assumption:
+            headings.append(assumption_heading)
+            headings.append('')
+            constant_index = offset
+            offset += 2
+
+        headings += [float(x) for x in self.tvec]
         for i, entry in enumerate(headings):
             worksheet.write(current_row, i, entry, formats['center_bold'])
             update_widths(widths, i, entry)
@@ -456,33 +485,46 @@ class TimeDependentConnections(object):
                     worksheet.write_formula(current_row, 1, gate_content('--->', entry_cell), formats['center'], value='--->')
                     worksheet.write_formula(current_row, 2, gate_content(references[to_pop], entry_cell), formats['center_bold'], value=to_pop)
                     update_widths(widths, 2, to_pop)
-                    worksheet.write(current_row, 3, ts.units.title(), format)
-                    update_widths(widths, 3, ts.units.title())
 
-                    if self.allowed_units:
-                        worksheet.data_validation(xlrc(current_row, 3), {"validate": "list", "source": [x.title() for x in self.allowed_units]})
-                    worksheet.write(current_row, 4, ts.assumption, format)
-                    worksheet.write_formula(current_row, 5, gate_content('OR', entry_cell), formats['center'], value='OR')
-                    # update_widths(widths, 5,  '...') # The largest length it will be here is '...' so use that
+                    if write_units:
+                        worksheet.write(current_row, units_index, ts.units.title(), format)
+                        update_widths(widths, units_index, ts.units.title())
+                        if self.allowed_units:
+                            worksheet.data_validation(xlrc(current_row, units_index), {"validate": "list", "source": [x.title() for x in self.allowed_units]})
+
+                    if write_uncertainty:
+                        worksheet.write(current_row, constant_index, ts.sigma, entry_cell, format)
+                        update_widths(widths, constant_index, ts.units.title())
+
+                    if write_assumption:
+                        worksheet.write(current_row, constant_index, ts.assumption, format)
+                        worksheet.write_formula(current_row, constant_index+1, gate_content('OR', entry_cell), formats['center'], value='OR')
+                        update_widths(widths, constant_index+1, 'OR')
+
 
                 else:
                     worksheet.write_formula(current_row, 0, gate_content(references[from_pop], entry_cell), formats['center_bold'], value='...')
                     worksheet.write_formula(current_row, 1, gate_content('--->', entry_cell), formats['center'], value='...')
                     worksheet.write_formula(current_row, 2, gate_content(references[to_pop], entry_cell), formats['center_bold'], value='...')
-                    worksheet.write_blank(current_row, 3, '', format)
 
-                    if self.allowed_units:
-                        worksheet.data_validation(xlrc(current_row, 3), {"validate": "list", "source": [x.title() for x in self.allowed_units]})
-                    worksheet.write_blank(current_row, 4, '', format)
-                    worksheet.write_formula(current_row, 5, gate_content('OR', entry_cell), formats['center'], value='...')
-                    # update_widths(widths, 5,  '...')
+                    if write_units:
+                        worksheet.write_blank(current_row, units_index, '', format)
+                        if self.allowed_units:
+                            worksheet.data_validation(xlrc(current_row, units_index), {"validate": "list", "source": [x.title() for x in self.allowed_units]})
+
+                    if write_uncertainty:
+                        worksheet.write_blank(current_row, constant_index, '', format)
+
+                    if write_assumption:
+                        worksheet.write_blank(current_row, constant_index, '', format)
+                        worksheet.write_formula(current_row, constant_index+1, gate_content('OR', entry_cell), formats['center'], value='...')
+                        update_widths(widths, constant_index+1,  '...')
 
                 # Write hyperlink - it's a bit convoluted because we can't read back the contents of the original cell to know
                 # whether it was originally Y or N
                 if values_written[entry_cell] != FS.DEFAULT_SYMBOL_INAPPLICABLE:
                     worksheet.write_url(entry_cell, 'internal:%s!%s' % (worksheet.name, xlrc(current_row, 2)), cell_format=formats['center_unlocked'], string=values_written[entry_cell])
 
-                offset = 6  # The time values start in this column (zero based index)
                 content = [None] * len(self.tvec)
 
                 if ts:
@@ -496,18 +538,97 @@ class TimeDependentConnections(object):
                     else:
                         worksheet.write(current_row, offset + idx, v, format)
 
-                # Conditional formatting for the assumption, depending on whether time-values were entered
-                fcn_empty_times = 'COUNTIF(%s:%s,"<>" & "")>0' % (xlrc(current_row, offset), xlrc(current_row, offset + idx))
-                worksheet.conditional_format(xlrc(current_row, 4), {'type': 'formula', 'criteria': '=' + fcn_empty_times, 'format': formats['ignored']})
-                worksheet.conditional_format(xlrc(current_row, 4), {'type': 'formula', 'criteria': '=AND(%s,NOT(ISBLANK(%s)))' % (fcn_empty_times, xlrc(current_row, 4)), 'format': formats['ignored_warning']})
+                if write_assumption:
+                    # Conditional formatting for the assumption, depending on whether time-values were entered
+                    fcn_empty_times = 'COUNTIF(%s:%s,"<>" & "")>0' % (xlrc(current_row, offset), xlrc(current_row, offset + idx))
+                    worksheet.conditional_format(xlrc(current_row, constant_index), {'type': 'formula', 'criteria': '=' + fcn_empty_times, 'format': formats['ignored']})
+                    worksheet.conditional_format(xlrc(current_row, constant_index), {'type': 'formula', 'criteria': '=AND(%s,NOT(ISBLANK(%s)))' % (fcn_empty_times, xlrc(current_row, constant_index)), 'format': formats['ignored_warning']})
 
                 # Conditional formatting for the row - it has a white background if the gating cell is 'N'
-                worksheet.conditional_format('%s:%s' % (xlrc(current_row, 3), xlrc(current_row, 4)), {'type': 'formula', 'criteria': '=%s<>"Y"' % (entry_cell), 'format': formats['white_bg']})
-                worksheet.conditional_format('%s:%s' % (xlrc(current_row, offset), xlrc(current_row, offset + idx)), {'type': 'formula', 'criteria': '=%s<>"Y"' % (entry_cell), 'format': formats['white_bg']})
+                # worksheet.conditional_format('%s:%s' % (xlrc(current_row, 3), xlrc(current_row, 4)), {'type': 'formula', 'criteria': '=%s<>"Y"' % (entry_cell), 'format': formats['white_bg']})
+                worksheet.conditional_format('%s:%s' % (xlrc(current_row, 3), xlrc(current_row, offset + idx)), {'type': 'formula', 'criteria': '=%s<>"Y"' % (entry_cell), 'format': formats['white_bg']})
 
         current_row += 2
 
         return current_row
+
+    def _write_pop_matrix(self, worksheet, start_row, formats, references:dict=None, boolean_choice=False, widths:dict=None):
+        """
+        Write a square matrix to Excel
+
+        This function writes the Y/N matrix
+
+        - Transfer matrix
+        - Interactions matrix
+
+        If ``self.enable_diagonal`` is ``False`` then the diagonal will be forced to be ``'N.A.'``. If an entry
+        is specified for an entry on the diagonal and ``enable_diagonal=False``, an error will be thrown
+
+        :param worksheet: An xlsxwriter worksheet instance
+        :param start_row: The first row in which to write values
+        :param formats: Format dict for the opened workbook - typically the return value of :func:`standard_formats` when the workbook was opened
+        :param references: Optionally supply dict with references, used to link population names in Excel
+        :param boolean_choice: If True, values will be coerced to Y/N and an Excel validation will be added
+        :param widths: ``dict`` storing column widths
+        :return: Tuple with ``(next_row, table_references, values_written)``. The references are used for hyperlinking to the Excel matrix
+
+        """
+
+        nodes = self.pops
+        entries = self.ts
+
+        if not references:
+            references = {x: x for x in nodes}  # This is a null-mapping that takes say 'adults'->'adults' thus simplifying the workflow. Otherwise, it's assumed a reference exists for every node
+
+        table_references = {}
+        values_written = {}
+
+        # Write the headers
+        for i, node in enumerate(nodes):
+            worksheet.write_formula(start_row + i + 1, 0, references[node], formats['center_bold'], value=node)
+            update_widths(widths, 0, node)
+            worksheet.write_formula(start_row, i + 1, references[node], formats['center_bold'], value=node)
+            update_widths(widths, i + 1, node)
+
+        # Prepare the content - first replace the dict with one keyed by index. This is because we cannot apply formatting
+        # after writing content, so have to do the writing in a single pass over the entire matrix
+        if boolean_choice:
+            content = np.full((len(nodes), len(nodes)), 'N', dtype=object)  # This will also coerce the value to string in preparation for writing
+        else:
+            content = np.full((len(nodes), len(nodes)), '', dtype=object)  # This will also coerce the value to string in preparation for writing
+
+        for interaction, value in entries.items():
+            from_node, to_node = interaction
+            if not self.enable_diagonal and from_node == to_node:
+                raise Exception('Trying to write a diagonal entry to a table that is not allowed to contain diagonal terms')  # This is because data loss will occur if the user adds entries on the diagonal, then writes the table, and then reads it back in
+            from_idx = nodes.index(from_node)
+            to_idx = nodes.index(to_node)
+            if boolean_choice:
+                value = 'Y' if value else 'N'
+            content[from_idx, to_idx] = value
+
+        # Write the content
+        for from_idx in range(0, len(nodes)):
+            for to_idx in range(0, len(nodes)):
+                row = start_row + 1 + from_idx
+                col = to_idx + 1
+                if not self.enable_diagonal and to_idx == from_idx:  # Disable the diagonal if that's what's desired
+                    val = FS.DEFAULT_SYMBOL_INAPPLICABLE
+                    worksheet.write(row, col, val, formats["center"])
+                    worksheet.data_validation(xlrc(row, col), {"validate": "list", "source": ["N.A."]})
+                else:
+                    val = content[from_idx, to_idx]
+                    worksheet.write(row, col, content[from_idx, to_idx], formats["center_unlocked"])
+                    if boolean_choice:
+                        worksheet.data_validation(xlrc(row, col), {"validate": "list", "source": ["Y", "N"]})
+                        worksheet.conditional_format(xlrc(row, col), {'type': 'cell', 'criteria': 'equal to', 'value': '"Y"', 'format': formats['unlocked_boolean_true']})
+                        worksheet.conditional_format(xlrc(row, col), {'type': 'cell', 'criteria': 'equal to', 'value': '"N"', 'format': formats['unlocked_boolean_false']})
+                table_references[(nodes[from_idx], nodes[to_idx])] = xlrc(row, col, True, True)  # Store reference to this interaction
+                values_written[table_references[(nodes[from_idx], nodes[to_idx])]] = val
+
+        next_row = start_row + 1 + len(nodes) + 1
+        return next_row, table_references, values_written
+
 
 
 class TimeDependentValuesEntry(object):
@@ -560,14 +681,22 @@ class TimeDependentValuesEntry(object):
         return all([x.has_data for x in self.ts.values()])
 
     @staticmethod
-    def from_rows(rows):
-        # Given a set of openpyxl rows, instantiate a TimeDependentValuesEntry object
-        # That is, the parent object e.g. Databook() is responsible for finding where the TDVE table is,
-        # and reading all of the rows associated with it (skipping #ignored rows) and then passing those rows,
-        # unparsed, to this function
-        #
-        # 'units', 'uncertainty', and 'constant' are optional - if 'constant' is present then expect
-        # that the column after it contains 'or'
+    def from_rows(rows: list):
+        """
+        Create new instance from Excel rows
+
+        Given a set of openpyxl rows, instantiate a :class:`TimeDependentValuesEntry` object
+        That is, the parent object e.g. :class:`ProjectData` is responsible for finding where the TDVE table is,
+        and reading all of the rows associated with it (skipping ``#ignored`` rows) and then passing those rows,
+        unparsed, to this function
+
+        Headings for 'units', 'uncertainty', and 'assumption'/'constant' are optional and will be read in
+        if they are present in the spreadsheet.
+
+        :param rows: A list of rows
+        :return: A new :class:`TimeDependentValuesEntry` instance
+
+        """
 
         from .utils import TimeSeries  # Import here to avoid circular reference
 
@@ -624,14 +753,11 @@ class TimeDependentValuesEntry(object):
                 raise Exception('In cell %s of the spreadsheet, the name of the entry was expected to be a string, but it was not. The left-most column is expected to be a name. If you are certain the value is correct, add an single quote character at the start of the cell to ensure it remains as text' % row[0].coordinate)
             series_name = vals[0].strip()
 
-            if units_index is not None:
+            if units_index is not None and vals[units_index]:
                 assert sc.isstring(vals[units_index]), "The 'units' quantity needs to be specified as text e.g. 'probability'"
-                if vals[units_index]:
-                    units = vals[units_index]
-                    if units.lower().strip() in FS.STANDARD_UNITS:
-                        units = units.lower().strip()  # Only lower and strip units if they are standard units
-                else:
-                    units = None
+                units = vals[units_index]
+                if units.lower().strip() in FS.STANDARD_UNITS:
+                    units = units.lower().strip()  # Only lower and strip units if they are standard units
             else:
                 units = None
 
@@ -660,15 +786,25 @@ class TimeDependentValuesEntry(object):
         tvec = tvec[np.isfinite(tvec)]  # Remove empty entries from the array
         return TimeDependentValuesEntry(name, tvec, ts_entries)
 
-    def write(self, worksheet, start_row, formats, references=None, widths=None, assumption_heading='Constant', write_units=True, write_uncertainty=False, write_assumption=True):
-        # references is a dict where the key is a string value and the content is a cell
-        # Any populations that appear in this dict will have their value replaced by a reference
-        # formats should be the dict returned by `excel.standard_formats` when it was called to add
-        # formatting to the Workbook containing the worksheet passed in here.
-        #
-        # widths should be a dict that will store sizing information for some of the columns
-        # it is updated in place
-        # - assumption_heading : This is the string heading for the 'Constant'/'Assumption' (constant in databook, assumption in progbook)
+    def write(self, worksheet, start_row, formats, references: dict=None, widths:dict=None, assumption_heading='Constant', write_units=True, write_uncertainty=False, write_assumption=True) -> int:
+        """
+        Write to cells in a worksheet
+
+        :param worksheet: An xlsxwriter worksheet instance
+        :param start_row: The first row in which to write values
+        :param formats: Format dict for the opened workbook - typically the return value of :func:`standard_formats` when the workbook was opened
+        :param references: References dict containing cell references for strings in the current workbook
+        :param widths: ``dict`` storing column widths
+        :param assumption_heading: String to use for assumption/constant column heading - either 'Constant' or 'Assumption' (they are functionally identical and
+                                   both map to the ``assumption`` attribute of the underlying :class:`TimeSeries` object)
+        :param write_units: If True, write the units column to the spreadsheet
+        :param write_uncertainty: If True, write the uncertainty column to the spreadsheet
+        :param write_assumption: If True, write the constant/assumption column to the spreadsheet
+        :return: The row index for the next available row for writing in the spreadsheet
+
+        """
+
+        assert assumption_heading in {'Constant','Assumption'}, 'Unsupported assumption heading'
 
         if not references:
             references = dict()
@@ -678,7 +814,7 @@ class TimeDependentValuesEntry(object):
         # First, assemble and write the headings
         headings = []
         headings.append(self.name)
-        offset = 1  # This is the column where the time values start
+        offset = 1  # This is the column where the time values start (after the 'or')
 
         if write_units:
             headings.append('Units')
@@ -754,11 +890,9 @@ class TimeDependentValuesEntry(object):
                 format = formats['unlocked']
 
             if write_assumption:
-                # Write the assumption
                 worksheet.write(current_row, constant_index, row_ts.assumption, format)
-                # Write the separator between the assumptions and the time values
-                worksheet.write(current_row, constant_index + 1, 'OR', formats['center'])
-                update_widths(widths, constant_index + 1, 'OR')
+                worksheet.write(current_row, constant_index+1, 'OR', formats['center'])
+                update_widths(widths, constant_index+1, 'OR')
 
             # Write the time values
             content = [None] * len(self.tvec)  # Initialize an empty entry for every time in the TDVE's tvec
@@ -786,15 +920,39 @@ class TimeDependentValuesEntry(object):
         return current_row + 2  # Add two so there is a blank line after this table
 
 
-def cell_require_string(cell):
-    # Take in an openpyxl Cell instance, if it doesn't contain a string, then throw a helpful error
+def cell_require_string(cell) -> None:
+    """
+    Check that a cell contains a string
+
+    :param cell: An openpyxl cell
+    :raises: :class:`Exception` with informative message if the cell value is not a string
+
+    """
+
     if not sc.isstring(cell.value):
         raise Exception('Cell %s needs to contain a string (i.e. not a number, date, or other cell type)' % cell.coordinate)
 
 
 def cell_get_number(cell, dtype=float):
-    # This function is to guard against accidentally having strings.
-    # If a cell contains a formula that has evaluated to a number, then the type should be numeric
+    """
+    Return numeric value from cell
+
+    This function is to guard against accidentally having the Excel cell contain a string
+    instead of a number. If a string has been entered, an error will be raised. The added value
+    from this function is that if the Excel cell type is empty but the value is
+    empty or ``N.A.`` then the value will be treated as though the cell was correctly set to a
+    numeric type but had been left empty.
+
+    The output is cast to ``dtype`` which means that code that requires numeric input from Excel
+    can use this input to guarantee that the resulting number is of the correct type, or ``None``.
+
+    :param cell: An openpyxl cell
+    :param dtype: If the cell is numeric, cast to this type (default is `float` but could be `int` for example)
+    :return: A scalar instance of ``dtype`` (e.g. ``float``) or ``None`` if cell is empty or being treated as empty
+    :raises: :class:`Exception` if the cell contains a string
+
+    """
+
     if cell.value is None:
         return None
     elif cell.data_type == 'n':  # Numeric type
@@ -809,7 +967,7 @@ def cell_get_number(cell, dtype=float):
     raise Exception('Cell %s needs to contain a number' % cell.coordinate)
 
 
-def validate_category(workbook, expected_category):
+def validate_category(workbook, expected_category) -> None:
     """
     Check Atomica workbook type
 
@@ -820,7 +978,8 @@ def validate_category(workbook, expected_category):
 
     :param workbook: An openpyxl workbook
     :param category: The expected string category
-    :return: None
+    :raises: :class:`Exception` if the workbook category is not valid
+
     """
 
     category = workbook.properties.category
