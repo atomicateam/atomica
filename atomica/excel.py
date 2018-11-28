@@ -66,10 +66,19 @@ def apply_widths(worksheet, width_dict):
         worksheet.set_column(idx, idx, width * 1.1 + 1)
 
 
-def update_widths(width_dict, column_index, contents):
-    # Keep track of the maximum length of the contents in a column
-    # width_dict is a dict that is keyed by column index e.g. 0,1,2
-    # and the value is the length of the longest contents seen for that column
+def update_widths(width_dict: dict, column_index: int, contents: str) -> None:
+    """
+    Keep track of required width for a column
+
+    ``width_dict`` is a dict that is keyed by column index e.g. 0,1,2
+    and the value is the length of the longest contents seen for that column
+
+    :param width_dict: Storage dictionary
+    :param column_index: Index of the column value has been inserted in
+    :param contents: Content, length of which is used to set width
+
+    """
+
     if width_dict is None or contents is None or not sc.isstring(contents):
         return
 
@@ -383,7 +392,7 @@ class TimeDependentConnections(object):
 
         return TimeDependentConnections(code_name, full_name, tvec, pops, interaction_type, ts=ts_entries)
 
-    def write(self, worksheet, start_row, formats, references:dict=None, widths:dict=None, assumption_heading='Constant', write_units=True, write_uncertainty=False, write_assumption=True) -> int:
+    def write(self, worksheet, start_row, formats, references:dict=None, widths:dict=None, assumption_heading='Constant', write_units:bool=None, write_uncertainty:bool=None, write_assumption:bool=None) -> int:
         """
         Write to cells in a worksheet
 
@@ -402,6 +411,12 @@ class TimeDependentConnections(object):
         """
 
         assert assumption_heading in {'Constant','Assumption'}, 'Unsupported assumption heading'
+        if write_units is None:
+            write_units = any((ts.units is not None for ts in self.ts.values()))
+        if write_uncertainty is None:
+            write_uncertainty = any((ts.sigma is not None for ts in self.ts.values()))
+        if write_assumption is None:
+            write_assumption = any((ts.assumption is not None for ts in self.ts.values()))
 
         if not references:
             references = {x: x for x in self.pops}  # Default null mapping for populations
@@ -493,14 +508,13 @@ class TimeDependentConnections(object):
                             worksheet.data_validation(xlrc(current_row, units_index), {"validate": "list", "source": [x.title() for x in self.allowed_units]})
 
                     if write_uncertainty:
-                        worksheet.write(current_row, constant_index, ts.sigma, entry_cell, format)
-                        update_widths(widths, constant_index, ts.units.title())
+                        worksheet.write(current_row, uncertainty_index, ts.sigma, formats['not_required'])
+                        update_widths(widths, uncertainty_index, ts.units.title())
 
                     if write_assumption:
                         worksheet.write(current_row, constant_index, ts.assumption, format)
                         worksheet.write_formula(current_row, constant_index+1, gate_content('OR', entry_cell), formats['center'], value='OR')
                         update_widths(widths, constant_index+1, 'OR')
-
 
                 else:
                     worksheet.write_formula(current_row, 0, gate_content(references[from_pop], entry_cell), formats['center_bold'], value='...')
@@ -513,7 +527,7 @@ class TimeDependentConnections(object):
                             worksheet.data_validation(xlrc(current_row, units_index), {"validate": "list", "source": [x.title() for x in self.allowed_units]})
 
                     if write_uncertainty:
-                        worksheet.write_blank(current_row, constant_index, '', format)
+                        worksheet.write_blank(current_row, uncertainty_index, '', formats['not_required'])
 
                     if write_assumption:
                         worksheet.write_blank(current_row, constant_index, '', format)
@@ -537,6 +551,7 @@ class TimeDependentConnections(object):
                         worksheet.write_blank(current_row, offset + idx, v, format)
                     else:
                         worksheet.write(current_row, offset + idx, v, format)
+                    widths[offset+idx] = max(widths[offset+idx],7) if offset+idx in widths else 7
 
                 if write_assumption:
                     # Conditional formatting for the assumption, depending on whether time-values were entered
@@ -786,7 +801,7 @@ class TimeDependentValuesEntry(object):
         tvec = tvec[np.isfinite(tvec)]  # Remove empty entries from the array
         return TimeDependentValuesEntry(name, tvec, ts_entries)
 
-    def write(self, worksheet, start_row, formats, references: dict=None, widths:dict=None, assumption_heading='Constant', write_units=True, write_uncertainty=False, write_assumption=True) -> int:
+    def write(self, worksheet, start_row, formats, references: dict=None, widths:dict=None, assumption_heading='Constant', write_units:bool=None, write_uncertainty:bool=None, write_assumption:bool=None) -> int:
         """
         Write to cells in a worksheet
 
@@ -797,14 +812,21 @@ class TimeDependentValuesEntry(object):
         :param widths: ``dict`` storing column widths
         :param assumption_heading: String to use for assumption/constant column heading - either 'Constant' or 'Assumption' (they are functionally identical and
                                    both map to the ``assumption`` attribute of the underlying :class:`TimeSeries` object)
-        :param write_units: If True, write the units column to the spreadsheet
-        :param write_uncertainty: If True, write the uncertainty column to the spreadsheet
-        :param write_assumption: If True, write the constant/assumption column to the spreadsheet
+        :param write_units: If True, write the units column to the spreadsheet. By default, will only write if any of the TimeSeries objects have units
+        :param write_uncertainty: If True, write the uncertainty column to the spreadsheet. By default, will only write if any of the TimeSeries objects have units
+        :param write_assumption: If True, write the constant/assumption column to the spreadsheet. By default, will only write if any of the TimeSeries objects have units
         :return: The row index for the next available row for writing in the spreadsheet
 
         """
 
         assert assumption_heading in {'Constant','Assumption'}, 'Unsupported assumption heading'
+
+        if write_units is None:
+            write_units = any((ts.units is not None for ts in self.ts.values()))
+        if write_uncertainty is None:
+            write_uncertainty = any((ts.sigma is not None for ts in self.ts.values()))
+        if write_assumption is None:
+            write_assumption = any((ts.assumption is not None for ts in self.ts.values()))
 
         if not references:
             references = dict()
@@ -880,7 +902,7 @@ class TimeDependentValuesEntry(object):
 
             if write_uncertainty:
                 if row_ts.sigma is None:
-                    worksheet.write(current_row, uncertainty_index, row_ts.sigma, formats['unlocked'])
+                    worksheet.write(current_row, uncertainty_index, row_ts.sigma, formats['not_required']) # NB. For now, uncertainty is always optional
                 else:
                     worksheet.write(current_row, uncertainty_index, row_ts.sigma, formats['not_required'])
 
@@ -905,9 +927,10 @@ class TimeDependentValuesEntry(object):
 
             for idx, v in enumerate(content):
                 if v is None:
-                    worksheet.write_blank(current_row, offset + idx, v, format)
+                    worksheet.write_blank(current_row, offset+idx, v, format)
                 else:
-                    worksheet.write(current_row, offset + idx, v, format)
+                    worksheet.write(current_row, offset+idx, v, format)
+                widths[offset+idx] = max(widths[offset+idx],7) if offset+idx in widths else 7
 
             if write_assumption:
                 # Conditional formatting for the assumption

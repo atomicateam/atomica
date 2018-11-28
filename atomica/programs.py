@@ -565,7 +565,7 @@ class ProgramSet(NamedItem):
             # NOTE - If the ts contains time values that aren't in the ProgramSet's tvec, then an error will be thrown
             # However, if the ProgramSet's tvec contains values that the ts does not, then that's fine, there
             # will just be an empty cell in the spreadsheet
-            next_row = tdve.write(sheet, next_row, self._formats, self._references, widths, assumption_heading='Assumption', write_units=True, write_uncertainty=True)
+            next_row = tdve.write(sheet, next_row, self._formats, self._references, widths, assumption_heading='Assumption', write_assumption=True, write_units=True, write_uncertainty=True)
 
         apply_widths(sheet, widths)
 

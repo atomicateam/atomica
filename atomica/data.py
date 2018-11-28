@@ -442,7 +442,17 @@ class ProjectData(sc.prettyobj):
                 assert ts.units is not None, 'Units are missing for transfer %s, %s->%s' % (tdc.full_name, to_pop, from_pop)
         return True
 
-    def to_spreadsheet(self, write_uncertainty=False):
+    def to_spreadsheet(self, write_uncertainty=None):
+        """
+        Return content as an :class:`AtomicaSpreadsheet`
+
+        :param write_uncertainty: If True, uncertainty cells will always be printed.
+                                  If None, cells will be printed only for TDVEs with uncertainty values.
+                                  IF False, cells will not be shown at all even if data existed
+        :return: An :class:`AtomicaSpreadsheet` instance
+
+        """
+
         # Initialize the bytestream
         f = io.BytesIO()
 
@@ -473,8 +483,19 @@ class ProjectData(sc.prettyobj):
         # Return the spreadsheet
         return spreadsheet
 
-    def save(self, fname, write_uncertainty=False):
-        # Shortcut for saving to disk - FE RPC will probably use `to_spreadsheet()` but BE users will probably use `save()`
+    def save(self, fname, write_uncertainty=None) -> None:
+        """
+        Save databook to disk
+
+        This function provides a shortcut to generate a spreadsheet and immediately save it to disk.
+
+        :param fname: File name to write on disk
+        :param write_uncertainty: If True, uncertainty cells will always be printed.
+                                  If None, cells will be printed only for TDVEs with uncertainty values.
+                                  IF False, cells will not be shown at all even if data existed
+
+        """
+
         ss = self.to_spreadsheet(write_uncertainty=write_uncertainty)
         ss.save(fname)
 
@@ -710,7 +731,7 @@ class ProjectData(sc.prettyobj):
         widths = dict()
         next_row = 0
         for transfer in self.transfers:
-            next_row = transfer.write(sheet, next_row, self._formats, self._references, widths, write_uncertainty=write_uncertainty)
+            next_row = transfer.write(sheet, next_row, self._formats, self._references, widths, write_units=True, write_assumption=True, write_uncertainty=write_uncertainty)
         apply_widths(sheet, widths)
 
     def _read_interpops(self, sheet) -> None:
@@ -740,7 +761,7 @@ class ProjectData(sc.prettyobj):
         widths = dict()
         next_row = 0
         for interpop in self.interpops:
-            next_row = interpop.write(sheet, next_row, self._formats, self._references, widths, write_uncertainty=write_uncertainty)
+            next_row = interpop.write(sheet, next_row, self._formats, self._references, widths, write_units=True, write_assumption=True, write_uncertainty=write_uncertainty)
         apply_widths(sheet, widths)
 
     def _write_tdve(self, write_uncertainty) -> None:
@@ -752,20 +773,20 @@ class ProjectData(sc.prettyobj):
 
         """
 
-        widths = dict()
 
         for sheet_name, code_names in self.tdve_pages.items():
             sheet = self._book.add_worksheet(sheet_name)
+            widths = dict()
+
             next_row = 0
             has_editable_content = False
             for code_name in code_names:
                 has_editable_content = has_editable_content or (not self.tdve[code_name].has_data)  # there is editable content if any TDVE is missing data, so blue cells are present
-                next_row = self.tdve[code_name].write(sheet, next_row, self._formats, references=self._references, widths=widths, write_uncertainty=write_uncertainty)
+                next_row = self.tdve[code_name].write(sheet, next_row, self._formats, references=self._references, widths=widths, write_units=True, write_assumption=True, write_uncertainty=write_uncertainty)
 
             if has_editable_content:
                 sheet.set_tab_color('#92D050')
             else:
                 sheet.set_tab_color('#808080')
 
-        for sheet_name in self.tdve_pages.keys():
             apply_widths(self._book.get_worksheet_by_name(sheet_name), widths)
