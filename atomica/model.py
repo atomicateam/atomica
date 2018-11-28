@@ -1184,6 +1184,9 @@ class Model(object):
                 if par.links:
 
                     transition = par.vals[ti]
+                    if transition < 0:
+                        logger.warning('Negative transition occurred')
+                        transition = 0
 
                     if not transition:
                         for link in par.links:
@@ -1212,10 +1215,6 @@ class Model(object):
 
                     # Linearly convert number down to that appropriate for one timestep.
                     elif quantity_type == FS.QUANTITY_TYPE_NUMBER:
-
-                        if transition < 0:
-                            logger.warning('Negative transition occurred')
-                            transition = 0
 
                         # Disaggregate proportionally across all source compartment sizes related to all links.
                         converted_amt = transition * (self.dt / par.timescale) # Number flow in this timestep, so it includes a timescale factor
