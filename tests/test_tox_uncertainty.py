@@ -3,8 +3,10 @@ import numpy as np
 from scipy import stats
 import matplotlib.pyplot as plt
 
+testdir = at.parent_dir()
+
 def test_parset_sampling():
-    P = at.Project(framework='test_uncertainty_framework.xlsx', databook='test_uncertainty_databook.xlsx')
+    P = at.Project(framework=testdir + 'test_uncertainty_framework.xlsx', databook=testdir + 'test_uncertainty_databook.xlsx')
 
     baseline = P.run_sim(P.parsets[0])
 
@@ -25,10 +27,10 @@ def test_parset_sampling():
 
 
 def test_progset_sampling():
-    P = at.Project(framework='test_uncertainty_framework.xlsx', databook='test_uncertainty_databook.xlsx')
+    P = at.Project(framework=testdir + 'test_uncertainty_framework.xlsx', databook=testdir + 'test_uncertainty_databook.xlsx')
 
-    low_uncertainty_progset = at.ProgramSet.from_spreadsheet('test_uncertainty_low_progbook.xlsx',project=P)
-    high_uncertainty_progset = at.ProgramSet.from_spreadsheet('test_uncertainty_high_progbook.xlsx',project=P) # Alternatively, could have copied and set the uncertainties manually
+    low_uncertainty_progset = at.ProgramSet.from_spreadsheet(testdir + 'test_uncertainty_low_progbook.xlsx',project=P)
+    high_uncertainty_progset = at.ProgramSet.from_spreadsheet(testdir + 'test_uncertainty_high_progbook.xlsx',project=P) # Alternatively, could have copied and set the uncertainties manually
 
     baseline = P.run_sim('default',progset=low_uncertainty_progset, progset_instructions=at.ProgramInstructions(start_year=2018))
 
