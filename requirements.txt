@@ -10,14 +10,3 @@ pandoc
 sphinx>=1.8
 sphinx-autodoc-typehints
 sphinx-markdown-table
-matplotlib>=1.4.2,<3
-numpy>=1.10.1
-pandas
-six>=1.11.0
-xlsxwriter
-scipy
-pyswarm
-hyperopt
-sciris,
-openpyxl
-gitpython
