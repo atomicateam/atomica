@@ -10,6 +10,7 @@
       </div>
 
       <export-graph
+        :filename="filename"
         :chartSvg="chartSvg"
         :chartWidth="chartWidth"
         :chartHeight="chartHeight"
@@ -59,6 +60,11 @@ export default {
       chartWidth: 300,
       chartHeight: 400,
     }
+  },
+  computed: {
+    filename() {
+      return `multibar_plot_${this.year}`
+    },
   },
   watch: {
     scenariosData(newData) {

@@ -243,6 +243,7 @@ export default {
         .append('svg')
         .attr('width', this.svgWidth)
         .attr('height', this.svgHeight)
+        .style('background-color', '#fff')
 
       // arrow def
       this.svg.append('defs')
@@ -278,7 +279,7 @@ export default {
       this.yAxisLabel = this.g.append('text')
         .attr('class', 'y-label')
         .attr('x', -(this.height/2))
-        .attr('y', -50)
+        .attr('y', -45)
         .attr('transform', 'rotate(-90)')
         .style('font-family', 'Helvetica, Arial')
         .style('font-size', '13px')
@@ -306,7 +307,7 @@ export default {
         .call(this.yAxis)
 
       this.yAxisLabel
-        .text(this.yAxisTitle)
+        .text(`${this.yAxisTitle} (${this.year})`)
 
       const area = d3.area()
         .curve((d) => cascadeStep(d, this.x.bandwidth()))
@@ -319,8 +320,36 @@ export default {
       this.g.select('.stacked-bars').remove()
       this.g.select('.stage-total-texts').remove()
       this.g.select('.stacked-bar-texts').remove()
+      this.g.select('.legend').remove()
 
-      // DATA JOIN
+      // legend
+      const legend = this.g.append('g')
+        .attr('class', 'legend')
+        .attr('transform', `translate(${this.width - this.margin.left - this.margin.right}, 0)`)
+        .style('opacity', 0)
+            
+      const legendItem = legend
+        .selectAll('.legend')
+        .data(keys.reverse())
+        .enter().append('g')
+        .attr('class', 'legend-item')
+      
+      legendItem.append('rect')
+        .attr('x', 0)
+        .attr('y', (d, i) => 20 * i)
+        .attr('width', 15)
+        .attr('height', 15)
+        .style('fill', d => this.groupPopulations ? this.tColour : this.legendColour[d])
+      
+      legendItem.append('text')
+        .attr('x', 20)
+        .attr('y', (d, i) => 20 * i + 12)
+        .style('font-family', 'Helvetica, Arial')
+        .style('font-size', '12px')
+        .style('fill', '#00267a')
+        .text(d => this.getLabel(d))
+
+      // Stacked Cascade area
       const stackedCascadeArea = this.g.append('g')
         .attr('class', 'stacked-areas')
         

@@ -219,6 +219,7 @@ export default {
         .append('svg')
         .attr('width', this.svgWidth)
         .attr('height', this.svgHeight)
+        .style('background-color', '#fff')
 
       // arrow def
       this.svg.append('defs')
@@ -254,7 +255,7 @@ export default {
       this.yAxisLabel = this.g.append('text')
         .attr('class', 'y-label')
         .attr('x', -(this.height/2))
-        .attr('y', -50)
+        .attr('y', -45)
         .attr('transform', 'rotate(-90)')
         .style('font-family', 'Helvetica, Arial')
         .style('font-size', '13px')
@@ -278,7 +279,7 @@ export default {
         .call(this.yAxis)
 
       this.yAxisLabel
-        .text(this.yAxisTitle)
+        .text(`${this.yAxisTitle} (${this.year})`)
 
       // Setup area curve and drawing data
       const area = d3.area()
@@ -291,6 +292,71 @@ export default {
       this.g.select('.multi-bars').remove()
       this.g.select('.multi-areas').remove()
       this.g.select('.multi-bar-text').remove()
+      this.g.select('.legend').remove()
+
+      // scenario legend
+      const keys = this.keys.map(key => {
+        return {
+          header: 'Scenarios',
+          id: key,
+          label: key,
+          colour: this.legendColour[key],
+        }
+      })
+      const cats = this.selectedCategories.map(cat => {
+        return { 
+          header: 'Subpopulation',
+          id: cat,
+          label: this.getLabel(cat),
+          colour: '#00267a',
+        }
+      })
+      const legendData = [{
+        header: 'title',
+        label: 'Scenarios'
+      }, ...keys, {
+        header: 'title',
+        label: 'Subpopulation'
+      }, ...cats]
+      const legend = this.g.append('g')
+        .attr('class', 'legend')
+        .attr('transform', `translate(${this.width - this.margin.left - this.margin.right}, 0)`)
+        .style('opacity', 0)
+        .selectAll('.legend')
+      
+      const legendItem = legend.data(legendData).enter().append('g')
+        .attr('class', 'legend-item')
+        
+      legendItem.append('line')
+        .attr('x1', 0)
+        .attr('y1', (d, i) => 20 * i + 17)
+        .attr('x2', 130)
+        .attr('y2', (d, i) => 20 * i + 17)
+        .style('stroke', d => d.header === 'title' ? '#00267a' : 'transparent')
+      
+      legendItem.append('rect')
+        .attr('x', 0)
+        .attr('y', (d, i) => 20 * i)
+        .attr('width', 15)
+        .attr('height', 15)
+        .style('opacity', d => d.header === 'Scenarios' ? 1 : 0)
+        .style('fill', d => d.colour)
+      
+      legendItem.append('circle')
+        .attr('cx', 7.5)
+        .attr('cy', (d, i) => 20 * i + 7.5)
+        .attr('r', 7.5)
+        .style('opacity', d => d.header === 'Subpopulation' ? 1 : 0)
+        .style('fill', d => d.colour) 
+      
+      legendItem.append('text')
+        .attr('x', 20)
+        .attr('y', (d, i) => 20 * i + 12)
+        .style('font-family', 'Helvetica, Arial')
+        .style('font-size', '12px')
+        .style('font-weight', d => d.header === 'title' ? 'bold' : 'normal')
+        .style('fill', '#00267a')
+        .text(d => d.label)
 
       // Cascade Area
       const multiAreasGroup = this.g.append('g').attr('class', 'multi-areas')
