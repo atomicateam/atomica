@@ -10,7 +10,6 @@ def test_migration():
     # this test in versions older than Python 3.7
     if sys.version_info[0] < 6:
         return
-        raise Exception("Must be using Python 3")
 
     at.logger.setLevel('DEBUG')
 
