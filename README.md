@@ -9,6 +9,10 @@ Atomica is still under development; please check back regularly for updates.
 
 # Installation
 
+Atomica is available for Python 3 only. Because we develop using Python 3.7, it is possible that dictionary order is
+relevant (although we endeavour to use ordered dictionaries via `Sciris` in places where order matters). Therefore, we
+only _officially_ support Python 3.7, as this is the first Python release that guarantees ordering of all dictionaries.
+
 ## Backend installation
 
 * Ensure you have a scientific Python distribution already installed (dependencies include, but are not limited to: `numpy`, `scipy`, and `matplotlib`).
