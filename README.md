@@ -13,29 +13,35 @@ Atomica is available for Python 3 only. Because we develop using Python 3.7, it 
 relevant (although we endeavour to use ordered dictionaries via `Sciris` in places where order matters). Therefore, we
 only _officially_ support Python 3.7, as this is the first Python release that guarantees ordering of all dictionaries.
 
-## Backend installation
+To install, use the following commands:
 
-* Ensure you have a scientific Python distribution already installed (dependencies include, but are not limited to: `numpy`, `scipy`, and `matplotlib`).
-* Install Sciris:
-```
-git clone https://github.com/sciris/sciris.git
-cd sciris
-python setup.py develop
-```
-* Note that some dependencies might be missing (we are working on this!).
-* Install Atomica:
 ```
 git clone https://github.com/atomicateam/atomica.git
 cd atomica
 python setup.py develop
 ```
-* You can test with:
+
+You can test with:
+
 ```
 cd atomica/tests
 python testworkflow.py
 ```
 
-## Frontend installation
+
+# Troubleshooting
+
+### Installation fails due to missing `numpy`
+
+If running `python setup.py develop` in a new environment, `numpy` must be installed prior to `scipy`. In some cases,
+installing `numpy` may fail due to missing compiler options. In that case, you may wish to install `numpy` via Anaconda
+(by installing Python through Anaconda, and using `conda install numpy scipy matplotlib`). In general, our experience
+has been that it is easier to set up the C binaries for `numpy` and the QT dependencies for `matplotlib` via Anaconda
+rather than doing this via the system, which involves different steps on every platform.
+
+# Frontend installation
+
+Note that these instructions are slated to be moved to a different repository.
 
 ### Initial installation
 * Complete the backend installation instructions above.
