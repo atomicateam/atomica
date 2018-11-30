@@ -13,7 +13,24 @@ Atomica is available for Python 3 only. Because we develop using Python 3.7, it 
 relevant (although we endeavour to use ordered dictionaries via `Sciris` in places where order matters). Therefore, we
 only _officially_ support Python 3.7, as this is the first Python release that guarantees ordering of all dictionaries.
 
-To install, use the following commands:
+### Git installation
+
+Use the Git installation method if you plan to make changes to the Atomica source code. First, you will need a Python
+environment containing the `numpy`, `scipy` and `matplotlib`. In theory these can be installed automatically as
+dependencies for `atomica`, but in practice, these packages can require system-level setup so it is usually easiest
+to install them separately beforehand.
+
+We recommend installing via Anaconda, which facilitates getting the binaries and dependencies like QT installed in a
+platform-agnostic manner. We also recommend working within an Anaconda environment.
+
+You may also wish to install `mkl` first, before installing `numpy` etc. to improve performance. So for example:
+
+```
+conda install mkl
+conda install numpy scipy matplotlib
+```
+
+Then, you can install Atomica into the environment using:
 
 ```
 git clone https://github.com/atomicateam/atomica.git
@@ -27,7 +44,6 @@ You can test with:
 cd atomica/tests
 python testworkflow.py
 ```
-
 
 # Troubleshooting
 
