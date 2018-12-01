@@ -514,3 +514,59 @@ def _write_df(writer, formats, sheet_name, df, level_ordering):
     for i in range(0, len(required_width)):
         if required_width[i] > 0:
             worksheet.set_column(i, i, required_width[i] * 1.1 + 1)
+
+from scipy import stats
+
+class Ensemble():
+    """
+    Class for working with sampled Results
+
+    This class facilitates working with results and sampling.
+    It manages the mapping of sets of results onto a scalar, which is
+    then accumulated over samples. For example, we might sample from
+    a ParameterSet and then run simulations with 2 different allocations to
+    compare their expected difference. The Ensemble contains
+
+    - A reduction function that maps from Results^N => R^M where typically M would
+      index
+
+
+    """
+
+    def __init__(self, mapping_function):
+        self.mapping_function = mapping_function
+        self.samples = []
+        self.baseline = None
+
+    def set_baseline(self,results) -> None:
+        self.baseline = self.mapping_function(results)
+
+    def add_sample(self,results) -> None:
+        self.samples.append(self.mapping_function(results))
+
+    def plot_distribution(self, ti=None, fig=None):
+        if fig is None:
+            fig = plt.figure()
+
+        if not self.samples:
+            raise Exception('No samples added')
+
+
+        for i in range(len(self.samples[0])):
+
+        # Get the distribution over outcomes
+        fn = lambda x: x.get_variable('m_rural', 'con')[0].vals[-1]
+        kernel = stats.gaussian_kde(np.array([fn(x) for x in res]).ravel())
+
+        x = np.linspace(105, 115, 500)
+        plt.figure()
+        plt.plot(x, kernel(x), label='With uncertainty')
+        plt.axvline(fn(self.baseline), color='r', label='Baseline values')
+        plt.legend()
+
+    def plot_series(self):
+        if not self.samples:
+            raise Exception('No samples added')
+
+        n_vars = len(self.samples[0])
+        n_times =

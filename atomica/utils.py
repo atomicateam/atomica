@@ -132,6 +132,131 @@ class TimeSeries(object):
         new._sampled = self._sampled
         return new
 
+    # The operators for + and * below are prototypes but haven't been added
+    # The reason is because they add a lot of complexity to the usage of the class
+    # but it's not clear whether that complexity is worth it for the benefits it brings.
+    # Part of the problem is also that propagation of uncertainty requires the time series
+    # values which means that propagation of uncertainty is time dependent. So it's hard
+    # to come up with intuitive behaviour for them.
+    #
+    # def __add__(self, other):
+    #     """
+    #     Add a constant or TimeSeries
+    #
+    #     If adding a constant, it is simply added onto the assumption and time values.
+    #
+    #     If adding another TimeSeries:
+    #
+    #         - The units must match
+    #         - The assumption will be None if either TimeSeries has no assumption
+    #         - The output times will be the union of times in both TimeSeries and they will
+    #           be interpolated onto those times before adding. This preserves commutativity
+    #           of addition
+    #         - Uncertainties will be formally propagated
+    #
+    #     :param other: A TimeSeries or a scalar (float)
+    #     :return: A new TimeSeries
+    #
+    #     """
+    #
+    #     if type(other) == type(self):
+    #         # If we are operating on another TimeSeries
+    #         if self.units is None:
+    #             assert other.units is None, 'TimeSeries units must match for addition'
+    #         else:
+    #             assert self.units == other.units, 'TimeSeries units must match for addition'
+    #
+    #         new = self.copy()
+    #
+    #         # Add time values
+    #         if self.t == other.t:
+    #             new.t = [x+y for x,y in zip(self.vals, other.vals)]
+    #         else:
+    #             # Interpolate and add the time values
+    #             t_out = sorted(set(self.t).union(set(other.t)))
+    #             new.t = t_out
+    #             new.vals = (self.interpolate(t_out) + other.interpolate(t_out)).tolist()
+    #
+    #         # Add the assumption
+    #         if (self.assumption is None) or (other.assumption is None):
+    #             new.assumption = None
+    #         else:
+    #             new.assumption = self.assumption + other.assumption
+    #
+    #         # Propagate uncertainty
+    #         self_sigma = self.sigma if self.sigma else 0
+    #         other_sigma = other.sigma if other.sigma else 0
+    #
+    #         if self_sigma or other_sigma:
+    #             new.sigma = np.sqrt(self_sigma**2 + other_sigma**2)
+    #     else:
+    #         # Should be a numeric type
+    #         new = self.copy()
+    #         new.vals = [x+other for x in self.vals]
+    #         new.assumption = self.assumption+other if self.assumption is not None else None
+    #
+    #     return new
+    #
+    # def __mul__(self, other):
+    #     """
+    #     Multiply by a constant or TimeSeries
+    #
+    #     If multiplying by a constant, it is simply operated on the assumption,
+    #     values, and uncertainty.
+    #
+    #     If adding another TimeSeries:
+    #
+    #         - The units must match
+    #         - The assumption will be None if either TimeSeries has no assumption
+    #         - The output times will be the union of times in both TimeSeries and they will
+    #           be interpolated onto those times before multiplying. This preserves commutativity
+    #           of multiplication
+    #         - Uncertainties will be formally propagated
+    #
+    #     :param other: A TimeSeries or a scalar (float)
+    #     :return: A new TimeSeries
+    #
+    #     """
+    #
+    #     if type(other) == type(self):
+    #         # If we are operating on another TimeSeries
+    #         if self.units is None:
+    #             assert other.units is None, 'TimeSeries units must match for addition'
+    #         else:
+    #             assert self.units == other.units, 'TimeSeries units must match for addition'
+    #
+    #         new = self.copy()
+    #
+    #         # Add time values
+    #         if self.t == other.t:
+    #             new.t = [x+y for x,y in zip(self.vals, other.vals)]
+    #         else:
+    #             # Interpolate and add the time values
+    #             t_out = sorted(set(self.t).union(set(other.t)))
+    #             new.t = t_out
+    #             new.vals = (self.interpolate(t_out) * other.interpolate(t_out)).tolist()
+    #
+    #         # Add the assumption
+    #         if (self.assumption is None) or (other.assumption is None):
+    #             new.assumption = None
+    #         else:
+    #             new.assumption = self.assumption * other.assumption
+    #
+    #         # Propagate uncertainty
+    #         if (self.sigma is None) or (other.sigma is None):
+    #             new.sigma = None
+    #         else:
+    #             raise NotImplementedError # Proper propagation is time dependent
+    #
+    #     else:
+    #         # Should be a numeric type
+    #         new = self.copy()
+    #         new.vals = [x*other for x in self.vals]
+    #         new.assumption = self.assumption*other if self.assumption is not None else None
+    #         new.assumption = self.sigma*other if self.sigma is not None else None
+    #
+    #     return new
+
     def copy(self):
         """
         Return a copy of the ``TimeSeries``

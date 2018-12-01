@@ -239,9 +239,6 @@ class Project(object):
 
         """
 
-        logger.debug('Making ProgramSet')
-        logger.debug('Uploading program data')
-
         if self.data is None:
             errormsg = 'Please upload a databook before uploading a program book. The databook contains the population definitions required to read the program book.'
             raise Exception(errormsg)
@@ -255,11 +252,8 @@ class Project(object):
         progset = ProgramSet.from_spreadsheet(spreadsheet=progbook_spreadsheet, framework=self.framework, data=self.data, name=name)
         progset.validate()
         self.progbook = sc.dcp(progbook_spreadsheet)  # Actually a shallow copy is fine here because AtomicaSpreadsheet contains no mutable properties
-
-        logger.debug('Updating program sets')
         self.progsets.append(progset)
-        logger.debug('Done with make_progset().')
-
+        return progset
 
     def make_scenario(self, name="default", which=None, instructions=None, json=None):
         if json is not None:

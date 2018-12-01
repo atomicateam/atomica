@@ -65,6 +65,24 @@ class ProgramInstructions(object):
                 else:
                     self.coverage[prog_name] = TimeSeries(t=self.start_year, vals=cov_values)
 
+    def scale(self,scale_factor: float) -> None:
+        """
+        Scale allocation by a constant
+
+        This method multiplies the budget by a constant to scale the total budget up or down.
+        The scale factor is applied at all time points.
+
+        :param scale_factor: Multiplicative factor for spending
+        :return: A new, scaled copy of the instructions
+
+        """
+        assert scale_factor >=0, 'Cannot have a negative scale factor'
+        new = sc.dcp(self)
+        for ts in new.alloc.values():
+            ts.vals = [x*scale_factor for x in ts.vals]
+            ts.assumption = ts.assumption*scale_factor if ts.assumption is not None else None
+            ts.uncertainty = ts.sigma*scale_factor if ts.sigma is not None else None
+        return new
 
 class ProgramSet(NamedItem):
     """ A collection of programs
