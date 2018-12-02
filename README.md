@@ -38,8 +38,6 @@ cd atomica
 python setup.py develop
 ```
 
-You can test with:
-
 ```
 cd atomica/tests
 python testworkflow.py

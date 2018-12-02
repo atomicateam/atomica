@@ -90,7 +90,7 @@ def save_figs(figs, path='.', prefix='', fnames=None) -> None:
         logger.info('Saved figure "%s"', fname)
 
 
-class PlotData():
+class PlotData:
     """
     Process model outputs into plottable quantities
 
@@ -99,6 +99,12 @@ class PlotData():
     But we are performing an extraction step rather than doing it directly because things like
     labels, colours, groupings etc. only apply to plots, not to results, and there could be several
     different views of the same data.
+
+    Operators for ``-`` and ``/`` are defined to faciliate looking at differences and relative
+    differences of derived quantities (quantities computed using ``PlotData`` operations) across
+    individual results. To keep the implementation tractable, they don't generalize further than that,
+    and operators ``+`` and ``*`` are not implemented because these operations rarely make sense
+    for the data being operated on.
 
     :param results: which results to plot. Can be
                   - a Result,
@@ -527,6 +533,102 @@ class PlotData():
         s += "Outputs: {0}\n".format(self.outputs.keys())
         return s
 
+    def __sub__(self, other):
+        """
+        Difference between two instances
+
+        This function iterates over all Series and takes their difference.
+        The intended functionality is when wanting to compute the difference
+        of derived quantities between two results. It only functions clearly when
+        the only difference between two PlotData instances is the result they were
+        constructed on. For example, model usage would be
+
+        >>> a = PlotData(result1, outputs, pops)
+        >>> b = PlotData(result2, outputs, pops)
+        >>> c = a-b
+
+        Both PlotData instances must have
+
+            - A single result (names don't need to match)
+            - The same pops
+            - The same outputs
+            - The same units (i.e. the same aggregation steps)
+            - The same time points
+
+        Series will be copied from the left :class:`PlotData` instance so ordering, formatting, and
+        labels will be drawn from ``a`` rather than ``b``. In practice, it would be usually
+        be best to operate on the :class:`PlotData` values first, before setting formatting etc.
+
+
+        :param other: A :class:`PlotData` instance to subtract off
+        :return: A new :class:`PlotData` instance
+        """
+
+        assert isinstance(other,self.__class__), 'PlotData subtraction can only operate on another PlotData instance'
+        assert set(self.pops) == set(other.pops), 'PlotData subtraction requires both instances to have the same populations'
+        assert set(self.outputs) == set(other.outputs), 'PlotData subtraction requires both instances to have the same populations'
+        assert np.array_equal(self.tvals()[0], other.tvals()[0])
+
+        new = sc.dcp(self)
+        for s1 in new.series:
+            s2 = other[other.results[0],s1.pop,s1.output]
+            assert s1.units == s2.units
+            assert s1.timescale == s2.timescale
+            s1.vals = s1.vals - s2.vals
+            s1.result = '%s-%s' % (s1.result,s2.result)
+        new.results = sc.odict({s1.result:s1.result})
+        return new
+
+
+    def __truediv__(self, other):
+        """
+        Divide two instances
+
+        This function iterates over all Series and divides them. The original intention
+        is to use this functionality when wanting to compute fractional differences between
+        insteances. It only functions clearly when the only difference between two PlotData instances is the result they were
+        constructed on. For example, model usage would be
+
+        >>> a = PlotData(result1, outputs, pops)
+        >>> b = PlotData(result2, outputs, pops)
+        >>> c = (a-b)/a
+
+        Both PlotData instances must have
+
+            - A single result (names don't need to match)
+            - The same pops
+            - The same outputs
+            - The same units (i.e. the same aggregation steps)
+            - The same time points
+
+        Series will be copied from the left :class:`PlotData` instance so ordering, formatting, and
+        labels will be drawn from ``a`` rather than ``b``. In practice, it would be usually
+        be best to operate on the :class:`PlotData` values first, before setting formatting etc.
+
+
+        :param other: A :class:`PlotData` instance to serve as denominator in division
+        :return: A new :class:`PlotData` instance
+
+        """
+
+        assert isinstance(other,self.__class__), 'PlotData subtraction can only operate on another PlotData instance'
+        assert set(self.pops) == set(other.pops), 'PlotData subtraction requires both instances to have the same populations'
+        assert set(self.outputs) == set(other.outputs), 'PlotData subtraction requires both instances to have the same populations'
+        assert np.array_equal(self.tvals()[0], other.tvals()[0])
+
+        new = sc.dcp(self)
+        for s1 in new.series:
+            s2 = other[other.results[0],s1.pop,s1.output]
+            assert s1.units == s2.units
+            assert s1.timescale == s2.timescale
+            s1.vals = s1.vals / s2.vals
+            s1.result = '%s/%s' % (s1.result,s2.result)
+            s1.units = ''
+        new.results = sc.odict({s1.result:s1.result})
+        return new
+
+
+
     @staticmethod
     def programs(results, outputs=None, t_bins=None, quantity='spending', accumulate=None):
         """
@@ -682,6 +784,8 @@ class PlotData():
         >>> d = PlotData(result)
         ... d.interpolate(tvals)
 
+        and
+
         >>> vals = PlotData(result).interpolate(tvals)
 
         will work as intended.
@@ -782,7 +886,7 @@ class PlotData():
         return self
 
 
-class Series():
+class Series:
     """
     Represent a plottable time series
 
@@ -798,10 +902,10 @@ class Series():
     :param color: the color to render the `Series` with
     :param units: the units for the values
     :param timescale: For Number, Probability and Duration units, there are timescales associated with them
-    :timescale_numerator: Boolean flag. If True, the timescale a
+
     """
 
-    def __init__(self, tvec, vals, result='default', pop='default', output='default', data_label='', color=None, units='', timescale=None, timescale_numerator=False):
+    def __init__(self, tvec, vals, result='default', pop='default', output='default', data_label='', color=None, units='', timescale=None):
         self.tvec = np.copy(tvec) #: array of time values
         self.t_labels = np.copy(self.tvec) #: Iterable array of time labels - could be set to strings like [2010-2014]
         self.vals = np.copy(vals) #: array of values
@@ -817,7 +921,6 @@ class Series():
         #: For links, the timescale is normally just ``dt``. This also enables more rigorous checking for quantities with time denominators than checking
         #: for a string like ``'/year'`` because users may not set this specifically.
         self.timescale = timescale
-        self.timescale_numerator = timescale_numerator
 
         if np.any(np.isnan(vals)):
             logger.warning('%s contains NaNs', self)

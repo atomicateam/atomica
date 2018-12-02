@@ -7,46 +7,58 @@ set of programs, respectively.
 
 """
 
-import sciris as sc
-from .system import logger
-from .utils import NamedItem
-from numpy import array, exp, minimum, inf
-from .utils import TimeSeries
-from .system import FrameworkSettings as FS
-from .excel import standard_formats, AtomicaSpreadsheet, apply_widths, update_widths, read_tables, TimeDependentValuesEntry, validate_category
-from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
+import io
+
+import numpy as np
 import openpyxl
 import xlsxwriter as xw
-import io
-import numpy as np
+from numpy import array, exp, minimum
+from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
+
+import sciris as sc
+from .excel import standard_formats, AtomicaSpreadsheet, apply_widths, update_widths, read_tables, TimeDependentValuesEntry, validate_category
+from .system import FrameworkSettings as FS
+from .system import logger
+from .utils import NamedItem
+from .utils import TimeSeries
 
 
 class ProgramInstructions(object):
-    def __init__(self, alloc=None, start_year=None, stop_year=None, coverage=None):
-        """ Set up a structure that stores instructions for a model on how to use programs. """
-        # Instantiate a new ProgramInstructions instance. ProgramInstructions specify how to use programs
-        # - specifically, which years the programs are applied from, and any funding overwrites from the
-        # allocations specified in the progbook.
-        #
-        # INPUTS
-        # - alloc : The allocation. It can be
-        #           - A dict keyed by program name, containing a scalar spend, or a TimeSeries of spending values. If the spend is
-        #             scalar, it will be assigned to the start year
-        #           - A ProgramSet instance, in which case an allocation will be assigned by interpolating the ProgramSet's
-        #             spending onto the program start year. This is a shortcut to ensure that budget scenarios and optimizations
-        #             where spending is specified in future years ramp correctly from the program start year (and not the last year
-        #             that data was entered for)
-        # - coverage : Overwrites to proportion coverage. It can be
-        #           - A dict keyed by program name, containing a scalar coverage or a TimeSeries of coverage values
-        #   Note that coverage overwrites have no effect
+    """
+    Settings for how to apply programs
 
-        self.start_year = start_year if start_year else 2018.
-        self.stop_year = stop_year if stop_year else inf
+    A :class:`ProgramSet` contains the information in the databook on program spending and outcomes.
+    However, to apply programs, at the very least we need to specify the year in which programs should
+    take effect, which is done on a per-simulation basis. Further, when performing optimization, we want
+    to overwrite the spending amounts without changing the other properties of programs (i.e. targeting
+    and outcomes). Therefore, a simulation takes in both a :class:`ProgramSet` which defines the programs,
+    and a :class:`ProgramInstructions`, which specifies how to apply the :class:`ProgramSet` when running
+    the model. The :class:`ProgramInstructions` contains
 
-        # Alloc should be a dict keyed by program name
-        # The entries can either be a scalar number, assumed to be spending in the start year, or
-        # a TimeSeries object. The alloc is converted to TimeSeries if provided as a scalar
-        self.alloc = sc.odict()
+    - The years in which programs should be used
+    - Any overwrites to allocation or coverage that should be applied
+
+    :param alloc: The allocation. It can be
+          - A dict keyed by program name, containing a scalar spend, or a TimeSeries of spending values. If the spend is
+            scalar, it will be assigned to the start year
+          - A ProgramSet instance, in which case an allocation will be assigned by interpolating the ProgramSet's
+            spending onto the program start year. This is a shortcut to ensure that budget scenarios and optimizations
+            where spending is specified in future years ramp correctly from the program start year (and not the last year
+            that data was entered for)
+    :param start_year: Scalar year in which to turn programs on
+    :param stop_year: Scalar year in which to turn programs off
+    :param coverage: Overwrites to proportion coverage. This is a dict keyed by program name, containing
+                 - a scalar coverage, or
+                 - a TimeSeries of coverage values
+
+    """
+
+    def __init__(self, alloc: None, start_year: float = 2018, stop_year: float = np.inf, coverage: dict = None):
+
+        self.start_year = start_year  #: Scalar year in which programs turn on
+        self.stop_year = stop_year  #: Scalar year in which programs turn off
+
+        self.alloc = sc.odict()  #: A dict of :class:`TimeSeries` instances storing spending overwrites
         if isinstance(alloc, ProgramSet):
             for prog in alloc.programs.values():
                 self.alloc[prog.name] = TimeSeries(t=self.start_year, vals=prog.spend_data.interpolate(self.start_year))
@@ -57,7 +69,7 @@ class ProgramInstructions(object):
                 elif spending is not None:
                     self.alloc[prog_name] = TimeSeries(t=self.start_year, vals=spending)
 
-        self.coverage = sc.odict()  # Dict keyed by program name that stores a time series of coverages
+        self.coverage = sc.odict()  #: A dict of :class:`TimeSeries` instances storing coverage overwrites
         if coverage:
             for prog_name, cov_values in coverage.items():
                 if isinstance(cov_values, TimeSeries):
@@ -65,7 +77,7 @@ class ProgramInstructions(object):
                 else:
                     self.coverage[prog_name] = TimeSeries(t=self.start_year, vals=cov_values)
 
-    def scale(self,scale_factor: float) -> None:
+    def scale(self, scale_factor: float) -> None:
         """
         Scale allocation by a constant
 
@@ -76,13 +88,14 @@ class ProgramInstructions(object):
         :return: A new, scaled copy of the instructions
 
         """
-        assert scale_factor >=0, 'Cannot have a negative scale factor'
+        assert scale_factor >= 0, 'Cannot have a negative scale factor'
         new = sc.dcp(self)
         for ts in new.alloc.values():
-            ts.vals = [x*scale_factor for x in ts.vals]
-            ts.assumption = ts.assumption*scale_factor if ts.assumption is not None else None
-            ts.uncertainty = ts.sigma*scale_factor if ts.sigma is not None else None
+            ts.vals = [x * scale_factor for x in ts.vals]
+            ts.assumption = ts.assumption * scale_factor if ts.assumption is not None else None
+            ts.uncertainty = ts.sigma * scale_factor if ts.sigma is not None else None
         return new
+
 
 class ProgramSet(NamedItem):
     """ A collection of programs
@@ -141,6 +154,11 @@ class ProgramSet(NamedItem):
         This function converts the input name to a code name, thereby allowing operations
         like removing pops/comps/pars/progs to be performed by code name or by full name
 
+        Code names are unique because they key the program dictionary. Full names are likely unique
+        but may not be. Code names will be returned as-is so take precedence over full names. For example,
+        if you have a program with a particular code name, and other programs with that same name used as
+        the full name, this method will return the program with the matching code name.
+
         :param name: A code name or full name
         :return: A code name
 
@@ -168,11 +186,26 @@ class ProgramSet(NamedItem):
         raise Exception('Could not find full name for quantity "%s" (n.b. this is case sensitive)' % (name))
 
     def add_program(self, code_name, full_name) -> None:
+        """
+        Add a program
+
+        :param code_name: Code name of the new program to add
+        :param full_name: Full name of the new program to add
+
+        """
         # To add a program, we just need to construct one
         prog = Program(name=code_name, label=full_name, currency=self.currency)
+        if prog.name in self.programs:
+            raise Exception('Program with name "%s" is already present in the ProgramSet' % (prog.name))
         self.programs[prog.name] = prog
 
     def remove_program(self, name) -> None:
+        """
+        Remove a program
+
+        :param name: The code name or full name of the program to remove
+
+        """
         # Remove the program from the progs dict
         code_name = self._get_code_name(name)
 
@@ -219,10 +252,32 @@ class ProgramSet(NamedItem):
         del self.pops[code_name]
 
     def add_comp(self, code_name: str, full_name: str) -> None:
+        """
+        Add a compartment
+
+        The primary use case would be when an existing project has a change made to the framework and it's
+        desired to update an already filled out program book.
+
+        :param code_name: Code name of the compartment to add
+        :param full_name: Full name of the compartment to add
+
+        """
         self.comps[code_name] = full_name
 
     def remove_comp(self, name: str) -> None:
-        # If we remove a compartment, we need to remove it from every population
+        """
+        Remove a compartment
+
+        The primary use case would be when an existing project has a change made to the framework and it's
+        desired to update an already filled out program book.
+
+        Note that removing a compartment also requires removing it as a target compartment from all
+        programs, which is automatically handled by this method.
+
+        :param code_name: Code name or full name of the compartment to remove
+
+        """
+
         code_name = self._get_code_name(name)
         for prog in self.programs.values():
             if code_name in prog.target_comps:
@@ -230,14 +285,35 @@ class ProgramSet(NamedItem):
         del self.comps[code_name]
 
     def add_par(self, code_name: str, full_name: str) -> None:
+        """
+        Add a parameter
+
+        The primary use case would be when an existing project has a change made to the framework and it's
+        desired to update an already filled out program book.
+
+        :param code_name: Code name of the parameter to add
+        :param full_name: Full name of the parameter to add
+
+        """
+
         # add an impact parameter
         # a new impact parameter won't have any covouts associated with it, and no programs will be bound to it
         # So all we have to do is add it to the list
         self.pars[code_name] = full_name
 
     def remove_par(self, name: str) -> None:
-        # remove an impact parameter
-        # we need to remove all of the covouts that affect it
+        """
+        Remove a parameter
+
+        The primary use case would be when an existing project has a change made to the framework and it's
+        desired to update an already filled out program book.
+
+        Note that removing a parameter also requires removing all of the :class:`Covout` instances associated with it.
+
+        :param name: Code name or full name of the parameter to remove
+
+        """
+
         code_name = self._get_code_name(name)
         for pop in self.pops:
             if (code_name, pop) in self.covouts:
@@ -805,12 +881,12 @@ class ProgramSet(NamedItem):
         [newps.add_program(k, v) for k, v in progs.items()]
         return newps
 
-    def validate(self):
+    def validate(self) -> None:
         """
         Perform basic validation checks
 
-        :raises Exception is anything is invalid
-        :return: None
+        :raises: Exception is anything is invalid
+
         """
         for prog in self.programs.values():
             if not prog.target_comps:
@@ -829,6 +905,7 @@ class ProgramSet(NamedItem):
         :param tvec: array of times (in years) - this is required to interpolate time-varying spending values
         :param instructions: optionally specify instructions, which can supply a spending overwrite
         :return: Dict like ``{prog_name: np.array()}`` with spending on each program (in units of '$/year' or currency equivalent)
+
         """
 
         tvec = sc.promotetoarray(tvec)
@@ -843,7 +920,8 @@ class ProgramSet(NamedItem):
         return alloc
 
     def get_num_coverage(self, tvec, dt, instructions=None) -> dict:
-        """ Return the number coverage of each program
+        """
+        Return the number coverage of each program
 
         :param tvec: array of times (in years) - this is required to interpolate time-varying unit costs and capacity constraints
         :param dt: scalar timestep size - this is required to adjust spending on incidence-type programs
@@ -868,7 +946,8 @@ class ProgramSet(NamedItem):
         return num_coverage
 
     def get_prop_coverage(self, tvec, num_coverage: dict, denominator: dict, instructions=None) -> dict:
-        """ Return the fractional coverage of each program
+        """
+        Return the fractional coverage of each program
 
         Note the evaluating the proportion coverage for a ProgramSet is not a straight division because
 
@@ -892,7 +971,8 @@ class ProgramSet(NamedItem):
         return prop_coverage
 
     def get_outcomes(self, prop_coverage: dict) -> dict:
-        """ Get a dictionary of parameter values associated with coverage levels (at a single point in time)
+        """
+        Get a dictionary of parameter values associated with coverage levels (at a single point in time)
 
         Since the modality interactions in Covout.get_outcome() assume that the coverage is scalar, this function
         will also only work for scalar coverage. Therefore, the prop coverage would normally come from
@@ -933,30 +1013,28 @@ class Program(NamedItem):
     A Program object will be instantiated for every program listed on the 'Program Targeting'
     sheet in the program book
 
+    :param name: Short name of the program
+    :param label: Full name of the program
+    :param target_pops: List of population code names for pops targeted by the program
+    :param target_comps: List of compartment code names for compartments targeted by the program
+    :param currency: The currency to use (for display purposes only) - normally this would be set to ``ProgramSet.currency`` by ``ProgramSet.add_program()``
+
     """
 
     def __init__(self, name, label=None, target_pops=None, target_comps=None, currency='$'):
-        """
-        :param name: Short name of the program
-        :param label: Full name of the program
-        :param target_pops: List of population code names for pops targeted by the program
-        :param target_comps: List of compartment code names for compartments targeted by the program
-        :param currency: The currency to use (for display purposes only) - normally this would be set to ``ProgramSet.currency`` by ``ProgramSet.add_program()``
-        """
-
         NamedItem.__init__(self, name)
-        self.name = name  # Short name of program
-        self.label = name if label is None else label  # Full name of the program
-        self.target_pops = [] if target_pops is None else target_pops  # List of populations targeted by the program
-        self.target_comps = [] if target_comps is None else target_comps  # Compartments targeted by the program - used for calculating coverage denominators
-        self.baseline_spend = TimeSeries(assumption=0.0, units=currency + '/year')  # A TimeSeries with any baseline spending data - currently not exposed in progbook
-        self.spend_data = TimeSeries(units=currency + '/year')  # TimeSeries with spending data
-        self.unit_cost = TimeSeries(units=currency + '/person (one-off)')  # TimeSeries with unit cost of program
-        self.capacity = TimeSeries(units='people/year')  # TimeSeries with capacity of program - optional - if not supplied, cost function is assumed to be linear
-        self.saturation = TimeSeries(units=FS.DEFAULT_SYMBOL_INAPPLICABLE)
-        self.coverage = TimeSeries(units='people/year')  # TimeSeries with capacity of program - optional - if not supplied, cost function is assumed to be linear
+        self.name = name  #: Short name of program
+        self.label = name if label is None else label  #: Full name of the program
+        self.target_pops = [] if target_pops is None else target_pops  #: List of populations targeted by the program
+        self.target_comps = [] if target_comps is None else target_comps  #: Compartments targeted by the program - used for calculating coverage denominators
+        self.baseline_spend = TimeSeries(assumption=0.0, units=currency + '/year')  #: A TimeSeries with any baseline spending data - currently not exposed in progbook
+        self.spend_data = TimeSeries(units=currency + '/year')  #: TimeSeries with spending data for the program
+        self.unit_cost = TimeSeries(units=currency + '/person (one-off)')  #: TimeSeries with unit cost of the program
+        self.capacity = TimeSeries(units='people/year')  #: TimeSeries with capacity constraint for the program
+        self.saturation = TimeSeries(units=FS.DEFAULT_SYMBOL_INAPPLICABLE) #: TimeSeries with saturation constraint that is applied to fractional coverage
+        self.coverage = TimeSeries(units='people/year')  #: TimeSeries with capacity of program - optional - if not supplied, cost function is assumed to be linear
 
-    def sample(self,constant:bool) -> None:
+    def sample(self, constant: bool) -> None:
         """
         Perturb program values based on uncertainties
 
@@ -975,7 +1053,6 @@ class Program(NamedItem):
         self.coverage = self.coverage.sample(constant)
 
     def __repr__(self):
-        ''' Print out useful info'''
         output = sc.prepr(self)
         output += '          Program name: %s\n' % self.name
         output += '         Program label: %s\n' % self.label
@@ -984,8 +1061,16 @@ class Program(NamedItem):
         output += '\n'
         return output
 
-    def get_spend(self, year=None, total=False):
-        ''' Convenience function for getting spending data'''
+    def get_spend(self, year=None, total=False) -> np.array:
+        """
+        Retrieve program spending
+
+        :param year: Scalar, list, or array of years to retrieve spending in
+        :param total: If True, the baseline spend will be added to the spending data
+        :return: Array of spending values
+
+        """
+
         if total:
             return self.spend_data.interpolate(year) + self.baseline_spend.interpolate(year)
         else:
@@ -995,9 +1080,9 @@ class Program(NamedItem):
         """
         Return number of people covered
 
-        :param tvec: A vector of times
-        :param spending: A vector of spending values, the same size as ``tvec``
-        :param dt: The time step size
+        :param tvec: A scalar, list, or array of times
+        :param spending: A vector of spending values (in units of '$/year'), the same size as ``tvec``
+        :param dt: The time step size (required because the number covered at each time step potentially depends on the spending per-timestep)
         :return: Array the same size as ``tvec``, with coverage in units of 'people'
 
         """
@@ -1067,7 +1152,7 @@ class Covout(object):
 
     """
 
-    def __init__(self, par:str, pop:str, progs:dict, cov_interaction:str=None, imp_interaction:str=None, uncertainty=0.0, baseline=0.0):
+    def __init__(self, par: str, pop: str, progs: dict, cov_interaction: str = None, imp_interaction: str = None, uncertainty=0.0, baseline=0.0):
 
         if cov_interaction is None:
             cov_interaction = 'additive'

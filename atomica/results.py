@@ -6,17 +6,16 @@ providing methods to conveniently access, plot, and export model outputs.
 
 """
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import sciris as sc
-from .utils import NamedItem
-import matplotlib.pyplot as plt
-import ast
-from .excel import standard_formats
-from .system import logger
-from .system import FrameworkSettings as FS
-from .utils import evaluate_plot_string
+from scipy import stats
 
+import sciris as sc
+from .excel import standard_formats
+from .system import FrameworkSettings as FS
+from .utils import NamedItem
+from .utils import evaluate_plot_string
 
 class Result(NamedItem):
     # A Result stores a single model run
@@ -515,9 +514,8 @@ def _write_df(writer, formats, sheet_name, df, level_ordering):
         if required_width[i] > 0:
             worksheet.set_column(i, i, required_width[i] * 1.1 + 1)
 
-from scipy import stats
 
-class Ensemble():
+class Ensemble:
     """
     Class for working with sampled Results
 
@@ -530,36 +528,101 @@ class Ensemble():
     - A reduction function that maps from Results^N => R^M where typically M would
       index
 
+    :param mapping_function: A function that takes in a Result, or a list/dict of Results, and returns a single PlotData instance
 
     """
 
     def __init__(self, mapping_function):
-        self.mapping_function = mapping_function
-        self.samples = []
-        self.baseline = None
 
-    def set_baseline(self,results) -> None:
-        self.baseline = self.mapping_function(results)
+        # Note that we do not automatically insert Results here, because we don't know whether to
+        # treat a list of results as separate samples, or a single argument to the mapping function.
 
-    def add_sample(self,results) -> None:
-        self.samples.append(self.mapping_function(results))
+        self.mapping_function = mapping_function  #: This function gets called by :meth:`Ensemble.add_sample`
+        self.samples = []  #: A list of :class:`PlotData` instances, one for each sample
+        self.baseline = None  #: A single PlotData instance with reference values (i.e. outcome without sampling)
 
-    def plot_distribution(self, ti=None, fig=None):
+    def set_baseline(self, results, **kwargs) -> None:
+        """
+        Add a baseline to the Ensemble
+
+        This function assigns a special result corresponding to the unsampled case
+        as a reference. This result can be rendered in a different way on plots - for
+        example, as a vertical line on density estimates, or a solid line on a time series plot.
+
+        :param results: A Result, or list/dict of Results, as supported by the mapping function
+        :param kwargs: Any additional keyword arguments to pass to the mapping function
+
+        """
+        self.baseline = self.mapping_function(results, **kwargs)
+
+    def add(self, results, **kwargs) -> None:
+        """
+        Add a sample to the Ensemble
+
+        This function takes in Results and optionally any other arguments needed
+        by the Ensemble's mapping function. It calls the mapping function and adds
+        the resulting PlotData instance to the list of samples.
+
+        :param results: A Result, or list/dict of Results, as supported by the mapping function
+        :param kwargs: Any additional keyword arguments to pass to the mapping function
+
+        """
+
+        from .plotting import PlotData
+
+        plotdata = self.mapping_function(results, **kwargs)
+        assert isinstance(plotdata, PlotData) # Make sure the mapping function returns the correct type
+        assert len(plotdata.results)
+        self.samples.append()
+
+    def update(self, result_list, **kwargs) -> None:
+        """
+        Add multiple samples to the Ensemble
+
+        The implementation of :meth:`add` vs :meth`update` parallels the behaviour of
+        Python built-in sets, where :meth:`set.add` is used to add a single item, and
+        :meth:`set.update` is used to add multiple items. This function is intended for
+        cases where the user has stores multiple samples in memory and wants to dynamically
+        construct Ensembles after the fact.
+
+        The input list here is an iterable, and :meth:`Ensemble.add` gets called on every
+        item in the list. It is up to the mapping function then to handle whether the items
+        in `result_list` are single :class:`Result` instances or lists/tuples/dicts of Results.
+
+        :param result_list: A list of samples, as supported by the mapping function (i.e.
+                            the individual items would work with :meth:`Ensemble.add`)
+        :param kwargs: Any additional keyword arguments to pass to the mapping function
+
+        """
+
+        for sample in result_list:
+            self.add(sample, **kwargs)
+
+    def plot_distribution(self, ti=0, fig=None):
+        """
+        Plot a kernel density distribution
+
+        This method will plot kernel density estimates for all outputs and populations in
+        the Ensemble.
+
+        :param ti: Time index to plot (default is the first timepoint)
+        :param fig: Optionally specify a figure handle to plot into
+        :return:
+
+        """
         if fig is None:
             fig = plt.figure()
 
         if not self.samples:
             raise Exception('No samples added')
 
-
-        for i in range(len(self.samples[0])):
-
-        # Get the distribution over outcomes
-        fn = lambda x: x.get_variable('m_rural', 'con')[0].vals[-1]
-        kernel = stats.gaussian_kde(np.array([fn(x) for x in res]).ravel())
+        # for i in range(len(self.samples[0])):
+        #
+        # # Get the distribution over outcomes
+        # fn = lambda x: x.get_variable('m_rural', 'con')[0].vals[-1]
+        # kernel = stats.gaussian_kde(np.array([fn(x) for x in res]).ravel())
 
         x = np.linspace(105, 115, 500)
-        plt.figure()
         plt.plot(x, kernel(x), label='With uncertainty')
         plt.axvline(fn(self.baseline), color='r', label='Baseline values')
         plt.legend()
@@ -569,4 +632,3 @@ class Ensemble():
             raise Exception('No samples added')
 
         n_vars = len(self.samples[0])
-        n_times =

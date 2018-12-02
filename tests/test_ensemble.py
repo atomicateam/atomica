@@ -12,25 +12,41 @@ P.load_progbook(testdir + 'test_uncertainty_high_progbook.xlsx')
 default_budget = at.ProgramInstructions(start_year=2018, alloc=P.progsets[0])
 doubled_budget = default_budget.scale(2)
 
-# Test the outcome of one of the budgets on a scalar in the final year
-fn = lambda x: x.get_variable('m_rural','con')[0].vals[-1] # Function mapping a result to an outcome
-ensemble = at.Ensemble(fn)
-baseline = P.run_sim(P.parsets[0],progset=P.progsets[0],progset_instructions=default_budget)
-ensemble.set_baseline(baseline)
+# res = P.run_sim(P.parsets[0],progset=P.progsets[0],progset_instructions=default_budget)
+# d = at.PlotData(res)
+# d-sc.dcp(d)
+
+res = P.run_sim(P.parsets[0].sample(),progset=P.progsets[0].sample(),progset_instructions=default_budget)
+a = at.PlotData(res)
+res = P.run_sim(P.parsets[0].sample(),progset=P.progsets[0].sample(),progset_instructions=default_budget)
+b = at.PlotData(res)
+c = a-b
+d = c/a
+
+res = P.run_sim(P.parsets[0],progset=P.progsets[0],progset_instructions=default_budget)
+
+# Test the outcome of one of the budgets on a scalar in a particular year
+fn = lambda x: at.PlotData(x,outputs='con',pops='m_rural').interpolate(2020)
+ensemble = at.Ensemble(fn) # Create Ensemble, binding the function to it - could be done in one line of course
+ensemble.set_baseline(P.run_sim(P.parsets[0],progset=P.progsets[0],progset_instructions=default_budget))
 for i in range(100):
-    ensemble.add_sample(P.run_sim(P.parsets[0].sample(),progset=P.progsets[0].sample(),progset_instructions=default_budget))
+    ensemble.add(P.run_sim(P.parsets[0].sample(),progset=P.progsets[0].sample(),progset_instructions=default_budget))
 ensemble.plot_distribution()
+#
+# # Test the outcome of one of the budgets on a full TimeSeries
+# fn = lambda x: x.get_variable('m_rural','con')[0].vals # Function mapping a result to an outcome
+# ensemble = at.Ensemble(fn)
+# baseline = P.run_sim(P.parsets[0],progset=P.progsets[0],progset_instructions=default_budget)
+# ensemble.set_baseline(baseline)
+# for i in range(100):
+#     ensemble.add_sample(P.run_sim(P.parsets[0].sample(),progset=P.progsets[0].sample(),progset_instructions=default_budget))
+# ensemble.plot_distribution(ti=5)
 
-# Test the outcome of one of the budgets on a full TimeSeries
-fn = lambda x: x.get_variable('m_rural','con')[0].vals # Function mapping a result to an outcome
-ensemble = at.Ensemble(fn)
-baseline = P.run_sim(P.parsets[0],progset=P.progsets[0],progset_instructions=default_budget)
-ensemble.set_baseline(baseline)
-for i in range(100):
-    ensemble.add_sample(P.run_sim(P.parsets[0].sample(),progset=P.progsets[0].sample(),progset_instructions=default_budget))
-ensemble.plot_distribution(ti=5)
 
-
+## TODO - Write out all the plots to generate
+# - Comparisons of distributions for different cases and different times
+# - Pairwise difference distribution
+# - Timeseries versions of those same plots
 
 # for i in range(100):
 #     ensemble.add_sample(P.run_sim(P.parsets[0].sample()))

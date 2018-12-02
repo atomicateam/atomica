@@ -391,7 +391,7 @@ class Project(object):
         """ Modify the project settings, e.g. the simulation time vector. """
         self.settings.update_time_vector(start=sim_start, end=sim_end, dt=sim_dt)
 
-    def run_sim(self, parset=None, progset=None, progset_instructions=None, store_results=True, result_name=None):
+    def run_sim(self, parset=None, progset=None, progset_instructions=None, store_results=False, result_name:str=None):
         """
         Run a single simulation
 
@@ -402,7 +402,7 @@ class Project(object):
                         If ``None``, then the most recently added parset will be used (the last entry in ``self.parsets``)
         :param progset: Optionally pass in a :class:`ProgramSet` instance, or the name of a progset contained in ``self.progsets``
         :param progset_instructions: A :class:`ProgramInstructions` instance. Programs will only be used if a instructions are provided
-        :param store_results: If True (default) then the result will automatically be stored in ``self.results``
+        :param store_results: If True, then the result will automatically be stored in ``self.results``
         :param result_name: Optionally assign a specific name to the result (otherwise, a unique default name will automatically be selected)
         :return: A :class:`Result` instance
 
