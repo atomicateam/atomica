@@ -53,7 +53,7 @@ class ProgramInstructions(object):
 
     """
 
-    def __init__(self, alloc: None, start_year: float = 2018, stop_year: float = np.inf, coverage: dict = None):
+    def __init__(self, alloc = None, start_year: float = 2018, stop_year: float = np.inf, coverage: dict = None):
 
         self.start_year = start_year  #: Scalar year in which programs turn on
         self.stop_year = stop_year  #: Scalar year in which programs turn off
@@ -1031,7 +1031,7 @@ class Program(NamedItem):
         self.spend_data = TimeSeries(units=currency + '/year')  #: TimeSeries with spending data for the program
         self.unit_cost = TimeSeries(units=currency + '/person (one-off)')  #: TimeSeries with unit cost of the program
         self.capacity = TimeSeries(units='people/year')  #: TimeSeries with capacity constraint for the program
-        self.saturation = TimeSeries(units=FS.DEFAULT_SYMBOL_INAPPLICABLE) #: TimeSeries with saturation constraint that is applied to fractional coverage
+        self.saturation = TimeSeries(units=FS.DEFAULT_SYMBOL_INAPPLICABLE)  #: TimeSeries with saturation constraint that is applied to fractional coverage
         self.coverage = TimeSeries(units='people/year')  #: TimeSeries with capacity of program - optional - if not supplied, cost function is assumed to be linear
 
     def sample(self, constant: bool) -> None:
