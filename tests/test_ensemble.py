@@ -9,30 +9,42 @@ testdir = at.parent_dir()
 # def test_parset_sampling():
 P = at.Project(framework=testdir + 'test_uncertainty_framework.xlsx', databook=testdir + 'test_uncertainty_databook.xlsx')
 P.load_progbook(testdir + 'test_uncertainty_high_progbook.xlsx')
+
+
+low_uncertainty_progset = at.ProgramSet.from_spreadsheet(testdir + 'test_uncertainty_low_progbook.xlsx',project=P)
+high_uncertainty_progset = at.ProgramSet.from_spreadsheet(testdir + 'test_uncertainty_high_progbook.xlsx',project=P) # Alternatively, could have copied and set the uncertainties manually
 default_budget = at.ProgramInstructions(start_year=2018, alloc=P.progsets[0])
 doubled_budget = default_budget.scale(2)
 
-# res = P.run_sim(P.parsets[0],progset=P.progsets[0],progset_instructions=default_budget)
-# d = at.PlotData(res)
-# d-sc.dcp(d)
-
-res = P.run_sim(P.parsets[0].sample(),progset=P.progsets[0].sample(),progset_instructions=default_budget)
-a = at.PlotData(res)
-res = P.run_sim(P.parsets[0].sample(),progset=P.progsets[0].sample(),progset_instructions=default_budget)
-b = at.PlotData(res)
-c = a-b
-d = c/a
-
-res = P.run_sim(P.parsets[0],progset=P.progsets[0],progset_instructions=default_budget)
-
 # Test the outcome of one of the budgets on a scalar in a particular year
 fn = lambda x: at.PlotData(x,outputs='con',pops='m_rural').interpolate(2020)
-ensemble = at.Ensemble(fn) # Create Ensemble, binding the function to it - could be done in one line of course
-ensemble.set_baseline(P.run_sim(P.parsets[0],progset=P.progsets[0],progset_instructions=default_budget))
+single_output_single_pop = at.Ensemble(fn) # Create Ensemble, binding the function to it - could be done in one line of course
+
+fn = lambda x: at.PlotData(x,outputs='con').interpolate(2020)
+single_output_multi_pop = at.Ensemble(fn) # Create Ensemble, binding the function to it - could be done in one line of course
+
+fn = lambda x: at.PlotData(x,outputs='screen').interpolate(2020)
+multi_output_multi_pop = at.Ensemble(fn) # Create Ensemble, binding the function to it - could be done in one line of course
+
+baseline = P.run_sim(P.parsets[0],progset=P.progsets[0],progset_instructions=default_budget)
+single_output_single_pop.set_baseline(baseline)
+single_output_multi_pop.set_baseline(baseline)
+multi_output_multi_pop.set_baseline(baseline)
+
+
 for i in range(100):
-    ensemble.add(P.run_sim(P.parsets[0].sample(),progset=P.progsets[0].sample(),progset_instructions=default_budget))
-ensemble.plot_distribution()
-#
+    sampled_parset = P.parsets[0].sample()
+    sample_low = P.run_sim(sampled_parset,progset=low_uncertainty_progset.sample(),progset_instructions=default_budget)
+    # sample_high = P.run_sim(sampled_parset,progset=high_uncertainty_progset.sample(),progset_instructions=default_budget)
+
+    single_output_single_pop.add(sample_low)
+    single_output_multi_pop.add(sample_low)
+    multi_output_multi_pop.add(sample_low)
+
+single_output_single_pop.plot_distribution()
+single_output_multi_pop.plot_distribution()
+multi_output_multi_pop.plot_distribution()
+
 # # Test the outcome of one of the budgets on a full TimeSeries
 # fn = lambda x: x.get_variable('m_rural','con')[0].vals # Function mapping a result to an outcome
 # ensemble = at.Ensemble(fn)

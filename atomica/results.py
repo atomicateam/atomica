@@ -5,6 +5,8 @@ The :class:`Result` class is a wrapper for a :class:`Model` instance,
 providing methods to conveniently access, plot, and export model outputs.
 
 """
+from collections import defaultdict
+from typing import List
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -14,8 +16,10 @@ from scipy import stats
 import sciris as sc
 from .excel import standard_formats
 from .system import FrameworkSettings as FS
+from .system import logger
 from .utils import NamedItem
 from .utils import evaluate_plot_string
+
 
 class Result(NamedItem):
     # A Result stores a single model run
@@ -515,7 +519,7 @@ def _write_df(writer, formats, sheet_name, df, level_ordering):
             worksheet.set_column(i, i, required_width[i] * 1.1 + 1)
 
 
-class Ensemble:
+class Ensemble(NamedItem):
     """
     Class for working with sampled Results
 
@@ -529,17 +533,77 @@ class Ensemble:
       index
 
     :param mapping_function: A function that takes in a Result, or a list/dict of Results, and returns a single PlotData instance
+    :param name: Name for the Ensemble (will appear on plots)
+    :param baseline: Optionally provide the non-sampled results at instantiation
+    :param kwargs: Additional arguments to pass to the mapping function
 
     """
 
-    def __init__(self, mapping_function):
+    def __init__(self, mapping_function, name:str=None, baseline=None,**kwargs):
 
-        # Note that we do not automatically insert Results here, because we don't know whether to
-        # treat a list of results as separate samples, or a single argument to the mapping function.
-
+        NamedItem.__init__(self, name)
         self.mapping_function = mapping_function  #: This function gets called by :meth:`Ensemble.add_sample`
         self.samples = []  #: A list of :class:`PlotData` instances, one for each sample
         self.baseline = None  #: A single PlotData instance with reference values (i.e. outcome without sampling)
+
+        if baseline:
+            self.set_baseline(baseline,**kwargs)
+
+
+    @property
+    def n_samples(self) -> int:
+        """
+        Return number of samples present
+
+        :return: Number of samples contained in the :class:`Ensemble`
+
+        """
+
+        return len(self.samples)
+
+    @property
+    def outputs(self) -> list:
+        """
+        Return a list of outputs
+
+        The outputs are retrieved from the first sample, or the baseline
+        if no samples are present yet, or an empty list if no samples present.
+
+        It is generally assumed that the baseline and all samples should have the
+        same outputs and populations, because they should have all been generated
+        with the same mapping function
+
+        :return: A list of outputs (strings)
+
+        """
+        if self.samples:
+            return list(self.samples[0].outputs.keys())
+        elif self.baseline:
+            return list(self.baseline.outputs.keys())
+        else:
+            return list()
+
+    @property
+    def pops(self) -> list:
+        """
+        Return a list of populations
+
+        The pops are retrieved from the first sample, or the baseline
+        if no samples are present yet, or an empty list if no samples present.
+
+        It is generally assumed that the baseline and all samples should have the
+        same outputs and populations, because they should have all been generated
+        with the same mapping function
+
+        :return: A list of population names (strings)
+
+        """
+        if self.samples:
+            return list(self.samples[0].pops.keys())
+        elif self.baseline:
+            return list(self.baseline.pops.keys())
+        else:
+            return list()
 
     def set_baseline(self, results, **kwargs) -> None:
         """
@@ -553,7 +617,13 @@ class Ensemble:
         :param kwargs: Any additional keyword arguments to pass to the mapping function
 
         """
-        self.baseline = self.mapping_function(results, **kwargs)
+
+        from .plotting import PlotData
+
+        plotdata = self.mapping_function(results, **kwargs)
+        assert isinstance(plotdata, PlotData) # Make sure the mapping function returns the correct type
+        assert len(plotdata.results) == 1, 'The mapping function must return a PlotData instance with only one Result'
+        self.baseline = plotdata.set_colors(pops=plotdata.pops,outputs=plotdata.outputs))
 
     def add(self, results, **kwargs) -> None:
         """
@@ -572,8 +642,8 @@ class Ensemble:
 
         plotdata = self.mapping_function(results, **kwargs)
         assert isinstance(plotdata, PlotData) # Make sure the mapping function returns the correct type
-        assert len(plotdata.results)
-        self.samples.append()
+        assert len(plotdata.results) == 1, 'The mapping function must return a PlotData instance with only one Result'
+        self.samples.append(plotdata.set_colors(pops=plotdata.pops,outputs=plotdata.outputs))
 
     def update(self, result_list, **kwargs) -> None:
         """
@@ -598,37 +668,86 @@ class Ensemble:
         for sample in result_list:
             self.add(sample, **kwargs)
 
-    def plot_distribution(self, ti=0, fig=None):
+    def plot_distribution(self, year:float=None, fig=None, outputs:List[str]=None, pops:List[str]=None):
         """
         Plot a kernel density distribution
 
         This method will plot kernel density estimates for all outputs and populations in
         the Ensemble.
 
-        :param ti: Time index to plot (default is the first timepoint)
+        The :class:`PlotData` instances stored in the Ensemble could contain more than one
+        output/population. To facilitate superimposing Ensembles, by default they will all be plotted
+        into the figure. Specifying a string or list of strings for the outputs and pops will select
+        a subset of the quantities to plot. Most of the time, an Ensemble would only have one output/pop,
+        so it probably wouldn't matter.
+
+
+        :param year: If ``None``, plots the first time index, otherwise, interpolate to the target year
         :param fig: Optionally specify a figure handle to plot into
-        :return:
+        :param axis: Optionally specify whether to compare outputs or populations on the axis
+        :return: A matplotlib figure
 
         """
-        if fig is None:
-            fig = plt.figure()
 
         if not self.samples:
-            raise Exception('No samples added')
+            raise Exception('Cannot plot samples because no samples have been added yet')
+        outputs = outputs if outputs is not None else self.outputs
+        pops = pops if pops is not None else self.pops
 
-        # for i in range(len(self.samples[0])):
-        #
-        # # Get the distribution over outcomes
-        # fn = lambda x: x.get_variable('m_rural', 'con')[0].vals[-1]
-        # kernel = stats.gaussian_kde(np.array([fn(x) for x in res]).ravel())
+        if fig is None:
+            fig = plt.figure()
+        ax = plt.gca()
 
-        x = np.linspace(105, 115, 500)
-        plt.plot(x, kernel(x), label='With uncertainty')
-        plt.axvline(fn(self.baseline), color='r', label='Baseline values')
+        # Rearrange the samples into a more useful lookup structure
+        series_lookup = defaultdict(list)
+        for sample in self.samples:
+            for series in sample.series:
+                series_lookup[(series.output,series.pop)].append(series)
+
+        for output in outputs:
+            for pop in pops:
+                # Assemble the outputs
+                if year is None:
+                    vals = np.array([x.vals[0] for x in series_lookup[output,pop]])
+                else:
+                    vals = np.array([x.interpolate(year) for x in series_lookup[output,pop]])
+
+                color = series_lookup[output,pop][0].color
+                value_range = (vals.min(), vals.max())
+
+                if value_range[0] == value_range[1]:
+                    logger.warning('All values for %s-%s are the same, so no distribution will be visible' % (output, pop))
+                else:
+                    kernel = stats.gaussian_kde(vals)
+                    scale_up_range = 1.5 # Increase kernel density x range
+                    span = np.average(value_range) + np.diff(value_range)*[-1,1]/2*scale_up_range
+                    x = np.linspace(*span,100)
+                    # TODO - expand this range a bit
+                    plt.plot(x, kernel(x), label='%s-%s' % (output,pop),color=color)
+
+                if self.baseline:
+                    series = self.baseline[self.baseline.results[0],pop,output]
+                    val = series.vals[0] if year is None else series.interpolate(year)
+                    plt.axvline(val, color=color, label='Baseline %s-%s' % (output,pop), linestyle='dashed')
+
+                if ax.xaxis.get_label().get_text():
+                    assert series_lookup[output,pop][0].unit_string == ax.xaxis.get_label().get_text()
+                else:
+                    plt.xlabel(series_lookup[output,pop][0].unit_string)
+
+
         plt.legend()
+        plt.ylabel('Probability density')
+
+        return fig
 
     def plot_series(self):
         if not self.samples:
             raise Exception('No samples added')
 
         n_vars = len(self.samples[0])
+
+    def pairplot(self):
+        # Paired plot for different outputs
+        # See https://stackoverflow.com/questions/42592493/displaying-pair-plot-in-pandas-data-frame
+        raise NotImplementedError
