@@ -746,7 +746,7 @@ class Ensemble(NamedItem):
                     span = np.average(value_range) + np.diff(value_range)*[-1,1]/2*scale_up_range
                     x = np.linspace(*span,100)
                     # TODO - expand this range a bit
-                    h = plt.plot(x, kernel(x), label='%s-%s' % (output,pop))[0]
+                    h = plt.plot(x, kernel(x), label='%s: %s-%s' % (self.name,output,pop))[0]
                     color = h.get_color()
 
                 if self.baseline:

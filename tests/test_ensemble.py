@@ -66,9 +66,9 @@ all_together.pairplot()
 
 
 yld = lambda x: at.PlotData(x,outputs={'disease':['undx','scr','dx','tx']},t_bins=[2018,2023],time_aggregation='integrate')
-default_yld = at.Ensemble(yld)
+default_yld = at.Ensemble(yld,'default')
 default_yld.update(default_results)
-doubled_yld = at.Ensemble(yld)
+doubled_yld = at.Ensemble(yld,'doubled')
 doubled_yld.update(doubled_results)
 fig = default_yld.plot_distribution(pops='m_rural')
 doubled_yld.plot_distribution(pops='m_rural',fig=fig)
