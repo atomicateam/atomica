@@ -604,6 +604,28 @@ class Ensemble(NamedItem):
         else:
             return list()
 
+    @property
+    def results(self) -> list:
+        """
+        Return a list of result names
+
+        The result names are retrieved from the first sample, or the baseline
+        if no samples are present yet, or an empty list if no samples present.
+
+        It is generally assumed that the results will all have the same name in the
+        case that this Ensemble contains multiple PlotData samples. Otherwise, a key
+        error may occur.
+
+        :return: A list of population names (strings)
+
+        """
+        if self.samples:
+            return list(self.samples[0].results.keys())
+        elif self.baseline:
+            return list(self.baseline.results.keys())
+        else:
+            return list()
+
     def set_baseline(self, results, **kwargs) -> None:
         """
         Add a baseline to the Ensemble
@@ -698,6 +720,7 @@ class Ensemble(NamedItem):
         ax = plt.gca()
 
         # Rearrange the samples into a more useful lookup structure
+        # TODO - this assumes only one result is present, need to incorporate the result as well
         series_lookup = defaultdict(list)
         for sample in self.samples:
             for series in sample.series:
@@ -748,7 +771,41 @@ class Ensemble(NamedItem):
 
         n_vars = len(self.samples[0])
 
-    def pairplot(self):
+    def pairplot(self,year=None,outputs=None,pops=None):
         # Paired plot for different outputs
         # See https://stackoverflow.com/questions/42592493/displaying-pair-plot-in-pandas-data-frame
-        raise NotImplementedError
+        # General
+
+        # Paired plot
+        # One plot for each population
+        # Different colours for each result
+
+
+        if not self.samples:
+            raise Exception('Cannot plot samples because no samples have been added yet')
+        outputs = sc.promotetolist(outputs) if outputs is not None else self.outputs
+        pops = sc.promotetolist(pops) if pops is not None else self.pops
+
+        series_lookup = defaultdict(list)
+        for sample in self.samples:
+            for series in sample.series:
+                series_lookup[(series.result, series.pop, series.output)].append(series)
+
+        # Put all the values in a DataFrame
+        for pop in self.pops:
+            dfs = []
+            for result in self.results:
+                df_dict = dict()
+                # Construct a dataframe with all of the outputs, with categorical results
+                for output in self.outputs:
+                    df_dict[output] = [x.vals[0] for x in series_lookup[result,pop,output]]
+                df = pd.DataFrame.from_dict(df_dict)
+                df['result'] = result
+                dfs.append(df)
+            df = pd.concat(dfs)
+
+            colors = sc.gridcolors(len(self.results))
+            colormap = {x:y for x,y in zip(self.results,colors)}
+            pd.scatter_matrix(df, c=[colormap[x] for x in df['result'].values],diagonal='kde')
+            plt.suptitle(pop)
+
