@@ -64,6 +64,17 @@ fig = all_default.plot_distribution(year=2020,outputs='screen',pops='m_rural')
 all_doubled.plot_distribution(year=2020,outputs='screen',pops='m_rural',fig=fig)
 all_together.pairplot()
 
+
+yld = lambda x: at.PlotData(x,outputs={'disease':['undx','scr','dx','tx']},t_bins=[2018,2023],time_aggregation='integrate')
+default_yld = at.Ensemble(yld)
+default_yld.update(default_results)
+doubled_yld = at.Ensemble(yld)
+doubled_yld.update(doubled_results)
+fig = default_yld.plot_distribution(pops='m_rural')
+doubled_yld.plot_distribution(pops='m_rural',fig=fig)
+
+
+
 # There are two ways to compare distributions
 # - Within an Ensemble
 #   - Comparing multiple outputs/pops
