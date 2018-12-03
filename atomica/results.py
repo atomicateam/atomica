@@ -765,9 +765,11 @@ class Ensemble(NamedItem):
 
         return fig
 
-    def plot_series(self):
+    def plot_series(self, fig=None, outputs=None, pops=None):
+
         if not self.samples:
             raise Exception('No samples added')
+
 
         n_vars = len(self.samples[0])
 
