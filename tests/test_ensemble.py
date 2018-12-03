@@ -10,36 +10,90 @@ testdir = at.parent_dir()
 P = at.Project(framework=testdir + 'test_uncertainty_framework.xlsx', databook=testdir + 'test_uncertainty_databook.xlsx')
 P.load_progbook(testdir + 'test_uncertainty_high_progbook.xlsx')
 
-
 low_uncertainty_progset = at.ProgramSet.from_spreadsheet(testdir + 'test_uncertainty_low_progbook.xlsx',project=P)
-high_uncertainty_progset = at.ProgramSet.from_spreadsheet(testdir + 'test_uncertainty_high_progbook.xlsx',project=P) # Alternatively, could have copied and set the uncertainties manually
+high_uncertainty_progset = at.ProgramSet.from_spreadsheet(testdir + 'test_uncertainty_high_progbook.xlsx',project=P)
 default_budget = at.ProgramInstructions(start_year=2018, alloc=P.progsets[0])
 doubled_budget = default_budget.scale(2)
 
-# Test the outcome of one of the budgets on a scalar in a particular year
-fn = lambda x: at.PlotData(x,outputs='con',pops='m_rural').interpolate(2020)
-single_output_single_pop = at.Ensemble(fn) # Create Ensemble, binding the function to it - could be done in one line of course
+# Set up the ensembles
+store_all = lambda x: at.PlotData(x,outputs=['screen','diag'])
+store_minimal = lambda x: at.PlotData(x,outputs=['screen','diag'],pops='m_rural').interpolate(2020)
 
-fn = lambda x: at.PlotData(x,outputs='con').interpolate(2020)
-single_output_multi_pop = at.Ensemble(fn) # Create Ensemble, binding the function to it - could be done in one line of course
+all_default = at.Ensemble(store_all)
+all_doubled = at.Ensemble(store_all)
+all_together = at.Ensemble(store_all)
+minimal_default = at.Ensemble(store_all)
+minimal_doubled = at.Ensemble(store_all)
+minimal_together = at.Ensemble(store_all)
 
-fn = lambda x: at.PlotData(x,outputs='screen').interpolate(2020)
-multi_output_multi_pop = at.Ensemble(fn) # Create Ensemble, binding the function to it - could be done in one line of course
+# Do some baseline runs
+default_baseline = P.run_sim(P.parsets[0],progset=P.progsets[0],progset_instructions=default_budget,result_name='default')
+doubled_baseline = P.run_sim(P.parsets[0],progset=P.progsets[0],progset_instructions=doubled_budget,result_name='doubled')
 
-baseline = P.run_sim(P.parsets[0],progset=P.progsets[0],progset_instructions=default_budget)
-single_output_single_pop.set_baseline(baseline)
-single_output_multi_pop.set_baseline(baseline)
-multi_output_multi_pop.set_baseline(baseline)
+all_default.set_baseline(default_baseline)
+all_doubled.set_baseline(doubled_baseline)
+all_together.set_baseline([default_baseline,doubled_baseline])
+minimal_default.set_baseline(default_baseline)
+minimal_doubled.set_baseline(doubled_baseline)
+minimal_together.set_baseline([default_baseline,doubled_baseline])
 
+# Also hold onto the results to demonstrate using them as a list later on
+default_results = []
+doubled_results = []
 
 for i in range(100):
-    sampled_parset = P.parsets[0].sample()
-    sample_low = P.run_sim(sampled_parset,progset=low_uncertainty_progset.sample(),progset_instructions=default_budget)
-    # sample_high = P.run_sim(sampled_parset,progset=high_uncertainty_progset.sample(),progset_instructions=default_budget)
+    try:
+        sampled_parset = P.parsets[0].sample()
+        sampled_progset = P.progsets[0].sample()
+        default_sample = P.run_sim(sampled_parset, progset=sampled_progset, progset_instructions=default_budget, result_name='default')
+        doubled_sample = P.run_sim(sampled_parset, progset=sampled_progset, progset_instructions=doubled_budget, result_name='doubled')
+    except at.BadInitialization:
+        continue
 
-    single_output_single_pop.add(sample_low)
-    single_output_multi_pop.add(sample_low)
-    multi_output_multi_pop.add(sample_low)
+    default_results.append(default_sample)
+    doubled_results.append(doubled_sample)
+
+    all_default.add(default_sample)
+    all_doubled.add(doubled_sample)
+    all_together.add([default_sample, doubled_sample])
+    minimal_default.add(default_sample)
+    minimal_doubled.add(doubled_sample)
+    minimal_together.add([default_sample, doubled_sample])
+#
+# # Get all the colors
+# def get_colors(fig):
+#     colors = set()
+#     for ax in fig.axes:
+#         for obj in ax.get_children():
+#             if hasattr(obj,'get_color'):
+#                 colors.add(obj.get_color())
+#     return colors
+#
+# def accumulate_children(obj,colors=None):
+#     if accum is None:
+#         accum = set()
+#     accum.append(obj)
+#     if hasattr(obj,'get_children'):
+#         for child in obj.get_children():
+#             accumulate_children(child,accum)
+#     return accum
+# print(accumulate_children(fig))
+
+
+
+fig = all_default.plot_distribution(year=2020,outputs='screen',pops='m_rural')
+all_doubled.plot_distribution(year=2020,outputs='screen',pops='m_rural',fig=fig)
+
+# There are two ways to compare distributions
+# - Within an Ensemble
+#   - Comparing multiple outputs/pops
+#   - Comparing multiple results
+# - Across an Ensemble
+#   - Typically would be comparing corresponding outputs/pops
+#   - In theory could do more, but in practice this would probably be confusing
+#
+# The Ensemble has a simple rule - calling `plot_distribution()` will render everything onto the same figure
+
 
 single_output_single_pop.plot_distribution()
 single_output_multi_pop.plot_distribution()

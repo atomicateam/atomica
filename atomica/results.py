@@ -6,7 +6,6 @@ providing methods to conveniently access, plot, and export model outputs.
 
 """
 from collections import defaultdict
-from typing import List
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -622,8 +621,8 @@ class Ensemble(NamedItem):
 
         plotdata = self.mapping_function(results, **kwargs)
         assert isinstance(plotdata, PlotData) # Make sure the mapping function returns the correct type
-        assert len(plotdata.results) == 1, 'The mapping function must return a PlotData instance with only one Result'
-        self.baseline = plotdata.set_colors(pops=plotdata.pops,outputs=plotdata.outputs))
+        # assert len(plotdata.results) == 1, 'The mapping function must return a PlotData instance with only one Result'
+        self.baseline = plotdata.set_colors(pops=plotdata.pops,outputs=plotdata.outputs)
 
     def add(self, results, **kwargs) -> None:
         """
@@ -642,7 +641,7 @@ class Ensemble(NamedItem):
 
         plotdata = self.mapping_function(results, **kwargs)
         assert isinstance(plotdata, PlotData) # Make sure the mapping function returns the correct type
-        assert len(plotdata.results) == 1, 'The mapping function must return a PlotData instance with only one Result'
+        # assert len(plotdata.results) == 1, 'The mapping function must return a PlotData instance with only one Result'
         self.samples.append(plotdata.set_colors(pops=plotdata.pops,outputs=plotdata.outputs))
 
     def update(self, result_list, **kwargs) -> None:
@@ -668,7 +667,7 @@ class Ensemble(NamedItem):
         for sample in result_list:
             self.add(sample, **kwargs)
 
-    def plot_distribution(self, year:float=None, fig=None, outputs:List[str]=None, pops:List[str]=None):
+    def plot_distribution(self, year:float=None, fig=None, outputs=None, pops=None):
         """
         Plot a kernel density distribution
 
@@ -681,18 +680,18 @@ class Ensemble(NamedItem):
         a subset of the quantities to plot. Most of the time, an Ensemble would only have one output/pop,
         so it probably wouldn't matter.
 
-
         :param year: If ``None``, plots the first time index, otherwise, interpolate to the target year
         :param fig: Optionally specify a figure handle to plot into
-        :param axis: Optionally specify whether to compare outputs or populations on the axis
-        :return: A matplotlib figure
+        :param outputs: Optionally specify list of outputs
+        :param pops: Optionally specify list of pops
+        :return: A matplotlib figure (note that this method will only ever return a single figure)
 
         """
 
         if not self.samples:
             raise Exception('Cannot plot samples because no samples have been added yet')
-        outputs = outputs if outputs is not None else self.outputs
-        pops = pops if pops is not None else self.pops
+        outputs = sc.promotetolist(outputs) if outputs is not None else self.outputs
+        pops = sc.promotetolist(pops) if pops is not None else self.pops
 
         if fig is None:
             fig = plt.figure()
@@ -712,23 +711,25 @@ class Ensemble(NamedItem):
                 else:
                     vals = np.array([x.interpolate(year) for x in series_lookup[output,pop]])
 
-                color = series_lookup[output,pop][0].color
+                # color = series_lookup[output,pop][0].color
                 value_range = (vals.min(), vals.max())
 
                 if value_range[0] == value_range[1]:
+                    color = None
                     logger.warning('All values for %s-%s are the same, so no distribution will be visible' % (output, pop))
                 else:
-                    kernel = stats.gaussian_kde(vals)
+                    kernel = stats.gaussian_kde(vals.ravel())
                     scale_up_range = 1.5 # Increase kernel density x range
                     span = np.average(value_range) + np.diff(value_range)*[-1,1]/2*scale_up_range
                     x = np.linspace(*span,100)
                     # TODO - expand this range a bit
-                    plt.plot(x, kernel(x), label='%s-%s' % (output,pop),color=color)
+                    h = plt.plot(x, kernel(x), label='%s-%s' % (output,pop))[0]
+                    color = h.get_color()
 
                 if self.baseline:
                     series = self.baseline[self.baseline.results[0],pop,output]
                     val = series.vals[0] if year is None else series.interpolate(year)
-                    plt.axvline(val, color=color, label='Baseline %s-%s' % (output,pop), linestyle='dashed')
+                    plt.axvline(val, color=color, linestyle='dashed')
 
                 if ax.xaxis.get_label().get_text():
                     assert series_lookup[output,pop][0].unit_string == ax.xaxis.get_label().get_text()
