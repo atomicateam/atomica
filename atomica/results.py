@@ -765,11 +765,11 @@ class Ensemble(NamedItem):
                         val = series.vals[0] if year is None else series.interpolate(year)
                         plt.axvline(val, color=color, linestyle='dashed')
 
+                    proposed_label = "%s (%s)" % (output, series_lookup[result, pop, output][0].unit_string)
                     if ax.xaxis.get_label().get_text():
-                        assert series_lookup[result,pop,output][0].unit_string == ax.xaxis.get_label().get_text(), 'The outputs being superimposed have different units'
+                        assert proposed_label == ax.xaxis.get_label().get_text(), 'The outputs being superimposed have different units'
                     else:
-                        plt.xlabel(series_lookup[result,pop,output][0].unit_string)
-
+                        plt.xlabel(proposed_label)
 
         plt.legend()
         plt.ylabel('Probability density')
@@ -825,6 +825,13 @@ class Ensemble(NamedItem):
                     else:
                         raise Exception('Unknown style')
 
+            proposed_label = "%s (%s)" % (output, series_lookup[result, pop, output][0].unit_string)
+            if ax.yaxis.get_label().get_text():
+                assert proposed_label == ax.yaxis.get_label().get_text(), 'The outputs being superimposed have different units'
+            else:
+                plt.ylabel(proposed_label)
+
+        plt.xlabel('Year')
         return fig
 
 
