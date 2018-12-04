@@ -1399,7 +1399,8 @@ def get_cascade_plot(proj, results=None, pops=None, year=None, cascade=None, plo
         pl.close(fig)
     
     jsondata,jsoncolors = get_json_cascade(results=results, data=proj.data)
-    output = {'graphs':figjsons, 'legends':legendjsons, 'table':table, 'jsondata':jsondata, 'jsoncolors':jsoncolors}
+    jsonbudgetdata,jsonbudgetcolors = get_json_budget(results=results)
+    output = {'graphs':figjsons, 'legends':legendjsons, 'table':table, 'jsondata':jsondata, 'jsoncolors':jsoncolors, 'jsonbudgetdata':jsonbudgetdata, 'jsonbudgetcolors':jsonbudgetcolors}
     print('Cascade plot succeeded with %s plots and %s legends and %s table' % (len(figjsons), len(legendjsons), bool(table)))
     return output, figs, legends
 
