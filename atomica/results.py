@@ -505,7 +505,8 @@ def _write_df(writer, formats, sheet_name, df, level_ordering):
         table = table.reorder_levels(level_ordering[1:])
         for i in range(1, len(level_ordering)):
             table = table.reindex(order[level_ordering[i]], level=i - 1)
-        table.index = table.index.set_names([level_substitutions[x] if x in level_substitutions else x.title() for x in table.index.names])
+        table.index = table.index.set_names(
+            [level_substitutions[x] if x in level_substitutions else x.title() for x in table.index.names])
         table.to_excel(writer, sheet_name, startcol=0, startrow=row)
         row += table.shape[0] + 2
 
@@ -538,7 +539,7 @@ class Ensemble(NamedItem):
 
     """
 
-    def __init__(self, mapping_function, name:str=None, baseline=None,**kwargs):
+    def __init__(self, mapping_function, name: str = None, baseline=None, **kwargs):
 
         NamedItem.__init__(self, name)
         self.mapping_function = mapping_function  #: This function gets called by :meth:`Ensemble.add_sample`
@@ -546,8 +547,7 @@ class Ensemble(NamedItem):
         self.baseline = None  #: A single PlotData instance with reference values (i.e. outcome without sampling)
 
         if baseline:
-            self.set_baseline(baseline,**kwargs)
-
+            self.set_baseline(baseline, **kwargs)
 
     @property
     def n_samples(self) -> int:
@@ -656,9 +656,9 @@ class Ensemble(NamedItem):
         from .plotting import PlotData
 
         plotdata = self.mapping_function(results, **kwargs)
-        assert isinstance(plotdata, PlotData) # Make sure the mapping function returns the correct type
+        assert isinstance(plotdata, PlotData)  # Make sure the mapping function returns the correct type
         # assert len(plotdata.results) == 1, 'The mapping function must return a PlotData instance with only one Result'
-        self.baseline = plotdata.set_colors(pops=plotdata.pops,outputs=plotdata.outputs)
+        self.baseline = plotdata.set_colors(pops=plotdata.pops, outputs=plotdata.outputs)
 
     def add(self, results, **kwargs) -> None:
         """
@@ -676,9 +676,9 @@ class Ensemble(NamedItem):
         from .plotting import PlotData
 
         plotdata = self.mapping_function(results, **kwargs)
-        assert isinstance(plotdata, PlotData) # Make sure the mapping function returns the correct type
+        assert isinstance(plotdata, PlotData)  # Make sure the mapping function returns the correct type
         # assert len(plotdata.results) == 1, 'The mapping function must return a PlotData instance with only one Result'
-        self.samples.append(plotdata.set_colors(pops=plotdata.pops,outputs=plotdata.outputs))
+        self.samples.append(plotdata.set_colors(pops=plotdata.pops, outputs=plotdata.outputs))
 
     def update(self, result_list, **kwargs) -> None:
         """
@@ -703,7 +703,7 @@ class Ensemble(NamedItem):
         for sample in result_list:
             self.add(sample, **kwargs)
 
-    def plot_distribution(self, year:float=None, fig=None, results=None, outputs=None, pops=None):
+    def plot_distribution(self, year: float = None, fig=None, results=None, outputs=None, pops=None):
         """
         Plot a kernel density distribution
 
@@ -718,6 +718,7 @@ class Ensemble(NamedItem):
 
         :param year: If ``None``, plots the first time index, otherwise, interpolate to the target year
         :param fig: Optionally specify a figure handle to plot into
+        :param results: Optionally specify list of result names
         :param outputs: Optionally specify list of outputs
         :param pops: Optionally specify list of pops
         :return: A matplotlib figure (note that this method will only ever return a single figure)
@@ -736,32 +737,33 @@ class Ensemble(NamedItem):
 
         series_lookup = self._get_series()
 
-        for result in self.results:
+        for result in results:
             for output in outputs:
                 for pop in pops:
                     # Assemble the outputs
                     if year is None:
-                        vals = np.array([x.vals[0] for x in series_lookup[result,pop,output]])
+                        vals = np.array([x.vals[0] for x in series_lookup[result, pop, output]])
                     else:
-                        vals = np.array([x.interpolate(year) for x in series_lookup[result,pop,output]])
+                        vals = np.array([x.interpolate(year) for x in series_lookup[result, pop, output]])
 
                     # color = series_lookup[output,pop][0].color
                     value_range = (vals.min(), vals.max())
 
                     if value_range[0] == value_range[1]:
                         color = None
-                        logger.warning('All values for %s-%s are the same, so no distribution will be visible' % (output, pop))
+                        logger.warning(
+                            'All values for %s-%s are the same, so no distribution will be visible' % (output, pop))
                     else:
                         kernel = stats.gaussian_kde(vals.ravel())
-                        scale_up_range = 1.5 # Increase kernel density x range
-                        span = np.average(value_range) + np.diff(value_range)*[-1,1]/2*scale_up_range
-                        x = np.linspace(*span,100)
+                        scale_up_range = 1.5  # Increase kernel density x range
+                        span = np.average(value_range) + np.diff(value_range) * [-1, 1] / 2 * scale_up_range
+                        x = np.linspace(*span, 100)
                         # TODO - expand this range a bit
-                        h = plt.plot(x, kernel(x), label='%s: %s-%s-%s' % (self.name,result,pop,output))[0]
+                        h = plt.plot(x, kernel(x), label='%s: %s-%s-%s' % (self.name, result, pop, output))[0]
                         color = h.get_color()
 
                     if self.baseline:
-                        series = self.baseline[result,pop,output]
+                        series = self.baseline[result, pop, output]
                         val = series.vals[0] if year is None else series.interpolate(year)
                         plt.axvline(val, color=color, linestyle='dashed')
 
@@ -776,9 +778,9 @@ class Ensemble(NamedItem):
 
         return fig
 
-    def plot_series(self, fig=None, style='samples',results=None, outputs=None, pops=None):
+    def plot_series(self, fig=None, style='samples', results=None, outputs=None, pops=None):
 
-        assert style in {'samples','quartile','ci','std'}
+        assert style in {'samples', 'quartile', 'ci', 'std'}
 
         if not self.samples:
             raise Exception('Cannot plot samples because no samples have been added yet')
@@ -792,36 +794,40 @@ class Ensemble(NamedItem):
 
         series_lookup = self._get_series()
 
-        for result in self.results:
+        for result in results:
             for output in outputs:
                 for pop in pops:
 
-                    vals = np.vstack([x.vals.ravel() for x in series_lookup[result, pop, output]]) # Turn samples into a matrix
+                    vals = np.vstack(
+                        [x.vals.ravel() for x in series_lookup[result, pop, output]])  # Turn samples into a matrix
 
                     if self.baseline:
-                        baseline_series = self.baseline[result,pop,output]
-                        h = plt.plot(baseline_series.tvec,baseline_series.vals, label='%s: %s-%s-%s (baseline)' % (self.name,result,pop,output))[0]
-                        color = h.get_color()
+                        baseline_series = self.baseline[result, pop, output]
+                        h = plt.plot(baseline_series.tvec, baseline_series.vals,
+                                     label='%s: %s-%s-%s (baseline)' % (self.name, result, pop, output))[0]
                     else:
-                        h = plt.plot(series.tvec,np.median(vals,axis=0), linestyle='dashed', label='%s: %s-%s-%s (median)' % (self.name,result,pop,output))[0]
-                        color = h.get_color()
-                        color = None
-
+                        h = plt.plot(series.tvec, np.median(vals, axis=0), linestyle='dashed',
+                                     label='%s: %s-%s-%s (median)' % (self.name, result, pop, output))[0]
+                    color = h.get_color()
 
                     if style == 'samples':
-                        for series in series_lookup[result,pop,output]:
-                            h = plt.plot(series.tvec,series.vals, color=color,alpha=0.05)
+                        for series in series_lookup[result, pop, output]:
+                            h = plt.plot(series.tvec, series.vals, color=color, alpha=0.05)
                             if color is None:
                                 color = h.get_color()
                     elif style == 'quartile':
-                        ax.fill_between(self.samples[0].series[0].tvec,np.quantile(vals,0.25,axis=0),np.quantile(vals,0.75,axis=0),alpha=0.15,color=color)
+                        ax.fill_between(self.samples[0].series[0].tvec, np.quantile(vals, 0.25, axis=0),
+                                        np.quantile(vals, 0.75, axis=0), alpha=0.15, color=color)
                     elif style == 'ci':
-                        ax.fill_between(self.samples[0].series[0].tvec,np.quantile(vals,0.025,axis=0),np.quantile(vals,0.975,axis=0),alpha=0.15,color=color)
+                        ax.fill_between(self.samples[0].series[0].tvec, np.quantile(vals, 0.025, axis=0),
+                                        np.quantile(vals, 0.975, axis=0), alpha=0.15, color=color)
                     elif style == 'std':
                         if self.baseline:
-                            ax.fill_between(baseline_series.tvec, baseline_series.vals-np.std(vals,axis=0),baseline_series.vals+np.std(vals,axis=0), alpha=0.15, color=color)
+                            ax.fill_between(baseline_series.tvec, baseline_series.vals - np.std(vals, axis=0),
+                                            baseline_series.vals + np.std(vals, axis=0), alpha=0.15, color=color)
                         else:
-                            raise Exception('For consistency, standard deviation is added to the baseline result, but if no baseline is present, then the median is displayed, so not valid to add the std to the median')
+                            raise Exception(
+                                'For consistency, standard deviation is added to the baseline result, but if no baseline is present, then the median is displayed, so not valid to add the std to the median')
                     else:
                         raise Exception('Unknown style')
 
@@ -834,12 +840,69 @@ class Ensemble(NamedItem):
         plt.xlabel('Year')
         return fig
 
+    def boxplot(self, fig=None, years=None, results=None, outputs=None, pops=None):
+        """
+        Render a box plot
 
+        This is effectively an alternate approach to rendering the
+        kernel density estimates for the distributions. The figure
+        will have a box plot showing quantiles as whiskers for each
+        quantity selected, filtered by the results, outputs, and pops
+        arguments.
 
+        :param fig: Optionally specify an existing figure to plot into
+        :param years: Optionally specify years - otherwise, first time point will be used
+        :param results: Optionally specify list of result names
+        :param outputs: Optionally specify list of outputs
+        :param pops: Optionally specify list of pops
+        :return: A matplotlib figure (note that this method will only ever return a single figure)
 
+        """
 
+        if not self.samples:
+            raise Exception('Cannot plot samples because no samples have been added yet')
+        results = sc.promotetolist(results) if results is not None else self.results
+        outputs = sc.promotetolist(outputs) if outputs is not None else self.outputs
+        pops = sc.promotetolist(pops) if pops is not None else self.pops
+        if years is None:
+            years = [None]
+        else:
+            years = sc.promotetolist(years)
 
-    def pairplot(self,year=None,outputs=None,pops=None):
+        if fig is None:
+            fig, ax = plt.subplots()
+            offset = 0
+        else:
+            ax = fig.axes[0]
+            offset = len(ax.get_xticks())
+
+        series_lookup = self._get_series()
+
+        x = []
+        baseline = []
+        labels = []
+        for year in years:
+            for result in results:
+                for output in outputs:
+                    for pop in pops:
+
+                        if self.baseline:
+                            if year is None:
+                                baseline.append(self.baseline[result, pop, output].vals[0])
+                            else:
+                                baseline.append(self.baseline[result, pop, output].interpolate(year)[0])
+
+                        if year is None:
+                            vals = np.array([x.vals[0] for x in series_lookup[result, pop, output]])
+                        else:
+                            vals = np.array([x.interpolate(year) for x in series_lookup[result, pop, output]])
+                        x.append(vals.ravel())
+                        labels.append('%s: %s-%s-%s (baseline, %g)' % (self.name, result, pop, output, year))
+        locations = offset + np.arange(len(x))
+        plt.boxplot(np.vstack(x).T, positions=locations, labels=labels)
+        return fig
+
+    def pairplot(self, year=None, outputs=None, pops=None):
         # Paired plot for different outputs
         # See https://stackoverflow.com/questions/42592493/displaying-pair-plot-in-pandas-data-frame
         # General
@@ -847,7 +910,6 @@ class Ensemble(NamedItem):
         # Paired plot
         # One plot for each population
         # Different colours for each result
-
 
         if not self.samples:
             raise Exception('Cannot plot samples because no samples have been added yet')
@@ -863,14 +925,13 @@ class Ensemble(NamedItem):
                 df_dict = dict()
                 # Construct a dataframe with all of the outputs, with categorical results
                 for output in self.outputs:
-                    df_dict[output] = [x.vals[0] for x in series_lookup[result,pop,output]]
+                    df_dict[output] = [x.vals[0] for x in series_lookup[result, pop, output]]
                 df = pd.DataFrame.from_dict(df_dict)
                 df['result'] = result
                 dfs.append(df)
             df = pd.concat(dfs)
 
             colors = sc.gridcolors(len(self.results))
-            colormap = {x:y for x,y in zip(self.results,colors)}
-            pd.scatter_matrix(df, c=[colormap[x] for x in df['result'].values],diagonal='kde')
+            colormap = {x: y for x, y in zip(self.results, colors)}
+            pd.scatter_matrix(df, c=[colormap[x] for x in df['result'].values], diagonal='kde')
             plt.suptitle(pop)
-

@@ -60,15 +60,18 @@ for i in range(100):
     minimal_doubled.add(doubled_sample)
     minimal_together.add([default_sample, doubled_sample])
 
-fig = all_default.plot_distribution(year=2020,outputs='screen',pops='m_rural')
-all_doubled.plot_distribution(year=2020,outputs='screen',pops='m_rural',fig=fig)
+# fig = all_default.plot_distribution(year=2020,outputs='screen',pops='m_rural')
+# all_doubled.plot_distribution(year=2020,outputs='screen',pops='m_rural',fig=fig)
+fig = all_default.boxplot(years=2018, outputs='screen', pops=['m_rural', 'm_urban'])
+all_default.boxplot(years=2022, outputs='screen', pops=['m_rural', 'm_urban'], fig=fig)
 
-
-fig = all_default.plot_series(outputs='screen',pops='m_rural')
-all_doubled.plot_series(outputs='screen',pops='m_rural',fig=fig)
-
-fig = all_default.plot_series(outputs='screen',pops='m_rural',style='quartile')
-all_doubled.plot_series(outputs='screen',pops='m_rural',style='quartile',fig=fig)
+#
+#
+# fig = all_default.plot_series(outputs='screen',pops='m_rural')
+# all_doubled.plot_series(outputs='screen',pops='m_rural',fig=fig)
+#
+# fig = all_default.plot_series(outputs='screen',pops='m_rural',style='quartile')
+# all_doubled.plot_series(outputs='screen',pops='m_rural',style='quartile',fig=fig)
 
 # all_together.pairplot()
 #
