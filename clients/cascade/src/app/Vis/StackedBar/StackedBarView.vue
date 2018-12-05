@@ -1,5 +1,6 @@
 <template>
-  <div class="multi-bar-view">
+  <div class="budget-view">
+
     <div class="chart-options">
       <div class="year-slider">
         <year-slider
@@ -16,14 +17,15 @@
         :chartHeight="chartHeight"
       />
     </div>
-
-    <div class="scenarios-vis">
-      <div class="multi-bar-vis">
-        <multibar
+    
+    <div class="budget-vis">
+      <div class="stacked-bar-vis">
+        <stacked-bar
           :h="300"
-          :yAxisTitle="'Number of people'"
-          :multiData="cascadeData"
+          :yAxisTitle="'$/Year'"
+          :stackedBarData="stackedBarData"
           :year="year"
+          :legendDisplay="true"
           :colourScheme="colours"
           @chartUpdated="chartUpdated"
         />
@@ -34,29 +36,27 @@
 </template>
 
 <script>
-import { transformCascadeData } from '../data-transform'
-import Multibar from './Multibar.vue'
+import { transformBudgetData } from '../data-transform'
+import StackedBar from './StackedBar.vue'
 import YearSlider from '../YearSlider.vue'
 import ExportGraph from '../ExportGraph.vue'
 
 export default {
   components: {
-    Multibar,
+    StackedBar,
     YearSlider,
     ExportGraph,
   },
   props: {
-    scenariosData: Object,
+    budgetData: Object,
     colourScheme: Array
-  },
+ },
   data() {
     return {
-      result: null,
-      resultsOptions: [],
       year: null,
       yearOptions: [],
-      cascadeData: {},
-      colorScheme: this.colourScheme || null,
+      stackedBarData: {},
+      colours: this.colourScheme || null,
       chartSvg: null,
       chartWidth: 300,
       chartHeight: 400,
@@ -64,13 +64,13 @@ export default {
   },
   computed: {
     filename() {
-      return `multibar_plot_${this.year}`
+      return `stackedbar_plot_${this.year}`
     },
   },
   watch: {
-    scenariosData(newData) {
+    budgetData(newData) {
       if (newData) {
-        this.updateCascadeData(newData)
+        this.updateStackedBarData(newData)
       }
     },
     colourScheme(newData) {
@@ -78,20 +78,18 @@ export default {
     }
   },
   methods: {
-    updateCascadeData(d) {
-      const transformed = transformCascadeData(d)
-
-      this.resultsOptions = transformed.results
-      this.result = transformed.results[0]
+    updateStackedBarData(d) {
+      const transformed = transformBudgetData(d)
 
       this.yearOptions = transformed.years
       this.year = transformed.years[0]
 
-      this.cascadeData = transformed
+      this.stackedBarData = transformed
     },
     yearChanged(year) {
       this.year = year
     },
+
     chartUpdated(chartSvg, width, height) {
       this.chartSvg = chartSvg
       this.chartWidth = width
@@ -115,7 +113,7 @@ export default {
   padding-bottom: 5px;
 }
 
-.multi-bar-vis {
+.budget-vis {
   max-width: 1200px;
   margin: 0 auto 20px;
   padding: 20px;

@@ -198,6 +198,13 @@ Last update: 2018-09-09
       </div> <!-- ### End: PageSection/hasGraphs ### -->
 
       <!-- ### Start: JS Cascade plot ### -->
+      <div style="margin: 0 auto 50px;">
+        <stacked-bar-view class="cascade"
+          :budgetData="jsonBudgetData"
+          :colourScheme="jsonBudgetColors"
+        />
+      </div>
+
       <div style="margin: 0 auto;">
         <multibar-view class="cascade"
           :scenariosData="jsonData"
@@ -297,12 +304,14 @@ Last update: 2018-09-09
   import rpcs   from '@/js/rpc-service'
   import status from '@/js/status-service'
   import MultibarView from './Vis/Multibar/MultibarView.vue'
+  import StackedBarView from './Vis/StackedBar/StackedBarView.vue'
 
   export default {
     name: 'ScenariosPage',
 
     components: {
       MultibarView,
+      StackedBarView,
     },
 
     data() {
@@ -344,6 +353,10 @@ Last update: 2018-09-09
         // Cascade plot data
         jsonData: null,
         jsonColors: [],
+
+        // Budget data
+        jsonBudgetData: null,
+        jsonBudgetColors: [],
       }
     },
 
@@ -393,6 +406,8 @@ Last update: 2018-09-09
       togglePlotControls()              { return graphs.togglePlotControls(this) },
       getPlotOptions(project_id)        { return graphs.getPlotOptions(this, project_id) },
       makeGraphs(graphdata)             {
+        this.jsonBudgetData = graphdata.jsonbudgetdata
+        this.jsonBudgetColors = graphdata.jsonbudgetcolors
         this.jsonData = graphdata.jsondata
         this.jsonColors = graphdata.jsoncolors
         return graphs.makeGraphs(this, graphdata, '/scenarios')

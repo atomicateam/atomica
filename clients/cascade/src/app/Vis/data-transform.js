@@ -66,6 +66,44 @@ function transformCascadeData(response) {
   return dataObj;
 }
 
+function transformBudgetData(response) {
+  const keys = response.programs
+  const results = response.results
+  const spending = response.spending
+  const years = response.t[results[0]]
+  const dict = {}
+
+  keys.forEach((k) => {
+    dict[k] = k
+  })
+
+  let model = {}
+  years.forEach((year, yearIndex) => {
+    model[year] = []
+
+    results.forEach((d) => {
+      model[year].push({
+        stage: d
+      })
+      const index = model[year].length - 1
+
+      keys.forEach((key) => {
+        const value = spending[d][key][yearIndex]
+        model[year][index][key] = value
+        // console.log(`${d} ${key} ${year} ${yearIndex} — ${value}`)
+      })
+    })
+  })
+
+  return {
+    keys,
+    dict,
+    results,
+    model,
+    years,
+  }
+}
+
 function transformDataForChartRender(keys, data) {
   const lastIndex = data.length - 1
   const transformed = data.map(d => {
@@ -140,6 +178,7 @@ function transformMultiData(keys, cascadeData, year, categories) {
 
 export {
   transformCascadeData,
+  transformBudgetData,
   transformDataForChartRender,
   transformMultiData
 } 
