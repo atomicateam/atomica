@@ -164,14 +164,6 @@ def admin_reset_projects(username):
     return output
     
 
-def admin_grab_projects(username1, username2):
-    ''' For use with run_query '''
-    user1 = datastore.loaduser(username1)
-    for projectkey in user1.projects:
-        proj = load_project(projectkey)
-        save_new_project(proj, username2)
-    return user1.projects
-
 ##################################################################################
 ### Datastore functions
 ##################################################################################
@@ -1512,7 +1504,7 @@ def automatic_calibration(project_id, cache_id, parsetname=-1, max_time=20, save
 def py_to_js_scen(py_scen, project=None):
     ''' Convert a Python to JSON representation of a scenario. The Python scenario might be a dictionary or an object. '''
     js_scen = sc.odict()
-    attrs = ['name', 'active', 'parsetname', 'progsetname', 'alloc_year']
+    attrs = ['name', 'active', 'parsetname', 'progsetname', 'alloc_year', 'which']
     for attr in attrs:
         if isinstance(py_scen, dict):
             js_scen[attr] = py_scen[attr] # Copy the attributes directly
@@ -1537,7 +1529,7 @@ def py_to_js_scen(py_scen, project=None):
 def js_to_py_scen(js_scen):
     ''' Convert a Python to JSON representation of a scenario '''
     py_scen = sc.odict()
-    attrs = ['name', 'active', 'parsetname', 'progsetname']
+    attrs = ['name', 'active', 'parsetname', 'progsetname', 'which']
     for attr in attrs:
         py_scen[attr] = js_scen[attr] # Copy the attributes into a dictionary
     py_scen['alloc_year'] = float(js_scen['alloc_year']) # Convert to number
