@@ -1504,25 +1504,50 @@ def automatic_calibration(project_id, cache_id, parsetname=-1, max_time=20, save
 def py_to_js_scen(py_scen, project=None):
     ''' Convert a Python to JSON representation of a scenario. The Python scenario might be a dictionary or an object. '''
     js_scen = sc.odict()
-    attrs = ['name', 'active', 'parsetname', 'progsetname', 'alloc_year', 'which']
+    attrs = ['name', 'active', 'parsetname', 'progsetname', 'start_year']
     for attr in attrs:
         if isinstance(py_scen, dict):
             js_scen[attr] = py_scen[attr] # Copy the attributes directly
+            js_scen['which'] = py_scen['which']
         else:
             js_scen[attr] = getattr(py_scen, attr) # Copy the attributes into a dictionary
-            
-    js_scen['alloc'] = []
-    if isinstance(py_scen, dict): alloc = py_scen['alloc']
-    else:                         alloc = py_scen.alloc
-    for prog_name,budget in alloc.items():
-        prog_label = project.progset().programs[prog_name].label
-        if sc.isiterable(budget):
-            if len(budget)>1:
-                raise Exception('Budget should only have a single element in it, not %s' % len(budget))
+            if isinstance(py_scen, at.BudgetScenario):
+                js_scen['which'] = 'budget'
             else:
-                budget = budget[0] # If it's not a scalar, pull out the first element -- WARNING, KLUDGY
-        budgetstr = format(int(round(float(budget))), ',')
-        js_scen['alloc'].append([prog_name,budgetstr, prog_label])
+                js_scen['which'] = 'coverage'
+            
+    if js_scen['which'] == 'budget':
+        js_scen['alloc'] = []
+        if isinstance(py_scen, dict):
+            js_scen['alloc_year'] = py_scen['alloc_year']
+            alloc = py_scen['alloc']
+        else:
+            alloc = py_scen.alloc
+            js_scen['alloc_year'] = py_scen.alloc_year
+        for prog_name,budget in alloc.items():
+            prog_label = project.progset().programs[prog_name].label
+            if sc.isiterable(budget):
+                if len(budget)>1:
+                    raise Exception('Budget should only have a single element in it, not %s' % len(budget))
+                else:
+                    budget = budget[0] # If it's not a scalar, pull out the first element -- WARNING, KLUDGY
+            budgetstr = format(int(round(float(budget))), ',')
+            js_scen['alloc'].append([prog_name,budgetstr, prog_label])
+    else:
+        js_scen['coverage'] = []
+        if isinstance(py_scen, dict):
+            coverage = py_scen['coverage']
+        else:
+            coverage = py_scen.coverage
+        for prog_name,cov in coverage.items():
+            prog_label = project.progset().programs[prog_name].label
+            if sc.isiterable(cov):
+                if len(cov)>1:
+                    raise Exception('Coverage should only have a single element in it, not %s' % len(cov))
+                else:
+                    cov = cov[0] # If it's not a scalar, pull out the first element -- WARNING, KLUDGY
+            covstr = format(int(round(float(cov))), ',')
+            js_scen['coverage'].append([prog_name, covstr, prog_label])
     return js_scen
 
 
@@ -1532,23 +1557,41 @@ def js_to_py_scen(js_scen):
     attrs = ['name', 'active', 'parsetname', 'progsetname', 'which']
     for attr in attrs:
         py_scen[attr] = js_scen[attr] # Copy the attributes into a dictionary
-    py_scen['alloc_year'] = float(js_scen['alloc_year']) # Convert to number
-    py_scen['start_year'] = py_scen['alloc_year'] # Normally, the start year will be set by the set_scen_info() RPC but this is a fallback to ensure the scenario is still usable even if that step is omitted
-    py_scen['alloc'] = sc.odict()
-    for item in js_scen['alloc']:
-        prog_name = item[0]
-        budget = item[1]
-        if sc.isstring(budget):
-            try:
-                budget = to_float(budget)
-            except Exception as E:
-                raise Exception('Could not convert budget to number: %s' % repr(E))
-        if sc.isiterable(budget):
-            if len(budget)>1:
-                raise Exception('Budget should only have a single element in it, not %s' % len(budget))
-            else:
-                budget = budget[0] # If it's not a scalar, pull out the first element -- WARNING, KLUDGY
-        py_scen['alloc'][prog_name] = to_float(budget)
+    if py_scen['which'] == 'budget':
+        py_scen['alloc_year'] = float(js_scen['alloc_year']) # Convert to number
+        py_scen['start_year'] = py_scen['alloc_year'] # Normally, the start year will be set by the set_scen_info() RPC but this is a fallback to ensure the scenario is still usable even if that step is omitted
+        py_scen['alloc'] = sc.odict()
+        for item in js_scen['alloc']:
+            prog_name = item[0]
+            budget = item[1]
+            if sc.isstring(budget):
+                try:
+                    budget = to_float(budget)
+                except Exception as E:
+                    raise Exception('Could not convert budget to number: %s' % repr(E))
+            if sc.isiterable(budget):
+                if len(budget)>1:
+                    raise Exception('Budget should only have a single element in it, not %s' % len(budget))
+                else:
+                    budget = budget[0] # If it's not a scalar, pull out the first element -- WARNING, KLUDGY
+            py_scen['alloc'][prog_name] = to_float(budget)
+    else:
+        py_scen['start_year'] = float(js_scen['start_year']) # Convert to number
+        py_scen['coverage'] = sc.odict()
+        for item in js_scen['coverage']:
+            prog_name = item[0]
+            coverage = item[1]
+            if sc.isstring(coverage):
+                try:
+                    coverage = to_float(coverage)
+                except Exception as E:
+                    raise Exception('Could not convert coverage to number: %s' % repr(E))
+            if sc.isiterable(coverage):
+                if len(coverage)>1:
+                    raise Exception('Coverage should only have a single element in it, not %s' % len(coverage))
+                else:
+                    coverage = coverage[0] # If it's not a scalar, pull out the first element -- WARNING, KLUDGY
+            py_scen['coverage'][prog_name] = to_float(coverage)
     return py_scen
     
 
@@ -1579,7 +1622,7 @@ def set_scen_info(project_id, scenario_jsons, verbose=True):
         if verbose: 
             print('Python scenario info for scenario %s:' % (j+1))
             sc.pp(py_scen)
-        proj.make_scenario(which='budget', json=py_scen)
+        proj.make_scenario(which=py_scen['which'], json=py_scen)
     print('Saving project...')
     save_project(proj)
     return None
@@ -1590,6 +1633,16 @@ def get_default_budget_scen(project_id):
     print('Creating default scenario...')
     proj = load_project(project_id, die=True)
     py_scen = proj.demo_scenarios(doadd=False)
+    js_scen = py_to_js_scen(py_scen, project=proj)
+    print('Created default JavaScript scenario:')
+    sc.pp(js_scen)
+    return js_scen
+
+@RPC()    
+def get_default_coverage_scen(project_id):
+    print('Creating default coverage scenario...')
+    proj = load_project(project_id, die=True)
+    py_scen = proj.demo_scenarios(doadd=False, which='coverage')
     js_scen = py_to_js_scen(py_scen, project=proj)
     print('Created default JavaScript scenario:')
     sc.pp(js_scen)

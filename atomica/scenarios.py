@@ -160,7 +160,7 @@ class ParameterScenario(Scenario):
 
 class BudgetScenario(Scenario):
 
-    def __init__(self, name=None, parsetname=None, progsetname=None, alloc=None, start_year=None, active=None, alloc_year=None, budget_factor=1.0):
+    def __init__(self, name=None, parsetname=None, progsetname=None, alloc=None, start_year=None, active=None, alloc_year=None, budget_factor=1.0, **kwargs):
         # A BudgetScenario specifies spending overwrites
         # The start_year corresponds to the year in which the programs turn on
         # The alloc can be a dict of scalar spends, that take effect in the program start year, or a TimeSeries of spending values
@@ -218,7 +218,7 @@ class BudgetScenario(Scenario):
 
 class CoverageScenario(Scenario):
 
-    def __init__(self, name=None, parsetname=None, progsetname=None, coverage=None, start_year=None, active=None):
+    def __init__(self, name=None, parsetname=None, progsetname=None, coverage=None, start_year=None, active=None, **kwargs):
         # A BudgetScenario specifies spending overwrites
         # The start_year corresponds to the year in which the programs turn on
         # The alloc can be a dict of scalar spends, that take effect in the program start year, or a TimeSeries of spending values

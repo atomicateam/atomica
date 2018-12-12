@@ -263,6 +263,8 @@ class Project(object):
 
 
     def make_scenario(self, name="default", which=None, instructions=None, json=None):
+        if which is None:
+            which = json.get('which', 'budget')
         if json is not None:
             if which == 'budget':
                 scenario = BudgetScenario(**json)
@@ -549,29 +551,40 @@ class Project(object):
         P = migrate(P)
         return P
 
-    def demo_scenarios(self, dorun=False, doadd=True):
+    def demo_scenarios(self, dorun=False, doadd=True, which='budget'):
         json1 = sc.odict()
         json1['name'] = 'Default budget'
         json1['parsetname'] = -1
         json1['progsetname'] = -1
         json1['start_year'] = self.data.end_year  # This allows the tests to run on the BE where this default never gets modified e.g. by set_scen_info()
         json1['alloc_year'] = self.data.end_year
-        json1['alloc'] = self.progset(json1['progsetname']).get_alloc(tvec=json1['alloc_year'])
+        if which == 'budget':
+            json1['alloc'] = self.progset(json1['progsetname']).get_alloc(tvec=json1['alloc_year'])
+        else:
+            json1['coverage'] = self.progset(json1['progsetname']).get_num_coverage(dt=1.0, tvec=json1['alloc_year'])
         json1['active'] = True
+        json1['which'] = which
 
-        json2 = sc.dcp(json1)
+        json2 = sc.odict()
+        json2['parsetname'] = -1
+        json2['progsetname'] = -1
+        json2['start_year'] = self.data.end_year  # This allows the tests to run on the BE where this default never gets modified e.g. by set_scen_info()
+        json2['alloc_year'] = self.data.end_year
+        json2['alloc'] = self.progset(json1['progsetname']).get_alloc(tvec=json1['alloc_year'])
         json2['name'] = 'Doubled budget'
         json2['alloc'][:] *= 2.0
         json2['active'] = True
+        json2['which'] = 'budget'
 
-        json3 = sc.dcp(json1)
+        json3 = sc.dcp(json2)
         json3['name'] = 'Zero budget'
         json3['alloc'][:] *= 0.0
         json3['active'] = True
+        json3['which'] = 'budget'
 
         if doadd:
             for json in [json1, json2, json3]:
-                self.make_scenario(which='budget', json=json)
+                self.make_scenario(json=json)
             if dorun:
                 results = self.run_scenarios()
                 return results
