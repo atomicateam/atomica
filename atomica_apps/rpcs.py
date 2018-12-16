@@ -1502,7 +1502,7 @@ def get_json_budget(results):
         budget_data['t'][result.name] = np.arange(np.ceil(result.model.t[0]),np.floor(result.model.t[-1]))
         budget_data['spending'][result.name] = dict()
 
-        d = au.PlotData.programs(results, quantity='spending')
+        d = au.PlotData.programs(result, quantity='spending')
         d.interpolate(budget_data['t'][result.name])
         for s in d.series:
             budget_data['spending'][result.name][s.output] = s.vals
