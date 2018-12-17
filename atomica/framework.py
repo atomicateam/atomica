@@ -12,7 +12,7 @@ import pandas as pd
 import sciris as sc
 from .system import NotFoundError, FrameworkSettings as FS
 from .system import logger
-from .excel import read_tables, AtomicaSpreadsheet, validate_category
+from .excel import read_tables, validate_category
 from .version import version
 import numpy as np
 from .cascade import validate_cascade
@@ -29,7 +29,7 @@ class ProjectFramework(object):
     def __init__(self, inputs=None, name=None):
         # Instantiate a Framework
         # INPUTS
-        # - inputs: A string (which will load an Excel file from disk) or an AtomicaSpreadsheet
+        # - inputs: A string (which will load an Excel file from disk) or an sc.Spreadsheet
         # - A dict of sheets, which will just set the sheets attribute
         # - None, which will set the sheets to an empty dict ready for content
 
@@ -42,15 +42,15 @@ class ProjectFramework(object):
 
         # Load Framework from disk
         if sc.isstring(inputs):
-            self.spreadsheet = AtomicaSpreadsheet(inputs)
-        elif isinstance(inputs, AtomicaSpreadsheet):
+            self.spreadsheet = sc.Spreadsheet(inputs)
+        elif isinstance(inputs, sc.Spreadsheet):
             self.spreadsheet = inputs
         else:
             self.sheets = sc.odict()
             self.spreadsheet = None
             return
 
-        workbook = openpyxl.load_workbook(self.spreadsheet.get_file(), read_only=True, data_only=True)  # Load in read-write mode so that we can correctly dump the file
+        workbook = openpyxl.load_workbook(self.spreadsheet.tofile(), read_only=True, data_only=True)  # Load in read-write mode so that we can correctly dump the file
         validate_category(workbook, 'atomica:framework')
 
         self.sheets = sc.odict()
