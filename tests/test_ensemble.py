@@ -6,7 +6,6 @@ import sciris as sc
 
 testdir = at.parent_dir()
 
-# def test_parset_sampling():
 P = at.Project(framework=testdir + 'test_uncertainty_framework.xlsx', databook=testdir + 'test_uncertainty_databook.xlsx')
 P.load_progbook(testdir + 'test_uncertainty_high_progbook.xlsx')
 
@@ -60,38 +59,47 @@ for i in range(100):
     minimal_doubled.add(doubled_sample)
     minimal_together.add([default_sample, doubled_sample])
 
-# fig = all_default.plot_distribution(year=2020,outputs='screen',pops='m_rural')
-# all_doubled.plot_distribution(year=2020,outputs='screen',pops='m_rural',fig=fig)
+all_default.summary_statistics(years=2018)
+
+
+# Compare within ensemble across pops
+fig = all_default.plot_distribution(year=2020,outputs='screen',pops='m_rural')
+all_default.plot_distribution(year=2020,outputs='screen',pops='m_urban',fig=fig)
+
+# Compare across ensembles
+fig = all_default.plot_distribution(year=2020,outputs='screen',pops='m_rural')
+all_doubled.plot_distribution(year=2020,outputs='screen',pops='m_rural',fig=fig)
+
 fig = all_default.boxplot(years=2018, outputs='screen', pops=['m_rural', 'm_urban'])
 all_default.boxplot(years=2022, outputs='screen', pops=['m_rural', 'm_urban'], fig=fig)
 
 #
 #
-# fig = all_default.plot_series(outputs='screen',pops='m_rural')
-# all_doubled.plot_series(outputs='screen',pops='m_rural',fig=fig)
+fig = all_default.plot_series(outputs='screen',pops='m_rural')
+all_doubled.plot_series(outputs='screen',pops='m_rural',fig=fig)
 #
-# fig = all_default.plot_series(outputs='screen',pops='m_rural',style='quartile')
-# all_doubled.plot_series(outputs='screen',pops='m_rural',style='quartile',fig=fig)
+fig = all_default.plot_series(outputs='screen',pops='m_rural',style='quartile')
+all_doubled.plot_series(outputs='screen',pops='m_rural',style='quartile',fig=fig)
 
-# all_together.pairplot()
+all_together.pairplot()
 #
 # # Example of plotting time aggregated quantities
-# yld = lambda x: at.PlotData(x,outputs={'disease':['undx','scr','dx','tx']},t_bins=[2018,2023],time_aggregation='integrate')
-# default_yld = at.Ensemble(yld,'default')
-# default_yld.update(default_results)
-# doubled_yld = at.Ensemble(yld,'doubled')
-# doubled_yld.update(doubled_results)
-# fig = default_yld.plot_distribution(pops='m_rural')
-# doubled_yld.plot_distribution(pops='m_rural',fig=fig)
+yld = lambda x: at.PlotData(x,outputs={'disease':['undx','scr','dx','tx']},t_bins=[2018,2023],time_aggregation='integrate')
+default_yld = at.Ensemble(yld,'default')
+default_yld.update(default_results)
+doubled_yld = at.Ensemble(yld,'doubled')
+doubled_yld.update(doubled_results)
+fig = default_yld.plot_distribution(pops='m_rural')
+doubled_yld.plot_distribution(pops='m_rural',fig=fig)
 #
 # # Example of plotting differences in distributions
-# def get_differences(res):
-#     d1 = at.PlotData(res[0],outputs={'disease':['undx','scr','dx','tx']},t_bins=[2018,2023],time_aggregation='integrate')
-#     d2 = at.PlotData(res[1],outputs={'disease':['undx','scr','dx','tx']},t_bins=[2018,2023],time_aggregation='integrate')
-#     return d2-d1
-# yld_diff = at.Ensemble(get_differences,'difference')
-# yld_diff.update(zip(default_results,doubled_results))
-# yld_diff.plot_distribution(pops='m_rural')
+def get_differences(res):
+    d1 = at.PlotData(res[0],outputs={'disease':['undx','scr','dx','tx']},t_bins=[2018,2023],time_aggregation='integrate')
+    d2 = at.PlotData(res[1],outputs={'disease':['undx','scr','dx','tx']},t_bins=[2018,2023],time_aggregation='integrate')
+    return d2-d1
+yld_diff = at.Ensemble(get_differences,'difference')
+yld_diff.update(zip(default_results,doubled_results))
+yld_diff.plot_distribution(pops='m_rural')
 
 
 

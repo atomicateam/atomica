@@ -798,16 +798,14 @@ class Ensemble(NamedItem):
             for output in outputs:
                 for pop in pops:
 
-                    vals = np.vstack(
-                        [x.vals.ravel() for x in series_lookup[result, pop, output]])  # Turn samples into a matrix
+                    vals = np.vstack([x.vals.ravel() for x in series_lookup[result, pop, output]])  # Turn samples into a matrix
 
                     if self.baseline:
                         baseline_series = self.baseline[result, pop, output]
                         h = plt.plot(baseline_series.tvec, baseline_series.vals,
                                      label='%s: %s-%s-%s (baseline)' % (self.name, result, pop, output))[0]
                     else:
-                        h = plt.plot(series.tvec, np.median(vals, axis=0), linestyle='dashed',
-                                     label='%s: %s-%s-%s (median)' % (self.name, result, pop, output))[0]
+                        h = plt.plot(series.tvec, np.median(vals, axis=0), linestyle='dashed',label='%s: %s-%s-%s (median)' % (self.name, result, pop, output))[0]
                     color = h.get_color()
 
                     if style == 'samples':
@@ -816,18 +814,14 @@ class Ensemble(NamedItem):
                             if color is None:
                                 color = h.get_color()
                     elif style == 'quartile':
-                        ax.fill_between(self.samples[0].series[0].tvec, np.quantile(vals, 0.25, axis=0),
-                                        np.quantile(vals, 0.75, axis=0), alpha=0.15, color=color)
+                        ax.fill_between(self.samples[0].series[0].tvec, np.quantile(vals, 0.25, axis=0),np.quantile(vals, 0.75, axis=0), alpha=0.15, color=color)
                     elif style == 'ci':
-                        ax.fill_between(self.samples[0].series[0].tvec, np.quantile(vals, 0.025, axis=0),
-                                        np.quantile(vals, 0.975, axis=0), alpha=0.15, color=color)
+                        ax.fill_between(self.samples[0].series[0].tvec, np.quantile(vals, 0.025, axis=0),np.quantile(vals, 0.975, axis=0), alpha=0.15, color=color)
                     elif style == 'std':
                         if self.baseline:
-                            ax.fill_between(baseline_series.tvec, baseline_series.vals - np.std(vals, axis=0),
-                                            baseline_series.vals + np.std(vals, axis=0), alpha=0.15, color=color)
+                            ax.fill_between(baseline_series.tvec, baseline_series.vals - np.std(vals, axis=0),baseline_series.vals + np.std(vals, axis=0), alpha=0.15, color=color)
                         else:
-                            raise Exception(
-                                'For consistency, standard deviation is added to the baseline result, but if no baseline is present, then the median is displayed, so not valid to add the std to the median')
+                            raise Exception('For consistency, standard deviation is added to the baseline result, but if no baseline is present, then the median is displayed, so not valid to add the std to the median')
                     else:
                         raise Exception('Unknown style')
 
@@ -899,8 +893,68 @@ class Ensemble(NamedItem):
                         x.append(vals.ravel())
                         labels.append('%s: %s-%s-%s (baseline, %g)' % (self.name, result, pop, output, year))
         locations = offset + np.arange(len(x))
-        plt.boxplot(np.vstack(x).T, positions=locations, labels=labels)
+        plt.boxplot(np.vstack(x).T, positions=locations, manage_xticks=False)
+        ax.set_xlim(-0.5,locations[-1]+0.5)
+        if offset == 0:
+            ax.set_xticks(np.arange(locations[-1]+1))
+            ax.set_xticklabels(labels)
+        else:
+            new_labels = [x.get_text() for x in ax.get_xticklabels()] + labels
+            ax.set_xticks(np.arange(locations[-1]+1))
+            ax.set_xticklabels(new_labels)
+
+
+        proposed_label = "%s (%s)" % (output, series_lookup[result, pop, output][0].unit_string)
+        if ax.yaxis.get_label().get_text():
+            assert proposed_label == ax.yaxis.get_label().get_text(), 'The outputs being superimposed have different units'
+        else:
+            plt.ylabel(proposed_label)
+
         return fig
+
+    def summary_statistics(self, years=None, results=None, outputs=None, pops=None):
+        if not self.samples:
+            raise Exception('Cannot plot samples because no samples have been added yet')
+        results = sc.promotetolist(results) if results is not None else self.results
+        outputs = sc.promotetolist(outputs) if outputs is not None else self.outputs
+        pops = sc.promotetolist(pops) if pops is not None else self.pops
+        if years is None:
+            years = [None]
+        else:
+            years = sc.promotetolist(years)
+
+        series_lookup = self._get_series()
+        records = list()
+
+        for year in years:
+            for result in results:
+                for output in outputs:
+                    for pop in pops:
+
+                        if self.baseline:
+                            if year is None:
+                                baseline = self.baseline[result, pop, output].vals[0]
+                            else:
+                                baseline = self.baseline[result, pop, output].interpolate(year)[0]
+                            records.append((year, result, output, pop, 'baseline',baseline))
+
+                        if year is None:
+                            vals = np.array([x.vals[0] for x in series_lookup[result, pop, output]])
+                        else:
+                            vals = np.array([x.interpolate(year) for x in series_lookup[result, pop, output]])
+
+                        records.append((year, result, output, pop, 'mean',np.mean(vals)))
+                        records.append((year, result, output, pop, 'median',np.median(vals)))
+                        records.append((year, result, output, pop, 'max',np.max(vals)))
+                        records.append((year, result, output, pop, 'min',np.min(vals)))
+                        records.append((year, result, output, pop, 'Q1',np.quantile(vals,0.25)))
+                        records.append((year, result, output, pop, 'Q3',np.quantile(vals,0.75)))
+
+                df = pd.DataFrame.from_records(records,columns=['year', 'result', 'output', 'pop', 'quantity', 'value'])
+                df = df.set_index(['year','result','output','pop','quantity'])
+                return df
+
+
 
     def pairplot(self, year=None, outputs=None, pops=None):
         # Paired plot for different outputs
