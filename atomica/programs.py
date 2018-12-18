@@ -13,7 +13,7 @@ from .utils import NamedItem
 from numpy import array, exp, minimum, inf
 from .utils import TimeSeries
 from .system import FrameworkSettings as FS
-from .excel import standard_formats, AtomicaSpreadsheet, apply_widths, update_widths, read_tables, TimeDependentValuesEntry, validate_category
+from .excel import standard_formats, apply_widths, update_widths, read_tables, TimeDependentValuesEntry, validate_category
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 import openpyxl
 import xlsxwriter as xw
@@ -263,7 +263,7 @@ class ProgramSet(NamedItem):
             - A Project containing a framework and data
             - ProjectFramework and ProjectData instances without a project
 
-        :param spreadsheet: A string file path, or an AtomicaSpreadsheet
+        :param spreadsheet: A string file path, or an sc.Spreadsheet
         :param framework: A :py:class:`ProjectFramework` instance
         :param data: A :py:class:`ProjectData` instance
         :param project: A :py:class:`Project` instance
@@ -282,9 +282,9 @@ class ProgramSet(NamedItem):
 
         # Create and load spreadsheet
         if sc.isstring(spreadsheet):
-            spreadsheet = AtomicaSpreadsheet(spreadsheet)
+            spreadsheet = sc.Spreadsheet(spreadsheet)
 
-        workbook = openpyxl.load_workbook(spreadsheet.get_file(), read_only=True, data_only=True)  # Load in read-only mode for performance, since we don't parse comments etc.
+        workbook = openpyxl.load_workbook(spreadsheet.tofile(), read_only=True, data_only=True)  # Load in read-only mode for performance, since we don't parse comments etc.
         validate_category(workbook, 'atomica:progbook')
 
         # Load individual sheets
@@ -310,7 +310,7 @@ class ProgramSet(NamedItem):
         self._book.close()
 
         # Dump the file content into a ScirisSpreadsheet
-        spreadsheet = AtomicaSpreadsheet(f)
+        spreadsheet = sc.Spreadsheet(f)
 
         # Clear everything
         f.close()

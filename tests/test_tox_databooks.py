@@ -16,9 +16,9 @@ def test_databooks():
     data = ProjectData.from_spreadsheet(at.LIBRARY_PATH + "tb_databook.xlsx",F)
     data.save(tmpdir + 'd_blug.xlsx')
 
-    # Copy comments, using lower-level AtomicaSpreadsheet (for in-memory file operations)
-    original_workbook = at.AtomicaSpreadsheet(at.LIBRARY_PATH + "tb_databook.xlsx")
-    new_workbook = data.to_spreadsheet() # This is a AtomicaSpreadsheet that can be stored in the FE database
+    # Copy comments, using lower-level Spreadsheet object (for in-memory file operations)
+    original_workbook = sc.Spreadsheet(at.LIBRARY_PATH + "tb_databook.xlsx")
+    new_workbook = data.to_spreadsheet() # This is a sc.Spreadsheet that can be stored in the FE database
     transfer_comments(new_workbook,original_workbook)
     new_workbook.save(tmpdir + 'd_blug_formatted.xlsx')
 

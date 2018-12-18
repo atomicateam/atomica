@@ -36,7 +36,6 @@ from .results import Result
 from .migration import migrate
 import sciris as sc
 import numpy as np
-from .excel import AtomicaSpreadsheet
 
 
 class ProjectSettings(object):
@@ -73,7 +72,7 @@ class Project(object):
         # INPUTS
         # - framework : a Framework to use. This could be
         #               - A filename to an Excel file on disk
-        #               - An AtomicaSpreadsheet instance
+        #               - An sc.Spreadsheet instance
         #               - A ProjectFramework instance
         #               - None (this should generally not be used though!)
         # - databook_path : The path to a databook file. The databook will be loaded into Project.data and the spreadsheet saved to Project.databook
@@ -81,7 +80,7 @@ class Project(object):
 
         self.name = name
 
-        if sc.isstring(framework) or isinstance(framework, AtomicaSpreadsheet):
+        if sc.isstring(framework) or isinstance(framework, sc.Spreadsheet):
             self.framework = ProjectFramework(inputs=framework, name=frw_name)
         elif isinstance(framework, ProjectFramework):
             self.framework = framework
@@ -104,7 +103,7 @@ class Project(object):
         self.modified = sc.now()
         self.filename = None
 
-        self.progbook = None  # This will contain an AtomicaSpreadsheet when the user loads one
+        self.progbook = None  # This will contain an sc.Spreadsheet when the user loads one
         self.settings = ProjectSettings(**kwargs)  # Global settings
 
         self._result_update_required = False  # This flag is set to True by migration is the result objects contained in this Project are out of date due to a migration change
@@ -115,10 +114,10 @@ class Project(object):
             self.load_databook(databook_path=databook_path, do_run=do_run)
         elif databook_path:
             logger.warning('Project was constructed without a Framework - databook spreadsheet is being saved to project, but data is not being loaded')
-            self.databook = AtomicaSpreadsheet(databook_path)  # Just load the spreadsheet in so that it isn't lost
+            self.databook = sc.Spreadsheet(databook_path)  # Just load the spreadsheet in so that it isn't lost
             self.data = None
         else:
-            self.databook = None  # This will contain an AtomicaSpreadsheet when the user loads one
+            self.databook = None  # This will contain an sc.Spreadsheet when the user loads one
             self.data = None
 
     def __repr__(self):
@@ -172,7 +171,7 @@ class Project(object):
         """
         Load a data spreadsheet
 
-        :param databook_path: a path string, which will load a file from disk, or an AtomicaSpreadsheet
+        :param databook_path: a path string, which will load a file from disk, or an sc.Spreadsheet
                                 containing the contents of a databook
         :param make_default_parset: If True, a Parset called "default" will be immediately created from the
                                     newly-added data
@@ -182,7 +181,7 @@ class Project(object):
 
         if sc.isstring(databook_path):
             full_path = sc.makefilepath(filename=databook_path, default=self.name, ext='xlsx', makedirs=False)
-            databook_spreadsheet = AtomicaSpreadsheet(full_path)
+            databook_spreadsheet = sc.Spreadsheet(full_path)
         else:
             databook_spreadsheet = databook_path
 
@@ -196,7 +195,7 @@ class Project(object):
 
         self.data = data
         self.data.validate(self.framework)  # Make sure the data is suitable for use in the Project (as opposed to just manipulating the databook)
-        self.databook = sc.dcp(databook_spreadsheet)  # Actually a shallow copy is fine here because AtomicaSpreadsheet contains no mutable properties
+        self.databook = sc.dcp(databook_spreadsheet)  # Actually a shallow copy is fine here because sc.Spreadsheet contains no mutable properties
         self.modified = sc.now()
         self.settings.update_time_vector(start=self.data.start_year)  # Align sim start year with data start year.
 
@@ -249,13 +248,13 @@ class Project(object):
 
         if sc.isstring(progbook_path):
             full_path = sc.makefilepath(filename=progbook_path, default=self.name, ext='xlsx', makedirs=False)
-            progbook_spreadsheet = AtomicaSpreadsheet(full_path)
+            progbook_spreadsheet = sc.Spreadsheet(full_path)
         else:
             progbook_spreadsheet = progbook_path
 
         progset = ProgramSet.from_spreadsheet(spreadsheet=progbook_spreadsheet, framework=self.framework, data=self.data, name=name)
         progset.validate()
-        self.progbook = sc.dcp(progbook_spreadsheet)  # Actually a shallow copy is fine here because AtomicaSpreadsheet contains no mutable properties
+        self.progbook = sc.dcp(progbook_spreadsheet)  # Actually a shallow copy is fine here because sc.Spreadsheet contains no mutable properties
 
         logger.debug('Updating program sets')
         self.progsets.append(progset)

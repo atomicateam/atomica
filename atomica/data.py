@@ -12,7 +12,7 @@ from .utils import TimeSeries
 import sciris as sc
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 import openpyxl
-from .excel import cell_require_string, standard_formats, AtomicaSpreadsheet, read_tables, TimeDependentValuesEntry, TimeDependentConnections, apply_widths, update_widths, validate_category
+from .excel import cell_require_string, standard_formats, read_tables, TimeDependentValuesEntry, TimeDependentConnections, apply_widths, update_widths, validate_category
 import xlsxwriter as xw
 import io
 import numpy as np
@@ -287,9 +287,9 @@ class ProjectData(sc.prettyobj):
         self = ProjectData()
 
         if sc.isstring(spreadsheet):
-            spreadsheet = AtomicaSpreadsheet(spreadsheet)
+            spreadsheet = sc.Spreadsheet(spreadsheet)
 
-        workbook = openpyxl.load_workbook(spreadsheet.get_file(), read_only=True, data_only=True)  # Load in read-only mode for performance, since we don't parse comments etc.
+        workbook = openpyxl.load_workbook(spreadsheet.tofile(), read_only=True, data_only=True)  # Load in read-only mode for performance, since we don't parse comments etc.
         validate_category(workbook, 'atomica:databook')
 
         # These sheets are optional - if none of these are provided in the databook
@@ -459,7 +459,7 @@ class ProjectData(sc.prettyobj):
         self._book.close()
 
         # Dump the file content into a ScirisSpreadsheet
-        spreadsheet = AtomicaSpreadsheet(f)
+        spreadsheet = sc.Spreadsheet(f)
 
         # Clear everything
         f.close()

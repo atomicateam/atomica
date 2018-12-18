@@ -16,5 +16,7 @@ def test_migration():
 
     at.plot_series(at.PlotData(results))
 
+    P.databook.save(tmpdir + 'migration_test_databook_save')
+
 if __name__ == '__main__':
     test_migration()
