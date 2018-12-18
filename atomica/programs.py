@@ -924,7 +924,7 @@ class Program(NamedItem):
 
         unit_cost = self.unit_cost.interpolate(tvec)
         if '/year' not in self.unit_cost.units:
-            # The spending is $/tvec, and the /tvec gets eliminated if the unit cost is also per tvec. If that's not the case, then
+            # The spending is $/year, and the /year gets eliminated if the unit cost is also per year. If that's not the case, then
             # we need to multiply the spending by the timestep to get the correct units
             spending *= dt
 

@@ -362,7 +362,7 @@ def _programs_to_df(results, prog_name, tvals):
 
             vals = PlotData.programs(result, outputs=prog_name, quantity='coverage_number').interpolate(tvals)
             vals.series[0].vals[~programs_active] = np.nan
-            data[(prog_name, result.name, 'People covered')] = vals.series[0].vals
+            data[(prog_name, result.name, 'People covered (people/year)')] = vals.series[0].vals
 
             vals = PlotData.programs(result, outputs=prog_name, quantity='coverage_eligible').interpolate(tvals)
             vals.series[0].vals[~programs_active] = np.nan
@@ -371,6 +371,7 @@ def _programs_to_df(results, prog_name, tvals):
             vals = PlotData.programs(result, outputs=prog_name, quantity='coverage_fraction').interpolate(tvals)
             vals.series[0].vals[~programs_active] = np.nan
             data[(prog_name, result.name, 'Proportion covered')] = vals.series[0].vals
+
 
     df = pd.DataFrame(data, index=tvals)
     df = df.T
@@ -486,7 +487,9 @@ def _write_df(writer, formats, sheet_name, df, level_ordering):
 
     """
 
-    level_substitutions = {'pop': 'Population', 'stage': 'Cascade stage'}
+    # Substitute full names for short names after re-ordering the levels but before
+    # writing the dataframe
+    level_substitutions = {'pop': 'Population', 'stage': 'Cascade stage', 'quantity':'Quantity (on Jan 1)'}
 
     # Remember the ordering of each index level
     order = {}
