@@ -323,7 +323,7 @@ def parameter_use_timeseries(proj):
     return proj
 
 
-@migration('1.0.14', '1.0.15', 'Replace AtomicaSpreadsheet')
+@migration('1.0.15', '1.0.16', 'Replace AtomicaSpreadsheet')
 def convert_spreadsheets(proj):
 
     def convert(placeholder):
