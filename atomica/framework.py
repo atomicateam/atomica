@@ -360,6 +360,9 @@ class ProjectFramework(object):
             if (row['databook page'] is None) and (row['databook order'] is not None):
                 logger.warning('Compartment "%s" has a databook order, but no databook page', row.name)
 
+            if (row['databook page'] is not None) and not (row['databook page'] in self.sheets['databook pages'][0]['datasheet code name'].values):
+                raise InvalidFramework('Compartment "%s" has databook page "%s" but that page does not appear on the "databook pages" sheet' % (row.name,row['databook page']))
+
         # VALIDATE CHARACTERISTICS
 
         required_columns = ['display name']
@@ -412,6 +415,9 @@ class ProjectFramework(object):
 
             if (row['databook page'] is None) and (row['calibrate'] is not None):
                 raise InvalidFramework('Compartment "%s" is marked as being eligible for calibration, but it does not appear in the databook' % row.name)
+
+            if (row['databook page'] is not None) and not (row['databook page'] in self.sheets['databook pages'][0]['datasheet code name'].values):
+                raise InvalidFramework('Characteristic "%s" has databook page "%s" but that page does not appear on the "databook pages" sheet' % (row.name,row['databook page']))
 
             for component in row['components'].split(','):
                 if not (component.strip() in self.comps.index or component.strip() in self.characs.index):
@@ -481,6 +487,9 @@ class ProjectFramework(object):
             if par['format'] and par['format'].lower() in FS.STANDARD_UNITS:
                 par['format'] = par['format'].lower()
 
+            if (par['databook page'] is not None) and not (par['databook page'] in self.sheets['databook pages'][0]['datasheet code name'].values):
+                raise InvalidFramework('Compartment "%s" has databook page "%s" but that page does not appear on the "databook pages" sheet' % (par.name,par['databook page']))
+
             if par['function'] is None:
                 # In order to have a value, a transition parameter must either be
                 # - have a function
@@ -499,21 +508,33 @@ class ProjectFramework(object):
                     if dep in ['t', 'dt']:
                         # These are special variables passed in by model.py
                         continue
-                    elif dep.endswith('___flow'):  # Note that the parser replaces ':' with '___'
-                        dep_name = dep.replace('___flow', '')
+                    elif '___' in dep: # Note that the parser replaces ':' with '___'
 
                         if self.transitions[par.name]:
-                            message = 'The function for parameter "%s" depends on a flow rate ("%s:flow"). However, "%s" also governs a flow rate, because it appears in the transition matrix. Transition parameters cannot depend on flow rates, so no flow rates can appear in the function for "%s"' % (par.name, dep_name, par.name, par.name)
+                            message = 'The function for parameter "%s" depends on a flow rate ("%s"). However, "%s" also governs a flow rate, because it appears in the transition matrix. Transition parameters cannot depend on flow rates, so no flow rates can appear in the function for "%s"' % (par.name, dep.replace('___',':'), par.name, par.name)
                             raise InvalidFramework(message)
 
-                        if dep_name not in self.pars.index:
-                            message = 'The function for parameter "%s" depends on the flow rate "%s:flow". This requires a parameter called "%s" to be defined in the Framework, but no parameter with that name was found' % (par.name, dep_name, dep_name)
-                            raise InvalidFramework(message)
+                        if dep.endswith('___flow'):
+                            # If the user requested the flow associated with a parameter
+                            dep_name = dep.replace('___flow', '')
 
-                        if not self.transitions[dep_name]:
-                            # If the user is trying to get the flow rate for a non-transition parameter
-                            message = 'The function for parameter "%s" depends on the flow rate "%s:flow". Flow rates are only associated with transition parameters, but "%s" does not appear in the transition matrix, and there is therefore no flow rate associated with it' % (par.name, dep_name, dep_name)
-                            raise InvalidFramework(message)
+                            if dep_name not in self.pars.index:
+                                message = 'The function for parameter "%s" depends on the flow rate "%s:flow". This requires a parameter called "%s" to be defined in the Framework, but no parameter with that name was found' % (par.name, dep_name, dep_name)
+                                raise InvalidFramework(message)
+
+                            if not self.transitions[dep_name]:
+                                # If the user is trying to get the flow rate for a non-transition parameter
+                                message = 'The function for parameter "%s" depends on the flow rate "%s:flow". Flow rates are only associated with transition parameters, but "%s" does not appear in the transition matrix, and there is therefore no flow rate associated with it' % (par.name, dep_name, dep_name)
+                                raise InvalidFramework(message)
+                        else:
+                            # If the user requested the flow between compartments
+                            deps = dep.split('___')
+                            if deps[0] and deps[0] not in self.comps.index:
+                                message = 'The function for parameter "%s" depends on the flow rate "%s". This requires a source compartment called "%s" to be defined in the Framework, but no compartment with that name was found' % (par.name, dep.replace('___',':'), deps[0])
+                                raise InvalidFramework(message)
+                            if deps[1] and deps[1] not in self.comps.index:
+                                message = 'The function for parameter "%s" depends on the flow rate "%s". This requires a destination compartment called "%s" to be defined in the Framework, but no compartment with that name was found' % (par.name, dep.replace('___',':'), deps[1])
+                                raise InvalidFramework(message)
 
                     elif dep in self.comps.index:
                         continue
@@ -880,7 +901,18 @@ def generate_framework_doc(framework,fname, databook_only=False):
             if spec['function']:
                 _, deps = parse_function(spec['function'])  # Parse the function to get dependencies
                 for dep in deps:
-                    fcn_deps[spec.name].add(framework.get_label(dep))
+                    if dep.endswith('___flow'):
+                        fcn_deps[spec.name].add(framework.get_label(dep.replace('___flow','')) + ' flow rate')
+                    elif '___' in dep:
+                        from_comp, to_comp = dep.split('___')
+                        label = 'Flow'
+                        if from_comp:
+                            label += ' from %s' % (framework.get_label(from_comp))
+                        if to_comp:
+                            label += ' to %s' % (framework.get_label(to_comp))
+                        fcn_deps[spec.name].add(label)
+                    else:
+                        fcn_deps[spec.name].add(framework.get_label(dep))
 
                     if dep in fcn_deps:
                         fcn_used_in[dep].add(spec['display name'])

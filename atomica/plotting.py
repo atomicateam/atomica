@@ -427,7 +427,7 @@ class PlotData():
             else:
                 raise Exception('Unknown accumulation type')
 
-            s.units = 'Cumulative ' + s.units.lower()
+            self.outputs[s.output] = 'Cumulative ' + self.outputs[s.output]
 
     def _time_aggregate(self, t_bins, time_aggregation = None) -> None:
         """
@@ -486,7 +486,7 @@ class PlotData():
                 scale = 1.0
 
             f = scipy.interpolate.PchipInterpolator(s.tvec/scale, s.vals, axis=0, extrapolate=False)
-            vals = np.array([scipy.integrate.quad(f, l, u)[0] for l, u in zip(lower/scale, upper/scale)])
+            vals = np.array([scipy.integrate.quadrature(f, l, u,maxiter=5*s.vals.size)[0] for l, u in zip(lower/scale, upper/scale)])
 
             if method == 'integrate':
                 s.tvec = upper
