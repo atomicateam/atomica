@@ -183,7 +183,7 @@ if "testprograms" in torun:
 
             # For a single program, demonstrate how to get a vector of number/proportion covered given a time vector, a budget (note, budget is optional!!), and denominators
 
-            num_covered = P.progsets[0].programs[4].get_num_covered(tvec=[2014, 2015, 2016, 2017], spending=[1e5, 2e5, 3e5, 4e5],dt=P.settings.sim_dt)
+            num_covered = P.progsets[0].programs[4].get_capacity(tvec=[2014, 2015, 2016, 2017], spending=[1e5, 2e5, 3e5, 4e5], dt=P.settings.sim_dt)
             prop_covered = P.progsets[0].programs[4].get_prop_covered(tvec=[2014, 2015, 2016, 2017], num_covered=[1e5, 2e5, 3e5, 4e5], denominator=[1e4, 1.1e4, 1.2e4, 1.3e4])
             print(num_covered)
             print(prop_covered)
@@ -195,7 +195,7 @@ if "testprograms" in torun:
                                  ('Treatment 1',        [3e4,3.1e4,3.2e4,3.3e4]),
                                  ('Treatment 2',        [4e4,4.1e4,4.2e4,4.3e4])])
 
-            num_coverage = P.progsets[0].get_num_coverage(tvec=[2014, 2015, 2016, 2017], dt=P.settings.sim_dt)
+            num_coverage = P.progsets[0].get_capacities(tvec=[2014, 2015, 2016, 2017], dt=P.settings.sim_dt)
             print(num_coverage)
             print(P.progsets[0].get_prop_coverage(tvec=[2014, 2015, 2016, 2017], num_coverage=num_coverage, denominator = denominator))
 
@@ -232,7 +232,7 @@ if "testprograms" in torun:
                                     ('PCF-HIV-',        [9e6]),
                                     ('PCF-HIV+',        [9e6])])
 
-            print(P.progsets[0].get_num_coverage(year=[2017]))
+            print(P.progsets[0].get_capacities(year=[2017]))
             print(P.progsets[0].get_prop_coverage(year=[2017], denominator = denominator))
 
 

@@ -12,6 +12,7 @@ can be run with more recent versions of Atomica. This module defines
 """
 
 import sys
+import io
 from distutils.version import LooseVersion
 from .system import logger
 from .version import version
@@ -27,12 +28,20 @@ import numpy as np
 # In this section, make changes to the Atomica module structure to enable pickle files
 # to be loaded at all
 
+class _Placeholder():
+    pass
+
 # First, add any placeholder modules that have been subsequently removed
 atomica.structure = types.ModuleType('structure')  # Removed 'structure' module in 1.0.12 20181107
 sys.modules['atomica.structure'] = atomica.structure
 
 # Then, remap any required classes
 atomica.structure.TimeSeries = atomica.utils.TimeSeries  # Moved 'TimeSeries' in 1.0.12 20181107
+
+# If classes have been removed, then use the Placeholder class to load them
+# The migration function can then replace Placeholder instances with actual
+# instances - see the AtomicaSpreadsheet -> sciris.Spreadsheet migration function
+atomica.excel.AtomicaSpreadsheet = _Placeholder
 
 # PROJECT MIGRATIONS
 #
@@ -311,4 +320,43 @@ def parameter_use_timeseries(proj):
             del par.y
             del par.autocalibrate
 
+    return proj
+
+@migration('1.0.14', '1.0.15', 'Internal model tidying')
+def model_tidying(proj):
+    for result in all_results(proj):
+        for pop in result.model.pops:
+            for charac in pop.characs:
+                charac._vals = charac.internal_vals
+                charac._is_dynamic = charac.dependency
+                del charac.internal_vals
+                del charac.dependency
+            for par in pop.pars:
+                par._is_dynamic = par.dependency
+                par._precompute = False
+                del par.dependency
+    return proj
+
+@migration('1.0.15', '1.0.16', 'Replace AtomicaSpreadsheet')
+def convert_spreadsheets(proj):
+
+    def convert(placeholder):
+        new = sc.Spreadsheet(source=io.BytesIO(placeholder.data),filename=placeholder.filename)
+        new.created = placeholder.load_date
+        new.modified = placeholder.load_date
+        return new
+
+    if proj.databook is not None:
+        proj.databook = convert(proj.databook)
+    if proj.progbook is not None:
+        proj.progbook = convert(proj.progbook)
+
+    return proj
+
+@migration('1.0.16', '1.0.17', 'Rename capacity constraint')
+def model_tidying(proj):
+    for progset in all_progsets(proj):
+        for prog in progset.programs.values():
+            prog.capacity_constraint = prog.capacity
+            del prog.capacity
     return proj

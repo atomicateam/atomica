@@ -21,14 +21,25 @@ import numpy as np
 # List available models based on which framework files exist
 models = list()
 for f in os.listdir(at.LIBRARY_PATH):
-    if f.endswith('_framework.xlsx'):
+    if f.endswith('_framework.xlsx') and not f.startswith('~$'):
         models.append(f.replace('_framework.xlsx', ''))
 
 def validate(r1,r2):
     for p1,p2 in zip(r1.model.pops, r2.model.pops):
-        for v1, v2 in zip(p1.comps+p1.characs+p1.pars+p1.links, p2.comps+p2.characs+p2.pars+p2.links):
-            # Default tolerances are rtol=1e-05, atol=1e-08
-            assert np.allclose(v1.vals,v2.vals, equal_nan=True)
+        for v1 in p1.comps+p1.characs+p1.pars+p1.links: # For every variable in the old one
+            if isinstance(v1,at.model.Link):
+                try:
+                    v2 = p2.get_variable('%s:%s:%s' % (v1.source.name, v1.dest.name, v1.parameter.name))[0]
+                    assert np.allclose(v1.vals, v2.vals, equal_nan=True)  # Default tolerances are rtol=1e-05, atol=1e-08
+                except at.system.NotFoundError:
+                    print('Could not find "%s" in saved output, continuing' % (v1.name))
+            else:
+                try:
+                    v2 = p2.get_variable(v1.name)[0]
+                    assert np.allclose(v1.vals, v2.vals, equal_nan=True) # Default tolerances are rtol=1e-05, atol=1e-08
+                except at.system.NotFoundError:
+                    print('Could not find "%s" in saved output, continuing' % (v1.name))
+
     print('Validation passed')
 
 @pytest.mark.parametrize('model',models)
@@ -63,5 +74,7 @@ def test_validate_model(model):
 
 if __name__ == '__main__':
     np.seterr(all='raise',under='ignore')
-    for m in models:
-        test_validate_model(m)
+    test_validate_model('tb')
+
+    # for m in models:
+    #     test_validate_model(m)

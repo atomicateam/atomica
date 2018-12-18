@@ -13,7 +13,7 @@ from .utils import NamedItem
 from numpy import array, exp, minimum, inf
 from .utils import TimeSeries
 from .system import FrameworkSettings as FS
-from .excel import standard_formats, AtomicaSpreadsheet, apply_widths, update_widths, read_tables, TimeDependentValuesEntry, validate_category
+from .excel import standard_formats, apply_widths, update_widths, read_tables, TimeDependentValuesEntry, validate_category
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 import openpyxl
 import xlsxwriter as xw
@@ -263,7 +263,7 @@ class ProgramSet(NamedItem):
             - A Project containing a framework and data
             - ProjectFramework and ProjectData instances without a project
 
-        :param spreadsheet: A string file path, or an AtomicaSpreadsheet
+        :param spreadsheet: A string file path, or an sc.Spreadsheet
         :param framework: A :py:class:`ProjectFramework` instance
         :param data: A :py:class:`ProjectData` instance
         :param project: A :py:class:`Project` instance
@@ -282,9 +282,9 @@ class ProgramSet(NamedItem):
 
         # Create and load spreadsheet
         if sc.isstring(spreadsheet):
-            spreadsheet = AtomicaSpreadsheet(spreadsheet)
+            spreadsheet = sc.Spreadsheet(spreadsheet)
 
-        workbook = openpyxl.load_workbook(spreadsheet.get_file(), read_only=True, data_only=True)  # Load in read-only mode for performance, since we don't parse comments etc.
+        workbook = openpyxl.load_workbook(spreadsheet.tofile(), read_only=True, data_only=True)  # Load in read-only mode for performance, since we don't parse comments etc.
         validate_category(workbook, 'atomica:progbook')
 
         # Load individual sheets
@@ -310,7 +310,7 @@ class ProgramSet(NamedItem):
         self._book.close()
 
         # Dump the file content into a ScirisSpreadsheet
-        spreadsheet = AtomicaSpreadsheet(f)
+        spreadsheet = sc.Spreadsheet(f)
 
         # Clear everything
         f.close()
@@ -485,7 +485,11 @@ class ProgramSet(NamedItem):
             else:
                 set_ts(prog, 'spend_data', tdve.ts['Annual spend'])
 
-            set_ts(prog, 'capacity', tdve.ts['Capacity'])
+            if 'Capacity' in tdve.ts:  # Old progbooks have 'capacity' instead of 'capacity constraint'
+                set_ts(prog, 'capacity_constraint', tdve.ts['Capacity'])
+            else:
+                set_ts(prog, 'capacity_constraint', tdve.ts['Capacity constraint'])
+
             set_ts(prog, 'unit_cost', tdve.ts['Unit cost'])
             set_ts(prog, 'coverage', tdve.ts['Coverage'])
             set_ts(prog, 'saturation', tdve.ts['Saturation'])
@@ -511,7 +515,7 @@ class ProgramSet(NamedItem):
             prog = self.programs[tdve.name]
             tdve.ts['Annual spend'] = prog.spend_data
             tdve.ts['Unit cost'] = prog.unit_cost
-            tdve.ts['Capacity'] = prog.capacity
+            tdve.ts['Capacity constraint'] = prog.capacity_constraint
             tdve.ts['Saturation'] = prog.saturation
             tdve.ts['Coverage'] = prog.coverage
 
@@ -783,14 +787,14 @@ class ProgramSet(NamedItem):
 
         return alloc
 
-    def get_num_coverage(self, tvec, dt, instructions=None, sample=False) -> dict:
+    def get_capacities(self, tvec, dt, instructions=None, sample=False) -> dict:
         """ Return the number coverage of each program
 
-        :param tvec: array of times (in years) - this is required to interpolate time-varying unit costs and capacity constraints
+        :param tvec: array of times (in years) - this is required to interpolate time-varying unit costs and capacity_constraint constraints
         :param dt: scalar timestep size - this is required to adjust spending on incidence-type programs
         :param instructions: optionally specify instructions, which can supply a spending overwrite
         :param sample: TODO implement sampling
-        :return: Dict like ``{prog_name: np.array()}`` with number of people covered at each timestep (in units of people)
+        :return: Dict like ``{prog_name: np.array()}`` with program capacity at each timestep (in units of people)
 
         """
 
@@ -799,27 +803,31 @@ class ProgramSet(NamedItem):
         alloc = self.get_alloc(tvec, instructions)
 
         # Get number covered for each program
-        num_coverage = sc.odict()  # Initialise outputs
+        capacities = sc.odict()  # Initialise outputs
         for prog in self.programs.values():
             if prog.name in alloc:
                 spending = alloc[prog.name]
             else:
                 spending = None
-            num_coverage[prog.name] = prog.get_num_covered(tvec=tvec, dt=dt, spending=spending, sample=False)
+            capacities[prog.name] = prog.get_capacity(tvec=tvec, dt=dt, spending=spending, sample=False)
 
-        return num_coverage
+        return capacities
 
-    def get_prop_coverage(self, tvec, num_coverage, denominator, instructions=None, sample=False) -> dict:
+    def get_prop_coverage(self, tvec, capacities, num_eligible, instructions=None, sample=False) -> dict:
         """ Return the fractional coverage of each program
 
-        Note the evaluating the proportion coverage for a ProgramSet is not a straight division because
+        Note that this function is primarily for internal usage (i.e. during
+        model integration or reconciliation). Since the proportion covered depends
+        on the number of people eligible for the program (the coverage denominator).
+
+        Evaluating the proportion coverage for a ProgramSet is not a straight division because
 
         - instructions can override the coverage (for coverage scenarios)
         - Programs can contain saturation constraints
 
         :param tvec: array of times (in years) - this is required to interpolate time-varying saturation values
-        :param num_coverage: dict of program coverages, should match the available programs (typically the output of ``ProgramSet.get_num_coverage()``)
-        :param denominator: dict of number of people covered by each program, computed externally and with one entry for each program
+        :param capacities: dict of program coverages, should match the available programs (typically the output of ``ProgramSet.get_capacities()``)
+        :param num_eligible: dict of number of people covered by each program, computed externally and with one entry for each program
         :param instructions: optionally specify instructions, which can supply a coverage overwrite
         :param sample: TODO implement sampling
         :return: Dict like ``{prog_name: np.array()}`` with fractional coverage values (dimensionless)
@@ -829,7 +837,7 @@ class ProgramSet(NamedItem):
         prop_coverage = sc.odict()  # Initialise outputs
         for prog in self.programs.values():
             if instructions is None or prog.name not in instructions.coverage:
-                prop_coverage[prog.name] = prog.get_prop_covered(tvec, num_coverage[prog.name], denominator[prog.name], sample=sample)
+                prop_coverage[prog.name] = prog.get_prop_covered(tvec, capacities[prog.name], num_eligible[prog.name], sample=sample)
             else:
                 prop_coverage[prog.name] = instructions.coverage[prog.name].interpolate(tvec)
         return prop_coverage
@@ -878,9 +886,9 @@ class Program(NamedItem):
         self.baseline_spend = TimeSeries(assumption=0.0, units=currency + '/year')  # A TimeSeries with any baseline spending data - currently not exposed in progbook
         self.spend_data = TimeSeries(units=currency + '/year')  # TimeSeries with spending data
         self.unit_cost = TimeSeries(units=currency + '/person (one-off)')  # TimeSeries with unit cost of program
-        self.capacity = TimeSeries(units='people/year')  # TimeSeries with capacity of program - optional - if not supplied, cost function is assumed to be linear
+        self.capacity_constraint = TimeSeries(units='people/year')  # TimeSeries with capacity_constraint of program - optional - if not supplied, cost function is assumed to be linear
         self.saturation = TimeSeries(units=FS.DEFAULT_SYMBOL_INAPPLICABLE)
-        self.coverage = TimeSeries(units='people/year')  # TimeSeries with capacity of program - optional - if not supplied, cost function is assumed to be linear
+        self.coverage = TimeSeries(units='people/year')  # TimeSeries with capacity_constraint of program - optional - if not supplied, cost function is assumed to be linear
 
     def __repr__(self):
         ''' Print out useful info'''
@@ -899,7 +907,7 @@ class Program(NamedItem):
         else:
             return self.spend_data.interpolate(year)
 
-    def get_num_covered(self, tvec, spending, dt, sample=False):
+    def get_capacity(self, tvec, spending, dt, sample=False):
         """
         Return number of people covered
 
@@ -916,54 +924,48 @@ class Program(NamedItem):
 
         unit_cost = self.unit_cost.interpolate(tvec)
         if '/year' not in self.unit_cost.units:
-            # The spending is $/tvec, and the /tvec gets eliminated if the unit cost is also per tvec. If that's not the case, then
+            # The spending is $/year, and the /year gets eliminated if the unit cost is also per year. If that's not the case, then
             # we need to multiply the spending by the timestep to get the correct units
             spending *= dt
 
-        num_covered = spending / unit_cost
+        capacity = spending / unit_cost
 
-        if self.capacity.has_data:
-            capacity = self.capacity.interpolate(tvec)
-            if '/year' in self.capacity.units:
-                # The capacity constraint is applied to a number of people. If it is /year, then it must be multiplied by the timestep first
-                capacity *= dt
-            num_covered = np.minimum(capacity, num_covered)
+        if self.capacity_constraint.has_data:
+            capacity_constraint = self.capacity_constraint.interpolate(tvec)
+            if '/year' in self.capacity_constraint.units:
+                # The capacity_constraint constraint is applied to a number of people. If it is /year, then it must be multiplied by the timestep first
+                capacity_constraint *= dt
+            capacity = np.minimum(capacity_constraint, capacity)
 
-        return num_covered
+        return capacity
 
-    def get_prop_covered(self, tvec, num_covered, denominator, sample=False):
+    def get_prop_covered(self, tvec, capacity, eligible, sample=False):
         """
         Return proportion of people covered
 
         :param tvec:  An array of times
-        :param num_covered: An array of number of people covered (e.g. the output of ``Program.get_num_covered()``)
-        :param denominator: The number of people in the denominator (computed from a model object or a Result)
+        :param capacity: An array of number of people covered (e.g. the output of ``Program.get_capacity()``)
+        :param eligible: The number of people eligible for the program (computed from a model object or a Result)
         :param sample: TODO - implement sampling
         :return: The fractional coverage (used to compute outcomes)
 
         """
 
-
         tvec = sc.promotetoarray(tvec)
-        denominator = sc.promotetoarray(denominator)
-        num_covered = sc.promotetoarray(num_covered)
+        eligible = sc.promotetoarray(eligible)
+        capacity = sc.promotetoarray(capacity)
 
         if self.saturation.has_data:
-            # If the denominator is 0, then we need to use the saturation value
-            prop_covered = np.divide(num_covered, denominator, out=np.full(num_covered.shape, np.inf), where=denominator != 0)
+            # If the coverage denominator (eligible) is 0, then we need to use the saturation value
+            prop_covered = np.divide(capacity, eligible, out=np.full(capacity.shape, np.inf), where=eligible != 0)
             saturation = self.saturation.interpolate(tvec)
             prop_covered = 2 * saturation / (1 + exp(-2 * prop_covered / saturation)) - saturation
             prop_covered = minimum(prop_covered, 1.)  # Ensure that coverage doesn't go above 1 (if saturation is < 1)
         else:
             # The division below means that 0/0 is treated as returning 1
-            prop_covered = np.divide(num_covered, denominator, out=np.ones_like(num_covered), where=denominator > num_covered)
+            prop_covered = np.divide(capacity, eligible, out=np.ones_like(capacity), where=eligible > capacity)
 
         return prop_covered
-
-# --------------------------------------------------------------------
-# Covout
-# --------------------------------------------------------------------
-
 
 class Covout(object):
     '''
@@ -999,6 +1001,9 @@ class Covout(object):
         self.imp_interaction = imp_interaction
         self.sigma = uncertainty
         self.baseline = baseline
+        self.progs = None #: A dictionary storing program outcomes keyed by program name
+        self.deltas = None #: An array of outcome deltas (outcome minus baseline)
+        self.n_progs = None #: The number of programs
         self.update_progs(progs)
 
     def update_progs(self, progs):

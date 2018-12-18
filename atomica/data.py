@@ -12,7 +12,7 @@ from .utils import TimeSeries
 import sciris as sc
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 import openpyxl
-from .excel import cell_require_string, standard_formats, AtomicaSpreadsheet, read_tables, TimeDependentValuesEntry, TimeDependentConnections, apply_widths, update_widths, validate_category
+from .excel import cell_require_string, standard_formats, read_tables, TimeDependentValuesEntry, TimeDependentConnections, apply_widths, update_widths, validate_category
 import xlsxwriter as xw
 import io
 import numpy as np
@@ -228,8 +228,8 @@ class ProjectData(sc.prettyobj):
                         order = np.inf
                     else:
                         order = databook_order
-                    pages[databook_page].append((full_name, order))
-                    data.tdve[full_name] = TimeDependentValuesEntry(full_name, tvec, allowed_units=[framework.get_databook_units(full_name)], comment=spec['guidance'])
+                    pages[databook_page].append((spec.name, order))
+                    data.tdve[spec.name] = TimeDependentValuesEntry(full_name, tvec, allowed_units=[framework.get_databook_units(full_name)], comment=spec['guidance'])
 
         # Now convert pages to full names and sort them into the correct order
         for _, spec in framework.sheets['databook pages'][0].iterrows():
@@ -263,7 +263,7 @@ class ProjectData(sc.prettyobj):
                 # - The default value should be present and not None
                 # - The quantity should appear in the databook
                 if 'default value' in spec and (spec['default value'] is not None) and spec['databook page']:
-                    tdve = data.tdve[spec['display name']]
+                    tdve = data.tdve[spec.name]
                     for ts in tdve.ts.values():
                         ts.insert(None, spec['default value'])
 
@@ -287,9 +287,9 @@ class ProjectData(sc.prettyobj):
         self = ProjectData()
 
         if sc.isstring(spreadsheet):
-            spreadsheet = AtomicaSpreadsheet(spreadsheet)
+            spreadsheet = sc.Spreadsheet(spreadsheet)
 
-        workbook = openpyxl.load_workbook(spreadsheet.get_file(), read_only=True, data_only=True)  # Load in read-only mode for performance, since we don't parse comments etc.
+        workbook = openpyxl.load_workbook(spreadsheet.tofile(), read_only=True, data_only=True)  # Load in read-only mode for performance, since we don't parse comments etc.
         validate_category(workbook, 'atomica:databook')
 
         # These sheets are optional - if none of these are provided in the databook
@@ -358,6 +358,9 @@ class ProjectData(sc.prettyobj):
                         logger.warning('A TDVE table for "%s" (%s) was read in and will be used, but the Framework did not mark this quantity as appearing in the databook', tdve.name, code_name)
                     tdve.comment = spec['guidance']
 
+                    if code_name in self.tdve:
+                        raise Exception('A TDVE table for "%s" (%s) appears more than once in the databook. The first table was on sheet "%s" and the first duplicate table is on sheet "%s" starting on row %d' % (tdve.name, code_name, [k for k,v in self.tdve_pages.items() if code_name in v][0], sheet.title, start_row))
+
                     self.tdve[code_name] = tdve
                     # Store the TDVE on the page it was actually on, rather than the one in the framework. Then, if users move anything around, the change will persist
                     self.tdve_pages[sheet.title].append(code_name)
@@ -410,7 +413,19 @@ class ProjectData(sc.prettyobj):
 
                 if spec['databook page'] is not None:
                     if spec.name not in self.tdve:
-                        raise Exception('The databook did not contain a necessary TDVE table named "%s" (code name "%s")' % (spec['display name'], spec.name))
+                        if spec['default value'] is None:
+                            raise Exception('The databook did not contain a required TDVE table named "%s" (code name "%s")' % (spec['display name'], spec.name))
+                        else:
+                            logger.warning('TDVE table "%s" (code name "%s") is missing from the databook. Using default values from the framework' % (spec['display name'], spec.name))
+                            units = framework.get_databook_units(spec.name)
+                            self.tdve[spec.name] = TimeDependentValuesEntry(spec['display name'], self.tvec.copy(), allowed_units=[units], comment=spec['guidance'])
+                            for pop in self.pops.keys():
+                                self.tdve[spec.name].ts[pop] = TimeSeries(assumption=spec['default value'],units=units)
+                            tdve_page = framework.sheets['databook pages'][0][framework.sheets['databook pages'][0]['datasheet code name'] == spec['databook page']]['datasheet title'].values[0]
+                            if tdve_page in self.tdve_pages:
+                                self.tdve_pages[tdve_page].append(spec.name)
+                            else:
+                                self.tdve_pages[tdve_page] = [spec.name]
                     else:
                         framework_units = framework.get_databook_units(spec.name) # Get the expected databook units
                         tdve = self.tdve[spec.name]
@@ -459,7 +474,7 @@ class ProjectData(sc.prettyobj):
         self._book.close()
 
         # Dump the file content into a ScirisSpreadsheet
-        spreadsheet = AtomicaSpreadsheet(f)
+        spreadsheet = sc.Spreadsheet(f)
 
         # Clear everything
         f.close()
@@ -473,7 +488,7 @@ class ProjectData(sc.prettyobj):
     def save(self, fname):
         # Shortcut for saving to disk - FE RPC will probably use `to_spreadsheet()` but BE users will probably use `save()`
         ss = self.to_spreadsheet()
-        ss.save(fname)
+        ss.save(fname + '.xlsx' if not fname.endswith('.xlsx') else fname)
 
     def add_pop(self, code_name, full_name):
         # Add a population with the given name and label (full name)
