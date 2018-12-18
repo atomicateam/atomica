@@ -66,8 +66,8 @@ def _update_progset(asd_vals, mapping, progset):
             assert len(progset.programs[target[1]].unit_cost.vals) == 1
             progset.programs[target[1]].unit_cost.vals[0] = x
         elif target[0] == 'capacity_constraint':
-            assert len(progset.programs[target[1]].capacity.vals) == 1
-            progset.programs[target[1]].capacity.vals[0] = x
+            assert len(progset.programs[target[1]].capacity_constraint.vals) == 1
+            progset.programs[target[1]].capacity_constraint.vals[0] = x
         elif target[0] == 'baseline':
             progset.covouts[(target[1], target[2])].baseline = x
         elif target[0] == 'outcome':
@@ -95,8 +95,8 @@ def _prepare_bounds(progset, unit_cost_bounds, baseline_bounds, capacity_bounds,
     for prog in progset.programs.values():
         if unit_cost_bounds:
             bounds['unit_cost'][prog.name] = prog.unit_cost.vals * np.array([1 - unit_cost_bounds, 1 + unit_cost_bounds])
-        if capacity_bounds and prog.capacity.has_data:
-            bounds['capacity_constraint'][prog.name] = prog.capacity.vals * np.array([1 - capacity_bounds, 1 + capacity_bounds])
+        if capacity_bounds and prog.capacity_constraint.has_data:
+            bounds['capacity_constraint'][prog.name] = prog.capacity_constraint.vals * np.array([1 - capacity_bounds, 1 + capacity_bounds])
 
     for covout in progset.covouts.values():
         if baseline_bounds:
@@ -123,7 +123,7 @@ def _prepare_asd_inputs(progset, bounds):
             xmax.append(bounds['unit_cost'][prog.name][1])
             mapping.append(('unit_cost', prog.name))
         if prog.name in bounds['capacity_constraint']:  # Might need to check program_specific bounds here
-            x0.append(prog.capacity.vals[0])
+            x0.append(prog.capacity_constraint.vals[0])
             xmin.append(bounds['capacity_constraint'][prog.name][0])
             xmax.append(bounds['capacity_constraint'][prog.name][1])
             mapping.append(('capacity_constraint', prog.name))
@@ -185,10 +185,10 @@ def _convert_to_single_year(progset, reconciliation_year):
             prog.unit_cost.t = reconciliation_year.copy()
             prog.unit_cost.assumption = None
 
-        if prog.capacity.has_data:
-            prog.capacity.vals = prog.capacity.interpolate(reconciliation_year)
-            prog.capacity.t = reconciliation_year.copy()
-            prog.capacity.assumption = None
+        if prog.capacity_constraint.has_data:
+            prog.capacity_constraint.vals = prog.capacity_constraint.interpolate(reconciliation_year)
+            prog.capacity_constraint.t = reconciliation_year.copy()
+            prog.capacity_constraint.assumption = None
 
         # This is tricky - maybe we do want to retain other values? Depends on what ends up happening with coverage
         if prog.coverage.has_data:
