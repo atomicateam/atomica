@@ -511,7 +511,7 @@ class ProgramSet(NamedItem):
             prog = self.programs[tdve.name]
             tdve.ts['Annual spend'] = prog.spend_data
             tdve.ts['Unit cost'] = prog.unit_cost
-            tdve.ts['Capacity'] = prog.capacity
+            tdve.ts['Capacity constraint'] = prog.capacity_constraint
             tdve.ts['Saturation'] = prog.saturation
             tdve.ts['Coverage'] = prog.coverage
 
@@ -997,6 +997,9 @@ class Covout(object):
         self.imp_interaction = imp_interaction
         self.sigma = uncertainty
         self.baseline = baseline
+        self.progs = None #: A dictionary storing program outcomes keyed by program name
+        self.deltas = None #: An array of outcome deltas (outcome minus baseline)
+        self.n_progs = None #: The number of programs
         self.update_progs(progs)
 
     def update_progs(self, progs):
