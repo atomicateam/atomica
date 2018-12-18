@@ -1002,7 +1002,7 @@ class Model(object):
                     for comp_name in prog.target_comps:
                         self._program_cache['comps'][prog.name].append(self.get_pop(pop_name).get_comp(comp_name))
 
-            self._program_cache['num_coverage'] = self.progset.get_num_coverage(tvec=self.t, dt=self.dt, instructions=self.program_instructions)
+            self._program_cache['capacities'] = self.progset.get_capacities(tvec=self.t, dt=self.dt, instructions=self.program_instructions)
 
             # Cache the proportion coverage for coverage scenarios so that we don't call interpolate() every timestep
             self._program_cache['prop_coverage'] = dict()
@@ -1365,7 +1365,7 @@ class Model(object):
                     n = 0.0
                     for comp in comp_list:
                         n += comp.vals[ti]
-                    prop_coverage[k] = self.progset.programs[k].get_prop_covered(self.t[ti], self._program_cache['num_coverage'][k][ti], n, sample=False)
+                    prop_coverage[k] = self.progset.programs[k].get_prop_covered(self.t[ti], self._program_cache['capacities'][k][ti], n, sample=False)
             prog_vals = self.progset.get_outcomes(prop_coverage)
 
         for par_name in self._par_list:

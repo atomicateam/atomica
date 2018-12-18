@@ -44,9 +44,9 @@ def _extract_targets(result, progset, ti, eval_pars=None):
                 target_vals[(par_name, pop_name)] = par.vals[ti]
 
     # Get the coverage denominator in the reconciliation year (it's always the same, so can do it once here)
-    coverage_denominator = {x: y[ti] for x, y in result.get_coverage('denominator').items()}
+    num_eligible = {x: y[ti] for x, y in result.get_coverage('eligible').items()}
 
-    return target_vals, coverage_denominator
+    return target_vals, num_eligible
 
 
 def _update_progset(asd_vals, mapping, progset):
@@ -57,7 +57,7 @@ def _update_progset(asd_vals, mapping, progset):
     #             e.g.  [('unit_cost','BCG'),('outcome','v_rate','0-4','BCG')]
     #             The mapping is
     #             unit_cost - program
-    #             capacity - program
+    #             capacity_constraint - program
     #             baseline - par,pop
     #             outcome - par,pop,program
     # - progset : ProgramSet to modify, should have only one time
@@ -65,7 +65,7 @@ def _update_progset(asd_vals, mapping, progset):
         if target[0] == 'unit_cost':
             assert len(progset.programs[target[1]].unit_cost.vals) == 1
             progset.programs[target[1]].unit_cost.vals[0] = x
-        elif target[0] == 'capacity':
+        elif target[0] == 'capacity_constraint':
             assert len(progset.programs[target[1]].capacity.vals) == 1
             progset.programs[target[1]].capacity.vals[0] = x
         elif target[0] == 'baseline':
@@ -80,15 +80,15 @@ def _prepare_bounds(progset, unit_cost_bounds, baseline_bounds, capacity_bounds,
     # for every parameter being considered
     #
     # OUTPUTS
-    # bounds dict : {quantity:{key:(lower,upper)} where quantity is 'unit_cost','capacity','baseline','outcome', and key is:
+    # bounds dict : {quantity:{key:(lower,upper)} where quantity is 'unit_cost','capacity_constraint','baseline','outcome', and key is:
     #     for unit_cost - program
-    #     for capacity - program
+    #     for capacity_constraint - program
     #     for baseline - par,pop
     #     for outcome - par,pop,program
 
     bounds = dict()
     bounds['unit_cost'] = dict()
-    bounds['capacity'] = dict()
+    bounds['capacity_constraint'] = dict()
     bounds['baseline'] = dict()
     bounds['outcome'] = dict()
 
@@ -96,7 +96,7 @@ def _prepare_bounds(progset, unit_cost_bounds, baseline_bounds, capacity_bounds,
         if unit_cost_bounds:
             bounds['unit_cost'][prog.name] = prog.unit_cost.vals * np.array([1 - unit_cost_bounds, 1 + unit_cost_bounds])
         if capacity_bounds and prog.capacity.has_data:
-            bounds['capacity'][prog.name] = prog.capacity.vals * np.array([1 - capacity_bounds, 1 + capacity_bounds])
+            bounds['capacity_constraint'][prog.name] = prog.capacity.vals * np.array([1 - capacity_bounds, 1 + capacity_bounds])
 
     for covout in progset.covouts.values():
         if baseline_bounds:
@@ -122,11 +122,11 @@ def _prepare_asd_inputs(progset, bounds):
             xmin.append(bounds['unit_cost'][prog.name][0])
             xmax.append(bounds['unit_cost'][prog.name][1])
             mapping.append(('unit_cost', prog.name))
-        if prog.name in bounds['capacity']:  # Might need to check program_specific bounds here
+        if prog.name in bounds['capacity_constraint']:  # Might need to check program_specific bounds here
             x0.append(prog.capacity.vals[0])
-            xmin.append(bounds['capacity'][prog.name][0])
-            xmax.append(bounds['capacity'][prog.name][1])
-            mapping.append(('capacity', prog.name))
+            xmin.append(bounds['capacity_constraint'][prog.name][0])
+            xmax.append(bounds['capacity_constraint'][prog.name][1])
+            mapping.append(('capacity_constraint', prog.name))
 
     for covout in progset.covouts.values():
         if (covout.par, covout.pop) in bounds['baseline']:
@@ -145,10 +145,10 @@ def _prepare_asd_inputs(progset, bounds):
     return x0, xmin, xmax, mapping
 
 
-def _objective(x, mapping, progset, eval_years, target_vals, coverage_denominator, dt):
+def _objective(x, mapping, progset, eval_years, target_vals, num_eligible, dt):
     _update_progset(x, mapping, progset)  # Apply the changes to the progset
-    num_coverage = progset.get_num_coverage(tvec=eval_years, dt=dt, sample=False)  # Get number coverage using latest unit costs but default spending
-    prop_coverage = progset.get_prop_coverage(tvec=eval_years, num_coverage=num_coverage, denominator=coverage_denominator, sample=False)
+    capacities = progset.get_capacities(tvec=eval_years, dt=dt, sample=False)  # Get number coverage using latest unit costs but default spending
+    prop_coverage = progset.get_prop_coverage(tvec=eval_years, capacities=capacities, num_eligible=num_eligible, sample=False)
 
     obj = 0.0
     for i in range(0, len(eval_years)):
@@ -210,7 +210,7 @@ def reconcile(project, parset, progset, reconciliation_year: float, max_time=10,
     has internal attributes (such as unit costs) with values that are defined only in the reconciliation year. So while the
     input progset may have time varying unit costs etc. after reconciliation, they will be constant.
 
-    The upper and lower bounds for unit costs, baseline, capacity, and outcome are specified as fractions of the initial value. For
+    The upper and lower bounds for unit costs, baseline, capacity_constraint, and outcome are specified as fractions of the initial value. For
     example, entering ``unit_cost_bounds=0.2`` would mean that unit costs would be allowed to range from 0.8 to 1.2 times the
     value in the input progset.
 
@@ -221,7 +221,7 @@ def reconcile(project, parset, progset, reconciliation_year: float, max_time=10,
     :param max_time: Optionally override the maximum execution time in ASD
     :param unit_cost_bounds: Optionally specify bounds for unit costs. Default is 0.0 (unit costs will not be changed)
     :param baseline_bounds: Optionally specify bounds for baseline spending. Default is 0.0 (no changes)
-    :param capacity_bounds: Optionally specify bounds for capacity constraints. Default is 0.0 (no changes)
+    :param capacity_bounds: Optionally specify bounds for capacity_constraint constraints. Default is 0.0 (no changes)
     :param outcome_bounds: Optionally specify bounds for outcome values. Default is 0.0 (no changes)
     :param eval_pars: Optionally select a subset of parameters for comparison. By default, all parameters overwritten by the progset will be used.
     :param eval_range: Optionally specify a range of years over which to evaluate the progset-parset match. By default, it will only use the reconciliation year
@@ -248,7 +248,7 @@ def reconcile(project, parset, progset, reconciliation_year: float, max_time=10,
     parset_results = project.run_sim(parset=parset, progset=progset, store_results=False)
     ti = np.where((parset_results.model.t >= eval_range[0]) & (parset_results.model.t < eval_range[1]))[0]
     eval_years = parset_results.t[ti]
-    target_vals, coverage_denominator = _extract_targets(parset_results, progset, ti, eval_pars)
+    target_vals, num_eligible = _extract_targets(parset_results, progset, ti, eval_pars)
 
     # Prepare ASD inputs
     new_progset = _convert_to_single_year(progset, reconciliation_year[0])
@@ -262,7 +262,7 @@ def reconcile(project, parset, progset, reconciliation_year: float, max_time=10,
         'progset': new_progset,
         'eval_years': eval_years,
         'target_vals': target_vals,
-        'coverage_denominator': coverage_denominator,
+        'num_eligible': num_eligible,
         'dt': project.settings.sim_dt,
     }
 
@@ -290,10 +290,10 @@ def reconcile(project, parset, progset, reconciliation_year: float, max_time=10,
 
     # Before/after for parameters
     records = []
-    old_num_coverage = progset.get_num_coverage(tvec=eval_years, dt=project.settings.sim_dt)
-    new_num_coverage = new_progset.get_num_coverage(tvec=eval_years, dt=project.settings.sim_dt)
-    old_prop_coverage = progset.get_prop_coverage(tvec=eval_years, num_coverage=old_num_coverage, denominator=coverage_denominator)
-    new_prop_coverage = new_progset.get_prop_coverage(tvec=eval_years, num_coverage=new_num_coverage, denominator=coverage_denominator)
+    old_capacities = progset.get_capacities(tvec=eval_years, dt=project.settings.sim_dt)
+    new_capacities = new_progset.get_capacities(tvec=eval_years, dt=project.settings.sim_dt)
+    old_prop_coverage = progset.get_prop_coverage(tvec=eval_years, capacities=old_capacities, num_eligible=num_eligible)
+    new_prop_coverage = new_progset.get_prop_coverage(tvec=eval_years, capacities=new_capacities, num_eligible=num_eligible)
     for i, year in enumerate(eval_years):
         old_outcomes = progset.get_outcomes(prop_coverage={prog: cov[[i]] for prog, cov in old_prop_coverage.items()})  # Program outcomes for this year
         new_outcomes = new_progset.get_outcomes(prop_coverage={prog: cov[[i]] for prog, cov in new_prop_coverage.items()})  # Program outcomes for this year

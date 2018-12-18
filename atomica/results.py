@@ -6,15 +6,14 @@ providing methods to conveniently access, plot, and export model outputs.
 
 """
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+
 import sciris as sc
-from .utils import NamedItem
-import matplotlib.pyplot as plt
-import ast
 from .excel import standard_formats
-from .system import logger
 from .system import FrameworkSettings as FS
+from .utils import NamedItem
 from .utils import evaluate_plot_string
 
 
@@ -70,21 +69,30 @@ class Result(NamedItem):
         else:
             return self.model.progset.get_alloc(self.t, self.model.program_instructions)
 
-    def get_coverage(self, quantity='fraction'):
-        # Return program coverage
-        #
-        # INPUTS
-        # - quantity : one of ['number','fraction','denominator']
-        # OUTPUTS
-        # - {prog_name:value}
+    def get_coverage(self, quantity:str ='fraction') -> dict:
+        """
+        Return program coverage
+
+        This function is the primary function to use when wanting to query coverage
+        values. All coverage quantities are accessible via the :class:`Result` object
+        because the compartment sizes and thus eligible people are known.
+
+        :param quantity: One of
+            - 'capacity' - The number of people that a program is funded to reach (coverage numerator)
+            - 'eligible' - The number of people eligible for the program (coverage denominator)
+            - 'fraction' - ``capacity/eligible``, the fraction coverage (maximum value is 1.0)
+            - 'number' - The number of people covered (``fraction*eligible``)
+        :return: Requested values in dictionary ``{prog_name:value}``
+
+        """
 
         if self.model.progset is None:
             return None
 
-        num_coverage = self.model.progset.get_num_coverage(tvec=self.t, dt=self.dt, instructions=self.model.program_instructions)
+        capacities = self.model.progset.get_capacities(tvec=self.t, dt=self.dt, instructions=self.model.program_instructions)
 
-        if quantity == 'number':
-            return num_coverage
+        if quantity == 'capacity':
+            return capacities
         else:
             # Get the program coverage denominator
             num_eligible = dict()  # This is the coverage denominator, number of people covered by the program
@@ -95,12 +103,14 @@ class Result(NamedItem):
                             num_eligible[prog.name] = self.get_variable(pop_name, comp_name)[0].vals.copy()
                         else:
                             num_eligible[prog.name] += self.get_variable(pop_name, comp_name)[0].vals
-            prop_coverage = self.model.progset.get_prop_coverage(tvec=self.t, num_coverage=num_coverage, denominator=num_eligible, instructions=self.model.program_instructions, sample=False)
+            prop_coverage = self.model.progset.get_prop_coverage(tvec=self.t, capacities=capacities, num_eligible=num_eligible, instructions=self.model.program_instructions, sample=False)
 
             if quantity == 'fraction':
                 return prop_coverage
-            elif quantity == 'denominator':
+            elif quantity == 'eligible':
                 return num_eligible
+            elif quantity == 'number':
+                return {x: num_eligible[x]*prop_coverage[x] for x in prop_coverage.keys()}
             else:
                 raise Exception('Unknown coverage type requested')
 
@@ -200,28 +210,23 @@ class Result(NamedItem):
         return h
 
     def budget(self, year=None):
-        # Return budget at given year
-        # year - a time, or array of times. Returns budget at these times. If `None` then
-        #        it will use all simulation times
+        """
+        Return budget at a given year
+
+        This will return the per-year spending rate taking into account
+        any budget scenarios that are present.
+
+        :param year: Optionally specify a time or array of times. Otherwise, use all times
+        :returns: A ``dict`` keyed by program name containing arrays of spending values
+
+        """
+
         if self.model.progset is None:
             return None
         else:
             if year is None:
                 year = self.t
             return self.model.progset.get_alloc(year, self.model.program_instructions)
-
-    def coverage(self, year=None, quantity='coverage_fraction'):
-        # Other supported quantities - 'coverage_number' or 'coverage_denominator'
-        from .plotting import PlotData  # return
-
-        if self.model.progset is None:
-            return None
-        else:
-            if year is None:
-                year = self.t
-        d = PlotData.programs(self, quantity=quantity)
-        d.interpolate(year)
-        return sc.odict([(s.data_label, s.vals) for s in d.series])
 
 
 def export_results(results, filename=None, output_ordering=('output', 'result', 'pop'), cascade_ordering=('pop', 'result', 'stage'), program_ordering=('program', 'result', 'quantity')):
@@ -359,7 +364,7 @@ def _programs_to_df(results, prog_name, tvals):
             vals.series[0].vals[~programs_active] = np.nan
             data[(prog_name, result.name, 'People covered')] = vals.series[0].vals
 
-            vals = PlotData.programs(result, outputs=prog_name, quantity='coverage_denominator').interpolate(tvals)
+            vals = PlotData.programs(result, outputs=prog_name, quantity='coverage_eligible').interpolate(tvals)
             vals.series[0].vals[~programs_active] = np.nan
             data[(prog_name, result.name, 'People eligible')] = vals.series[0].vals
 
@@ -409,7 +414,7 @@ def _cascade_to_df(results, cascade_name, tvals):
     return pd.concat(cascade_df)
 
 
-def _output_to_df(results, output_name, output, tvals):
+def _output_to_df(results, output_name:str, output, tvals) -> pd.DataFrame:
     """
     Convert an output to a DataFrame for a group of results
 
@@ -423,8 +428,8 @@ def _output_to_df(results, output_name, output, tvals):
     cells in the Excel spreadsheet so the user is able to fill them in themselves.
 
     :param results: List of Results
-    :param outputs: An output aggregation that evaluates to a single output
-    :param group_results: True/false flag for whether results should be grouped in the DataFrame
+    :param output_name: The name to use for the output quantity
+    :param output: An output specification/aggregation supported by :class:`PlotData`
     :param tvals: Outputs will be interpolated onto the times in this array (typically would be annual)
     :return: A DataFrame
 

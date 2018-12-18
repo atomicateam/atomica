@@ -542,8 +542,8 @@ class PlotData():
                           program spending, and aggregation is NOT permitted for coverages (due to modality interactions)
         :param t_bins: aggregate over time, using summation for spending and number coverage, and average for fraction/proportion coverage. Notice that
                         unlike the `PlotData()` constructor, this function does _not_ allow the time aggregation method to be manually set.
-        :param quantity: can be 'spending', 'coverage_number', 'coverage_denominator', or 'coverage_fraction'. The 'coverage_denominator' is
-                        the sum of compartments reached by a program, such that coverage_fraction = coverage_number/coverage_denominator
+        :param quantity: can be 'spending', 'coverage_number', 'coverage_eligible', or 'coverage_fraction'. The 'coverage_eligible' is
+                        the sum of compartments reached by a program, such that coverage_fraction = coverage_number/coverage_eligible
         :param accumulate: can be 'sum' or 'integrate'
         :return: A new :py:class:`PlotData` instance
 
@@ -569,7 +569,7 @@ class PlotData():
 
         outputs = _expand_dict(outputs)
 
-        assert quantity in ['spending', 'coverage_number', 'coverage_denominator', 'coverage_fraction']
+        assert quantity in ['spending', 'coverage_number', 'coverage_eligible', 'coverage_fraction']
         # Make a new PlotData instance
         # We are using __new__ because this method is to be formally considered an alternate constructor and
         # thus bears responsibility for ensuring this new instance is initialized correctly
@@ -589,15 +589,16 @@ class PlotData():
                 # Coverage comes out as a number of people at each timestep, but we need to know
                 # whether that value is distributed across the year or not. A dt-coverage of 100 for a
                 # treatment program implies 400 people/year, while a dt-coverage of 100 for ART only
-                # has 100 people/year. Therefore, we keep the coverage number as it is, but use the
-                # timescale to track whether there was a denominator in the units or not
+                # has 100 people/year. Here, we convert the number covered at each timestep into an
+                # annualized coverage rate (and set the timescale accordingly). Thus, for
+                # that example, we return 400 and 100, respectively.
                 timescales = dict.fromkeys(all_vals,1.0)
                 for prog_name in all_vals:
                     if '/year' not in result.model.progset.programs[prog_name].unit_cost.units:
                         all_vals[prog_name] /= result.dt
 
-            elif quantity == 'coverage_denominator':
-                all_vals = result.get_coverage('denominator')
+            elif quantity == 'coverage_eligible':
+                all_vals = result.get_coverage('eligible')
                 units = 'Number of people'
                 timescales = dict.fromkeys(all_vals,None)
             elif quantity == 'coverage_fraction':
@@ -644,7 +645,7 @@ class PlotData():
         if t_bins is not None:
             if quantity in ['spending', 'coverage_number']:
                 plotdata._time_aggregate(t_bins, 'integrate')
-            elif quantity in ['coverage_denominator', 'coverage_fraction']:
+            elif quantity in ['coverage_eligible', 'coverage_fraction']:
                 plotdata._time_aggregate(t_bins, 'average')
 
         if accumulate is not None:

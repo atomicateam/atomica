@@ -328,3 +328,11 @@ def model_tidying(proj):
                 par._precompute = False
                 del par.dependency
     return proj
+
+@migration('1.0.15', '1.0.16', 'Rename capacity constraint')
+def model_tidying(proj):
+    for progset in all_progsets(proj):
+        for prog in progset.programs.values():
+            prog.capacity_constraint = prog.capacity
+            del prog.capacity
+    return proj
