@@ -485,7 +485,11 @@ class ProgramSet(NamedItem):
             else:
                 set_ts(prog, 'spend_data', tdve.ts['Annual spend'])
 
-            set_ts(prog, 'capacity_constraint', tdve.ts['Capacity'])
+            if 'Capacity' in tdve.ts:  # Old progbooks have 'capacity' instead of 'capacity constraint'
+                set_ts(prog, 'capacity_constraint', tdve.ts['Capacity'])
+            else:
+                set_ts(prog, 'capacity_constraint', tdve.ts['Capacity constraint'])
+
             set_ts(prog, 'unit_cost', tdve.ts['Unit cost'])
             set_ts(prog, 'coverage', tdve.ts['Coverage'])
             set_ts(prog, 'saturation', tdve.ts['Saturation'])
