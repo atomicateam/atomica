@@ -91,90 +91,27 @@ def update_widths(width_dict: dict, column_index: int, contents: str) -> None:
         width_dict[column_index] = max(width_dict[column_index], len(contents))
 
 
-class AtomicaSpreadsheet(object):
-    ''' A class for reading and writing data in binary format, so a project contains the spreadsheet loaded '''
-    # This object provides an interface for managing the contents of files (particularly spreadsheets) as Python objects
-    # that can be stored in the FE database. Basic usage is as follows:
-    #
-    # READING:
-    #
-    # ss = AtomicaSpreadsheet('input.xlsx') # Load a file into this object
-    # f = ss.get_file() # Retrieve an in-memory file-like IO stream from the data
-    # book = openpyxl.load_workbook(f) # This stream can be passed straight to openpyxl
-    #
-    # WRITING:
-    #
-    # f = io.BytesIO()
-    # book = xlsxwriter.Workbook(f)
-    # book.close()
-    # spreadsheet = AtomicaSpreadsheet(f) # note that `f.flush()` will automatically be called
-    # f.close()
-    #
-    # As shown above, no disk IO is required to manipulate the spreadsheets with openpyxl (or xlrd/xlsxwriter)
+def transfer_comments(target:sc.Spreadsheet, comment_source:sc.Spreadsheet) -> None:
+    """
+    Copy comments between spreadsheets
 
-    def __init__(self, source):
-        # Construct a new AtomicaSpreadsheet given the contents of the spreadsheet
-        #
-        # INPUTS
-        # - source : This contains the contents of the file. It can be
-        #   - A string, which is interpreted as a filename
-        #   - A file-like object like a BytesIO, the entire contents of which will be read
+    This function copies comments from one spreadsheet to another. Under the hood,
+    a new spreadsheet is created with values from the ``target`` Spreadsheet
+    and cell-wise formatting from the ``comment_source`` Spreadsheet. If a cell exists in
+    this spreadsheet and not in the source, it will be retained as-is. If more cells exist in
+    the ``comment_source`` than in this spreadsheet, those cells will be dropped. If a sheet exists in
+    the ``comment_source`` and not in the current workbook, it will be added
 
-        self.filename = None
+    :param target: The target spreadsheet to write comments into
+    :param comment_source: The source spreadsheet containing comments
 
-        if isinstance(source, io.BytesIO):
-            source.flush()
-            source.seek(0)
-            self.data = source.read()
-        else:
-            filepath = sc.makefilepath(filename=source, makedirs=False)
-            self.filename = filepath
-            self.load_date = sc.now()
-            with open(filepath, mode='rb') as f:
-                self.data = f.read()
+    """
 
-        self.load_date = sc.now()
+    assert isinstance(target, sc.Spreadsheet)
+    assert isinstance(comment_source, sc.Spreadsheet)
 
-    def __repr__(self):
-        output = sc.prepr(self)
-        return output
-
-    def save(self, filename=None):
-        # This function writes the contents of self.data to a file on disk
-        if filename is None:
-            if self.filename is not None:
-                filename = self.filename
-            else:
-                raise Exception('Cannot determine filename')
-
-        filepath = sc.makefilepath(filename=filename)
-        with open(filepath, mode='wb') as f:
-            f.write(self.data)
-        print('Spreadsheet saved to %s.' % filepath)
-
-        return filepath
-
-    def get_file(self):
-        # Return a file-like object with the contents of the file
-        # This can then be used to open the workbook from memory without writing anything to disk e.g.
-        # - book = openpyxl.load_workbook(self.get_file())
-        # - book = xlrd.open_workbook(file_contents=self.get_file().read())
-        return io.BytesIO(self.data)
-
-
-def transfer_comments(target, comment_source):
-    # Format this AtomicaSpreadsheet based on the extra meta-content in comment_source
-    #
-    # In reality, a new spreadsheet is created with values from this AtomicaSpreadsheet
-    # and cell-wise formatting from the comment_source AtomicaSpreadsheet. If a cell exists in
-    # this spreadsheet and not in the source, it will be retained as-is. If more cells exist in
-    # the comment_source than in this spreadsheet, those cells will be dropped. If a sheet exists in
-    # the comment_source and not in the current workbook, it will be added
-
-    assert isinstance(comment_source, AtomicaSpreadsheet)
-
-    this_workbook = openpyxl.load_workbook(target.get_file(), data_only=False)  # This is the value source workbook
-    old_workbook = openpyxl.load_workbook(comment_source.get_file(), data_only=False)  # A openpyxl workbook for the old content
+    this_workbook = openpyxl.load_workbook(target.tofile(), data_only=False)  # This is the value source workbook
+    old_workbook = openpyxl.load_workbook(comment_source.tofile(), data_only=False)  # A openpyxl workbook for the old content
 
     for sheet in this_workbook.worksheets:
 
@@ -188,11 +125,12 @@ def transfer_comments(target, comment_source):
                 if cell.comment:
                     sheet[cell.coordinate].comment = Comment(cell.comment.text, '')
 
+    # Save the modified spreadsheet to a new buffer
     f = io.BytesIO()
     this_workbook.save(f)
     f.flush()
     f.seek(0)
-    target.data = f.read()
+    target.load(f)
 
 
 def read_tables(worksheet):

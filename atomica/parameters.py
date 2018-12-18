@@ -124,9 +124,9 @@ class ParameterSet(NamedItem):
         # Instantiate all quantities that appear in the databook (compartments, characteristics, parameters)
         for name, tdve in data.tdve.items():
             for pop_name, ts in tdve.ts.items():
-                units = framework.get_databook_units(name)  # Note that in general, we EITHER have a base unit and timescale, or a unit string with a timescale suffix
+                units = framework.get_databook_units(name)
                 if units != ts.units:
-                    raise Exception('test case')
+                    raise Exception('The units entered in the databook do not match the units entered in the framework')
             self.pars[name] = Parameter(name,sc.dcp(tdve.ts))
 
         # Instantiate parameters not in the databook

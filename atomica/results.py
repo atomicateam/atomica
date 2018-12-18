@@ -72,21 +72,30 @@ class Result(NamedItem):
         else:
             return self.model.progset.get_alloc(self.t, self.model.program_instructions)
 
-    def get_coverage(self, quantity='fraction'):
-        # Return program coverage
-        #
-        # INPUTS
-        # - quantity : one of ['number','fraction','denominator']
-        # OUTPUTS
-        # - {prog_name:value}
+    def get_coverage(self, quantity: str = 'fraction') -> dict:
+        """
+        Return program coverage
+
+        This function is the primary function to use when wanting to query coverage
+        values. All coverage quantities are accessible via the :class:`Result` object
+        because the compartment sizes and thus eligible people are known.
+
+        :param quantity: One of
+            - 'capacity' - The number of people that a program is funded to reach (coverage numerator)
+            - 'eligible' - The number of people eligible for the program (coverage denominator)
+            - 'fraction' - ``capacity/eligible``, the fraction coverage (maximum value is 1.0)
+            - 'number' - The number of people covered (``fraction*eligible``)
+        :return: Requested values in dictionary ``{prog_name:value}``
+
+        """
 
         if self.model.progset is None:
             return None
 
-        num_coverage = self.model.progset.get_num_coverage(tvec=self.t, dt=self.dt, instructions=self.model.program_instructions)
+        capacities = self.model.progset.get_capacities(tvec=self.t, dt=self.dt,instructions=self.model.program_instructions)
 
-        if quantity == 'number':
-            return num_coverage
+        if quantity == 'capacity':
+            return capacities
         else:
             # Get the program coverage denominator
             num_eligible = dict()  # This is the coverage denominator, number of people covered by the program
@@ -97,12 +106,15 @@ class Result(NamedItem):
                             num_eligible[prog.name] = self.get_variable(pop_name, comp_name)[0].vals.copy()
                         else:
                             num_eligible[prog.name] += self.get_variable(pop_name, comp_name)[0].vals
-            prop_coverage = self.model.progset.get_prop_coverage(tvec=self.t, num_coverage=num_coverage, denominator=num_eligible, instructions=self.model.program_instructions)
+
+            prop_coverage = self.model.progset.get_prop_coverage(tvec=self.t, capacities=capacities,num_eligible=num_eligible,instructions=self.model.program_instructions)
 
             if quantity == 'fraction':
                 return prop_coverage
-            elif quantity == 'denominator':
+            elif quantity == 'eligible':
                 return num_eligible
+            elif quantity == 'number':
+                return {x: num_eligible[x] * prop_coverage[x] for x in prop_coverage.keys()}
             else:
                 raise Exception('Unknown coverage type requested')
 
@@ -202,9 +214,17 @@ class Result(NamedItem):
         return h
 
     def budget(self, year=None):
-        # Return budget at given year
-        # year - a time, or array of times. Returns budget at these times. If `None` then
-        #        it will use all simulation times
+        """
+        Return budget at a given year
+
+        This will return the per-year spending rate taking into account
+        any budget scenarios that are present.
+
+        :param year: Optionally specify a time or array of times. Otherwise, use all times
+        :returns: A ``dict`` keyed by program name containing arrays of spending values
+
+        """
+
         if self.model.progset is None:
             return None
         else:
@@ -212,21 +232,9 @@ class Result(NamedItem):
                 year = self.t
             return self.model.progset.get_alloc(year, self.model.program_instructions)
 
-    def coverage(self, year=None, quantity='coverage_fraction'):
-        # Other supported quantities - 'coverage_number' or 'coverage_denominator'
-        from .plotting import PlotData  # return
 
-        if self.model.progset is None:
-            return None
-        else:
-            if year is None:
-                year = self.t
-        d = PlotData.programs(self, quantity=quantity)
-        d.interpolate(year)
-        return sc.odict([(s.data_label, s.vals) for s in d.series])
-
-
-def export_results(results, filename=None, output_ordering=('output', 'result', 'pop'), cascade_ordering=('pop', 'result', 'stage'), program_ordering=('program', 'result', 'quantity')):
+def export_results(results, filename=None, output_ordering=('output', 'result', 'pop'),
+                   cascade_ordering=('pop', 'result', 'stage'), program_ordering=('program', 'result', 'quantity')):
     """ Export Result outputs to a file
 
     This function writes an XLSX file with the data corresponding to any Cascades or Plots
@@ -290,7 +298,7 @@ def export_results(results, filename=None, output_ordering=('output', 'result', 
         for _, spec in plots_available.iterrows():
             if 'type' in spec and spec['type'] == 'bar':
                 continue  # For now, don't do bars - not implemented yet
-            plot_df.append(_output_to_df(results, output_name=spec['name'], output=evaluate_plot_string(spec['quantities']), tvals=new_tvals))
+            plot_df.append(_output_to_df(results, output_name=spec['name'], output=evaluate_plot_string(spec['quantities']),tvals=new_tvals))
         _write_df(writer, formats, 'Plot data', pd.concat(plot_df), output_ordering)
 
     # Write cascades into separate sheets
@@ -359,9 +367,9 @@ def _programs_to_df(results, prog_name, tvals):
 
             vals = PlotData.programs(result, outputs=prog_name, quantity='coverage_number').interpolate(tvals)
             vals.series[0].vals[~programs_active] = np.nan
-            data[(prog_name, result.name, 'People covered')] = vals.series[0].vals
+            data[(prog_name, result.name, 'People covered (people/year)')] = vals.series[0].vals
 
-            vals = PlotData.programs(result, outputs=prog_name, quantity='coverage_denominator').interpolate(tvals)
+            vals = PlotData.programs(result, outputs=prog_name, quantity='coverage_eligible').interpolate(tvals)
             vals.series[0].vals[~programs_active] = np.nan
             data[(prog_name, result.name, 'People eligible')] = vals.series[0].vals
 
@@ -411,7 +419,7 @@ def _cascade_to_df(results, cascade_name, tvals):
     return pd.concat(cascade_df)
 
 
-def _output_to_df(results, output_name, output, tvals):
+def _output_to_df(results, output_name: str, output, tvals) -> pd.DataFrame:
     """
     Convert an output to a DataFrame for a group of results
 
@@ -425,8 +433,8 @@ def _output_to_df(results, output_name, output, tvals):
     cells in the Excel spreadsheet so the user is able to fill them in themselves.
 
     :param results: List of Results
-    :param outputs: An output aggregation that evaluates to a single output
-    :param group_results: True/false flag for whether results should be grouped in the DataFrame
+    :param output_name: The name to use for the output quantity
+    :param output: An output specification/aggregation supported by :class:`PlotData`
     :param tvals: Outputs will be interpolated onto the times in this array (typically would be annual)
     :return: A DataFrame
 
@@ -437,11 +445,14 @@ def _output_to_df(results, output_name, output, tvals):
     pop_labels = {x: y for x, y in zip(results[0].pop_names, results[0].pop_labels)}
     data = dict()
     popdata = PlotData(results, outputs=output)
-    assert len(popdata.outputs) == 1, 'Framework plot specification should evaluate to exactly one output series - there were %d' % (len(popdata.outputs))
+    assert len(
+        popdata.outputs) == 1, 'Framework plot specification should evaluate to exactly one output series - there were %d' % (
+        len(popdata.outputs))
     popdata.interpolate(tvals)
     for result in popdata.results:
         for pop_name in popdata.pops:
-            data[(output_name, popdata.results[result], pop_labels[pop_name])] = popdata[result, pop_name, popdata.outputs[0]].vals
+            data[(output_name, popdata.results[result], pop_labels[pop_name])] = popdata[
+                result, pop_name, popdata.outputs[0]].vals
 
     # Now do a population total. Need to check the units after any aggregations
     # Check results[0].model.pops[0].comps[0].units just in case someone changes it later on
@@ -451,7 +462,7 @@ def _output_to_df(results, output_name, output, tvals):
         popdata.interpolate(tvals)
         for result in popdata.results:
             data[(output_name, popdata.results[result], 'Total (sum)')] = popdata[result, popdata.pops[0], popdata.outputs[0]].vals
-    elif popdata.series[0].units in {FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY}:
+    elif popdata.series[0].units in {FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION,FS.QUANTITY_TYPE_PROBABILITY}:
         popdata = PlotData(results, outputs=output, pops='total', pop_aggregation='weighted')
         popdata.interpolate(tvals)
         for result in popdata.results:
@@ -483,7 +494,9 @@ def _write_df(writer, formats, sheet_name, df, level_ordering):
 
     """
 
-    level_substitutions = {'pop': 'Population', 'stage': 'Cascade stage'}
+    # Substitute full names for short names after re-ordering the levels but before
+    # writing the dataframe
+    level_substitutions = {'pop': 'Population', 'stage': 'Cascade stage', 'quantity': 'Quantity (on Jan 1)'}
 
     # Remember the ordering of each index level
     order = {}
@@ -798,14 +811,16 @@ class Ensemble(NamedItem):
             for output in outputs:
                 for pop in pops:
 
-                    vals = np.vstack([x.vals.ravel() for x in series_lookup[result, pop, output]])  # Turn samples into a matrix
+                    vals = np.vstack(
+                        [x.vals.ravel() for x in series_lookup[result, pop, output]])  # Turn samples into a matrix
 
                     if self.baseline:
                         baseline_series = self.baseline[result, pop, output]
                         h = plt.plot(baseline_series.tvec, baseline_series.vals,
                                      label='%s: %s-%s-%s (baseline)' % (self.name, result, pop, output))[0]
                     else:
-                        h = plt.plot(series.tvec, np.median(vals, axis=0), linestyle='dashed',label='%s: %s-%s-%s (median)' % (self.name, result, pop, output))[0]
+                        h = plt.plot(series.tvec, np.median(vals, axis=0), linestyle='dashed',
+                                     label='%s: %s-%s-%s (median)' % (self.name, result, pop, output))[0]
                     color = h.get_color()
 
                     if style == 'samples':
@@ -814,14 +829,18 @@ class Ensemble(NamedItem):
                             if color is None:
                                 color = h.get_color()
                     elif style == 'quartile':
-                        ax.fill_between(self.samples[0].series[0].tvec, np.quantile(vals, 0.25, axis=0),np.quantile(vals, 0.75, axis=0), alpha=0.15, color=color)
+                        ax.fill_between(self.samples[0].series[0].tvec, np.quantile(vals, 0.25, axis=0),
+                                        np.quantile(vals, 0.75, axis=0), alpha=0.15, color=color)
                     elif style == 'ci':
-                        ax.fill_between(self.samples[0].series[0].tvec, np.quantile(vals, 0.025, axis=0),np.quantile(vals, 0.975, axis=0), alpha=0.15, color=color)
+                        ax.fill_between(self.samples[0].series[0].tvec, np.quantile(vals, 0.025, axis=0),
+                                        np.quantile(vals, 0.975, axis=0), alpha=0.15, color=color)
                     elif style == 'std':
                         if self.baseline:
-                            ax.fill_between(baseline_series.tvec, baseline_series.vals - np.std(vals, axis=0),baseline_series.vals + np.std(vals, axis=0), alpha=0.15, color=color)
+                            ax.fill_between(baseline_series.tvec, baseline_series.vals - np.std(vals, axis=0),
+                                            baseline_series.vals + np.std(vals, axis=0), alpha=0.15, color=color)
                         else:
-                            raise Exception('For consistency, standard deviation is added to the baseline result, but if no baseline is present, then the median is displayed, so not valid to add the std to the median')
+                            raise Exception(
+                                'For consistency, standard deviation is added to the baseline result, but if no baseline is present, then the median is displayed, so not valid to add the std to the median')
                     else:
                         raise Exception('Unknown style')
 
@@ -894,15 +913,14 @@ class Ensemble(NamedItem):
                         labels.append('%s: %s-%s-%s (baseline, %g)' % (self.name, result, pop, output, year))
         locations = offset + np.arange(len(x))
         plt.boxplot(np.vstack(x).T, positions=locations, manage_xticks=False)
-        ax.set_xlim(-0.5,locations[-1]+0.5)
+        ax.set_xlim(-0.5, locations[-1] + 0.5)
         if offset == 0:
-            ax.set_xticks(np.arange(locations[-1]+1))
+            ax.set_xticks(np.arange(locations[-1] + 1))
             ax.set_xticklabels(labels)
         else:
             new_labels = [x.get_text() for x in ax.get_xticklabels()] + labels
-            ax.set_xticks(np.arange(locations[-1]+1))
+            ax.set_xticks(np.arange(locations[-1] + 1))
             ax.set_xticklabels(new_labels)
-
 
         proposed_label = "%s (%s)" % (output, series_lookup[result, pop, output][0].unit_string)
         if ax.yaxis.get_label().get_text():
@@ -936,25 +954,23 @@ class Ensemble(NamedItem):
                                 baseline = self.baseline[result, pop, output].vals[0]
                             else:
                                 baseline = self.baseline[result, pop, output].interpolate(year)[0]
-                            records.append((year, result, output, pop, 'baseline',baseline))
+                            records.append((year, result, output, pop, 'baseline', baseline))
 
                         if year is None:
                             vals = np.array([x.vals[0] for x in series_lookup[result, pop, output]])
                         else:
                             vals = np.array([x.interpolate(year) for x in series_lookup[result, pop, output]])
 
-                        records.append((year, result, output, pop, 'mean',np.mean(vals)))
-                        records.append((year, result, output, pop, 'median',np.median(vals)))
-                        records.append((year, result, output, pop, 'max',np.max(vals)))
-                        records.append((year, result, output, pop, 'min',np.min(vals)))
-                        records.append((year, result, output, pop, 'Q1',np.quantile(vals,0.25)))
-                        records.append((year, result, output, pop, 'Q3',np.quantile(vals,0.75)))
+                        records.append((year, result, output, pop, 'mean', np.mean(vals)))
+                        records.append((year, result, output, pop, 'median', np.median(vals)))
+                        records.append((year, result, output, pop, 'max', np.max(vals)))
+                        records.append((year, result, output, pop, 'min', np.min(vals)))
+                        records.append((year, result, output, pop, 'Q1', np.quantile(vals, 0.25)))
+                        records.append((year, result, output, pop, 'Q3', np.quantile(vals, 0.75)))
 
                 df = pd.DataFrame.from_records(records,columns=['year', 'result', 'output', 'pop', 'quantity', 'value'])
-                df = df.set_index(['year','result','output','pop','quantity'])
+                df = df.set_index(['year', 'result', 'output', 'pop', 'quantity'])
                 return df
-
-
 
     def pairplot(self, year=None, outputs=None, pops=None):
         # Paired plot for different outputs

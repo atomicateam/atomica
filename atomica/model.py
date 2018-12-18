@@ -685,11 +685,29 @@ class Population(object):
 
             return n
 
-    def get_variable(self, name):
-        # Returns a list of variables whose name matches the requested name
-        # At the moment, names are unique across object types and within object
-        # types except for links, but if that logic changes, simple modifications can
-        # be made here
+    def get_variable(self, name: str) -> list:
+        """
+        Return list of variables given code name
+
+        At the moment, names are unique across object types and within object
+        types except for links, but if that logic changes, simple modifications can
+        be made here
+
+        Link names in Atomica end in 'par_name:flow' so passing in a code name of this form
+        will return links. Links can also be identified by the compartments that they connect.
+        Allowed syntax is:
+        - 'source_name:' - All links going out from source
+        - ':dest_name' - All links going into destination
+        - 'source_name:dest_name' - All links from Source to Dest
+        - 'source_name:dest_name:par_name' - All links from Source to Dest belonging to a given Parameter
+        - ':dest:par_name'
+        - 'source::par_name' - As per above
+        - '::par_name' - All links with specified par_name (less efficient than 'par_name:flow')
+
+        :param name: Code name to search for
+        :return: A list of Variables
+
+        """
 
         name = name.replace('___', ':')  # Parameter functions will convert ':' to '___' for use in variable names
 
@@ -702,16 +720,7 @@ class Population(object):
         elif name in self.link_lookup:
             return self.link_lookup[name]
         elif ':' in name:
-            # Link names in Atomica end in 'par_name:flow' so they are handled above
-            # This branch of the if statement is exclusively for compartment lookup
-            # Allowed syntax is
-            # 'source_name:' - All links going out from source
-            # ':dest_name' - All links going into destination
-            # 'source_name:dest_name' - All links from Source to Dest
-            # 'source_name:dest_name:par_name' - All links from Source to Dest belonging to a given Parameter
-            # ':dest:par_name'
-            # 'source::par_name' - As per above
-            # '::par_name' - All links with specified par_name (less efficient than 'par_name:flow')
+
             name_tokens = name.split(':')
             if len(name_tokens) == 2:
                 name_tokens.append('')
@@ -737,7 +746,7 @@ class Population(object):
         """ Allow compartments to be retrieved by name rather than index. Returns a Compartment. """
         return self.comp_lookup[comp_name]
 
-    def get_links(self, name):
+    def get_links(self, name) -> list:
         """ Retrieve Links. """
         # Links can be looked up by parameter name or by link name, unlike get_variable. This is because
         # get_links() is guaranteed to return a list of Link objects
@@ -1004,7 +1013,7 @@ class Model(object):
                     for comp_name in prog.target_comps:
                         self._program_cache['comps'][prog.name].append(self.get_pop(pop_name).get_comp(comp_name))
 
-            self._program_cache['num_coverage'] = self.progset.get_num_coverage(tvec=self.t, dt=self.dt, instructions=self.program_instructions)
+            self._program_cache['capacities'] = self.progset.get_capacities(tvec=self.t, dt=self.dt, instructions=self.program_instructions)
 
             # Cache the proportion coverage for coverage scenarios so that we don't call interpolate() every timestep
             self._program_cache['prop_coverage'] = dict()
@@ -1366,7 +1375,7 @@ class Model(object):
                     n = 0.0
                     for comp in comp_list:
                         n += comp.vals[ti]
-                    prop_coverage[k] = self.progset.programs[k].get_prop_covered(self.t[ti], self._program_cache['num_coverage'][k][ti], n)
+                    prop_coverage[k] = self.progset.programs[k].get_prop_covered(self.t[ti], self._program_cache['capacities'][k][ti], n)
             prog_vals = self.progset.get_outcomes(prop_coverage)
 
         for par_name in self._par_list:
