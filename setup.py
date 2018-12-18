@@ -4,9 +4,7 @@
 from setuptools import setup, find_packages
 
 with open("./atomica/version.py", "r") as f:
-    version_file = {}
-    exec(f.read(), version_file)
-    version = version_file["version"]
+    version = [x.split('=')[1].replace('"','').strip() for x in f if x.startswith('version =')][0]
 
 CLASSIFIERS = [
     'Environment :: Console',

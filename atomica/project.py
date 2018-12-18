@@ -18,7 +18,7 @@ In addition, a project contains:
 
 """
 
-from .version import version
+from .version import version, gitinfo
 from .calibration import perform_autofit
 from .data import ProjectData
 from .framework import ProjectFramework
@@ -98,7 +98,7 @@ class Project(object):
         # Define metadata
         self.uid = sc.uuid()
         self.version = version
-        self.gitinfo = sc.gitinfo(__file__, verbose=False)
+        self.gitinfo = sc.dcp(gitinfo)
         self.created = sc.now()
         self.modified = sc.now()
         self.filename = None

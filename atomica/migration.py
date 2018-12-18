@@ -322,6 +322,20 @@ def parameter_use_timeseries(proj):
 
     return proj
 
+@migration('1.0.14', '1.0.15', 'Internal model tidying')
+def model_tidying(proj):
+    for result in all_results(proj):
+        for pop in result.model.pops:
+            for charac in pop.characs:
+                charac._vals = charac.internal_vals
+                charac._is_dynamic = charac.dependency
+                del charac.internal_vals
+                del charac.dependency
+            for par in pop.pars:
+                par._is_dynamic = par.dependency
+                par._precompute = False
+                del par.dependency
+    return proj
 
 @migration('1.0.15', '1.0.16', 'Replace AtomicaSpreadsheet')
 def convert_spreadsheets(proj):

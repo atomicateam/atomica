@@ -70,10 +70,8 @@ logger.critical('Atomica %s (%s) -- (c) the Atomica development team' % (__versi
 logger.critical(datetime.now())
 
 try:
-    import sciris as sc
-    atomica_git = sc.gitinfo(__file__, verbose=False)
-    logger.critical('git branch: %s (%s)' % (atomica_git['branch'], atomica_git['hash']))
-    del atomica_git
+    from .version import gitinfo as __gitinfo__
+    logger.critical('git branch: %s (%s)' % (__gitinfo__['branch'], _gitinfo__['hash']))
 except:
     pass
 

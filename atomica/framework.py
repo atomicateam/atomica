@@ -7,17 +7,19 @@ class, which provides a Python representation of a Framework file.
 
 """
 
+import numpy as np
 import openpyxl
 import pandas as pd
+
 import sciris as sc
+from .cascade import validate_cascade
+from .excel import read_tables, validate_category
+from .function_parser import parse_function
 from .system import NotFoundError, FrameworkSettings as FS
 from .system import logger
-from .excel import read_tables, validate_category
-from .version import version
-import numpy as np
-from .cascade import validate_cascade
-from .function_parser import parse_function
 from .utils import format_duration
+from .version import version, gitinfo
+
 
 class InvalidFramework(Exception):
     pass
@@ -36,7 +38,7 @@ class ProjectFramework(object):
         # Define metadata
         self.uid = sc.uuid()
         self.version = version
-        self.gitinfo = sc.gitinfo(__file__, verbose=False)
+        self.gitinfo = sc.dcp(gitinfo)
         self.created = sc.now()
         self.modified = sc.now()
 
