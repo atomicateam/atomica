@@ -1034,7 +1034,7 @@ class Program(NamedItem):
         self.baseline_spend = TimeSeries(assumption=0.0, units=currency + '/year')  #: A TimeSeries with any baseline spending data - currently not exposed in progbook
         self.spend_data = TimeSeries(units=currency + '/year')  #: TimeSeries with spending data for the program
         self.unit_cost = TimeSeries(units=currency + '/person (one-off)')  #: TimeSeries with unit cost of the program
-        self.capacity = TimeSeries(units='people/year')  #: TimeSeries with capacity constraint for the program
+        self.capacity_constraint = TimeSeries(units='people/year')  #: TimeSeries with capacity constraint for the program
         self.saturation = TimeSeries(units=FS.DEFAULT_SYMBOL_INAPPLICABLE)  #: TimeSeries with saturation constraint that is applied to fractional coverage
         self.coverage = TimeSeries(units='people/year')  #: TimeSeries with capacity of program - optional - if not supplied, cost function is assumed to be linear
 

@@ -12,11 +12,11 @@ tmpdir = at.atomica_path(['tests','temp'])
 
 def test_export():
     P = at.demo('tb',do_run=False)
-    P.run_sim(parset='default',result_name='parset1')
-    P.run_sim(parset='default',result_name='parset2')
+    P.run_sim(parset='default',result_name='parset1',store_results=True)
+    P.run_sim(parset='default',result_name='parset2',store_results=True)
     instructions = at.ProgramInstructions(start_year=2018)
-    P.run_sim(parset='default',progset='default',progset_instructions=instructions,result_name='progset1')
-    P.run_sim(parset='default',progset='default',progset_instructions=instructions,result_name='progset2')
+    P.run_sim(parset='default',progset='default',progset_instructions=instructions,result_name='progset1',store_results=True)
+    P.run_sim(parset='default',progset='default',progset_instructions=instructions,result_name='progset2',store_results=True)
 
     # Test export single
     at.export_results(P.results['parset1'],tmpdir + 'export_parset.xlsx')

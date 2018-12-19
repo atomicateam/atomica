@@ -8,12 +8,12 @@ testdir = at.parent_dir()
 def test_parset_sampling():
     P = at.Project(framework=testdir + 'test_uncertainty_framework.xlsx', databook=testdir + 'test_uncertainty_databook.xlsx')
 
-    baseline = P.run_sim(P.parsets[0])
+    baseline = P.run_sim(P.parsets[0],store_results=True)
 
     res = []
 
     for i in range(100):
-        res.append(P.run_sim(P.parsets[0].sample()))
+        res.append(P.run_sim(P.parsets[0].sample(),store_results=True))
 
     # Get the distribution over outcomes
     fn = lambda x: x.get_variable('m_rural','con')[0].vals[-1]
@@ -32,14 +32,14 @@ def test_progset_sampling():
     low_uncertainty_progset = at.ProgramSet.from_spreadsheet(testdir + 'test_uncertainty_low_progbook.xlsx',project=P)
     high_uncertainty_progset = at.ProgramSet.from_spreadsheet(testdir + 'test_uncertainty_high_progbook.xlsx',project=P) # Alternatively, could have copied and set the uncertainties manually
 
-    baseline = P.run_sim('default',progset=low_uncertainty_progset, progset_instructions=at.ProgramInstructions(start_year=2018))
+    baseline = P.run_sim('default',progset=low_uncertainty_progset, progset_instructions=at.ProgramInstructions(start_year=2018),store_results=True)
 
     res_low = []
     res_high = []
 
     for i in range(100):
-        res_low.append(P.run_sim('default',progset=low_uncertainty_progset.sample(),progset_instructions=at.ProgramInstructions(start_year=2018)))
-        res_high.append(P.run_sim('default',progset=high_uncertainty_progset.sample(),progset_instructions=at.ProgramInstructions(start_year=2018)))
+        res_low.append(P.run_sim('default',progset=low_uncertainty_progset.sample(),progset_instructions=at.ProgramInstructions(start_year=2018),store_results=True))
+        res_high.append(P.run_sim('default',progset=high_uncertainty_progset.sample(),progset_instructions=at.ProgramInstructions(start_year=2018),store_results=True))
 
     # Get the distribution over outcomes
     fn = lambda x: x.get_variable('m_rural','con')[0].vals[-1]
