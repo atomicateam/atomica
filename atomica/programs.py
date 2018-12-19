@@ -22,30 +22,66 @@ import numpy as np
 
 
 class ProgramInstructions(object):
-    def __init__(self, alloc=None, start_year=None, stop_year=None, coverage=None):
-        """ Set up a structure that stores instructions for a model on how to use programs. """
-        # Instantiate a new ProgramInstructions instance. ProgramInstructions specify how to use programs
-        # - specifically, which years the programs are applied from, and any funding overwrites from the
-        # allocations specified in the progbook.
-        #
-        # INPUTS
-        # - alloc : The allocation. It can be
-        #           - A dict keyed by program name, containing a scalar spend, or a TimeSeries of spending values. If the spend is
-        #             scalar, it will be assigned to the start year
-        #           - A ProgramSet instance, in which case an allocation will be assigned by interpolating the ProgramSet's
-        #             spending onto the program start year. This is a shortcut to ensure that budget scenarios and optimizations
-        #             where spending is specified in future years ramp correctly from the program start year (and not the last year
-        #             that data was entered for)
-        # - coverage : Overwrites to proportion coverage. It can be
-        #           - A dict keyed by program name, containing a scalar coverage or a TimeSeries of coverage values
-        #   Note that coverage overwrites have no effect
+    """
+    Store instructions for applying programs
 
-        self.start_year = start_year if start_year else 2018.
+    A :class:`ProgramSet` contains a Python representation of the program book, with
+    a collection of programs, their effects, and quantities like historical spending.
+    However, to run a simulation with programs, additional information is required - for
+    example, which year to switch from databook parameters to program-computed parameters.
+    This type of information is specific to the simulation being run, rather than being an
+    intrinsic property of a set of programs. Therefore, that information is stored in
+    a :class:`ProgramInstructions` instance.
+
+    At minimum, the :class:`ProgramInstructions` must contain the year to turn on programs.
+    It can also optionally contain the year to turn off programs. In addition to the start/stop
+    years, the :class:`ProgramInstructions` also contains any overwrites that should be applied
+    to
+
+    - Spending (in units of people/year)
+    - Capacity (in units of people/year)
+    - Fraction/proportion coverage
+
+    which thus provides the underlying implementation for program-related scenarios. The
+    :class:`ProgramSet` and :class:`Program` methods access and use the :class:`ProgramInstructions`
+    instances. The overwrites for spending in particular are widely used - for example, budget
+    optimization is a mapping from one set of :class:`ProgramInstructions` to another, and thus
+    during optimization, :class:`ProgramInstructions` instances are used to test different allocations.
+
+    Note that the program calculation proceeds by
+
+    1. Using spending and unit cost to compute capacity
+    2. Using capacity and the compartment sizes to compute fractional coverage
+    3. Using fractional coverage to compute program outcomes
+
+    Overwrites to each quantity (spending, capacity, coverage) are applied at their
+    respective stages, so if the :class:`ProgramInstructions` contains more than one
+    type of overwrite, they will be applied in this same order (and later stages
+    will take precedence e.g. if both capacity and coverage are overwritten, it will be
+    the coverage overwrite that impacts the final parameter value).
+
+    Finally, for simplicity, if an overwrite is provided, it entirely replaces the values
+    in the program book, in contrast to parameter scenarios, which contain more complex logic
+    for interpolating between databook and scenario values.
+
+    :param start_year: Year to switch to program-calculated parameters
+    :param stop_year: Year to switch back to databook parameters
+    :param alloc: The allocation. It can be
+              - A dict keyed by program name, containing a scalar spend, or a TimeSeries of spending values. If the spend is
+                scalar, it will be assigned to the start year
+              - A ProgramSet instance, in which case an allocation will be assigned by interpolating the ProgramSet's
+                spending onto the program start year. This is a shortcut to ensure that budget scenarios and optimizations
+                where spending is specified in future years ramp correctly from the program start year (and not the last year
+                that data was entered for)
+    :param capacity: Overwrites to capacity. This is a dict keyed by program name, containing a scalar capacity or a TimeSeries of capacity values
+    :param coverage: Overwrites to proportion coverage. This is a dict keyed by program name, containing a scalar coverage or a TimeSeries of coverage values
+
+    """
+
+    def __init__(self, start_year:float, stop_year:float=None, alloc=None, coverage:dict=None, capacity:dict=None):
+        self.start_year = start_year
         self.stop_year = stop_year if stop_year else inf
 
-        # Alloc should be a dict keyed by program name
-        # The entries can either be a scalar number, assumed to be spending in the start year, or
-        # a TimeSeries object. The alloc is converted to TimeSeries if provided as a scalar
         self.alloc = sc.odict()
         if isinstance(alloc, ProgramSet):
             for prog in alloc.programs.values():
@@ -57,21 +93,26 @@ class ProgramInstructions(object):
                 elif spending is not None:
                     self.alloc[prog_name] = TimeSeries(t=self.start_year, vals=spending)
 
+        self.capacity = sc.odict()  # Dict keyed by program name that stores a time series of capacities
+        if capacity:
+            for prog_name, vals in capacity.items():
+                if isinstance(vals, TimeSeries):
+                    self.capacity[prog_name] = sc.dcp(vals)
+                else:
+                    self.capacity[prog_name] = TimeSeries(t=self.start_year, vals=vals)
+
         self.coverage = sc.odict()  # Dict keyed by program name that stores a time series of coverages
         if coverage:
-            for prog_name, cov_values in coverage.items():
-                if isinstance(cov_values, TimeSeries):
-                    self.coverage[prog_name] = sc.dcp(cov_values)
+            for prog_name, vals in coverage.items():
+                if isinstance(vals, TimeSeries):
+                    self.coverage[prog_name] = sc.dcp(vals)
                 else:
-                    self.coverage[prog_name] = TimeSeries(t=self.start_year, vals=cov_values)
-
-# --------------------------------------------------------------------
-# ProgramSet class
-# --------------------------------------------------------------------
+                    self.coverage[prog_name] = TimeSeries(t=self.start_year, vals=vals)
 
 
 class ProgramSet(NamedItem):
-    """ Representation of a single program
+    """
+    Representation of a single program
 
     A Program object will be instantiated for every program listed on the 'Program Targeting'
     sheet in the program book
@@ -111,13 +152,18 @@ class ProgramSet(NamedItem):
         output += '============================================================\n'
         return output
 
-    #######################################################################################################
-    # Methods to add/remove things
-    #######################################################################################################
+    def get_code_name(self, name:str) -> str:
+        """
+        Retrieve code names
 
-    def get_code_name(self, name):
-        # This function returns a code name given either a full name or a code name
-        # This allows pops/comps/pars/progs to be removed by full name or code name
+        This function returns a code name given either a full name or a code name
+        This allows pops/comps/pars/progs to be removed by full name or code name
+
+        :param name: A code name or full name (for parameters, compartments, populations, or programs)
+        :return: The requested quantity's code name
+
+        """
+
         if name in self.pars or name in self.comps or name in self.pops or name in self.programs:
             return name
 
@@ -139,13 +185,26 @@ class ProgramSet(NamedItem):
 
         raise Exception('Could not find full name for quantity "%s" (n.b. this is case sensitive)' % (name))
 
-    def add_program(self, code_name, full_name):
+    def add_program(self, code_name:str, full_name:str) -> None:
+        """
+        Add a program to the ProgramSet
+
+        :param code_name: The code name of the new program
+        :param full_name: The full name of the new program
+
+        """
         # To add a program, we just need to construct one
         prog = Program(name=code_name, label=full_name, currency=self.currency)
         self.programs[prog.name] = prog
         return
 
-    def remove_program(self, name):
+    def remove_program(self, name:str) -> None:
+        """
+        Remove a program from the ProgramSet
+
+        :param name: The code name or full name of the program to remove
+
+        """
         # Remove the program from the progs dict
         code_name = self.get_code_name(name)
 
@@ -157,11 +216,25 @@ class ProgramSet(NamedItem):
                     del self.covouts[(par, pop)].progs[code_name]
         return
 
-    def add_pop(self, code_name, full_name):
+    def add_pop(self, code_name:str, full_name:str) -> None:
+        """
+        Add a population to the ProgramSet
+
+        :param code_name: The code name of the new population
+        :param full_name: The full name of the new population
+
+        """
         self.pops[code_name] = full_name
         return
 
-    def remove_pop(self, name):
+    def remove_pop(self, name:str) -> None:
+        """
+        Remove a population from the ProgramSet
+
+        :param name: The code name or full name of the population to remove
+
+        """
+
         # To remove a pop, we need to remove it from all programs, and also remove all affected covouts
         code_name = self.get_code_name(name)
         for prog in self.programs.values():
@@ -173,11 +246,25 @@ class ProgramSet(NamedItem):
         del self.pops[code_name]
         return
 
-    def add_comp(self, code_name, full_name):
+    def add_comp(self, code_name:str, full_name:str) -> None:
+        """
+        Add a compartment to the ProgramSet
+
+        :param code_name: The code name of the new compartment
+        :param full_name: The full name of the new compartment
+
+        """
         self.comps[code_name] = full_name
         return
 
-    def remove_comp(self, name):
+    def remove_comp(self, name:str) -> None:
+        """
+        Remove a compartment from the ProgramSet
+
+        :param name: The code name or full name of the compartment to remove
+
+        """
+        
         # If we remove a compartment, we need to remove it from every population
         code_name = self.get_code_name(name)
         for prog in self.programs.values():
@@ -186,14 +273,28 @@ class ProgramSet(NamedItem):
         del self.comps[code_name]
         return
 
-    def add_par(self, code_name, full_name):
+    def add_par(self, code_name:str, full_name:str) -> None:
+        """
+        Add a parameter to the ProgramSet
+
+        :param code_name: The code name of the new parameter
+        :param full_name: The full name of the new parameter
+
+        """
         # add an impact parameter
         # a new impact parameter won't have any covouts associated with it, and no programs will be bound to it
         # So all we have to do is add it to the list
         self.pars[code_name] = full_name
         return
 
-    def remove_par(self, name):
+    def remove_par(self, name) -> None:
+        """
+        Remove a parameter from the ProgramSet
+
+        :param name: The code name or full name of the compartment to remove
+
+        """
+
         # remove an impact parameter
         # we need to remove all of the covouts that affect it
         code_name = self.get_code_name(name)
@@ -207,11 +308,24 @@ class ProgramSet(NamedItem):
     # Methods for data I/O
     #######################################################################################################
 
-    def _set_available(self, framework, data):
-        # Given framework and data, set the available pops, comps, and pars
-        # noting that these are matched to the framework and data even though
-        # the programs may not reach all of them. This gets used during both
-        # from_spreadsheet() and new()
+    def _set_available(self, framework, data) -> None:
+        """
+        Update pops, comps and pars
+
+        The :class:`ProgramSet` maintains a listing of populations, compartments,
+        and parameters for the purpose of writing the progbook. At runtime, these
+        need to agree with whichever :class:`ProjectFramework` and :class:`ProjectData`
+        that are loaded into a :class:`Project`. Typically the :class:`ProgramSet` is
+        created within the context of an existing project. This function takes in
+        the framework and data that the :class:`ProgramSet` instance is intended to be
+        used in conjunction with, and sets the available pops, comps, and pars appropriately.
+
+
+        :param framework: A :class:`ProjectFramework` instance
+        :param data: A :class:`ProjectData` instance
+
+        """
+
         self.pops = sc.odict()
         for x, v in data.pops.items():
             self.pops[x] = v['label']
@@ -229,10 +343,30 @@ class ProgramSet(NamedItem):
                 self.pars[name] = label
 
     @staticmethod
-    def validate_inputs(framework, data, project):
-        # To load a spreadsheet or make a new ProgramSet, people can pass in
-        # framework, data, and/or a project. If the framework and data are not explicitly specified,
-        # they get drawn from the project
+    def _normalize_inputs(framework, data, project) -> tuple:
+        """
+        Normalize constructor inputs
+
+        A :class:`ProjectFramework` is constructed against a particular framework
+        and data. For convenience, these can be specified by passing in a Project
+        containing the framework and data. This function takes in all of the inputs
+        provided to the constructor (whether making a blank instance or reading a
+        spreadsheet) and returns the framework and data. The order of precedence is
+
+        - If separate framework or data is provided, it will be used
+        - Otherwise, they will be drawn from the project
+
+        So for example, a project and data could be provided, in which case the framework
+        would come from the project and the data would come from the explicit argument
+        (even if the project also contained data).
+
+        :param framework: Optionally a :class:`ProjectFramework` instance
+        :param data: Optionally a :class:`ProjectData` instance
+        :param project: Optionally a :class:`Project` instance
+        :return: Tuple containing ``(framework,data)``
+
+        """
+
         if (framework is None and project is None) or (data is None and project is None):
             errormsg = 'To read in a ProgramSet, please supply one of the following sets of inputs: (a) a Framework and a ProjectData, (b) a Project.'
             raise Exception(errormsg)
@@ -272,9 +406,8 @@ class ProgramSet(NamedItem):
         :return: A :py:class:`ProgramSet`
 
         """
-        '''Make a program set by loading in a spreadsheet.'''
 
-        framework, data = ProgramSet.validate_inputs(framework, data, project)
+        framework, data = ProgramSet._normalize_inputs(framework, data, project)
 
         # Populate the available pops, comps, and pars based on the framework and data provided at this step
         self = ProgramSet(name=name)
@@ -695,7 +828,7 @@ class ProgramSet(NamedItem):
             errormsg = 'Please just supply a number of programs, not "%s"' % (type(progs))
             raise Exception(errormsg)
 
-        framework, data = ProgramSet.validate_inputs(framework, data, project)
+        framework, data = ProgramSet._normalize_inputs(framework, data, project)
 
         # Assign the pops
         if pops is None:
@@ -788,7 +921,8 @@ class ProgramSet(NamedItem):
         return alloc
 
     def get_capacities(self, tvec, dt, instructions=None, sample=False) -> dict:
-        """ Return the number coverage of each program
+        """
+        Return timestep capacity for all programs
 
         :param tvec: array of times (in years) - this is required to interpolate time-varying unit costs and capacity_constraint constraints
         :param dt: scalar timestep size - this is required to adjust spending on incidence-type programs
@@ -805,11 +939,19 @@ class ProgramSet(NamedItem):
         # Get number covered for each program
         capacities = sc.odict()  # Initialise outputs
         for prog in self.programs.values():
-            if prog.name in alloc:
-                spending = alloc[prog.name]
+            if instructions is None or prog.name not in instructions.capacity:
+                if prog.name in alloc:
+                    spending = alloc[prog.name]
+                else:
+                    spending = None
+                # Note that prog.get_capacity() performs the timestep conversions as required
+                capacities[prog.name] = prog.get_capacity(tvec=tvec, dt=dt, spending=spending, sample=False)
             else:
-                spending = None
-            capacities[prog.name] = prog.get_capacity(tvec=tvec, dt=dt, spending=spending, sample=False)
+                capacities[prog.name] = instructions.capacity[prog.name].interpolate(tvec)
+                # Capacity overwrites are in people/year but this method needs to return
+                # the timestep capacity
+                if '/year' not in prog.unit_cost.units:
+                    capacities[prog.name] *= dt
 
         return capacities
 
@@ -827,6 +969,8 @@ class ProgramSet(NamedItem):
 
         :param tvec: array of times (in years) - this is required to interpolate time-varying saturation values
         :param capacities: dict of program coverages, should match the available programs (typically the output of ``ProgramSet.get_capacities()``)
+                           Note that since the capacity and eligible compartment sizes are being compared here,
+                           the capacity needs to be in units of 'people' (not 'people/year') at this point
         :param num_eligible: dict of number of people covered by each program, computed externally and with one entry for each program
         :param instructions: optionally specify instructions, which can supply a coverage overwrite
         :param sample: TODO implement sampling
@@ -855,11 +999,6 @@ class ProgramSet(NamedItem):
         """
 
         return {(covout.par, covout.pop): covout.get_outcome(prop_coverage, sample=sample) for covout in self.covouts.values()}
-
-# --------------------------------------------------------------------
-# Program class
-# --------------------------------------------------------------------
-
 
 class Program(NamedItem):
     """ Representation of a single program
@@ -942,6 +1081,10 @@ class Program(NamedItem):
     def get_prop_covered(self, tvec, capacity, eligible, sample=False):
         """
         Return proportion of people covered
+
+        The time vector ``tvec`` is required to interpolate the saturation values. The
+        ``capacity`` and ``eligible`` variables are assumed to correspond to the same time points
+        and thus the array sizes should match the size of the time array.
 
         :param tvec:  An array of times
         :param capacity: An array of number of people covered (e.g. the output of ``Program.get_capacity()``)

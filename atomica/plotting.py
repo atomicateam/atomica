@@ -569,7 +569,7 @@ class PlotData():
 
         outputs = _expand_dict(outputs)
 
-        assert quantity in ['spending', 'coverage_number', 'coverage_eligible', 'coverage_fraction']
+        assert quantity in ['spending', 'coverage_number', 'coverage_eligible', 'coverage_fraction', 'coverage_capacity']
         # Make a new PlotData instance
         # We are using __new__ because this method is to be formally considered an alternate constructor and
         # thus bears responsibility for ensuring this new instance is initialized correctly
@@ -583,10 +583,14 @@ class PlotData():
                 all_vals = result.get_alloc()
                 units = '$'
                 timescales = dict.fromkeys(all_vals,1.0)
-            elif quantity == 'coverage_number':
-                all_vals = result.get_coverage('number')
+            elif quantity in {'coverage_capacity','coverage_number'}:
+                if quantity == 'coverage_capacity':
+                    all_vals = result.get_coverage('capacity')
+                else:
+                    all_vals = result.get_coverage('number')
                 units = 'Number of people'
-                # Coverage comes out as a number of people at each timestep, but we need to know
+
+                # Capacity and number coverage comes out as a number of people at each timestep, but we need to know
                 # whether that value is distributed across the year or not. A dt-coverage of 100 for a
                 # treatment program implies 400 people/year, while a dt-coverage of 100 for ART only
                 # has 100 people/year. Here, we convert the number covered at each timestep into an
