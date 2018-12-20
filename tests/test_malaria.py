@@ -15,7 +15,7 @@ P.load_databook(at.LIBRARY_PATH+'malaria_databook.xlsx', do_run=False)
 # P.make_progbook(at.LIBRARY_PATH'malaria_progbook.xlsx', progs=17)
 P.load_progbook(at.LIBRARY_PATH+'malaria_progbook.xlsx''')
 
-instructions = at.ProgramInstructions()
+instructions = at.ProgramInstructions(2018)
 
 res = P.run_sim('default', 'default', instructions)
 # P.save('malaria')
