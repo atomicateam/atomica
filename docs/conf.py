@@ -73,6 +73,7 @@ autodoc_default_flags = [
 autosummary_generate = True
 
 nbsphinx_kernel_name = 'python'
+nbsphinx_timeout = -1 # Disable timeout for slow cells
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

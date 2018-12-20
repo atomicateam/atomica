@@ -11,5 +11,6 @@ notebooks to try them out interactively and explore the effect of making changes
     Basic-workflow
     Databooks
     Frameworks
-    Plot-Programs
     Plotting
+    Plot-Programs
+    Probability-Rescaling
