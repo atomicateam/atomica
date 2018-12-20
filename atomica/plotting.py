@@ -1003,6 +1003,8 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer=None, legend_
 
     figs = []
     fig, ax = plt.subplots()
+    fig.patch.set_alpha(0)
+    ax.patch.set_alpha(0)
     fig.set_label('bars')
     figs.append(fig)
 
@@ -1260,6 +1262,8 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
         for pop in plotdata.pops.keys():
             for output in plotdata.outputs.keys():
                 fig, ax = plt.subplots()
+                fig.patch.set_alpha(0)
+                ax.patch.set_alpha(0)
                 fig.set_label('%s_%s' % (pop, output))
                 figs.append(fig)
 
@@ -1296,6 +1300,8 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
         for result in plotdata.results:
             for output in plotdata.outputs:
                 fig, ax = plt.subplots()
+                fig.patch.set_alpha(0)
+                ax.patch.set_alpha(0)
                 fig.set_label('%s_%s' % (result, output))
                 figs.append(fig)
 
@@ -1330,6 +1336,8 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
         for result in plotdata.results:
             for pop in plotdata.pops:
                 fig, ax = plt.subplots()
+                fig.patch.set_alpha(0)
+                ax.patch.set_alpha(0)
                 fig.set_label('%s_%s' % (result, pop))
                 figs.append(fig)
 
@@ -1500,13 +1508,14 @@ def _render_legend(ax, plot_type=None, handles=None) -> None:
     else:
         labels = [h.get_label() for h in handles]
 
-    legendsettings = {'loc': 'center left', 'bbox_to_anchor': (1.05, 0.5), 'ncol': 1}
+    legendsettings = {'loc': 'center left', 'bbox_to_anchor': (1.05, 0.5), 'ncol': 1, 'framealpha':0}
 #    labels = [textwrap.fill(label, 16) for label in labels]
 
     if plot_type in ['stacked', 'proportion', 'bar']:
-        ax.legend(handles=handles[::-1], labels=labels[::-1], **legendsettings)
+        h = ax.legend(handles=handles[::-1], labels=labels[::-1], **legendsettings)
     else:
-        ax.legend(handles=handles, labels=labels, **legendsettings)
+        h = ax.legend(handles=handles, labels=labels, **legendsettings)
+
     box = ax.get_position()
     ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
 
