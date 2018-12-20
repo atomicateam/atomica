@@ -315,13 +315,21 @@ Last update: 2018-09-09
             <thead>
             <tr>
               <th>Program</th>
-              <th>Coverage</th>
+              <th>Coverage start</th>
+              <th>Coverage end</th>
             </tr>
             </thead>
             <tbody>
             <tr v-for="item in addEditModal.scenSummary.coverage">
               <td>
                 {{ item[2] }}
+              </td>
+              <td>
+                <input type="text"
+                       class="txbox"
+                       v-model="item[1]"
+                       style="text-align: right"
+                />
               </td>
               <td>
                 <input type="text"

@@ -1546,7 +1546,7 @@ def py_to_js_scen(py_scen, project=None):
                     raise Exception('Coverage should only have a single element in it, not %s' % len(cov))
                 else:
                     cov = cov[0] # If it's not a scalar, pull out the first element -- WARNING, KLUDGY
-            covstr = format(int(round(float(cov))), ',')
+            covstr = '%0.2f' % cov
             js_scen['coverage'].append([prog_name, covstr, prog_label])
     return js_scen
 
@@ -1575,7 +1575,7 @@ def js_to_py_scen(js_scen):
                 else:
                     budget = budget[0] # If it's not a scalar, pull out the first element -- WARNING, KLUDGY
             py_scen['alloc'][prog_name] = to_float(budget)
-    else:
+    else: # Coverage
         py_scen['start_year'] = float(js_scen['start_year']) # Convert to number
         py_scen['coverage'] = sc.odict()
         for item in js_scen['coverage']:

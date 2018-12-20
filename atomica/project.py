@@ -25,7 +25,7 @@ from .framework import ProjectFramework
 from .model import run_model
 from .parameters import ParameterSet
 
-from .programs import ProgramSet
+from .programs import ProgramSet, ProgramInstructions
 from .scenarios import Scenario, ParameterScenario, BudgetScenario, CoverageScenario
 from .optimization import Optimization, optimize, OptimInstructions, InvalidInitialConditions
 from .system import logger
@@ -552,17 +552,27 @@ class Project(object):
 
     def demo_scenarios(self, dorun=False, doadd=True, which='budget'):
         json1 = sc.odict()
-        json1['name'] = 'Default budget'
+        
         json1['parsetname'] = -1
         json1['progsetname'] = -1
         json1['start_year'] = self.data.end_year  # This allows the tests to run on the BE where this default never gets modified e.g. by set_scen_info()
         json1['alloc_year'] = self.data.end_year
-        if which == 'budget':
-            json1['alloc'] = self.progset(json1['progsetname']).get_alloc(tvec=json1['alloc_year'])
-        else:
-            json1['coverage'] = self.progset(json1['progsetname']).get_num_coverage(dt=1.0, tvec=json1['alloc_year'])
         json1['active'] = True
         json1['which'] = which
+        if which == 'budget':
+            json1['name'] = 'Default budget'
+            json1['alloc'] = self.progset(json1['progsetname']).get_alloc(tvec=json1['alloc_year'])
+        else:
+            # WARNING, ugly! But have to run the model to get the coverage
+            alloc = self.progset().get_alloc(tvec=json1['start_year'])
+            R = self.run_sim(progset=json1['progsetname'], progset_instructions=ProgramInstructions(alloc=alloc))
+            coverage = R.get_coverage()
+            json1['name'] = 'Default coverage'
+            json1['coverage'] = coverage
+            for key,val in coverage.items():
+                json1['coverage'][key] = val[sc.findnearest(R.t, json1['start_year'])]
+            print('HIIIIIIIIIIIIIIIIIII')
+            print(json1['coverage'])
 
         json2 = sc.odict()
         json2['parsetname'] = -1
