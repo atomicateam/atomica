@@ -560,7 +560,7 @@ class PlotData():
             raise Exception('Results must have different names (in their result.name property)')
         for result in results:
             if result.model.progset is None:
-                raise Exception('Tried to plot program spending for result "%s" that did not use programs', result.name)
+                raise Exception('Tried to plot program outputs for result "%s", but that result did not use programs' % result.name)
 
         if outputs is None:
             outputs = results[0].model.progset.programs.keys()

@@ -77,6 +77,28 @@ def test_program_scenarios():
     d = at.PlotData([res_doubled,res_doubled_scen, res_coverage,res_coverage_scen],outputs=':acj',pops='total',t_bins=[2018,2023])
     at.plot_bars(d)
 
+def test_timevarying_progscen():
+    # This test demonstrates doing time-varying overwrites
+    # The example below shows how you can pass in a TimeSeries
+    # instead of a scalar in the dict of overwrites. Although shown
+    # for coverage below, this same approach works for alloc/budget
+    # and capacity scenarios as well
+
+    P = at.demo('sir',do_run=False)
+    instructions = at.ProgramInstructions(2018)
+    res_baseline = P.run_sim(result_name='Baseline',parset='default',progset='default',progset_instructions=instructions)
+
+    coverage = {
+        'Risk avoidance':0.5,
+         'Harm reduction 1':0.25,
+         'Harm reduction 2':at.TimeSeries([2018,2020],[0.7,0.2]),
+    }
+    scen = at.CoverageScenario('Reduced coverage','default','default',coverage=coverage,start_year=2018)
+    scen_result = scen.run(project=P)
+    d = at.PlotData.programs([res_baseline,scen_result],quantity='coverage_fraction')
+    at.plot_series(d)
+
 if __name__ == '__main__':
     test_program_scenarios()
+    test_timevarying_progscen()
 
