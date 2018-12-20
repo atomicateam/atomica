@@ -89,13 +89,12 @@ class Result(NamedItem):
         because the compartment sizes and thus eligible people are known.
 
         :param quantity: One of
-            - 'capacity' - The number of people that a program is funded to reach (coverage numerator) at each timestep
-                           Note that this is returned in units of people/year, not people
-            - 'eligible' - The number of people eligible for the program (coverage denominator)
-            - 'fraction' - ``capacity/eligible``, the fraction coverage (maximum value is 1.0)
-            - 'number' - The number of people covered (``fraction*eligible``)
+            - 'capacity' - Program capacity in units of 'people/year' (for all types of programs)
+            - 'eligible' - The number of people eligible for the program (coverage denominator) in units of 'people'
+            - 'fraction' - ``capacity/eligible``, the fraction coverage (maximum value is 1.0) - this quantity is dimensionless
+            - 'number' - The number of people covered (``fraction*eligible``) returned in units of 'people/year'
         :param year: Optionally specify a scalar or list/array of years to return budget values
-         for. Otherwise, uses all simulation times
+                     for. Otherwise, uses all simulation times
         :return: Requested values in dictionary ``{prog_name:value}`` in requested years
 
         """
@@ -106,7 +105,7 @@ class Result(NamedItem):
         capacities = self.model.progset.get_capacities(tvec=self.t, dt=self.dt, instructions=self.model.program_instructions)
 
         if quantity == 'capacity':
-            output = capacities # We return timestep capacity here for direct comparison to num_eligible
+            output = capacities
         else:
             # Get the program coverage denominator
             num_eligible = dict()  # This is the coverage denominator, number of people covered by the program
@@ -117,6 +116,10 @@ class Result(NamedItem):
                             num_eligible[prog.name] = self.get_variable(pop_name, comp_name)[0].vals.copy()
                         else:
                             num_eligible[prog.name] += self.get_variable(pop_name, comp_name)[0].vals
+
+            # Note that `ProgramSet.get_prop_coverage()` takes in capacity in units of 'people' which matches
+            # the units of 'num_eligible' so we therefore use the returned value from `ProgramSet.get_capacities()`
+            # as-is without doing any annualization
             prop_coverage = self.model.progset.get_prop_coverage(tvec=self.t, capacities=capacities, num_eligible=num_eligible, instructions=self.model.program_instructions, sample=False)
 
             if quantity == 'fraction':
@@ -127,6 +130,12 @@ class Result(NamedItem):
                 output = {x: num_eligible[x]*prop_coverage[x] for x in prop_coverage.keys()}
             else:
                 raise Exception('Unknown coverage type requested')
+
+        if quantity in {'capacity','number'}:
+            # Return capacity and number coverage as 'people/year' rather than 'people'
+            for prog in output.keys():
+                if '/year' not in self.model.progset.programs[prog].unit_cost.units:
+                    output[prog] /= self.dt
 
         if year is not None:
             for k in output.keys():

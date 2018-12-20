@@ -22,7 +22,7 @@ The capacity of a program (in some contexts, referred to as the 'coverage numera
 
 The key difference between the two is that if a program reaches 100 people per year, and the simulation timestep is 0.25 years, then the 100 people reached by the one-off program are distributed throughout the year, and in the first quarter only 25 people can be reached by the program. In contrast, the continuous program would reach 100 people in every quarter.
 
-In terms of differentiating the two types of programs, spending on programs is always provided as '$/year'. The capacity of the program is the total spend, divided by the unit cost. For one-off programs, the unit cost is provided as '$/person' and thus the capacity would be returned as 'people/year'. For continuous programs, the unit cost is provided as '$/person/year' and thus the capacity would be returned as 'people'. Of course, dividing by 1 year would give the same number of people in units of 'people/year'.
+In terms of differentiating the two types of programs, spending on programs is always provided as '$/year'. The capacity of the program is the total spend, divided by the unit cost. For one-off programs, the unit cost is provided as '$/person' and thus the capacity would be returned as 'people/year'. For continuous programs, the unit cost is provided as '$/person/year' and thus the capacity would be returned as 'people'.
 
 Fraction covered
 ^^^^^^^^^^^^^^^^

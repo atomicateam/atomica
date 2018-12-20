@@ -18,75 +18,64 @@ def test_program_scenarios():
     capacity = res_baseline.get_coverage('capacity',2018)
     coverage = res_baseline.get_coverage('fraction',2018)
 
-    # # Run an allocation scenario manually
-    # doubled_budget = {x: v * 2 for x, v in alloc.items()}
-    # instructions = at.ProgramInstructions(2018,alloc=doubled_budget)
-    # res_doubled = P.run_sim(result_name='Doubled budget',parset='default',progset='default',progset_instructions=instructions)
-    #
-    # # Compare spending in 2018
-    # d = at.PlotData.programs([res_baseline, res_doubled],quantity='spending')
-    # d.interpolate(2018)
-    # at.plot_bars(d,stack_outputs='all')
+    # Run a budget scenario manually
+    doubled_budget = {x: v * 2 for x, v in alloc.items()}
+    instructions = at.ProgramInstructions(2018,alloc=doubled_budget)
+    res_doubled = P.run_sim(result_name='Doubled budget',parset='default',progset='default',progset_instructions=instructions)
+
+    # Compare spending in 2018
+    d = at.PlotData.programs([res_baseline, res_doubled],quantity='spending')
+    d.interpolate(2018)
+    at.plot_bars(d,stack_outputs='all')
 
     # Run a capacity scenario manually
     doubled_capacity = {x: v * 2 for x, v in capacity.items()}
     instructions = at.ProgramInstructions(2018,capacity=doubled_capacity)
     res_capacity = P.run_sim(result_name='Doubled capacity',parset='default',progset='default',progset_instructions=instructions)
 
-    # Compare capacity in 2018
+    # # Compare capacity in 2018
     d = at.PlotData.programs([res_baseline, res_capacity],quantity='coverage_capacity')
     d.interpolate(2018)
     at.plot_bars(d,stack_outputs='all')
 
+    # Run a coverage scenario manually
+    doubled_coverage = {x: v * 2 for x, v in coverage.items()}
+    instructions = at.ProgramInstructions(2018,coverage=doubled_coverage)
+    res_coverage = P.run_sim(result_name='Doubled coverage',parset='default',progset='default',progset_instructions=instructions)
 
+    # Compare coverage in 2018 - notice how the output coverage is capped to 1.0
+    # even though the instructions contain fractional coverage values >1.0
+    d = at.PlotData.programs([res_baseline, res_coverage],quantity='coverage_fraction')
+    d.interpolate(2018)
+    at.plot_bars(d,stack_outputs='all')
 
-    scen = at.BudgetScenario(name='Doubled budget', alloc=doubled_budget, start_year=2018)
-    scen.run(proj, parset='default', progset='default')
+    # Compare program outcomes (incidence from 2018-2023)
+    # Note that the doubled capacity scenario here is basically the same as
+    # the doubled budget scenario because there were no capacity constraints
+    # (the main use case for running a capacity scenario would be to
+    # investigate circumventing capacity constraints).
+    # On the other hand, the coverage scenario has fixed coverage from 2018-2023 whereas
+    # the other scenarios have variable coverage, which is why the coverage scenario has
+    # a different outcome
+    d = at.PlotData([res_baseline, res_doubled,res_capacity,res_coverage],outputs=':acj',pops='total',t_bins=[2018,2023])
+    # Show change in incidence relative to baseline to improve clarity in this plot
+    baseline = d.series[0].vals[0]
+    for s in d.series:
+        s.vals -= baseline
+    at.plot_bars(d)
 
+    # Run a budget scenario via the actual scenario infrastructure
+    scen = at.BudgetScenario(name='Doubled budget scenario', alloc=doubled_budget, start_year=2018)
+    res_doubled_scen = scen.run(P, parset='default', progset='default')
 
-    alloc[0] = alloc[0]*2
+    # Run a coverage scenario via the scenario infrastructure
+    scen = at.CoverageScenario(name='Double coverage scenario', coverage=doubled_coverage, start_year=2018)
+    res_coverage_scen = scen.run(P, parset='default', progset='default')
 
-    # Get
-    # Low level scenarios - assigning to ProgramInstructions directly
-    alloc = proj.progsets[0].get_alloc(2018)
-    doubled_budget = {x: v * 2 for x, v in alloc.items()}
-
-
-
-    # Three different types of scenario
-    def run_budget_scenario(proj):
-        """ Run a budget scenario
-
-        :param proj: A Project object
-        :return: None
-
-        """
-
-        print('Testing budget scenario')
-
-        alloc = proj.progsets[0].get_alloc(2018)
-        doubled_budget = {x: v * 2 for x, v in alloc.items()}
-        scen = at.BudgetScenario(name='Doubled budget', alloc=doubled_budget, start_year=2018)
-        scen.run(proj, parset='default', progset='default')
-
-        return
-
-    def run_coverage_scenario(proj):
-        """ Run a coverage scenario
-
-        :param proj: A Project object
-        :return: None
-
-        """
-
-        print('Testing coverage scenario')
-
-        half_coverage = {x: 0.5 for x in proj.progsets[0].programs.keys()}
-        scen = at.CoverageScenario(name='Reduced coverage', coverage=half_coverage, start_year=2018)
-        scen.run(proj, parset='default', progset='default')
-
-        return
-
+    # Check that the infrastructure gives the same result as direct instructions and
+    # also that the budget and coverage scenarios give different results
+    d = at.PlotData([res_doubled,res_doubled_scen, res_coverage,res_coverage_scen],outputs=':acj',pops='total',t_bins=[2018,2023])
+    at.plot_bars(d)
 
 if __name__ == '__main__':
     test_program_scenarios()
