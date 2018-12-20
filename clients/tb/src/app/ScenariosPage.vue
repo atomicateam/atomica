@@ -307,34 +307,38 @@ Last update: 2018-09-09
               {{ progset }}
             </option>
           </select><br><br>
-          <b>Coverage year</b><br>
+          <b>Start year</b><br>
           <input type="text"
                  class="txbox"
                  v-model="addEditModal.scenSummary.start_year"/><br>
+          <b>End year</b><br>
+          <input type="text"
+                 class="txbox"
+                 v-model="addEditModal.scenSummary.end_year"/><br>
           <table class="table table-bordered table-hover table-striped" style="width: 100%">
             <thead>
             <tr>
               <th>Program</th>
-              <th>Coverage start</th>
-              <th>Coverage end</th>
+              <th>Start value</th>
+              <th>End value</th>
             </tr>
             </thead>
             <tbody>
             <tr v-for="item in addEditModal.scenSummary.coverage">
               <td>
-                {{ item[2] }}
+                {{ item[1] }}
               </td>
               <td>
                 <input type="text"
                        class="txbox"
-                       v-model="item[1]"
+                       v-model="item[2]"
                        style="text-align: right"
                 />
               </td>
               <td>
                 <input type="text"
                        class="txbox"
-                       v-model="item[1]"
+                       v-model="item[3]"
                        style="text-align: right"
                 />
               </td>

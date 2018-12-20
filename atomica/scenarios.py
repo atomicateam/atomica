@@ -218,7 +218,7 @@ class BudgetScenario(Scenario):
 
 class CoverageScenario(Scenario):
 
-    def __init__(self, name=None, parsetname=None, progsetname=None, coverage=None, start_year=None, active=None, **kwargs):
+    def __init__(self, name=None, parsetname=None, progsetname=None, coverage=None, start_year=None, end_year=None, active=None, **kwargs):
         # A BudgetScenario specifies spending overwrites
         # The start_year corresponds to the year in which the programs turn on
         # The alloc can be a dict of scalar spends, that take effect in the program start year, or a TimeSeries of spending values
@@ -231,6 +231,7 @@ class CoverageScenario(Scenario):
         self.progsetname = progsetname
         self.coverage = sc.dcp(coverage)
         self.start_year = start_year  # Turn on programs in this year (can be different to when the spending changes are applied)
+        self.end_year = end_year
         return None
 
     def run(self, project=None, parset=None, progset=None, store_results=True):
@@ -245,8 +246,10 @@ class CoverageScenario(Scenario):
 
         coverage = sc.odict()
         for prog_name, val in self.coverage.items():
-            if not isinstance(val, TimeSeries):
+            if not isinstance(val, TimeSeries) and not sc.isiterable(val):
                 coverage[prog_name] = TimeSeries(self.start_year, val)
+            elif not isinstance(val, TimeSeries) and sc.isiterable(val): # WARNING, kludgy way of handling two input years
+                coverage[prog_name] = TimeSeries([self.start_year, self.end_year], val)
             else:
                 coverage[prog_name] = sc.dcp(val)
 

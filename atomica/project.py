@@ -564,15 +564,13 @@ class Project(object):
             json1['alloc'] = self.progset(json1['progsetname']).get_alloc(tvec=json1['alloc_year'])
         else:
             # WARNING, ugly! But have to run the model to get the coverage
-            alloc = self.progset().get_alloc(tvec=json1['start_year'])
-            R = self.run_sim(progset=json1['progsetname'], progset_instructions=ProgramInstructions(alloc=alloc))
-            coverage = R.get_coverage()
             json1['name'] = 'Default coverage'
-            json1['coverage'] = coverage
-            for key,val in coverage.items():
-                json1['coverage'][key] = val[sc.findnearest(R.t, json1['start_year'])]
-            print('HIIIIIIIIIIIIIIIIIII')
-            print(json1['coverage'])
+            alloc = self.progset().get_alloc(tvec=json1['start_year'])
+            R = self.run_sim(progset=json1['progsetname'], progset_instructions=ProgramInstructions(alloc=alloc, start_year=json1['start_year']))
+            json1['coverage'] = R.get_coverage('fraction', year=2018)
+            for key,val in json1['coverage'].items():
+                json1['coverage'][key] = [val[0], None]
+            json1['end_year'] = None
 
         json2 = sc.odict()
         json2['parsetname'] = -1

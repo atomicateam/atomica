@@ -1537,17 +1537,18 @@ def py_to_js_scen(py_scen, project=None):
         js_scen['coverage'] = []
         if isinstance(py_scen, dict):
             coverage = py_scen['coverage']
+            end_year = py_scen['end_year']
         else:
             coverage = py_scen.coverage
+            end_year = py_scen.end_year
         for prog_name,cov in coverage.items():
             prog_label = project.progset().programs[prog_name].label
-            if sc.isiterable(cov):
-                if len(cov)>1:
-                    raise Exception('Coverage should only have a single element in it, not %s' % len(cov))
-                else:
-                    cov = cov[0] # If it's not a scalar, pull out the first element -- WARNING, KLUDGY
-            covstr = '%0.2f' % cov
-            js_scen['coverage'].append([prog_name, covstr, prog_label])
+            cov1 = cov[0]
+            cov2 = cov[1]
+            covstr1 = '%0.2f' % cov1 if sc.isnumber(cov1) else ''
+            covstr2 = '%0.2f' % cov2 if sc.isnumber(cov2) else ''
+            js_scen['coverage'].append([prog_name, prog_label, covstr1, covstr2])
+            js_scen['end_year'] = end_year
     return js_scen
 
 
@@ -1580,18 +1581,13 @@ def js_to_py_scen(js_scen):
         py_scen['coverage'] = sc.odict()
         for item in js_scen['coverage']:
             prog_name = item[0]
-            coverage = item[1]
-            if sc.isstring(coverage):
-                try:
-                    coverage = to_float(coverage)
-                except Exception as E:
-                    raise Exception('Could not convert coverage to number: %s' % repr(E))
-            if sc.isiterable(coverage):
-                if len(coverage)>1:
-                    raise Exception('Coverage should only have a single element in it, not %s' % len(coverage))
-                else:
-                    coverage = coverage[0] # If it's not a scalar, pull out the first element -- WARNING, KLUDGY
-            py_scen['coverage'][prog_name] = to_float(coverage)
+            coverage1 = item[2]
+            coverage2 = item[3]
+            try:    cov1float = to_float(coverage1)
+            except: cov1float = None
+            try:    cov2float = to_float(coverage2)
+            except: cov2float = None
+            py_scen['coverage'][prog_name] = [cov1float, cov2float]
     return py_scen
     
 
