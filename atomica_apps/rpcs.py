@@ -1578,6 +1578,7 @@ def js_to_py_scen(js_scen):
             py_scen['alloc'][prog_name] = to_float(budget)
     else: # Coverage
         py_scen['start_year'] = float(js_scen['start_year']) # Convert to number
+        py_scen['end_year'] = float(js_scen['end_year']) # Convert to number
         py_scen['coverage'] = sc.odict()
         for item in js_scen['coverage']:
             prog_name = item[0]
