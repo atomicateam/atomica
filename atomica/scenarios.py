@@ -246,12 +246,16 @@ class CoverageScenario(Scenario):
 
         coverage = sc.odict()
         for prog_name, val in self.coverage.items():
-            if not isinstance(val, TimeSeries) and not sc.isiterable(val):
-                coverage[prog_name] = TimeSeries(self.start_year, val)
-            elif not isinstance(val, TimeSeries) and sc.isiterable(val): # WARNING, kludgy way of handling two input years
-                coverage[prog_name] = TimeSeries([self.start_year, self.end_year], val)
-            else:
+            if isinstance(val,TimeSeries):
                 coverage[prog_name] = sc.dcp(val)
+            else:
+                val = sc.promotetoarray(val)
+                if len(val) == 1:
+                    coverage[prog_name] = TimeSeries(self.start_year, val)
+                elif len(val) == 2:
+                    coverage[prog_name] = TimeSeries([self.start_year, self.end_year], val)
+                else:
+                    raise Exception('Invalid overwrite (must contain either 1 or 2 elements)')
 
         instructions = ProgramInstructions(coverage=coverage, start_year=self.start_year)  # Instructions for default spending
         result = project.run_sim(parset=parset, progset=progset, progset_instructions=instructions, result_name=self.name, store_results=store_results)
