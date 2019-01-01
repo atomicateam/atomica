@@ -552,15 +552,17 @@ class Ensemble(NamedItem):
 
     """
 
-    def __init__(self, mapping_function, name: str = None, baseline=None, **kwargs):
+
+    def __init__(self, mapping_function, name:str=None, baseline_results=None,**kwargs):
 
         NamedItem.__init__(self, name)
         self.mapping_function = mapping_function  #: This function gets called by :meth:`Ensemble.add_sample`
         self.samples = []  #: A list of :class:`PlotData` instances, one for each sample
         self.baseline = None  #: A single PlotData instance with reference values (i.e. outcome without sampling)
 
-        if baseline:
-            self.set_baseline(baseline, **kwargs)
+        if baseline_results:
+            self.set_baseline(baseline_results,**kwargs)
+
 
     @property
     def n_samples(self) -> int:
