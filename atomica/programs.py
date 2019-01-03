@@ -1178,7 +1178,7 @@ class Covout(object):
                 combo, val = interaction.split('=')
                 combo = frozenset([x.strip() for x in combo.split('+')])
                 for x in combo:
-                    assert x in self._cached_progs, 'The impact interaction refers to a program "%s" which does not appear in the available programs' % (x)
+                    assert x in self.progs, 'The impact interaction refers to a program "%s" which does not appear in the available programs' % (x)
                 self._interactions[combo] = float(val) - self.baseline
 
         self.update_outcomes()
@@ -1233,7 +1233,7 @@ class Covout(object):
 
         # First, sort the program dict by the magnitude of the outcome
         prog_tuple = [(k, v) for k, v in self.progs.items()]
-        prog_tuple = sorted(prog_tuple, key=lambda x: -abs(x[1]))
+        prog_tuple = sorted(prog_tuple, key=lambda x: -abs(x[1]-self.baseline))
         self._cached_progs = sc.odict()  # This list contains the perturbed/sampled values, in order
         for item in prog_tuple:
             self._cached_progs[item[0]] = item[1]
