@@ -42,6 +42,7 @@ extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
     'sphinx.ext.napoleon',
+    'sphinx.ext.autosectionlabel',
     'sphinx_autodoc_typehints',
     'sphinx_markdown_tables',
     'nbsphinx',
