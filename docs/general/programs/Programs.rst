@@ -207,7 +207,7 @@ The **random interaction** means that the programs target individuals independen
 - Program 2 and not Program 1: ``(1-0.5)*(0.3)``
 - Program 1 and Program 2: ``0.5*0.3``
 
-.. image:: coverage_random.PNG
+.. image:: coverage_random.png
 	:width: 600px
 
 An example with three randomly interacting programs is shown below. The percentages indicate the fraction of the total group of eligible people that is covered by each combination of programs. For example, the figure shows
@@ -221,12 +221,12 @@ Notice how the coverages for each program add to the individual program values -
 
 The random interaction assumes that there is no interaction in targeting between programs. In contrast, the nested and additive interactions correspond to specific assumptions about how programs are jointly targeted. The **nested interaction** maximizes overlap in coverage by having individuals be covered by as many programs as possible. Thus the programs are 'nested' such that anyone covered by a given program is also covered by all other programs that have a larger fractional coverage. As shown in the diagram, Program 2 has a smaller coverage than Program 1, so Program 2 is only targeted at people that have also received Program 1. Similarly, Program 3 has smaller coverage than Program 2, so Program 3 is only targeted at people that have also received Program 2. 
 
-.. image:: coverage_nested.PNG
+.. image:: coverage_nested.png
 	:width: 600px
 
 Finally, the third type of modality interaction is **additive interaction**. Additive interaction minimizes the people that are covered by no programs by minimizing overlap in coverage. As long as the sum of the fractional coverages is less than 1, there will be no overlap between programs, as shown below:
 
-.. image:: coverage_additive.PNG
+.. image:: coverage_additive.png
 	:width: 600px
 
 This additive interaction is trivial if the sum of coverages is less than 100%. However, the situation is more complex if the total coverage exceeds 100%. In that case, the calculation proceeds as follows
