@@ -1084,10 +1084,15 @@ class Program(NamedItem):
         """
         Return number of people covered
 
+        This method returns the program's timestep capacity - that is, the capacity of the program per
+        timestep, at specified points in time. The spending and capacity constraint are automatically
+        adjusted depending on the units of the unit cost and capacity constraint such that the
+        calculation returns capacity in units of 'people' (*not* 'people/year')
+
         :param tvec: A scalar, list, or array of times
         :param spending: A vector of spending values (in units of '$/year'), the same size as ``tvec``
         :param dt: The time step size (required because the number covered at each time step potentially depends on the spending per-timestep)
-        :return: Array the same size as ``tvec``, with coverage in units of 'people'
+        :return: Array the same size as ``tvec``, with capacity in units of 'people'
 
         """
 
