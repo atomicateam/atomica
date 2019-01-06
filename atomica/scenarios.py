@@ -1,12 +1,16 @@
 """
-Define classes and functions for handling scenarios
+Define classes for handling scenarios
 
-This module implements the classes used to represent the three
+
+This module implements the classes used to represent the four
 main types of scenarios in Atomica:
 
-* parameter scenarios
-* budget scenarios
-* coverage scenarios
+- Parameter scenarios
+- Budget scenarios
+- Capacity scenarios
+- Coverage scenarios
+
+
 
 """
 

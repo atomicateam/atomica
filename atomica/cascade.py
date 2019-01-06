@@ -8,6 +8,22 @@ implements functions that are useful for working with the cascades, including
 - Plotting
 - Value extraction
 
+On the plotting side, the two key functions are
+
+- :func:`plot_single_cascade` which makes a single cascade plot complete with shaded regions between bars, and conversion arrows
+- :func:`plot_multi_cascade` which makes a scenario comparison type cascade plot with bars grouped by cascade stage (not possible with normal :func:`plot_bars`)
+
+The plot takes in as arguments the cascade and populations. Users can specify cascades as
+
+- The name of a cascade in the Framework
+- The index of a cascade in the Framework
+- Blank, in which case
+Aside from taking in the results, populations, and year, these functions also need to take in some representation
+of the cascade. The cascade can be specified by the user as
+
+TODO - Note that the fallback cascade is defined in framework.py now
+-
+
 """
 
 
@@ -72,7 +88,7 @@ def sanitize_cascade_inputs(result=None, cascade=None, pops=None, year=None):
         code_names = []
 
         if sc.isstring(pops):
-            pops = [pops]  # Use promotetolist()?
+            pops = sc.promotetolist(pops)
 
         for pop in pops:
             if pop not in result.pop_names:

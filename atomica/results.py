@@ -794,6 +794,18 @@ class Ensemble(NamedItem):
         return fig
 
     def plot_series(self, fig=None, style='samples', results=None, outputs=None, pops=None):
+        """
+        Plot a time series with uncertainty
+
+        :param fig: Optionally specify the figure to render into
+        :param style: Specify whether to plot transparent lines ('samples'), or shaded areas for uncertainty. For shaded areas,
+                      the style can be 'std', 'ci', or 'quartile' depending on how the size of the area should be computed
+        :param results: Select specific results to display
+        :param outputs: Select specific outputs to display
+        :param pops: Select specific populations to display
+        :return: The figure object that was rendered into
+
+        """
 
         assert style in {'samples', 'quartile', 'ci', 'std'}
 
