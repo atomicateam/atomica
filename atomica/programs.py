@@ -632,7 +632,6 @@ class ProgramSet(NamedItem):
                     sheet.write(current_row, 3, covout.imp_interaction, self._formats['not_required'])
                 else:
                     sheet.write(current_row, 3, None, self._formats['unlocked'])
-                sheet.data_validation(xlrc(current_row, 3), {"validate": "list", "source": ["Synergistic", "Best"]})
 
                 if covout and covout.sigma is not None:
                     sheet.write(current_row, 4, covout.sigma, self._formats['not_required'])
