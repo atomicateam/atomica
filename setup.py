@@ -36,7 +36,7 @@ setup(
         'pandas',
         'six>=1.11.0',
         'xlsxwriter',
-        'openpyxl>=2.5',
+        'openpyxl>=2.5,<2.6',
         'scipy',
         'pyswarm',
         'hyperopt',
