@@ -29,7 +29,7 @@ from .programs import ProgramSet
 from .scenarios import Scenario, ParameterScenario, BudgetScenario, CoverageScenario
 from .optimization import Optimization, optimize, OptimInstructions, InvalidInitialConditions
 from .system import logger
-from .cascade import get_cascade_outputs
+from .cascade import sanitize_cascade
 from .utils import NDict, evaluate_plot_string
 from .plotting import PlotData, plot_series
 from .results import Result
@@ -605,7 +605,7 @@ class Project(object):
             json['objective_labels'] = sc.odict()
 
             for cascade_name in self.framework.cascades:
-                cascade = get_cascade_outputs(self.framework, cascade_name)
+                _, cascade = sanitize_cascade(self.framework, cascade_name)
 
                 if optim_type == 'outcome':
                     json['objective_weights']['conversion:%s' % (cascade_name)] = 1.

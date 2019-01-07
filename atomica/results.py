@@ -36,7 +36,7 @@ class Result(NamedItem):
         # The following should be the only reference to that instance so no need to dcp.
         self.model = model
         self.parset_name = parset.name if parset is not None else None
-        self.pop_names = [x.name for x in self.model.pops]  # This gets frequently used, so save it as an actual output
+        self.pop_names = [x.name for x in self.model.pops]    # This gets frequently used, so save it as an actual output
 
     # Property methods trade off storage space against computation time. The property methods below
     # are cheap to compute or used less frequently, are read-only, and can always be changed to actual
