@@ -207,7 +207,7 @@ class Project(object):
             if not make_default_parset:
                 logger.warning("Project has been requested to run a simulation after loading databook, "
                                "despite no request to create a default parameter set.")
-            self.run_sim(parset="default")
+            self.run_sim(parset="default", store_results=True)
 
     def make_parset(self, name="default"):
         """ Transform project data into a set of parameters that can be used in model simulations. """
