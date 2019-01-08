@@ -21,6 +21,25 @@ from .utils import evaluate_plot_string
 
 
 class Result(NamedItem):
+    """
+    Storage for single simulation result
+
+    A Result object (similar to the ``raw_result`` in Optima HIV) stores a complete simulation run.
+    In Atomica, a Result is a lightweight wrapper around a :class:`Model` object. During a simulation,
+    the :class:`Model` object contains integration objects like compartments, links, and parameters, which
+    store values for each quantity at every time step. The methods in the :class:`Model` class are oriented
+    at performing the calculations required to simulate the model. A :class:`Result` object contains within
+    it a single :class:`Model` object, which in turn contains all of the integration objects together with
+    the data they contain and the relationships between them, as well as the :class:`programs.ProgramSet` and
+    :class:`programs.ProgramInstructions` that were used to perform the simulation. The methods of the :class:`Result`
+    class are oriented at plotting and exporting.
+
+    :param model: A single :class:`model.Model` instance (after integration
+    :param parset: A :class:`parameters.ParameterSet` instance
+    :param name: The name to use for the new :class:`Result` object
+
+    """
+
     # A Result stores a single model run
     def __init__(self, model, parset=None, name=None):
         if name is None:
@@ -34,39 +53,66 @@ class Result(NamedItem):
 
         # The Result constructor is called in model.run_model and the Model is no longer returned.
         # The following should be the only reference to that instance so no need to dcp.
-        self.model = model
-        self.parset_name = parset.name if parset is not None else None
-        self.pop_names = [x.name for x in self.model.pops]    # This gets frequently used, so save it as an actual output
+        self.model = model #: A completed model run that serves as primary storage for the underlying values
+        self.parset_name = parset.name if parset is not None else None #: The name of the ParameterSet that was used for the simulation
+        self.pop_names = [x.name for x in self.model.pops] #: A list of the population names present. This gets frequently used, so it is saved as an actual output
 
-    # Property methods trade off storage space against computation time. The property methods below
-    # are cheap to compute or used less frequently, are read-only, and can always be changed to actual
-    # later without needing changes in other code that uses Result objects
     @property
     def framework(self):
+        """
+        Return framework from Result
+
+        :return: A :class:`ProjectFramework` instance
+
+        """
+
         return self.model.framework
 
     @property
-    def t(self):
+    def t(self) -> np.array:
+        """
+        Return simulation time vector
+
+        :return: Array of all time points available in the result
+
+        """
         return self.model.t
 
     @property
-    def dt(self):
+    def dt(self) -> float:
+        """
+        Return simulation timestep
+
+        :return: The simulation timestep (scalar)
+        """
         return self.model.dt
 
     @property
-    def indices_observed_data(self):
-        return np.where(self.t % 1.0 == 0)
-
-    @property
-    def t_observed_data(self):
-        return self.t[self.indices_observed_data]
-
-    @property
     def pop_labels(self):
+        """
+        Return all population full names
+
+        The full names/labels are returned in the same order as the names
+        in ``Result.pop_names``
+
+        :return: List of population full names
+
+        """
+
         return [x.label for x in self.model.pops]
 
     def get_alloc(self):
-        # Return a dict with time-varying funding allocation at every time point in the simulation
+        """
+        Retrieve budget allocation
+
+        This helper method returns the full time-varying budget that was
+        used for any simulation that was run with programs active. The budget
+        allocation is returned accounting for any budget scenarios that are present.
+
+        :return: A standard allocation dict of the form ``{prog_name:TimeSeries()}``
+
+        """
+
         if self.model.progset is None:
             return None
         else:
@@ -119,22 +165,58 @@ class Result(NamedItem):
                 raise Exception('Unknown coverage type requested')
 
     # Methods to list available comps, characs, pars, and links
-    # pop_name is required because different populations could have
-    # different contents
-    def comp_names(self, pop_name):
-        # Return compartment names for a given population
+    # pop_name is required because different populations are permitted to have
+    # different computational graphs
+
+    def comp_names(self, pop_name:str) -> list:
+        """
+        Return list of compartment names
+
+        This method returns all of the compartment names available within a specified
+        population
+
+        :param pop_name: The name of one of the populations in the :class:`Result`
+        :return: List of compartment code names
+        """
+
         return sorted(self.model.get_pop(pop_name).comp_lookup.keys())
 
-    def charac_names(self, pop_name):
-        # Return characteristic names for a given population
+    def charac_names(self, pop_name:str) -> list:
+        """
+        Return list of characteristic names
+
+        This method returns all of the characteristic names available within a specified
+        population
+
+        :param pop_name: The name of one of the populations in the :class:`Result`
+        :return: List of characteristic code names
+        """
         return sorted(self.model.get_pop(pop_name).charac_lookup.keys())
 
-    def par_names(self, pop_name):
-        # Return parteristic names for a given population
+    def par_names(self, pop_name:str) -> list:
+        """
+        Return list of parameter names
+
+        This method returns all of the parameter names available within a specified
+        population
+
+        :param pop_name: The name of one of the populations in the :class:`Result`
+        :return: List of parameter code names
+        """
         return sorted(self.model.get_pop(pop_name).par_lookup.keys())
 
-    def link_names(self, pop_name):
-        # Return link names for a given population
+    def link_names(self, pop_name:str) -> list:
+        """
+        Return list of link names
+
+        This method returns all of the link names available within a specified
+        population. The names will be unique (so duplicate links will only appear
+        once in the list of names)
+
+        :param pop_name: The name of one of the populations in the :class:`Result`
+        :return: List of link code names
+        """
+
         names = set()
         pop = self.model.get_pop(pop_name)
         for link in pop.links:
@@ -142,16 +224,36 @@ class Result(NamedItem):
         return sorted(names)
 
     def __repr__(self):
-        """ Print out useful information when called"""
         output = sc.prepr(self)
         return output
 
-    def get_variable(self, pops, name):
-        # Retrieve a list of variables from a population
+    def get_variable(self, pops: str, name: str) -> list:
+        """
+        Retrieve integration objects
+
+        This method retrieves an integration object from the model for a given
+        population. It serves as a shortcut for ``model.Population.get_variable()`
+        by incorporating the population lookup in the same step.
+
+        :param pops: The name of a population
+        :param name: The name of a variable
+        :return: A list of matching variables (integration objects)
+
+        """
+
         return self.model.get_pop(pops).get_variable(name)
 
-    def export_raw(self, filename=None):
-        """Convert raw outputs to a single DataFrame and optionally write it to a file"""
+    def export_raw(self, filename=None) -> pd.DataFrame:
+        """
+        Save raw outputs
+
+        This method produces a single Pandas DataFrame with all of the raw model
+        values, and then optionally saves it to an Excel file.
+
+        :param filename: The file name of the Excel file to write. If not provided, no file will be written
+        :return: A DataFrame with all model outputs
+
+        """
 
         # Assemble the outputs into a dict
         d = dict()
@@ -182,15 +284,22 @@ class Result(NamedItem):
         return df
 
     def plot(self, plot_name=None, plot_group=None, pops=None, project=None):
-        # Plot a single Result instance using the plots defined in the framework
-        # INPUTS
-        # - plot_name : The name of a single plot in the Framework
-        # - plot_group : The name of a plot group
-        # - pops : A population aggregation supposed by PlotData (e.g. 'all')
-        # - project : A Project instance used to plot data and full names
-        #
-        # If plot_group is not None, then plot_name is ignored
-        # If plot_name and plot_group are both None, then all plots will be displayed
+        """
+        Produce framework-defined plot
+
+        This method plots a single Result instance using the plots defined in the framework.
+
+        If plot_group is not None, then plot_name is ignored
+        If plot_name and plot_group are both None, then all plots will be displayed
+
+        :param plot_name: The name of a single plot in the Framework
+        :param plot_group: The name of a plot group
+        :param pops: A population aggregation supposed by PlotData (e.g. 'all')
+        :param project: A Project instance used to plot data and full names
+        :return: List of figure objects
+
+        """
+
         from .plotting import PlotData, plot_series
 
         df = self.framework.sheets['plots'][0]
@@ -853,8 +962,7 @@ class Ensemble(NamedItem):
                             ax.fill_between(baseline_series.tvec, baseline_series.vals - np.std(vals, axis=0),
                                             baseline_series.vals + np.std(vals, axis=0), alpha=0.15, color=color)
                         else:
-                            raise Exception(
-                                'For consistency, standard deviation is added to the baseline result, but if no baseline is present, then the median is displayed, so not valid to add the std to the median')
+                            raise Exception('For consistency, standard deviation is added to the baseline result, but if no baseline is present, then the median is displayed, so not valid to add the std to the median')
                     else:
                         raise Exception('Unknown style')
 
@@ -866,6 +974,106 @@ class Ensemble(NamedItem):
 
         plt.xlabel('Year')
         return fig
+
+    def plot_bars(self, fig=None, years=None, results=None, outputs=None, pops=None, horizontal=False):
+        """
+        Render a bar plot
+
+        Very similar to a boxplot, the bar plot with error bars doesn't support stacking
+        (because it can be misleading when stacking bars with errors, since the errors
+        apply cumulatively within the bar).
+
+        If an existing figure is provided, this function will attempt to add to the existing
+        figure by offsetting the new bars relative to the current axis limits. This is intended
+        to facilitate comparing bar plots across multiple Ensembles.
+
+        :param fig: Optionally specify an existing figure to plot into
+        :param years: Optionally specify years - otherwise, first time point will be used
+        :param results: Optionally specify list of result names
+        :param outputs: Optionally specify list of outputs
+        :param pops: Optionally specify list of pops
+        :param horizontal: If True, bar plot will be horizontal
+        :return: A matplotlib figure (note that this method will only ever return a single figure)
+
+        """
+
+        # TODO - revisit 'style' argument name - it matches `Ensemble.plot_series()` but there's probably a better name that can be used for both
+
+        if not self.samples:
+            raise Exception('Cannot plot samples because no samples have been added yet')
+        results = sc.promotetolist(results) if results is not None else self.results
+        outputs = sc.promotetolist(outputs) if outputs is not None else self.outputs
+        pops = sc.promotetolist(pops) if pops is not None else self.pops
+        if years is None:
+            years = [None]
+        else:
+            years = sc.promotetolist(years)
+
+        if fig is None:
+            fig, ax = plt.subplots()
+            offset = 0
+        else:
+            ax = fig.axes[0]
+            if horizontal:
+                offset = np.floor(max(ax.get_ylim()))+1
+            else:
+                offset = np.floor(max(ax.get_xlim()))+1
+
+        series_lookup = self._get_series()
+
+        x = []
+        baselines = []
+        labels = []
+        for year in years:
+            for result in results:
+                for output in outputs:
+                    for pop in pops:
+
+                        if self.baseline:
+                            if year is None:
+                                baselines.append(self.baseline[result, pop, output].vals[0])
+                            else:
+                                baselines.append(self.baseline[result, pop, output].interpolate(year)[0])
+
+                        if year is None:
+                            vals = np.array([x.vals[0] for x in series_lookup[result, pop, output]])
+                        else:
+                            vals = np.array([x.interpolate(year) for x in series_lookup[result, pop, output]])
+                        x.append(vals.ravel())
+                        labels.append('%s: %s-%s-%s (baseline, %g)' % (self.name, result, pop, output, year))
+        locations = offset + np.arange(len(x))
+        sample_array = np.vstack(x).T
+        if not baselines:
+            baseline = np.mean(sample_array,axis=0)
+        sample_errors = np.std(sample_array,axis=0)
+
+        for location,baseline, error,label in zip(locations, baselines, sample_errors,labels):
+            if horizontal:
+                ax.barh(location, baseline, xerr=error, capsize=10,label=label, height=0.5)
+            else:
+                ax.bar(location, baseline, yerr=error, capsize=10,label=label, width=0.5)
+
+        ax.legend()
+
+        proposed_label = "%s (%s)" % (output, series_lookup[result, pop, output][0].unit_string)
+
+        if horizontal:
+            ax.set_ylim(-0.5, locations[-1] + 0.5)
+            if ax.xaxis.get_label().get_text():
+                assert proposed_label == ax.xaxis.get_label().get_text(), 'The outputs being superimposed have different units'
+            else:
+                plt.xlabel(proposed_label)
+            ax.set_yticks([])
+        else:
+            ax.set_xlim(-0.5, locations[-1] + 0.5)
+            if ax.yaxis.get_label().get_text():
+                assert proposed_label == ax.yaxis.get_label().get_text(), 'The outputs being superimposed have different units'
+            else:
+                plt.ylabel(proposed_label)
+            ax.set_xticks([])
+
+        return fig
+
 
     def boxplot(self, fig=None, years=None, results=None, outputs=None, pops=None):
         """

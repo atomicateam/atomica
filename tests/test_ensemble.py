@@ -61,6 +61,13 @@ for i in range(100):
 
 all_default.summary_statistics(years=2018)
 
+fig = all_default.plot_bars(years=2018, outputs='screen', pops=['m_rural', 'm_urban'])
+all_default.plot_bars(years=2022, outputs='screen', pops=['m_rural', 'm_urban'], fig=fig)
+
+fig = all_default.plot_bars(years=2018, outputs='screen', pops=['m_rural', 'm_urban'],horizontal=True)
+all_default.plot_bars(years=2022, outputs='screen', pops=['m_rural', 'm_urban'], fig=fig,horizontal=True)
+
+
 
 # Compare within ensemble across pops
 fig = all_default.plot_distribution(year=2020,outputs='screen',pops='m_rural')
