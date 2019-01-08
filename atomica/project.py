@@ -526,8 +526,18 @@ class Project(object):
         results = [unoptimized_result, optimized_result]
         return results
 
-    def save(self, filename=None, folder=None):
-        """ Save the current project to a relevant object file. """
+    def save(self, filename:str =None, folder:str =None) -> str:
+        """
+        Save binary project file
+
+        This method saves the entire project as a binary blob to disk
+
+        :param filename: Name of the file to save
+        :param folder: Optionally specify a folder
+        :return: The full path of the file that was saved
+
+        """
+
         fullpath = sc.makefilepath(filename=filename, folder=folder, default=[self.filename, self.name], ext='prj', sanitize=True)
         self.filename = fullpath
         sc.saveobj(fullpath, self)
@@ -535,13 +545,39 @@ class Project(object):
 
     @staticmethod
     def load(filepath):
-        """ Convenience class method for loading a project in the absence of an instance. """
+        """
+        Load binary project file
+
+        This method is an alternate constructor that is used to load a binary file
+        saved using :meth:`Project.save`. Migration is automatically performed as
+        part of the loading operation.
+
+        :param filepath: The file path/name to load
+        :return: A new :class:`Project` instance
+
+        """
+
         P = sc.loadobj(filepath)
         assert isinstance(P, Project)
         P = migrate(P)
         return P
 
     def demo_scenarios(self, dorun=False, doadd=True):
+        """
+        Create demo scenarios
+
+        This method creates three default budget scenarios
+
+        - Default budget
+        - Doubled budget
+        - Zero budget
+
+        :param dorun: If True, and if doadd=True, simulations will be run
+        :param doadd: If True, scenario objects will be created and added to the project
+        :return: If ``doadd=False``, returns JSON scenarios. If ``doadd=True`` and ``dorun=False``, return ``None``. If ``doadd=True`` and ``dorun=True``, return list of Result objects
+
+        """
+
         json1 = sc.odict()
         json1['name'] = 'Default budget'
         json1['parsetname'] = -1
@@ -573,15 +609,21 @@ class Project(object):
             return json1
 
     def demo_optimization(self, dorun=False, tool=None, optim_type=None):
-        # INPUTS
-        # - dorun : If True, runs optimization immediately
-        # - tool : Choose optimization objectives based on whether tool is 'cascade' or 'tb'
-        # - optim_type : set to 'outcome' or 'money' - use 'money' to minimize money
-        #
-        # Note that if optim_type='money' then the optimization 'weights' entered in the FE are
-        # actually treated as relative scalings for the minimization target. e.g. If ':ddis' has a weight
-        # of 25, this is a objective weight factor for optim_type='outcome' but it means 'we need to reduce
-        # deaths by 25%' if optim_type='money' (since there is no weight factor for the minimize money epi targets)
+        """
+        Create demo optimizations
+
+        Note that if optim_type='money' then the optimization 'weights' entered in the FE are
+        actually treated as relative scalings for the minimization target. e.g. If ':ddis' has a weight
+        of 25, this is a objective weight factor for optim_type='outcome' but it means 'we need to reduce
+        deaths by 25%' if optim_type='money' (since there is no weight factor for the minimize money epi targets)
+
+        :param dorun: If True, runs optimization immediately
+        :param tool: Choose optimization objectives based on whether tool is ``'cascade'`` or ``'tb'``
+        :param optim_type: set to ``'outcome'`` or ``'money'`` - use ``'money'`` to minimize money
+        :return: If ``dorun=True``, return list of results. Otherwise, returns an ``OptimInstructions`` instance
+
+        """
+
         if optim_type is None:
             optim_type = 'outcome'
         assert tool in ['cascade', 'tb']

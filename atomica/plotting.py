@@ -549,14 +549,21 @@ class PlotData:
 
         Both PlotData instances must have
 
-            - A single result (names don't need to match)
             - The same pops
             - The same outputs
             - The same units (i.e. the same aggregation steps)
             - The same time points
 
-        Series will be copied from the left :class:`PlotData` instance so ordering, formatting, and
-        labels will be drawn from ``a`` rather than ``b``. In practice, it would be usually
+        This method also incorporates singleton expansion for results, which means that one or both
+        of the PlotData instances can contain a single result instead of multiple results. The single
+        result will be applied against all of the results in the other PlotData instance, so for example
+        a single baseline result can be subtracted off a set of scenarios. Note that if both PlotData instances
+        have more than one result, then an error will be raised (because the result names don't have to match,
+        it is otherwise impossible to identify which pairs of results to subtract).
+
+        Series will be copied either from the PlotData instance that has multiple Results, or from the left :class:`PlotData` instance
+        if both instances have only one result. Thus, ensure that ordering, formatting, and
+        labels are set in advance on the appropriate object, if preserving the formatting is important. In practice, it would be usually
         be best to operate on the :class:`PlotData` values first, before setting formatting etc.
 
 
@@ -569,14 +576,35 @@ class PlotData:
         assert set(self.outputs) == set(other.outputs), 'PlotData subtraction requires both instances to have the same populations'
         assert np.array_equal(self.tvals()[0], other.tvals()[0])
 
-        new = sc.dcp(self)
+        if len(self.results) > 1 and len(other.results) > 1:
+            raise Exception('When subtracting PlotData instances, both of them cannot have more than one result')
+        elif len(other.results) > 1:
+            new = sc.dcp(other)
+        else:
+            new = sc.dcp(self)
+
+        # The result of the above operation is that the *not* new PlotData instance
+        new.results = sc.odict()
+
         for s1 in new.series:
-            s2 = other[other.results[0],s1.pop,s1.output]
+
+            if len(other.results) > 1:
+                s2 = self[self.results[0],s1.pop,s1.output]
+            else:
+                s2 = other[other.results[0],s1.pop,s1.output]
             assert s1.units == s2.units
             assert s1.timescale == s2.timescale
-            s1.vals = s1.vals - s2.vals
-            s1.result = '%s-%s' % (s1.result,s2.result)
-        new.results = sc.odict({s1.result:s1.result})
+
+            if len(other.results) > 1:
+                # If `b` has more than one result, then `s1` is from `b` and `s2` is from `a`, so the values for `a-b` are `s2-s1`
+                s1.vals = s2.vals - s1.vals
+                s1.result = '%s-%s' % (s2.result,s1.result)
+            else:
+                s1.vals = s1.vals - s2.vals
+                s1.result = '%s-%s' % (s1.result,s2.result)
+
+            new.results[s1.result] = s1.result
+
         return new
 
 
