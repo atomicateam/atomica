@@ -45,7 +45,7 @@ extensions = [
     'sphinx.ext.autosectionlabel',
     'sphinx_autodoc_typehints',
     'sphinx_markdown_tables',
-    'nbsphinx',
+    # 'nbsphinx',
 ]
 #
 # autoclass_content = "both"  # include both class docstring and __init__
