@@ -12,7 +12,7 @@ P.load_progbook(testdir + 'test_uncertainty_high_progbook.xlsx')
 low_uncertainty_progset = at.ProgramSet.from_spreadsheet(testdir + 'test_uncertainty_low_progbook.xlsx',project=P)
 high_uncertainty_progset = at.ProgramSet.from_spreadsheet(testdir + 'test_uncertainty_high_progbook.xlsx',project=P)
 default_budget = at.ProgramInstructions(start_year=2018, alloc=P.progsets[0])
-doubled_budget = default_budget.scale(2)
+doubled_budget = default_budget.scale_alloc(2)
 
 # Set up the ensembles
 store_all = lambda x: at.PlotData(x,outputs=['screen','diag','initiate'])

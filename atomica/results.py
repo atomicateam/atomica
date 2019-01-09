@@ -10,15 +10,13 @@ from collections import defaultdict
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import sciris as sc
 from scipy import stats
 
-import sciris as sc
 from .excel import standard_formats
 from .system import FrameworkSettings as FS
 from .system import logger
-from .utils import NamedItem
-from .utils import evaluate_plot_string
-
+from .utils import NamedItem, evaluate_plot_string, nested_loop
 
 class Result(NamedItem):
     """
@@ -672,6 +670,71 @@ class Ensemble(NamedItem):
         if baseline_results:
             self.set_baseline(baseline_results,**kwargs)
 
+    def run_sims(self,proj,n_samples:int,parset,progset=None,progset_instructions=None, result_names=None) -> None:
+        """
+        Run and store sampled simulations
+
+        This method samples from the parset (and progset if provided). This is a simple method
+        for the most common usage case where the Ensemble is being used for single results.
+
+        The other common scenario is having multiple results
+
+        :param n_samples:
+        :param parset:
+        :param progset:
+        :param progset_instructions: This can be a list of instructions
+
+        """
+
+        from .model import BadInitialization # avoid circular import
+
+        assert (progset is None)==(progset_instructions is None), "If running with programs, both a progset and instructions must be provided"
+
+        if sc.isstring(parset):
+            parset = proj.parsets[parset]
+        if sc.isstring(progset):
+            progset = proj.progsets[progset]
+
+        progset_instructions = sc.promotetolist(progset_instructions)
+        if not result_names:
+            if len(progset_instructions) > 1:
+                result_names = ['instructions_%d' % (i) for i in range(len(progset_instructions))]
+            else:
+                result_names = ['default']
+        else:
+            assert(len(result_names) == 1 and not progset_instructions) or (len(progset_instructions) == len(result_names)), "Number of result names must match number of instructions"
+
+        if progset:
+            results = [proj.run_sim(parset=parset,progset=progset,progset_instructions=x,result_name=y) for x,y in zip(progset_instructions,result_names)]
+        else:
+            results = [proj.run_sim(parset=parset,result_name=y) for y in result_names]
+
+        self.set_baseline(results)
+
+        n = 0
+        failed = 0
+        self.samples = [] # Drop the old samples
+
+        while n < n_samples:
+
+            if failed > n_samples*10:
+                # This would probably happen if the ICs are very sensitive and any small perturbation
+                # causes them to become invalid
+                raise Exception('Failed 10x the number of requested simulations - something might have gone wrong')
+
+            try:
+                if progset:
+                    sampled_parset = parset.sample()
+                    sampled_progset = progset.sample()
+                    results = [proj.run_sim(parset=sampled_parset, progset=sampled_progset, progset_instructions=x, result_name=y) for x, y in zip(progset_instructions, result_names)]
+                else:
+                    sampled_parset = parset.sample()
+                    results = [proj.run_sim(parset=sampled_parset,result_name=y) for y in result_names]
+                self.add(results)
+                n += 1
+            except BadInitialization:
+                failed += 1
+                continue
 
     @property
     def n_samples(self) -> int:
@@ -705,6 +768,25 @@ class Ensemble(NamedItem):
             return list(self.baseline.outputs.keys())
         else:
             return list()
+
+    @property
+    def tvec(self) -> np.array:
+        """
+        Return time vector
+
+        The time vector are retrieved from the first sample, or the baseline
+        if no samples are present yet, or an empty list if no samples present.
+
+        :return: A time array from one of the stores :class:`PlotData` instances
+
+        """
+
+        if self.samples:
+            return self.samples[0].series[0].tvec
+        elif self.baseline:
+            return self.baseline[0].series[0].tvec
+        else:
+            return np.empty(0)
 
     @property
     def pops(self) -> list:
@@ -975,7 +1057,7 @@ class Ensemble(NamedItem):
         plt.xlabel('Year')
         return fig
 
-    def plot_bars(self, fig=None, years=None, results=None, outputs=None, pops=None, horizontal=False):
+    def plot_bars(self, fig=None, years=None, results=None, outputs=None, pops=None, order=('years','results','outputs','pops'), horizontal=False, offset:float =None):
         """
         Render a bar plot
 
@@ -988,16 +1070,17 @@ class Ensemble(NamedItem):
         to facilitate comparing bar plots across multiple Ensembles.
 
         :param fig: Optionally specify an existing figure to plot into
-        :param years: Optionally specify years - otherwise, first time point will be used
+        :param years: Optionally specify years - otherwise, first time point will be used. Data is interpolated onto this year
         :param results: Optionally specify list of result names
         :param outputs: Optionally specify list of outputs
         :param pops: Optionally specify list of pops
+        :param order: An iterable specifying the order in which bars appear - should be a permutation of ``('years','results','outputs','pops')``
         :param horizontal: If True, bar plot will be horizontal
+        :param offset: Offset value to apply to the position of the bar. If ``None``, will be automatically determined based
+                       on existing plot contents.
         :return: A matplotlib figure (note that this method will only ever return a single figure)
 
         """
-
-        # TODO - revisit 'style' argument name - it matches `Ensemble.plot_series()` but there's probably a better name that can be used for both
 
         if not self.samples:
             raise Exception('Cannot plot samples because no samples have been added yet')
@@ -1024,23 +1107,21 @@ class Ensemble(NamedItem):
         x = []
         baselines = []
         labels = []
-        for year in years:
-            for result in results:
-                for output in outputs:
-                    for pop in pops:
 
-                        if self.baseline:
-                            if year is None:
-                                baselines.append(self.baseline[result, pop, output].vals[0])
-                            else:
-                                baselines.append(self.baseline[result, pop, output].interpolate(year)[0])
+        base_order = ('years','results','outputs','pops')
+        for year, result, output, pop in nested_loop([years,results,outputs,pops],map(base_order.index,order)):
+            if self.baseline:
+                if year is None:
+                    baselines.append(self.baseline[result, pop, output].vals[0])
+                else:
+                    baselines.append(self.baseline[result, pop, output].interpolate(year)[0])
 
-                        if year is None:
-                            vals = np.array([x.vals[0] for x in series_lookup[result, pop, output]])
-                        else:
-                            vals = np.array([x.interpolate(year) for x in series_lookup[result, pop, output]])
-                        x.append(vals.ravel())
-                        labels.append('%s: %s-%s-%s (baseline, %g)' % (self.name, result, pop, output, year))
+            if year is None:
+                vals = np.array([x.vals[0] for x in series_lookup[result, pop, output]])
+            else:
+                vals = np.array([x.interpolate(year) for x in series_lookup[result, pop, output]])
+            x.append(vals.ravel())
+            labels.append('%s: %s-%s-%s (baseline, %g)' % (self.name, result, pop, output, year))
         locations = offset + np.arange(len(x))
         sample_array = np.vstack(x).T
         if not baselines:

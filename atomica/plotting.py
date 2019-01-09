@@ -30,7 +30,7 @@ from .system import logger
 from .function_parser import parse_function
 from .utils import interpolate
 from .system import FrameworkSettings as FS
-from .utils import format_duration
+from .utils import format_duration, nested_loop
 
 settings = dict()
 settings['legend_mode'] = 'together'  # Possible options are ['together','separate','none']
@@ -1141,14 +1141,14 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer=None, legend_
             gaps[1] = 0
         result_offset = block_width + gaps[1]
         tval_offset = len(plotdata.results) * (block_width + gaps[1]) + gaps[2]
-        iterator = _nested_loop([range(len(plotdata.results)), range(len(tvals))], [0, 1])
+        iterator = nested_loop([range(len(plotdata.results)), range(len(tvals))], [0, 1])
     elif outer == 'results':
         if len(tvals) == 1:  # If there is only one inner group
             gaps[2] = gaps[1]
             gaps[1] = 0
         result_offset = len(tvals) * (block_width + gaps[1]) + gaps[2]
         tval_offset = block_width + gaps[1]
-        iterator = _nested_loop([range(len(plotdata.results)), range(len(tvals))], [1, 0])
+        iterator = nested_loop([range(len(plotdata.results)), range(len(tvals))], [1, 0])
     else:
         raise Exception('outer option must be either "times" or "results"')
 
@@ -1793,47 +1793,6 @@ def _get_full_name(code_name: str, proj=None) -> str:
             return proj.framework.get_label(code_name)
         else:
             return code_name
-
-
-def _nested_loop(inputs, loop_order):
-    """
-    Zip list of lists in order
-
-    This is used in :func:`plot_bars` to control whether 'times' or 'results' are the
-    outer grouping. This function takes in a list of lists to iterate over, and their
-    nesting order. It then yields tuples of items in the given order. Only tested
-    for two levels (which are all that get used in :func:`plot_bars` but in theory
-    supports an arbitrary number of items.
-
-    :param inputs: List of lists. All lists should have the same length
-    :param loop_order: Nesting order for the lists
-    :return: Generator yielding tuples of items, one for each list
-
-    Example usage:
-
-    >>> list(_nested_loop([['a','b'],[1,2]],[0,1]))
-    [['a', 1], ['a', 2], ['b', 1], ['b', 2]]
-
-    Notice how the first two items have the same value for the first list
-    while the items from the second list vary. If the `loop_order` is
-    reversed, then:
-
-    >>> list(_nested_loop([['a','b'],[1,2]],[1,0]))
-    [['a', 1], ['b', 1], ['a', 2], ['b', 2]]
-
-    Notice now how now the first two items have different values from the
-    first list but the same items from the second list.
-
-    """
-
-    inputs = [inputs[i] for i in loop_order]
-    iterator = itertools.product(*inputs)  # This is in the loop order
-    for item in iterator:
-        out = [None] * len(loop_order)
-        for i in range(len(item)):
-            out[loop_order[i]] = item[i]
-        yield out
-
 
 def _expand_dict(x: list) -> list:
     """

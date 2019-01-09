@@ -75,7 +75,7 @@ class ProgramInstructions(object):
                 else:
                     self.coverage[prog_name] = TimeSeries(t=self.start_year, vals=cov_values)
 
-    def scale(self, scale_factor: float) -> None:
+    def scale_alloc(self, scale_factor: float) -> None:
         """
         Scale allocation by a constant
 

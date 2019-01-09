@@ -10,6 +10,7 @@ from bisect import bisect
 import numpy as np
 import scipy.interpolate
 import sciris as sc
+import itertools
 
 
 def parent_dir():
@@ -634,3 +635,44 @@ def floor_interpolator(x, y):
         return out
 
     return f
+
+
+def nested_loop(inputs, loop_order):
+    """
+    Zip list of lists in order
+
+    This is used in :func:`plot_bars` to control whether 'times' or 'results' are the
+    outer grouping. This function takes in a list of lists to iterate over, and their
+    nesting order. It then yields tuples of items in the given order. Only tested
+    for two levels (which are all that get used in :func:`plot_bars` but in theory
+    supports an arbitrary number of items.
+
+    :param inputs: List of lists. All lists should have the same length
+    :param loop_order: Nesting order for the lists
+    :return: Generator yielding tuples of items, one for each list
+
+    Example usage:
+
+    >>> list(nested_loop([['a','b'],[1,2]],[0,1]))
+    [['a', 1], ['a', 2], ['b', 1], ['b', 2]]
+
+    Notice how the first two items have the same value for the first list
+    while the items from the second list vary. If the `loop_order` is
+    reversed, then:
+
+    >>> list(nested_loop([['a','b'],[1,2]],[1,0]))
+    [['a', 1], ['b', 1], ['a', 2], ['b', 2]]
+
+    Notice now how now the first two items have different values from the
+    first list but the same items from the second list.
+
+    """
+
+    loop_order = list(loop_order) # Convert to list, in case loop order was passed in as a generator e.g. from map()
+    inputs = [inputs[i] for i in loop_order]
+    iterator = itertools.product(*inputs)  # This is in the loop order
+    for item in iterator:
+        out = [None] * len(loop_order)
+        for i in range(len(item)):
+            out[loop_order[i]] = item[i]
+        yield out

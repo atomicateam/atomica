@@ -57,8 +57,8 @@ import numpy as np
 import textwrap
 import sciris as sc
 import matplotlib
-from .utils import NDict
-from .results import Result
+from .utils import NDict, nested_loop
+from .results import Result, Ensemble
 from .system import logger
 from .data import ProjectData
 
@@ -675,3 +675,139 @@ def get_cascade_data(data, framework, cascade, pops=None, year=None):
 
     return cascade_data, t
 
+class CascadeEnsemble(Ensemble):
+    """
+    Ensemble for cascade plots
+
+    This specialized Ensemble type is oriented to working with cascades. It has pre-defined mapping
+    functions for retrieving cascade values and wrappers to plot cascade data.
+
+    Conceptually, the idea is that using cascades with ensembles requires doing two things
+
+    - Having a mapping function that generates PlotData instances where the outputs are
+      cascade stages
+    - Having a plotting function that makes bar plots where all of the bars for the same year/result
+      are the same color (which rules out `Ensemble.plot_bars()`) where the bars are grouped by
+      output (which rules out `plotting.plot_bars()`) and where the plot data is stored in `PlotData`
+      instances rather than in `Result` object (which rules out `cascade.plot_multi_cascade`)
+
+    This specialized Ensemble class implements both of the above steps
+
+    - The constructor takes in the name of the cascade (or a cascade dict) and internally generates
+      a suitable mapping function
+    - `CascadeEnsemble.plot_multi_cascade` handles plotting multi-bar plots with error bars for cascades
+
+    """
+
+    def __init__(self,framework, cascade, years=None, baseline_results=None, pops=None):
+        """
+
+        :param framework:
+        :param cascade: A cascade representation supported by :func:`sanitize_cascade`. However, if the cascade is a dict, then
+                        it will not be sanitized. This allows advanced aggregations to be used
+        :param years:
+        :param baseline_results:
+        :param pops:
+
+        """
+
+        from .plotting import PlotData # Import here to avoid circular dependencies
+
+        if years is not None:
+            years = sc.promotetoarray(years)
+
+        if isinstance(cascade,dict):
+            cascade_name = None
+            cascade_dict = cascade
+        else:
+            cascade_name, cascade_dict = sanitize_cascade(framework,cascade)
+
+        if not cascade_name:
+            cascade_name = 'Cascade'
+
+        def cascade_mapping(results):
+            # This mapping function returns PlotData for the cascade
+            # It's a closure containing the cascade, years, and pops requested
+            d = PlotData(results,outputs=cascade_dict,pops=pops)
+            if years is not None:
+                d.interpolate(years)
+            return d
+
+        # Perform normal Ensemble initialization using the cascade mapping function defined above
+        # (with the closure for the requested cascade, pops, and years)
+        super().__init__(name=cascade_name, mapping_function=cascade_mapping, baseline_results=baseline_results)
+
+    def plot_multi_cascade(self,pop=None,years=None):
+        """
+        Plot multi-cascade with uncertainties
+
+        The multi-cascade with uncertainties differs from the
+        normal plot_multi_cascade primarily in the fact that this plot is based around
+        PlotData instances while plot_multi_cascade is a simplified routine that
+        takes in results and calls get_cascade_vals. Thus, while this method assumes
+        that the PlotData contains a properly nested cascade, it's not actually valided
+        which allows more flexibility in terms of defining arbitrary quantities to
+        include on the plot (like 'virtual' stages that are functions of cascade stages)
+
+        Intended usage is for
+
+        - One population/population aggregation
+        - Multiple years OR multiple results, but not both
+
+        Thus, the legend will either show result names for a single year, or years for a single result
+
+        Could be generalized further once applications are clearer
+
+        """
+
+        if years is None:
+            if len(self.results) > 1:
+                years = self.tvec[-1]
+            else:
+                years = self.tvec
+        years = sc.promotetoarray(years)
+
+        assert not (len(years) > 1 and len(self.results)>1), "If multiple results are present, can only plot one year at a time"
+        fig, ax = plt.subplots()
+
+        if pop is None:
+            pop = self.pops[0] # Use first population
+
+        # Iterate over bar groups
+        # A bar group is for a single year-result combination but contains multiple outputs
+        n_colors = len(years)*len(self.results) # Offset to apply to each bar
+        n_stages = len(self.outputs) # Number of stages being plotted
+        series_lookup = self._get_series()
+
+        w = 1 # bar width
+        g1 = 0.1 # gap between bars
+        g2 = 1 # gap between stages
+        stage_width = n_colors*(w+g1)+w+g2
+
+        base_positions = np.arange(n_stages)*stage_width
+        n_rendered = 0 # Track the offset for bars rendered
+
+        for year in years:
+            year_idx = list(self.tvec).index(year)
+            for result in self.results:
+
+                # Assemble the results for the bar group to render
+                # This is an array with an entry for every bar
+                # The outputs are ordered as the dict is ordered so can use them directly
+                stage_vals = []
+                for output in self.outputs:
+                    stage_vals.append(np.array([x.vals[year_idx] for x in series_lookup[result, pop, output]]))
+                stage_vals = np.vstack(stage_vals).T
+
+                if self.baseline:
+                    baseline_vals = np.array([self.baseline[result,pop,x].vals[year_idx] for x in self.outputs])
+                else:
+                    baseline_vals = np.mean(stage_vals,axis=0)
+
+                label = '%s - %g' % (result,year)
+                ax.bar(base_positions+n_rendered*(w+g1), baseline_vals, yerr=np.std(stage_vals,axis=0), capsize=10,label=label, width=w)
+                n_rendered += 1
+
+        ax.legend()
+        ax.set_xticks(base_positions + (n_colors-1)*(w+g1)/2)
+        ax.set_xticklabels(self.outputs)
