@@ -1012,9 +1012,9 @@ class Covout(object):
         # This is important because it also updates the modality interaction outcomes
         # These are otherwise expensive to compute
 
-        # First, sort the program dict by the magnitude of the outcome
+        # First, sort the program dict by the magnitude of the delta
         prog_tuple = [(k, v) for k, v in progs.items()]
-        prog_tuple = sorted(prog_tuple, key=lambda x: -abs(x[1]))
+        prog_tuple = sorted(prog_tuple, key=lambda x: -abs(x[1]-self.baseline))
         self.progs = sc.odict()
         for item in prog_tuple:
             self.progs[item[0]] = item[1]
