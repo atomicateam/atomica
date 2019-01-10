@@ -918,6 +918,10 @@ class ProgramSet(NamedItem):
             else:
                 alloc[prog.name] = instructions.alloc[prog.name].interpolate(tvec)
 
+        if instructions:
+            for prog_name in set(instructions.alloc.keys())-set(self.programs.keys()):
+                logger.warning('The instructions contain an overwrite for a program called "%s" but as this is not in the ProgramSet, it will have no effect',prog_name)
+
         return alloc
 
     def get_capacities(self, tvec, dt, instructions=None) -> dict:
