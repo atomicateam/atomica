@@ -1110,7 +1110,7 @@ def create_default_progbook(project_id, start_year, end_year, active_progs):
 
         # Copy assumptions from spending data
         u_prog.baseline_spend.assumption = d_prog.baseline_spend.assumption
-        u_prog.capacity.assumption = d_prog.capacity.assumption
+        u_prog.capacity_constraint.assumption = d_prog.capacity_constraint.assumption
         u_prog.coverage.assumption = d_prog.coverage.assumption
         u_prog.unit_cost.assumption = d_prog.unit_cost.assumption
         u_prog.spend_data.assumption = d_prog.spend_data.assumption
