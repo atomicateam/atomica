@@ -30,15 +30,14 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
-        'matplotlib>=1.4.2,<3',
+        'matplotlib>=1.4.2',
         'numpy>=1.10.1',
+        'scipy',
         'pandas',
         'six>=1.11.0',
         'xlsxwriter',
-        'scipy',
         'pyswarm',
         'hyperopt',
         'sciris',
-        'gitpython',
     ],
 )
