@@ -16,7 +16,8 @@ from scipy import stats
 from .excel import standard_formats
 from .system import FrameworkSettings as FS
 from .system import logger
-from .utils import NamedItem, evaluate_plot_string, nested_loop
+from .utils import NamedItem, evaluate_plot_string, nested_loop, interpolate
+
 
 class Result(NamedItem):
     """
@@ -99,47 +100,48 @@ class Result(NamedItem):
 
         return [x.label for x in self.model.pops]
 
-    def get_alloc(self):
+    def get_alloc(self,year=None) -> dict:
         """
-        Retrieve budget allocation
-
-        This helper method returns the full time-varying budget that was
-        used for any simulation that was run with programs active. The budget
-        allocation is returned accounting for any budget scenarios that are present.
-
-        :return: A standard allocation dict of the form ``{prog_name:TimeSeries()}``
-
+        Return spending allocation
+        If the result was generated using programs, this method
+        :param year: Optionally specify a scalar or list/array of years to return budget values
+                     for. Otherwise, uses all simulation times
+        :return: Dictionary keyed by program name with arrays of spending values
         """
 
         if self.model.progset is None:
             return None
-        else:
-            return self.model.progset.get_alloc(self.t, self.model.program_instructions)
 
-    def get_coverage(self, quantity: str = 'fraction') -> dict:
+        if year is None:
+            year = self.t
+
+        return self.model.progset.get_alloc(year, self.model.program_instructions)
+
+    def get_coverage(self, quantity: str = 'fraction', year=None) -> dict:
         """
-        Return program coverage
+        Return program
 
         This function is the primary function to use when wanting to query coverage
         values. All coverage quantities are accessible via the :class:`Result` object
         because the compartment sizes and thus eligible people are known.
-
         :param quantity: One of
-            - 'capacity' - The number of people that a program is funded to reach (coverage numerator)
-            - 'eligible' - The number of people eligible for the program (coverage denominator)
-            - 'fraction' - ``capacity/eligible``, the fraction coverage (maximum value is 1.0)
-            - 'number' - The number of people covered (``fraction*eligible``)
-        :return: Requested values in dictionary ``{prog_name:value}``
+            - 'capacity' - Program capacity in units of 'people/year' (for all types of programs)
+            - 'eligible' - The number of people eligible for the program (coverage denominator) in units of 'people'
+            - 'fraction' - ``capacity/eligible``, the fraction coverage (maximum value is 1.0) - this quantity is dimensionless
+            - 'number' - The number of people covered (``fraction*eligible``) returned in units of 'people/year'
+        :param year: Optionally specify a scalar or list/array of years to return budget values
+                     for. Otherwise, uses all simulation times
+        :return: Requested values in dictionary ``{prog_name:value}`` in requested years
 
         """
 
         if self.model.progset is None:
             return None
 
-        capacities = self.model.progset.get_capacities(tvec=self.t, dt=self.dt,instructions=self.model.program_instructions)
+        capacities = self.model.progset.get_capacities(tvec=self.t, dt=self.dt, instructions=self.model.program_instructions)
 
         if quantity == 'capacity':
-            return capacities
+            output = capacities
         else:
             # Get the program coverage denominator
             num_eligible = dict()  # This is the coverage denominator, number of people covered by the program
@@ -151,30 +153,42 @@ class Result(NamedItem):
                         else:
                             num_eligible[prog.name] += self.get_variable(pop_name, comp_name)[0].vals
 
-            prop_coverage = self.model.progset.get_prop_coverage(tvec=self.t, capacities=capacities,num_eligible=num_eligible,instructions=self.model.program_instructions)
+            # Note that `ProgramSet.get_prop_coverage()` takes in capacity in units of 'people' which matches
+            # the units of 'num_eligible' so we therefore use the returned value from `ProgramSet.get_capacities()`
+            # as-is without doing any annualization
+            prop_coverage = self.model.progset.get_prop_coverage(tvec=self.t, capacities=capacities, num_eligible=num_eligible, instructions=self.model.program_instructions)
 
             if quantity == 'fraction':
-                return prop_coverage
+                output = prop_coverage
             elif quantity == 'eligible':
-                return num_eligible
+                output = num_eligible
             elif quantity == 'number':
-                return {x: num_eligible[x] * prop_coverage[x] for x in prop_coverage.keys()}
+                output = {x: num_eligible[x] * prop_coverage[x] for x in prop_coverage.keys()}
             else:
                 raise Exception('Unknown coverage type requested')
 
-    # Methods to list available comps, characs, pars, and links
-    # pop_name is required because different populations are permitted to have
-    # different computational graphs
+        if quantity in {'capacity', 'number'}:
+            # Return capacity and number coverage as 'people/year' rather than 'people'
+            for prog in output.keys():
+                if '/year' not in self.model.progset.programs[prog].unit_cost.units:
+                    output[prog] /= self.dt
 
+        if year is not None:
+            for k in output.keys():
+                output[k] = interpolate(self.t, output[k], sc.promotetoarray(year), extrapolate=False)
+
+        return output
+
+    # Convenience methods to list available comps, characs, pars, and links
+    # The population name is required because different populations could have
+    # different contents
     def comp_names(self, pop_name:str) -> list:
         """
-        Return list of compartment names
+        Return compartment names within a population
 
-        This method returns all of the compartment names available within a specified
-        population
+        :param pop_name: The code name of one of the populations
+        :return: List of code names of all compartments within that population
 
-        :param pop_name: The name of one of the populations in the :class:`Result`
-        :return: List of compartment code names
         """
 
         return sorted(self.model.get_pop(pop_name).comp_lookup.keys())
@@ -188,7 +202,9 @@ class Result(NamedItem):
 
         :param pop_name: The name of one of the populations in the :class:`Result`
         :return: List of characteristic code names
+
         """
+
         return sorted(self.model.get_pop(pop_name).charac_lookup.keys())
 
     def par_names(self, pop_name:str) -> list:
@@ -200,7 +216,9 @@ class Result(NamedItem):
 
         :param pop_name: The name of one of the populations in the :class:`Result`
         :return: List of parameter code names
+
         """
+
         return sorted(self.model.get_pop(pop_name).par_lookup.keys())
 
     def link_names(self, pop_name:str) -> list:
@@ -213,6 +231,7 @@ class Result(NamedItem):
 
         :param pop_name: The name of one of the populations in the :class:`Result`
         :return: List of link code names
+
         """
 
         names = set()

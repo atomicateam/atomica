@@ -703,7 +703,7 @@ class PlotData:
             raise Exception('Results must have different names (in their result.name property)')
         for result in results:
             if result.model.progset is None:
-                raise Exception('Tried to plot program spending for result "%s" that did not use programs', result.name)
+                raise Exception('Tried to plot program outputs for result "%s", but that result did not use programs' % result.name)
 
         if outputs is None:
             outputs = results[0].model.progset.programs.keys()
@@ -712,7 +712,7 @@ class PlotData:
 
         outputs = _expand_dict(outputs)
 
-        assert quantity in ['spending', 'coverage_number', 'coverage_eligible', 'coverage_fraction']
+        assert quantity in ['spending', 'coverage_number', 'coverage_eligible', 'coverage_fraction', 'coverage_capacity']
         # Make a new PlotData instance
         # We are using __new__ because this method is to be formally considered an alternate constructor and
         # thus bears responsibility for ensuring this new instance is initialized correctly
@@ -726,20 +726,13 @@ class PlotData:
                 all_vals = result.get_alloc()
                 units = '$'
                 timescales = dict.fromkeys(all_vals,1.0)
-            elif quantity == 'coverage_number':
-                all_vals = result.get_coverage('number')
+            elif quantity in {'coverage_capacity','coverage_number'}:
+                if quantity == 'coverage_capacity':
+                    all_vals = result.get_coverage('capacity')
+                else:
+                    all_vals = result.get_coverage('number')
                 units = 'Number of people'
-                # Coverage comes out as a number of people at each timestep, but we need to know
-                # whether that value is distributed across the year or not. A dt-coverage of 100 for a
-                # treatment program implies 400 people/year, while a dt-coverage of 100 for ART only
-                # has 100 people/year. Here, we convert the number covered at each timestep into an
-                # annualized coverage rate (and set the timescale accordingly). Thus, for
-                # that example, we return 400 and 100, respectively.
                 timescales = dict.fromkeys(all_vals,1.0)
-                for prog_name in all_vals:
-                    if '/year' not in result.model.progset.programs[prog_name].unit_cost.units:
-                        all_vals[prog_name] /= result.dt
-
             elif quantity == 'coverage_eligible':
                 all_vals = result.get_coverage('eligible')
                 units = 'Number of people'
@@ -1154,6 +1147,8 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer=None, legend_
 
     figs = []
     fig, ax = plt.subplots()
+    fig.patch.set_alpha(0)
+    ax.patch.set_alpha(0)
     fig.set_label('bars')
     figs.append(fig)
 
@@ -1411,6 +1406,8 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
         for pop in plotdata.pops.keys():
             for output in plotdata.outputs.keys():
                 fig, ax = plt.subplots()
+                fig.patch.set_alpha(0)
+                ax.patch.set_alpha(0)
                 fig.set_label('%s_%s' % (pop, output))
                 figs.append(fig)
 
@@ -1447,6 +1444,8 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
         for result in plotdata.results:
             for output in plotdata.outputs:
                 fig, ax = plt.subplots()
+                fig.patch.set_alpha(0)
+                ax.patch.set_alpha(0)
                 fig.set_label('%s_%s' % (result, output))
                 figs.append(fig)
 
@@ -1481,6 +1480,8 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
         for result in plotdata.results:
             for pop in plotdata.pops:
                 fig, ax = plt.subplots()
+                fig.patch.set_alpha(0)
+                ax.patch.set_alpha(0)
                 fig.set_label('%s_%s' % (result, pop))
                 figs.append(fig)
 
@@ -1651,13 +1652,14 @@ def _render_legend(ax, plot_type=None, handles=None) -> None:
     else:
         labels = [h.get_label() for h in handles]
 
-    legendsettings = {'loc': 'center left', 'bbox_to_anchor': (1.05, 0.5), 'ncol': 1}
+    legendsettings = {'loc': 'center left', 'bbox_to_anchor': (1.05, 0.5), 'ncol': 1, 'framealpha':0}
 #    labels = [textwrap.fill(label, 16) for label in labels]
 
     if plot_type in ['stacked', 'proportion', 'bar']:
-        ax.legend(handles=handles[::-1], labels=labels[::-1], **legendsettings)
+        h = ax.legend(handles=handles[::-1], labels=labels[::-1], **legendsettings)
     else:
-        ax.legend(handles=handles, labels=labels, **legendsettings)
+        h = ax.legend(handles=handles, labels=labels, **legendsettings)
+
     box = ax.get_position()
     ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
 

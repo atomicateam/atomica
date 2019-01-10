@@ -15,7 +15,7 @@ import sys
 import io
 from distutils.version import LooseVersion
 from .system import logger
-from .version import version
+from .version import version, gitinfo
 import sciris as sc
 from .results import Result
 from .system import FrameworkSettings as FS
@@ -149,6 +149,7 @@ def migrate(proj):
             proj = m.upgrade(proj)
 
     proj.version = version  # Set project version to the current Atomica version
+    proj.gitinfo = gitinfo # Update gitinfo to current version
     if proj._result_update_required:
         logger.warning('Caution: due to migration, project results may be different if re-run.')
     return proj
