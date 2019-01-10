@@ -13,8 +13,7 @@ import pandas as pd
 import sciris as sc
 from .excel import standard_formats
 from .system import FrameworkSettings as FS
-from .utils import NamedItem
-from .utils import evaluate_plot_string
+from .utils import NamedItem, evaluate_plot_string, interpolate
 
 
 class Result(NamedItem):
@@ -62,14 +61,26 @@ class Result(NamedItem):
     def pop_labels(self):
         return [x.label for x in self.model.pops]
 
-    def get_alloc(self):
-        # Return a dict with time-varying funding allocation at every time point in the simulation
+    def get_alloc(self,year=None) -> dict:
+        """
+        Return spending allocation
+
+        If the result was generated using programs, this method
+        :param year: Optionally specify a scalar or list/array of years to return budget values
+                     for. Otherwise, uses all simulation times
+        :return: Dictionary keyed by program name with arrays of spending values
+
+        """
+
         if self.model.progset is None:
             return None
-        else:
-            return self.model.progset.get_alloc(self.t, self.model.program_instructions)
 
-    def get_coverage(self, quantity:str ='fraction') -> dict:
+        if year is None:
+            year = self.t
+
+        return self.model.progset.get_alloc(year, self.model.program_instructions)
+
+    def get_coverage(self, quantity:str ='fraction', year=None) -> dict:
         """
         Return program coverage
 
@@ -78,11 +89,13 @@ class Result(NamedItem):
         because the compartment sizes and thus eligible people are known.
 
         :param quantity: One of
-            - 'capacity' - The number of people that a program is funded to reach (coverage numerator)
-            - 'eligible' - The number of people eligible for the program (coverage denominator)
-            - 'fraction' - ``capacity/eligible``, the fraction coverage (maximum value is 1.0)
-            - 'number' - The number of people covered (``fraction*eligible``)
-        :return: Requested values in dictionary ``{prog_name:value}``
+            - 'capacity' - Program capacity in units of 'people/year' (for all types of programs)
+            - 'eligible' - The number of people eligible for the program (coverage denominator) in units of 'people'
+            - 'fraction' - ``capacity/eligible``, the fraction coverage (maximum value is 1.0) - this quantity is dimensionless
+            - 'number' - The number of people covered (``fraction*eligible``) returned in units of 'people/year'
+        :param year: Optionally specify a scalar or list/array of years to return budget values
+                     for. Otherwise, uses all simulation times
+        :return: Requested values in dictionary ``{prog_name:value}`` in requested years
 
         """
 
@@ -92,7 +105,7 @@ class Result(NamedItem):
         capacities = self.model.progset.get_capacities(tvec=self.t, dt=self.dt, instructions=self.model.program_instructions)
 
         if quantity == 'capacity':
-            return capacities
+            output = capacities
         else:
             # Get the program coverage denominator
             num_eligible = dict()  # This is the coverage denominator, number of people covered by the program
@@ -103,34 +116,78 @@ class Result(NamedItem):
                             num_eligible[prog.name] = self.get_variable(pop_name, comp_name)[0].vals.copy()
                         else:
                             num_eligible[prog.name] += self.get_variable(pop_name, comp_name)[0].vals
+
+            # Note that `ProgramSet.get_prop_coverage()` takes in capacity in units of 'people' which matches
+            # the units of 'num_eligible' so we therefore use the returned value from `ProgramSet.get_capacities()`
+            # as-is without doing any annualization
             prop_coverage = self.model.progset.get_prop_coverage(tvec=self.t, capacities=capacities, num_eligible=num_eligible, instructions=self.model.program_instructions, sample=False)
 
             if quantity == 'fraction':
-                return prop_coverage
+                output = prop_coverage
             elif quantity == 'eligible':
-                return num_eligible
+                output = num_eligible
             elif quantity == 'number':
-                return {x: num_eligible[x]*prop_coverage[x] for x in prop_coverage.keys()}
+                output = {x: num_eligible[x]*prop_coverage[x] for x in prop_coverage.keys()}
             else:
                 raise Exception('Unknown coverage type requested')
 
-    # Methods to list available comps, characs, pars, and links
-    # pop_name is required because different populations could have
+        if quantity in {'capacity','number'}:
+            # Return capacity and number coverage as 'people/year' rather than 'people'
+            for prog in output.keys():
+                if '/year' not in self.model.progset.programs[prog].unit_cost.units:
+                    output[prog] /= self.dt
+
+        if year is not None:
+            for k in output.keys():
+                output[k] = interpolate(self.t,output[k],sc.promotetoarray(year),extrapolate=False)
+
+        return output
+
+    # Convenience methods to list available comps, characs, pars, and links
+    # The population name is required because different populations could have
     # different contents
-    def comp_names(self, pop_name):
-        # Return compartment names for a given population
+    def comp_names(self, pop_name:str) -> list:
+        """
+        Return compartment names within a population
+
+        :param pop_name: The code name of one of the populations
+        :return: List of code names of all compartments within that population
+
+        """
+
         return sorted(self.model.get_pop(pop_name).comp_lookup.keys())
 
-    def charac_names(self, pop_name):
-        # Return characteristic names for a given population
+    def charac_names(self, pop_name:str) -> list:
+        """
+        Return characteristic names within a population
+
+        :param pop_name: The code name of one of the populations
+        :return: List of code names of all characteristics within that population
+
+        """
+
         return sorted(self.model.get_pop(pop_name).charac_lookup.keys())
 
-    def par_names(self, pop_name):
-        # Return parteristic names for a given population
+    def par_names(self, pop_name:str) -> list:
+        """
+        Return parameter names within a population
+
+        :param pop_name: The code name of one of the populations
+        :return: List of code names of all parameters within that population
+
+        """
+
         return sorted(self.model.get_pop(pop_name).par_lookup.keys())
 
-    def link_names(self, pop_name):
-        # Return link names for a given population
+    def link_names(self, pop_name:str) -> list:
+        """
+        Return link names within a population
+
+        :param pop_name: The code name of one of the populations
+        :return: List of code names of all links within that population (without duplicates)
+
+        """
+
         names = set()
         pop = self.model.get_pop(pop_name)
         for link in pop.links:
