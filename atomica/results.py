@@ -855,6 +855,13 @@ class Ensemble(NamedItem):
         """
         Flatten the series in samples
 
+        The Ensemble contains a list of `PlotData` containing a list of `Series`. Computing
+        uncertainty requires iterating over the Series for a a particular result, pop, and output.
+        This function returns a dict keyed by a ``(result,pop,output)`` tuple with a list of
+        references to the underlying series. Thus, the series are organized either by `self.samples`
+        which facilitates adding new samples, and `self._get_series` which facilitates computing
+        uncertainties after the fact.
+
         :return: A dict keyed by result-pop-output containing lists of sampled Series
 
         """

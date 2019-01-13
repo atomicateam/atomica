@@ -588,6 +588,59 @@ def get_cascade_vals(result, cascade, pops=None, year=None) -> tuple:
 
     return cascade_vals, t
 
+def cascade_summary(source_data,year:float,pops=None,cascade=0) -> None:
+    """
+    Print summary of cascade
+
+    This function takes in results, either as a Result or list of Results, or as a CascadeEnsemble.
+
+    :param source_data: A :class:`Result` or a :class:`CascadeEnsemble`
+    :param year: A scalar year to print results in
+    :param pops: If a :class:`Result` was passed in, this can be any valid population aggregation. If a :class:`CascadeEnsemble`
+            was passed in, then this must match the name of one of the population aggregations stored in the Ensemble (i.e.
+            it must be an item contained in `CascadeEnsemble.pops`)
+    :param cascade: If a :class:`Result` was passed in, this argument specifies which cascade to use. If a :class:`CascadeEnsemble`
+        was passed in, then this argument is ignored because the :class:`CascadeEnsemble` already uniquely specifies the cascade
+    :param pretty: If ``True``, absolute values will be rounded to integers and percentages to 2 sig figs
+    :return:
+
+    """
+
+    # If we want to support uncertainty, then we need to be able to pass in a CascadeEnsemble
+    # A CascadeEnsemble might contain more than one Result, which this function needs to deal with. Since there is a
+    # one-to-one mapping between a cascade and a PlotData, a CascadeEnsemble can only ever store one cascade at a time
+    # A Result may also contain more than one cascade, hence we take in the 'cascade' argument to select which one
+
+    # CascadeEnsemble cannot specify which cascade (pre-defined in the Ensemble)
+    if isinstance(source_data,CascadeEnsemble):
+        vals, uncertainty, t = source_data.get_vals(pop=pops,years=year)
+        for result in vals.keys():
+            print('Result: %s - %g' % (result,year))
+            baseline = vals[result][0][0]
+            for stage in vals[result].keys():
+                v = vals[result][stage][0]
+                u = uncertainty[result][stage][0]
+                print('%s - %s ± %s (%s%% ± %s%%)' % (stage, np.round(v), sc.sigfig(u,2), sc.sigfig(100*v/baseline,2),sc.sigfig(100*u/baseline,2)))
+    else:
+        # Convert to list of results, check all names are unique
+        source_data = sc.promotetolist(source_data)
+        if len(set([x.name for x in source_data])) != len(source_data):
+            raise Exception('If passing in multiple Results, they must have different names')
+
+
+        for result in source_data:
+
+            cascade_name, cascade_dict = sanitize_cascade(result.framework, cascade)
+            absolute, _ = get_cascade_vals(result, cascade_dict, pops=pops, year=year)
+            percentage = sc.dcp(absolute)
+            for i in reversed(range(len(percentage))):
+                percentage[i] /= percentage[0]
+
+            print('Result: %s - %g' % (result.name,year))
+            for k in absolute.keys():
+                print('%s - %.0f (%s%%)' % (k,np.round(absolute[k][0]),sc.sigfig(percentage[k][0]*100,2)))
+
+
 def get_cascade_data(data, framework, cascade, pops=None, year=None):
     """
     Get data values for a cascade
@@ -697,19 +750,18 @@ class CascadeEnsemble(Ensemble):
       a suitable mapping function
     - `CascadeEnsemble.plot_multi_cascade` handles plotting multi-bar plots with error bars for cascades
 
+    :param framework: A :class:`ProjectFramework` instance
+    :param cascade: A cascade representation supported by :func:`sanitize_cascade`. However, if the cascade is a dict, then
+                    it will not be sanitized. This allows advanced aggregations to be used. A CascadeEnsemble can only
+                    store results for one cascade - to record multiple cascades, create further CascadeEnsemble instances
+                    as required.
+    :param years: Optionally interpolate results onto these years, to reduce storage requirements
+    :param baseline_results: Optionally store baseline result obtained without uncertainty
+    :param pops: A population aggregation dict. Can evaluate to more than one aggregated population
+
     """
 
     def __init__(self,framework, cascade, years=None, baseline_results=None, pops=None):
-        """
-
-        :param framework:
-        :param cascade: A cascade representation supported by :func:`sanitize_cascade`. However, if the cascade is a dict, then
-                        it will not be sanitized. This allows advanced aggregations to be used
-        :param years:
-        :param baseline_results:
-        :param pops:
-
-        """
 
         from .plotting import PlotData # Import here to avoid circular dependencies
 
@@ -737,6 +789,66 @@ class CascadeEnsemble(Ensemble):
         # (with the closure for the requested cascade, pops, and years)
         super().__init__(name=cascade_name, mapping_function=cascade_mapping, baseline_results=baseline_results)
 
+    def get_vals(self,pop=None,years=None) -> tuple:
+        """
+        Return cascade values and uncertainty
+
+        This method returns arrays of cascade values and uncertainties. Unlike :func:`get_cascade_vals`
+        this method returns uncertainties and works for multiple Results (which can be stored in a single
+        PlotData instance).
+
+        This is implemented in `CascadeEnsemble` and not `Ensemble` for now because we make certain
+        assumptions in `CascadeEnsemble` that are not valid more generally - specifically, that the outputs
+        all correspond to a single set of cascade stages, and the
+
+        The year must match a year contained in the CascadeEnsemble - the match is made by finding the
+        year, rather than interpolation. This is because interpolation may have occurred when the
+        Result was initially stored as a PlotData in the CascadeEnsemble - in that case, double interpolation
+        may occur and provide incorrect results (e.g. if the simulation is interpolated onto two years, and then
+        interpolated again as part of getting the values). To prevent this from happening, interpolation is not
+        performed again here
+
+        :param pop: Any population aggregations should have been completed when the results were loaded into
+                     the Ensemble. Thus, we only prompt for a single population name here
+        :param years: Select subset of years from the Ensemble. Must match items in ``self.tvec``
+        :return: Tuple of ``(vals,uncertainty,t)`` where vals and uncertainty are doubly-nested dictionaries
+            of the form ``vals[result_name][stage_name]=np.array`` with arrays the same sie as ``t`` (which matches
+            the input argument ``years`` if provided)
+
+        """
+
+        if pop is None:
+            pop = self.pops[0]
+
+        if years is None:
+            years_idx = np.arange(len(self.tvec))
+        else:
+            years = sc.promotetoarray(years)
+            years_idx = [list(self.tvec).index(x) for x in years]
+
+        vals = sc.odict()
+        uncertainty = sc.odict()
+        series_lookup = self._get_series()
+
+        for result in self.results:
+
+            vals[result] = sc.odict()
+            uncertainty[result] =sc.odict()
+
+            for stage in self.outputs:
+
+                stage_vals = [x.vals[years_idx] for x in series_lookup[result, pop, stage]]
+                uncertainty[result][stage] = np.vstack(stage_vals).std(axis=0)
+
+                # Populate the baseline values
+                if self.baseline:
+                    vals[result][stage] = self.baseline[result, pop, stage].vals[years_idx]
+                else:
+                    vals[result][stage] = np.mean(stage_vals, axis=0)
+
+        return (vals, uncertainty, self.tvec[years_idx].copy())
+
+
     def plot_multi_cascade(self,pop=None,years=None):
         """
         Plot multi-cascade with uncertainties
@@ -755,6 +867,10 @@ class CascadeEnsemble(Ensemble):
         - Multiple years OR multiple results, but not both
 
         Thus, the legend will either show result names for a single year, or years for a single result
+
+        Population aggregation here is assumed to have been done at the time the Result was loaded
+        into the Ensemble, so the pop argument here simply specifies which one of the already
+        aggregated population groups should be used.
 
         Could be generalized further once applications are clearer
 
