@@ -145,6 +145,10 @@ class ProjectData(sc.prettyobj):
 
         """
 
+        # Exit immediately if the name is not specified
+        if not name:
+            return None
+
         # First, check if it's the name of a TDVE
         if name in self.tdve:
             if key in self.tdve[name].ts:

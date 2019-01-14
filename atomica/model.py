@@ -26,10 +26,19 @@ model_settings['iteration_limit'] = 100
 
 
 class BadInitialization(Exception):
-    # Throw this error if the simulation exited due to a bad initialization, specifically
-    # due to negative initial popsizes or an excessive residual.
-    # This can then be dealt with appropriately - e.g. calibration will catch this
-    # error and instruct ASD to reject the proposed parameters
+    """
+    Error for invalid conditions
+
+    This error gets raised if the simulation exited due to a bad initialization, specifically
+    due to negative initial popsizes or an excessive residual. This commonly happens if the
+    initial conditions are being programatically varied and thus may be an expected error.
+    This error can then be caught and dealt with appropriately. For example:
+
+    - calibration will catch this error and instruct ASD to reject the proposed parameters
+    - ``Ensemble.run_sims`` catches this error and tries another sample
+
+    """
+
     pass
 
 
@@ -60,9 +69,12 @@ class Variable(object):
     @property
     def name(self) -> str:
         """
-        The code name of the ``Variable`` e.g. `sus`
+        Variable code name
 
-        This property facilitates retrieving the name e.g. for plotting
+        This is implemented as a property method because the ``id`` of the ``Variable`` is a
+        tuple containing the population name and the variable code name, so this property
+        method returns just the variable code name portion. That way, storage does not need
+        to be duplicated.
 
         :return: A code name
 
@@ -70,15 +82,22 @@ class Variable(object):
 
         return self.id[-1]
 
-    def preallocate(self, tvec: np.array, dt: float):
+    def preallocate(self, tvec: np.array, dt: float) -> None:
         """
-        Preallocate arrays to improve performance
+        Preallocate data storage
 
         This method gets called just before integration, once the final sizes of the arrays are known.
+        Performance is improved by preallocating the arrays. The ``tvec`` attribute is assigned
+        as-is, so it is typically a reference to the array stored in the parent ``Model`` object. Thus,
+        there is no duplication of storage there, and ``Variable.tvec`` is mainly for convenience when
+        interpolating or plotting.
+
+        This method may be overloaded in derived classes to preallocate other variables specific
+        to those classes.
 
         :param tvec: An array of time values
         :param dt: Time step size
-        :return:
+
         """
         self.t = tvec
         self.dt = dt
@@ -93,6 +112,7 @@ class Variable(object):
         plotting library functions instead
 
         """
+
         plt.figure()
         plt.plot(self.t, self.vals, label=self.name)
         plt.legend()
@@ -108,8 +128,10 @@ class Variable(object):
         their update function to be called, while characteristics need their
         source compartments to be added up.
 
-        :param ti:
-        :return:
+        This method generally must be overloaded in derived classes e.g. :meth:`Parameter.update`
+
+        :param ti: Time index to update
+
         """
 
         return
@@ -120,7 +142,9 @@ class Variable(object):
 
         For Compartments and Links, this does nothing. For Characteristics and
         Parameters, it will set the dynamic flag, but in addition, any validation constraints e.g. a Parameter
-        that depends on Links cannot itself be dynamic, will be enforced
+        that depends on Links cannot itself be dynamic, will be enforced.
+
+        This method generally must be overloaded in derived classes e.g. :meth:`Parameter.set_dynamic`
 
         """
 
