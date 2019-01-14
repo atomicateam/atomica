@@ -4,9 +4,7 @@
 from setuptools import setup, find_packages
 
 with open("./atomica/version.py", "r") as f:
-    version_file = {}
-    exec(f.read(), version_file)
-    version = version_file["version"]
+    version = [x.split('=')[1].replace('"','').strip() for x in f if x.startswith('version =')][0]
 
 CLASSIFIERS = [
     'Environment :: Console',
@@ -15,31 +13,33 @@ CLASSIFIERS = [
     'Operating System :: OS Independent',
     'Programming Language :: Python',
     'Topic :: Software Development :: Libraries :: Python Modules',
-    'Development Status :: 1 - Planning',
-    'Programming Language :: Python :: 2.7',
+    'Development Status :: 3 - Alpha',
+    'Programming Language :: Python :: 3.6',
+    'Programming Language :: Python :: 3.7',
 ]
 
 setup(
     name='atomica',
     version=version,
-    author='David J. Kedziora, Robyn M. Stuart, Romesh Abeysuriya, Cliff C. Kerr',
-    author_email='info@optimamodel.com',
-    description='Software package for the optimization of complex Markov chain models',
-    url='http://github.com/optimamodel/atomica',
-    keywords=['optima', 'disease'],
+    author='Atomica Team',
+    author_email='info@atomica.tools',
+    description='Toolbox for compartment-based dynamic systems with costing and optimization',
+    url='http://github.com/atomicateam/atomica',
+    keywords=['dynamic','compartment','optimization', 'disease'],
     platforms=['OS Independent'],
     classifiers=CLASSIFIERS,
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
-        'matplotlib>=1.4.2,<3',
+        'matplotlib>=1.4.2',
         'numpy>=1.10.1',
         'pandas',
         'six>=1.11.0',
         'xlsxwriter',
+        'openpyxl>=2.5,<2.6',
         'scipy',
         'pyswarm',
+        'hyperopt',
         'sciris',
-        'gitpython',
     ],
 )

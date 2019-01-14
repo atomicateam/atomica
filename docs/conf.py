@@ -42,20 +42,39 @@ extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
     'sphinx.ext.napoleon',
+    'sphinx.ext.autosectionlabel',
+    'sphinx_autodoc_typehints',
+    'sphinx_markdown_tables',
     'nbsphinx',
 ]
-
-autoclass_content = "both"  # include both class docstring and __init__
+#
+# autoclass_content = "both"  # include both class docstring and __init__
 autodoc_default_flags = [
         # Make sure that any autodoc declarations show the right members
         "members",
-        "inherited-members",
+        'undoc-members',
+        # 'special-members',
+        # "inherited-members",
         "private-members",
-        "show-inheritance",
+        # "show-inheritance",
 ]
+
+# autodoc_default_options = {
+#     # 'members': None,
+#     'member-order': 'bysource',
+#     # 'special-members': '__init__',
+#     'undoc-members': None,
+#     # "inherited-members": None,
+#     "private-members": None,
+#     # 'exclude-members': '__weakref__'
+# }
+
+
+
 autosummary_generate = True
 
 nbsphinx_kernel_name = 'python'
+nbsphinx_timeout = -1 # Disable timeout for slow cells
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -103,7 +122,10 @@ html_theme = 'sphinx_rtd_theme'
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
-# html_theme_options = {}
+html_theme_options = {
+    'prev_next_buttons_location': None,
+    'html_show_sourcelink': False
+}
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,

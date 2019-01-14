@@ -30,7 +30,7 @@ default_which = {'tb':'tb', 'cascade':'hypertension'}[tool]
 # Imports
 import sciris as sc
 import scirisweb as sw
-import atomica.ui as au
+import atomica as at
 from atomica_apps import rpcs, main
 if tool == 'cascade': from atomica_apps import config_cascade as config, apptasks_cascade as appt
 elif tool == 'tb':    from atomica_apps import config_tb      as config, apptasks_tb      as appt
@@ -42,7 +42,7 @@ elif tool == 'tb':    from atomica_apps import config_tb      as config, apptask
 
 def demoproj(proj_id, username, which=None):
     if which is None: which = default_which
-    P = au.demo(which=which)
+    P = at.demo(which=which)
     P.name = 'RPCs test %s' % proj_id[:6]
     P.uid = sc.uuid(proj_id)
     P = rpcs.cache_results(P)
@@ -156,7 +156,7 @@ if 'export_results' in torun:
     # This test validates exporting Excel files from Result objects
     proj = demoproj('tb')
     results = proj.demo_scenarios(dorun=True)
-    au.export_results(results,'test_rpcs_export_results.zip')
+    at.export_results(results,'test_rpcs_export_results.zip')
 
 
 if 'run_scenarios' in torun:

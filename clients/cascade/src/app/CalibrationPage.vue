@@ -238,18 +238,7 @@ Last update: 2018-10-05
 
           </div>  <!-- ### End: card body ### -->
         </div> <!-- ### End: results card ### -->
-        
       </div> <!-- ### End: PageSection/hasGraphs ### -->
-
-      <!-- ### Start: JS Cascade plot ### -->
-      <div style="margin: 0 auto;">
-        <stacked-cascade-view class="cascade"
-          :cascadeData="jsonData"
-          :colourScheme="jsonColors"
-        />
-      </div>
-      <!-- ### End: Cascade plot ### -->
-      
     </div> <!-- ### End: v-else project (results) ### -->
 
 
@@ -300,14 +289,9 @@ Last update: 2018-10-05
   import shared from '@/js/shared'
   import rpcs   from '@/js/rpc-service'
   import status from '@/js/status-service'
-  import StackedCascadeView from './Vis/StackedCascade/StackedCascadeView'
 
   export default {
     name: 'CalibrationPage',
-
-    components: {
-      StackedCascadeView,
-    },
 
     data() {
       return {
@@ -344,10 +328,6 @@ Last update: 2018-10-05
         calibTimes: ['30 seconds', 'Unlimited'],
         filterPlaceholder: 'Type here to filter parameters', // Placeholder text for second table filter box
         filterText: '', // Text in the first table filter box
-
-        // Cascade plot data
-        jsonData: null,
-        jsonColors: [],
       }
     },
 
@@ -405,11 +385,7 @@ Last update: 2018-10-05
       clearGraphs()              { return graphs.clearGraphs(this) },
       togglePlotControls()       { return graphs.togglePlotControls(this) },
       getPlotOptions(project_id) { return graphs.getPlotOptions(this, project_id) },
-      makeGraphs(graphdata)      {
-        this.jsonData = graphdata.jsondata
-        this.jsonColors = graphdata.jsoncolors
-        return graphs.makeGraphs(this, graphdata, '/calibration') 
-      },
+      makeGraphs(graphdata)      { return graphs.makeGraphs(this, graphdata, '/calibration') },
       reloadGraphs(showErr)      { return graphs.reloadGraphs(this, this.projectID, this.serverDatastoreId, showErr, true) }, // Set to calibration=true
       maximize(legend_id)        { return graphs.maximize(this, legend_id) },
       minimize(legend_id)        { return graphs.minimize(this, legend_id) },
@@ -559,11 +535,6 @@ Last update: 2018-10-05
           .then(response => {
             this.makeGraphs(response.data)
             this.table = response.data.table
-            this.jsonData = response.data.jsondata
-            this.jsonColors = response.data.jsoncolors
-            console.log('TEMPPP debugging')
-            console.log(this.jsonData)
-            console.log(this.jsonColors)
             status.succeed(this, 'Simulation run, graphs now rendering...')
           })
           .catch(error => {
@@ -586,8 +557,6 @@ Last update: 2018-10-05
         ) // Go to the server to get the results from the package set.
           .then(response => {
             this.table = response.data.table
-            this.jsonData = response.data.jsondata
-            this.jsonColors = response.data.jsoncolors
             this.makeGraphs(response.data.graphs)
             status.succeed(this, 'Simulation run, graphs now rendering...')
           })

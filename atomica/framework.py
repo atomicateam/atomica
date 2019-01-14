@@ -1,22 +1,27 @@
-# -*- coding: utf-8 -*-
 """
-Atomica project-framework file.
-Contains all information describing the context of a project.
-This includes a description of the Markov chain network underlying project dynamics.
+Implements Framework functionality
+
+A Framework contains all of the information defining a model that can be
+run using Atomica. This module implements the :class:`ProjectFramework`
+class, which provides a Python representation of a Framework file.
+
 """
+
+import numpy as np
 import openpyxl
 import pandas as pd
+
 import sciris as sc
-from .system import AtomicaException, NotFoundError, logger, reraise_modify
-from .excel import read_tables, AtomicaSpreadsheet
-from .structure import FrameworkSettings as FS
-from .version import version
-import numpy as np
 from .cascade import validate_cascade
-from .parser_function import parse_function
+from .excel import read_tables, validate_category
+from .function_parser import parse_function
+from .system import NotFoundError, FrameworkSettings as FS
+from .system import logger
+from .utils import format_duration
+from .version import version, gitinfo
 
 
-class InvalidFramework(AtomicaException):
+class InvalidFramework(Exception):
     pass
 
 
@@ -26,28 +31,29 @@ class ProjectFramework(object):
     def __init__(self, inputs=None, name=None):
         # Instantiate a Framework
         # INPUTS
-        # - inputs: A string (which will load an Excel file from disk) or an AtomicaSpreadsheet
+        # - inputs: A string (which will load an Excel file from disk) or an sc.Spreadsheet
         # - A dict of sheets, which will just set the sheets attribute
         # - None, which will set the sheets to an empty dict ready for content
 
         # Define metadata
         self.uid = sc.uuid()
         self.version = version
-        self.gitinfo = sc.gitinfo(__file__)
+        self.gitinfo = sc.dcp(gitinfo)
         self.created = sc.now()
         self.modified = sc.now()
 
         # Load Framework from disk
         if sc.isstring(inputs):
-            self.spreadsheet = AtomicaSpreadsheet(inputs)
-        elif isinstance(inputs, AtomicaSpreadsheet):
+            self.spreadsheet = sc.Spreadsheet(inputs)
+        elif isinstance(inputs, sc.Spreadsheet):
             self.spreadsheet = inputs
         else:
             self.sheets = sc.odict()
             self.spreadsheet = None
             return
 
-        workbook = openpyxl.load_workbook(self.spreadsheet.get_file(), read_only=True, data_only=True)  # Load in read-write mode so that we can correctly dump the file
+        workbook = openpyxl.load_workbook(self.spreadsheet.tofile(), read_only=True, data_only=True)  # Load in read-write mode so that we can correctly dump the file
+        validate_category(workbook, 'atomica:framework')
 
         self.sheets = sc.odict()
 
@@ -96,7 +102,7 @@ class ProjectFramework(object):
         ''' This function saves an Excel file with the original spreadsheet '''
         fullpath = sc.makefilepath(filename=filename, folder=folder, default=self.name, ext='xlsx', sanitize=True)
         if self.spreadsheet is None:
-            raise AtomicaException('Spreadsheet is not present, cannot save Framework as xlsx')
+            raise Exception('Spreadsheet is not present, cannot save Framework as xlsx')
         else:
             self.spreadsheet.save(fullpath)
         return fullpath
@@ -183,7 +189,7 @@ class ProjectFramework(object):
         for df in cascade_list:
             cascade_name = df.columns[0].strip()
             if cascade_name is None or len(cascade_name) == 0:
-                raise AtomicaException('A cascade was found without a name')
+                raise Exception('A cascade was found without a name')
 
             if cascade_name in d:
                 raise InvalidFramework('A cascade with name "%s" was already read in' % (cascade_name))
@@ -278,7 +284,7 @@ class ProjectFramework(object):
             name_df = sanitize_dataframe(name_df, required_columns, defaults, valid_content)
         except Exception as e:
             message = 'An error was detected on the "About" sheet in the Framework file -> '
-            reraise_modify(e, message)
+            raise Exception('%s -> %s' % (message, e)) from e
 
         name_df['name'] = name_df['name'].astype(str)
         self.name = name_df['name'].iloc[0]
@@ -312,7 +318,7 @@ class ProjectFramework(object):
             self.comps = sanitize_dataframe(self.comps, required_columns, defaults, valid_content)
         except Exception as e:
             message = 'An error was detected on the "Compartments" sheet in the Framework file -> '
-            reraise_modify(e, message)
+            raise Exception('%s -> %s' % (message, e)) from e
 
         # Default setup weight is 1 if in databook or 0 otherwise
         # This is a separate check because the default value depends on other columns
@@ -354,6 +360,9 @@ class ProjectFramework(object):
             if (row['databook page'] is None) and (row['databook order'] is not None):
                 logger.warning('Compartment "%s" has a databook order, but no databook page', row.name)
 
+            if (row['databook page'] is not None) and not (row['databook page'] in self.sheets['databook pages'][0]['datasheet code name'].values):
+                raise InvalidFramework('Compartment "%s" has databook page "%s" but that page does not appear on the "databook pages" sheet' % (row.name,row['databook page']))
+
         # VALIDATE CHARACTERISTICS
 
         required_columns = ['display name']
@@ -375,7 +384,7 @@ class ProjectFramework(object):
             self.characs = sanitize_dataframe(self.characs, required_columns, defaults, valid_content)
         except Exception as e:
             message = 'An error was detected on the "Characteristics" sheet in the Framework file -> '
-            reraise_modify(e, message)
+            raise Exception('%s -> %s' % (message, e)) from e
 
         if 'setup weight' not in self.characs:
             self.characs['setup weight'] = (~self.characs['databook page'].isnull()).astype(int)
@@ -407,6 +416,9 @@ class ProjectFramework(object):
             if (row['databook page'] is None) and (row['calibrate'] is not None):
                 raise InvalidFramework('Compartment "%s" is marked as being eligible for calibration, but it does not appear in the databook' % row.name)
 
+            if (row['databook page'] is not None) and not (row['databook page'] in self.sheets['databook pages'][0]['datasheet code name'].values):
+                raise InvalidFramework('Characteristic "%s" has databook page "%s" but that page does not appear on the "databook pages" sheet' % (row.name,row['databook page']))
+
             for component in row['components'].split(','):
                 if not (component.strip() in self.comps.index or component.strip() in self.characs.index):
                     raise InvalidFramework('In Characteristic "%s", included component "%s" was not recognized as a Compartment or Characteristic' % (row.name, component))
@@ -429,7 +441,7 @@ class ProjectFramework(object):
             self.interactions = sanitize_dataframe(self.interactions, required_columns, defaults, valid_content)
         except Exception as e:
             message = 'An error was detected on the "Interactions" sheet in the Framework file -> '
-            reraise_modify(e, message)
+            raise Exception('%s -> %s' % (message, e)) from e
 
         # VALIDATE PARAMETERS
         # This is done last, because validating parameter dependencies requires checking compartments and characteristics
@@ -442,7 +454,8 @@ class ProjectFramework(object):
             'databook page': None,
             'databook order': None,
             'targetable': 'n',
-            'guidance': None
+            'guidance': None,
+            'timescale': None
         }
         valid_content = {
             'display name': None,
@@ -454,7 +467,7 @@ class ProjectFramework(object):
             self.pars = sanitize_dataframe(self.pars, required_columns, defaults, valid_content)
         except Exception as e:
             message = 'An error was detected on the "Parameters" sheet in the Framework file -> '
-            reraise_modify(e, message)
+            raise Exception('%s -> %s' % (message, e)) from e
 
         self.pars['format'] = self.pars['format'].map(lambda x: x.strip() if sc.isstring(x) else x)
 
@@ -469,11 +482,13 @@ class ProjectFramework(object):
         # Now validate each parameter
         defined = set()  # Track which parameters have already been defined
         for i, par in self.pars.iterrows():
-            defined.add(par.name)
 
             # Convert case for standard units - this is required for validation
             if par['format'] and par['format'].lower() in FS.STANDARD_UNITS:
                 par['format'] = par['format'].lower()
+
+            if (par['databook page'] is not None) and not (par['databook page'] in self.sheets['databook pages'][0]['datasheet code name'].values):
+                raise InvalidFramework('Compartment "%s" has databook page "%s" but that page does not appear on the "databook pages" sheet' % (par.name,par['databook page']))
 
             if par['function'] is None:
                 # In order to have a value, a transition parameter must either be
@@ -493,29 +508,41 @@ class ProjectFramework(object):
                     if dep in ['t', 'dt']:
                         # These are special variables passed in by model.py
                         continue
-                    elif dep.endswith('___flow'):  # Note that the parser replaces ':' with '___'
-                        dep_name = dep.replace('___flow', '')
+                    elif '___' in dep: # Note that the parser replaces ':' with '___'
 
                         if self.transitions[par.name]:
-                            message = 'The function for parameter "%s" depends on a flow rate ("%s:flow"). However, "%s" also governs a flow rate, because it appears in the transition matrix. Transition parameters cannot depend on flow rates, so no flow rates can appear in the function for "%s"' % (par.name, dep_name, par.name, par.name)
+                            message = 'The function for parameter "%s" depends on a flow rate ("%s"). However, "%s" also governs a flow rate, because it appears in the transition matrix. Transition parameters cannot depend on flow rates, so no flow rates can appear in the function for "%s"' % (par.name, dep.replace('___',':'), par.name, par.name)
                             raise InvalidFramework(message)
 
-                        if dep_name not in self.pars.index:
-                            message = 'The function for parameter "%s" depends on the flow rate "%s:flow". This requires a parameter called "%s" to be defined in the Framework, but no parameter with that name was found' % (par.name, dep_name, dep_name)
-                            raise InvalidFramework(message)
+                        if dep.endswith('___flow'):
+                            # If the user requested the flow associated with a parameter
+                            dep_name = dep.replace('___flow', '')
 
-                        if not self.transitions[dep_name]:
-                            # If the user is trying to get the flow rate for a non-transition parameter
-                            message = 'The function for parameter "%s" depends on the flow rate "%s:flow". Flow rates are only associated with transition parameters, but "%s" does not appear in the transition matrix, and there is therefore no flow rate associated with it' % (par.name, dep_name, dep_name)
-                            raise InvalidFramework(message)
+                            if dep_name not in self.pars.index:
+                                message = 'The function for parameter "%s" depends on the flow rate "%s:flow". This requires a parameter called "%s" to be defined in the Framework, but no parameter with that name was found' % (par.name, dep_name, dep_name)
+                                raise InvalidFramework(message)
+
+                            if not self.transitions[dep_name]:
+                                # If the user is trying to get the flow rate for a non-transition parameter
+                                message = 'The function for parameter "%s" depends on the flow rate "%s:flow". Flow rates are only associated with transition parameters, but "%s" does not appear in the transition matrix, and there is therefore no flow rate associated with it' % (par.name, dep_name, dep_name)
+                                raise InvalidFramework(message)
+                        else:
+                            # If the user requested the flow between compartments
+                            deps = dep.split('___')
+                            if deps[0] and deps[0] not in self.comps.index:
+                                message = 'The function for parameter "%s" depends on the flow rate "%s". This requires a source compartment called "%s" to be defined in the Framework, but no compartment with that name was found' % (par.name, dep.replace('___',':'), deps[0])
+                                raise InvalidFramework(message)
+                            if deps[1] and deps[1] not in self.comps.index:
+                                message = 'The function for parameter "%s" depends on the flow rate "%s". This requires a destination compartment called "%s" to be defined in the Framework, but no compartment with that name was found' % (par.name, dep.replace('___',':'), deps[1])
+                                raise InvalidFramework(message)
 
                     elif dep in self.comps.index:
                         continue
                     elif dep in self.characs.index:
                         continue
                     elif dep in self.interactions.index:
-                        if not (par['function'].startswith("SRC_POP_AVG") or par['function'].startswith("TGT_POP_AVG")
-                                or par['function'].startswith("SRC_POP_SUM") or par['function'].startswith("TGT_POP_SUM")):
+                        if not (par['function'].startswith("SRC_POP_AVG") or par['function'].startswith("TGT_POP_AVG") or
+                                par['function'].startswith("SRC_POP_SUM") or par['function'].startswith("TGT_POP_SUM")):
                             message = 'The function for parameter "%s" includes the Interaction "%s", which means that the parameter function can only be one of: "SRC_POP_AVG", "TGT_POP_AVG", "SRC_POP_SUM" or "TGT_POP_SUM"' % (par.name, dep)
                             raise InvalidFramework(message)
                     elif dep in self.pars.index:
@@ -532,10 +559,22 @@ class ProjectFramework(object):
                 if not par['format']:
                     raise InvalidFramework('Parameter %s is a transition parameter, so it needs to have a format specified in the Framework' % par.name)
 
+                allowed_formats = {FS.QUANTITY_TYPE_NUMBER, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_DURATION, FS.QUANTITY_TYPE_PROPORTION}
+                if par['format'] not in allowed_formats:
+                    raise InvalidFramework('Parameter %s is a transition parameter so format "%s is not allowed - it must be one of %s' % (par.name,par['format'],allowed_formats))
+
+                if par['timescale'] is None and par['format'] in {FS.QUANTITY_TYPE_NUMBER, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_DURATION}:
+                    self.pars.at[par.name,'timescale'] = 1.0 # Default timescale - note that currently only transition parameters are allowed to have a timescale that is not None
+                elif par['timescale'] is not None and par['format'] == FS.QUANTITY_TYPE_PROPORTION:
+                    raise InvalidFramework('Parameter %s is in proportion units, therefore it cannot have a timescale entered for it' % par.name)
+
+
                 from_comps = [x[0] for x in self.transitions[par.name]]
                 to_comps = [x[1] for x in self.transitions[par.name]]
 
                 # Avoid discussions about how to disaggregate parameters with multiple links from the same compartment.
+                # Note that Parameter.source_popsize() sums over source compartments from all links associated with the parameter.
+                # Therefore, if this check wasn't in place here, the compartments would otherwise get double counted
                 if len(from_comps) != len(set(from_comps)):
                     raise InvalidFramework('Parameter "%s" cannot be associated with more than one transition from the same compartment' % par.name)
 
@@ -562,9 +601,16 @@ class ProjectFramework(object):
                     if self.get_comp(comp)['is source'] == 'y':
                         raise InvalidFramework('Parameter "%s" has an inflow to Compartment "%s" which is a source' % par.name, comp)
             else:
-                # If this is not a transition parameter...
+                # If this is not a transition parameter
                 if par['format'] == FS.QUANTITY_TYPE_NUMBER and par['targetable'] == 'y':
                     raise InvalidFramework('Parameter "%s" is targetable and in number units, but is not a transition parameter. To target a parameter with programs in number units, the parameter must appear in the transition matrix.' % par.name)
+
+                # NB. If the user specifies a timescale for a non-transition parameter, it won't have any effect, but it will result in appropriately
+                # labelled units in the databook. So for now, don't throw an error, just proceed
+                # if par['timescale'] is not None:
+                #     raise InvalidFramework('Parameter "%s" is not a transition parameter, but has a timescale associated with it. To avoid ambiguity in the parameter value used in functions, non-transition parameters cannot have timescales provided. Please remove the timescale value from the framework.' % par.name)
+
+            defined.add(par.name)  # Only add the parameter to the list of definitions after it has finished validating, because parameters cannot depend on themselves
 
         # VALIDATE NAMES - No collisions, no keywords
 
@@ -653,7 +699,7 @@ class ProjectFramework(object):
                 message = 'No compartments or characteristics appear in the databook, which means it is not possible to initialize the simulation. Please assign at least some of the compartments and/or characteristics to a databook page.'
             else:
                 message = 'No compartments or characteristics have a setup weight (either because they do not appear in the databook, or the setup weight has been explicitly set to zero) - cannot initialize simulation. Please change some of the setup weights to be nonzero'
-            raise AtomicaException(message)
+            raise Exception(message)
 
         A = np.zeros((len(characs), len(comps)))
         for i, charac in enumerate(characs):
@@ -663,25 +709,51 @@ class ProjectFramework(object):
         if np.linalg.matrix_rank(A) < len(comps):
             logger.warning('Initialization characteristics are underdetermined - this may be intentional, but check the initial compartment sizes carefully')
 
-    def get_allowed_units(self, code_name):
-        # Given a variable's code name, return the allowed units for that variable based on the spec provided in the Framework
+    def get_databook_units(self, code_name: str) -> str:
+        """
+        Return the user-facing units for a quantity given a code name
+
+        This function returns the units specified in the Framework for quantities defined in the Framework.
+        The units for a quantity are:
+
+            - For compartments, number
+            - For characteristics, number or fraction depending on whether a denominator is present
+            - For parameters, return either the explicitly specified units plus a timescale, or an empty string
+            - Otherwise, return the inapplicable string (e.g. 'N.A.')
+
+        This function computes the units dynamically based on the content of the DataFrames. This ensures that
+        it stays in sync with the actual content - for example, if a denominator is programatically added to
+        a characteristic, the units don't also need to be manually updated.
+
+        Note that at this stage in computation, the units are mainly for managing presentation in the databook.
+        For example, a characteristic with a denominator is technically dimensionless, but we need it to be
+        reported in the databook as a fraction for data entry. Similarly, while the Framework stores the
+        internal units and timescale for a parameter (e.g. 'probability' and '1/365') this function will
+        return 'probability (per day)' for use in the databook.
+
+        :param code_name: Code name of a quantity supported by ``ProjectFramework.get_variable()``
+        :return: String containing the units of the quantity
+
+        """
+
         item_spec, item_type = self.get_variable(code_name)
 
         # State variables are in number amounts unless normalized.
         if item_type in [FS.KEY_COMPARTMENT, FS.KEY_CHARACTERISTIC]:
             if "denominator" in item_spec.index and item_spec["denominator"] is not None:
-                allowed_units = [FS.QUANTITY_TYPE_FRACTION]
+                return FS.QUANTITY_TYPE_FRACTION.title()
             else:
-                allowed_units = [FS.QUANTITY_TYPE_NUMBER]
+                return FS.QUANTITY_TYPE_NUMBER.title()
+        elif item_type == FS.KEY_PARAMETER:
+            if item_spec['timescale']:
+                if item_spec['format'] == FS.QUANTITY_TYPE_DURATION:
+                    return '%s (%s)' % (FS.QUANTITY_TYPE_DURATION.title(),format_duration(item_spec['timescale'],pluralize=True))
+                elif item_spec['format'] in {FS.QUANTITY_TYPE_NUMBER,FS.QUANTITY_TYPE_PROBABILITY}:
+                    return '%s (per %s)' % (item_spec['format'].title(),format_duration(item_spec['timescale'],pluralize=False))
+            elif item_spec['format']:
+                return item_spec['format']
 
-        # Modeller's choice for parameters
-        elif item_type in [FS.KEY_PARAMETER] and item_spec['format']:
-            allowed_units = [item_spec['format']]
-
-        else:
-            allowed_units = []
-
-        return allowed_units
+        return FS.DEFAULT_SYMBOL_INAPPLICABLE
 
 
 def sanitize_dataframe(df, required_columns, defaults, valid_content):
@@ -728,3 +800,211 @@ def sanitize_dataframe(df, required_columns, defaults, valid_content):
     df.columns = [x.strip() for x in df.columns]
 
     return df
+
+def generate_framework_doc(framework,fname, databook_only=False):
+    """
+    Generate a framework documentation template file
+
+    This function takes in a Framework and a file name, and writes a
+    Markdown template file for the framework
+
+    :param F: A :class:`ProjectFramework` instance
+    :param fname: The filename to write
+    :param databook_only: If True, only quantities appearing in the databook will be shown
+    :return: None
+    """
+
+    with open(fname,'w') as f:
+
+        # Write the heading
+        f.write('# Framework overview\n\n')
+
+        f.write('**Name**: %s\n\n' % framework.name)
+        f.write('**Description**: %s\n\n' % framework.sheets['about'][0]['description'].iloc[0])
+
+        f.write('## Contents\n')
+        f.write('- [Compartments](#compartments)\n')
+        f.write('- [Characteristics](#characteristics)\n')
+        f.write('- [Parameters](#parameters)\n')
+        f.write('- [Interactions](#interactions)\n\n')
+        if 'plots' in framework.sheets:
+            f.write('- [Plots](#plots)\n\n')
+        if 'cascades' in framework.sheets:
+            f.write('- [Cascades](#cascades)\n\n')
+
+
+        f.write('## Compartments\n\n')
+        for _, spec in framework.comps.iterrows():
+            if databook_only and not spec['databook page']:
+                continue
+
+            f.write('### Compartment: %s\n\n' % (spec['display name']))
+            f.write('- Code name: `%s`\n' % (spec.name))
+            if spec['is source'] == 'y':
+                f.write('- Is source\n')
+            if spec['is sink'] == 'y':
+                f.write('- Is sink\n')
+            if spec['is junction'] == 'y':
+                f.write('- Is junction\n')
+            if spec['calibrate'] == 'y':
+                f.write('- Value can be used for calibration\n')
+
+            if spec['databook page']:
+                f.write('- Appears in the databook\n')
+            else:
+                f.write('- Does not appear in the databook\n')
+
+            if spec['setup weight'] > 0:
+                f.write('- Databook values will be used for model initialization\n')
+
+            f.write('\n')
+            f.write('- Description: <ENTER DESCRIPTION>\n')
+            f.write('- Data entry guidance: %s\n' % (spec['guidance'] if spec['guidance']  else '<ENTER GUIDANCE>'))
+
+            f.write('\n')
+
+        f.write('## Characteristics\n\n')
+        for _, spec in framework.characs.iterrows():
+            if databook_only and not spec['databook page']:
+                continue
+
+            f.write('### Characteristic: %s\n\n' % (spec['display name']))
+            f.write('- Code name: `%s`\n' % (spec.name))
+            if spec['calibrate'] == 'y':
+                f.write('- Value can be used for calibration\n')
+
+            f.write('- Includes:\n')
+            for inc_name in spec['components'].split(','):
+                f.write('\t- %s\n' % (framework.get_label(inc_name.strip())))
+
+            if spec['denominator']:
+                f.write('- Denominator: %s\n' % (framework.get_label(spec['denominator'])))
+
+            if spec['databook page']:
+                f.write('- Appears in the databook\n')
+            else:
+                f.write('- Does not appear in the databook\n')
+
+            if spec['setup weight'] > 0:
+                f.write('- Databook values will be used for model initialization\n')
+
+            f.write('\n')
+            f.write('- Description: <ENTER DESCRIPTION>\n')
+            f.write('- Data entry guidance: %s\n' % (spec['guidance'] if spec['guidance']  else '<ENTER GUIDANCE>'))
+
+            f.write('\n')
+
+        # Work out functional dependencies
+        fcn_deps = {x:set() for x in framework.pars.index.values}
+        fcn_used_in = {x:set() for x in framework.pars.index.values}
+        for _, spec in framework.pars.iterrows():
+            if spec['function']:
+                _, deps = parse_function(spec['function'])  # Parse the function to get dependencies
+                for dep in deps:
+                    if dep.endswith('___flow'):
+                        fcn_deps[spec.name].add(framework.get_label(dep.replace('___flow','')) + ' flow rate')
+                    elif '___' in dep:
+                        from_comp, to_comp = dep.split('___')
+                        label = 'Flow'
+                        if from_comp:
+                            label += ' from %s' % (framework.get_label(from_comp))
+                        if to_comp:
+                            label += ' to %s' % (framework.get_label(to_comp))
+                        fcn_deps[spec.name].add(label)
+                    else:
+                        fcn_deps[spec.name].add(framework.get_label(dep))
+
+                    if dep in fcn_deps:
+                        fcn_used_in[dep].add(spec['display name'])
+
+        f.write('## Parameters\n\n')
+        for _, spec in framework.pars.iterrows():
+            if databook_only and not spec['databook page']:
+                continue
+
+            f.write('### Parameter: %s\n\n' % (spec['display name']))
+            f.write('- Code name: `%s`\n' % (spec.name))
+            if spec['calibrate'] == 'y':
+                f.write('- Value can be used for calibration\n')
+            f.write('- Units/format: %s\n' % (spec['format']))
+
+            if spec['minimum value'] is not None and spec['maximum value'] is not None:
+                f.write('- Value restrictions: %s-%s\n' % (sc.sigfig(spec['minimum value'],keepints=True),sc.sigfig(spec['maximum value'],keepints=True)))
+            elif spec['minimum value'] is not None:
+                f.write('- Value restrictions: At least %s\n' % (sc.sigfig(spec['minimum value'],keepints=True)))
+            elif spec['maximum value'] is not None:
+                f.write('- Value restrictions: At most %s\n' % (sc.sigfig(spec['maximum value'],keepints=True)))
+
+            if framework.transitions[spec.name]:
+                f.write('- Contributes to transitions from:\n')
+                for transition in framework.transitions[spec.name]:
+                    f.write('\t- "%s" to "%s"\n'  % (framework.get_label(transition[0]), framework.get_label(transition[1])))
+
+            f.write('- Default value: %s\n' % (spec['default value']))
+            if spec['databook page']:
+                f.write('- Appears in the databook\n')
+            else:
+                f.write('- Does not appear in the databook\n')
+
+            if spec['function']:
+                f.write("- This parameter's value is computed by a function: `%s`\n" % (spec['function']))
+
+            if fcn_deps[spec.name]:
+                f.write('- Depends on:\n')
+                for dep in fcn_deps[spec.name]:
+                    f.write('\t- "%s"\n' % (dep))
+
+            if fcn_used_in[spec.name]:
+                f.write('- Used to compute:\n')
+                for dep in fcn_used_in[spec.name]:
+                    f.write('\t- "%s"\n' % (dep))
+
+            f.write('\n')
+            f.write('- Description: <ENTER DESCRIPTION>\n')
+            f.write('- Data entry guidance: %s\n' % (spec['guidance'] if spec['guidance']  else '<ENTER GUIDANCE>'))
+
+            f.write('\n')
+
+        f.write('## Interactions\n\n')
+        for _, spec in framework.interactions.iterrows():
+            f.write('### Interaction: %s\n\n' % (spec['display name']))
+            f.write('- Code name: `%s`\n' % (spec.name))
+
+            used_to_compute = []
+            for x, deps in fcn_deps.items():
+                if spec['display name'] in deps:
+                    used_to_compute.append(framework.get_label(x))
+
+            if used_to_compute:
+                f.write('- Used to compute:\n')
+                for x in used_to_compute:
+                    f.write('\t- "%s"\n' % (x))
+
+            f.write('\n')
+            f.write('- Description: <ENTER DESCRIPTION>\n')
+            f.write('- Data entry guidance: <ENTER GUIDANCE>\n')
+
+            f.write('\n')
+
+        if 'plots' in framework.sheets:
+            f.write('## Plots\n\n')
+
+            for _, spec in framework.sheets['plots'][0].iterrows():
+                f.write('### Plot: %s\n\n' % (spec['name']))
+                f.write('- Definition: `%s`\n' % (spec['quantities']))
+                f.write('- Description: <ENTER DESCRIPTION>\n\n')
+
+
+        if framework.cascades:
+            f.write('## Cascades\n\n')
+            for name, df in framework.cascades.items():
+                f.write('### Cascade: %s\n\n' % (name))
+                f.write('- Description: <ENTER DESCRIPTION>\n')
+                f.write('- Stages:\n')
+                for _,stage in df.iterrows():
+                    f.write('\t- %s\n' % (stage[0]))
+                    for inc_name in stage[1].split(','):
+                        f.write('\t\t- %s\n' % (framework.get_label(inc_name.strip())))
+                f.write('\n')
+
+

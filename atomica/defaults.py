@@ -103,10 +103,10 @@ def default_project(which=None, do_run=True, addprogs=True, verbose=False, show_
     framework_file = LIBRARY_PATH + which + '_framework.xlsx'
     if verbose:
         print('Loading databook')
-    P = Project(framework=framework_file, databook_path=LIBRARY_PATH + which + "_databook.xlsx", do_run=False, **kwargs)
+    P = Project(framework=framework_file, databook=LIBRARY_PATH + which + "_databook.xlsx", do_run=False, **kwargs)
     P.settings.sim_dt = dtdict[which]
     if do_run:
-        P.run_sim()
+        P.run_sim(store_results=True)
     if addprogs:
         if verbose:
             print('Loading progbook')
