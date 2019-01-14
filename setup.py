@@ -33,11 +33,11 @@ setup(
     install_requires=[
         'matplotlib>=1.4.2',
         'numpy>=1.10.1',
+        'scipy',
         'pandas',
         'six>=1.11.0',
         'xlsxwriter',
         'openpyxl>=2.5,<2.6',
-        'scipy',
         'pyswarm',
         'hyperopt',
         'sciris',
