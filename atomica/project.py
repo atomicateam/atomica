@@ -1,7 +1,7 @@
 """
-Implements the :py:class:`Project` user interface for Atomica
+Implements the :class:`Project` user interface for Atomica
 
-The :py:class:`Project` class serves as the primary user interface for
+The :class:`Project` class serves as the primary user interface for
 Atomica. Almost all functionality can be accessed via this interface.
 
 A project is based around 5 major lists:
@@ -29,7 +29,7 @@ from .programs import ProgramSet, ProgramInstructions
 from .scenarios import Scenario, ParameterScenario, BudgetScenario, CoverageScenario
 from .optimization import Optimization, optimize, OptimInstructions, InvalidInitialConditions
 from .system import logger
-from .cascade import get_cascade_outputs
+from .cascade import sanitize_cascade
 from .utils import NDict, evaluate_plot_string
 from .plotting import PlotData, plot_series
 from .results import Result
@@ -67,7 +67,7 @@ class ProjectSettings(object):
 
 
 class Project(object):
-    def __init__(self, name="default", framework=None, frw_name=None, databook_path=None, do_run=True, **kwargs):
+    def __init__(self, name="default", framework=None, databook=None, do_run=True, **kwargs):
         """ Initialize the project. Keywords are passed to ProjectSettings. """
         # INPUTS
         # - framework : a Framework to use. This could be
@@ -75,13 +75,13 @@ class Project(object):
         #               - An sc.Spreadsheet instance
         #               - A ProjectFramework instance
         #               - None (this should generally not be used though!)
-        # - databook_path : The path to a databook file. The databook will be loaded into Project.data and the spreadsheet saved to Project.databook
+        # - databook : The path to a databook file. The databook will be loaded into Project.data and the spreadsheet saved to Project.databook
         # - do_run : If True, a simulation will be run upon project construction
 
         self.name = name
 
         if sc.isstring(framework) or isinstance(framework, sc.Spreadsheet):
-            self.framework = ProjectFramework(inputs=framework, name=frw_name)
+            self.framework = ProjectFramework(inputs=framework)
         elif isinstance(framework, ProjectFramework):
             self.framework = framework
         else:
@@ -109,12 +109,11 @@ class Project(object):
         self._result_update_required = False  # This flag is set to True by migration is the result objects contained in this Project are out of date due to a migration change
 
         # Load project data, if available
-        if framework and databook_path:
-            # TODO: Consider compatibility checks for framework/databook.
-            self.load_databook(databook_path=databook_path, do_run=do_run)
-        elif databook_path:
+        if framework and databook:
+            self.load_databook(databook_path=databook, do_run=do_run)
+        elif databook:
             logger.warning('Project was constructed without a Framework - databook spreadsheet is being saved to project, but data is not being loaded')
-            self.databook = sc.Spreadsheet(databook_path)  # Just load the spreadsheet in so that it isn't lost
+            self.databook = sc.Spreadsheet(databook)  # Just load the spreadsheet in so that it isn't lost
             self.data = None
         else:
             self.databook = None  # This will contain an sc.Spreadsheet when the user loads one
@@ -208,7 +207,7 @@ class Project(object):
             if not make_default_parset:
                 logger.warning("Project has been requested to run a simulation after loading databook, "
                                "despite no request to create a default parameter set.")
-            self.run_sim(parset="default")
+            self.run_sim(parset="default", store_results=True)
 
     def make_parset(self, name="default"):
         """ Transform project data into a set of parameters that can be used in model simulations. """
@@ -233,14 +232,11 @@ class Project(object):
         """
         Create a ProgramSet given a progbook
 
-        :param progbook_path: Path to a program spreadsheet
+        :param progbook_path: Path to a program spreadsheet or an AtomicaSpreadsheet instance
         :param name: The name to assign to the new ProgramSet
         :return: The newly created ProgramSet (also stored in ``self.progsets``)
 
         """
-
-        logger.debug('Making ProgramSet')
-        logger.debug('Uploading program data')
 
         if self.data is None:
             errormsg = 'Please upload a databook before uploading a program book. The databook contains the population definitions required to read the program book.'
@@ -254,12 +250,9 @@ class Project(object):
 
         progset = ProgramSet.from_spreadsheet(spreadsheet=progbook_spreadsheet, framework=self.framework, data=self.data, name=name)
         progset.validate()
-        self.progbook = sc.dcp(progbook_spreadsheet)  # Actually a shallow copy is fine here because sc.Spreadsheet contains no mutable properties
-
-        logger.debug('Updating program sets')
+        self.progbook = sc.dcp(progbook_spreadsheet)  # Actually a shallow copy is fine here because AtomicaSpreadsheet contains no mutable properties
         self.progsets.append(progset)
-        logger.debug('Done with make_progset().')
-
+        return progset
 
     def make_scenario(self, name="default", which=None, instructions=None, json=None):
         if which is None:
@@ -399,20 +392,20 @@ class Project(object):
         """ Modify the project settings, e.g. the simulation time vector. """
         self.settings.update_time_vector(start=sim_start, end=sim_end, dt=sim_dt)
 
-    def run_sim(self, parset=None, progset=None, progset_instructions=None, store_results=True, result_name=None):
+    def run_sim(self, parset=None, progset=None, progset_instructions=None, store_results=False, result_name:str=None):
         """
         Run a single simulation
 
         This function is the main entry point for running model simulations, given a
         parset and optionally program set + instructions.
 
-        :param parset: A :py:class:`ParameterSet` instance, or the name of a parset contained in ``self.parsets``.
+        :param parset: A :class:`ParameterSet` instance, or the name of a parset contained in ``self.parsets``.
                         If ``None``, then the most recently added parset will be used (the last entry in ``self.parsets``)
-        :param progset: Optionally pass in a :py:class:`ProgramSet` instance, or the name of a progset contained in ``self.progsets``
-        :param progset_instructions: A :py:class:`ProgramInstructions` instance. Programs will only be used if a instructions are provided
-        :param store_results: If True (default) then the result will automatically be stored in ``self.results``
+        :param progset: Optionally pass in a :class:`ProgramSet` instance, or the name of a progset contained in ``self.progsets``
+        :param progset_instructions: A :class:`ProgramInstructions` instance. Programs will only be used if a instructions are provided
+        :param store_results: If True, then the result will automatically be stored in ``self.results``
         :param result_name: Optionally assign a specific name to the result (otherwise, a unique default name will automatically be selected)
-        :return: A :py:class:`Result` instance
+        :return: A :class:`Result` instance
 
         """
 
@@ -535,8 +528,18 @@ class Project(object):
         results = [unoptimized_result, optimized_result]
         return results
 
-    def save(self, filename=None, folder=None):
-        """ Save the current project to a relevant object file. """
+    def save(self, filename:str =None, folder:str =None) -> str:
+        """
+        Save binary project file
+
+        This method saves the entire project as a binary blob to disk
+
+        :param filename: Name of the file to save
+        :param folder: Optionally specify a folder
+        :return: The full path of the file that was saved
+
+        """
+
         fullpath = sc.makefilepath(filename=filename, folder=folder, default=[self.filename, self.name], ext='prj', sanitize=True)
         self.filename = fullpath
         sc.saveobj(fullpath, self)
@@ -544,13 +547,40 @@ class Project(object):
 
     @staticmethod
     def load(filepath):
-        """ Convenience class method for loading a project in the absence of an instance. """
+        """
+        Load binary project file
+
+        This method is an alternate constructor that is used to load a binary file
+        saved using :meth:`Project.save`. Migration is automatically performed as
+        part of the loading operation.
+
+        :param filepath: The file path/name to load
+        :return: A new :class:`Project` instance
+
+        """
+
         P = sc.loadobj(filepath)
         assert isinstance(P, Project)
         P = migrate(P)
         return P
 
-    def demo_scenarios(self, dorun=False, doadd=True, which='budget'):
+    def demo_scenarios(self, dorun:bool =False, doadd:bool =True, which:str ='budget'):
+        """
+        Create demo scenarios
+
+        This method creates three default budget scenarios
+
+        - Default budget
+        - Doubled budget
+        - Zero budget
+
+        :param dorun: If True, and if doadd=True, simulations will be run
+        :param doadd: If True, scenario objects will be created and added to the project
+        :param which: Specify whether to add a 'budget' or a 'coverage' scenario
+        :return: If ``doadd=False``, returns JSON scenarios. If ``doadd=True`` and ``dorun=False``, return ``None``. If ``doadd=True`` and ``dorun=True``, return list of Result objects
+
+        """
+
         json1 = sc.odict()
         
         json1['parsetname'] = -1
@@ -601,15 +631,21 @@ class Project(object):
             return json1
 
     def demo_optimization(self, dorun=False, tool=None, optim_type=None):
-        # INPUTS
-        # - dorun : If True, runs optimization immediately
-        # - tool : Choose optimization objectives based on whether tool is 'cascade' or 'tb'
-        # - optim_type : set to 'outcome' or 'money' - use 'money' to minimize money
-        #
-        # Note that if optim_type='money' then the optimization 'weights' entered in the FE are
-        # actually treated as relative scalings for the minimization target. e.g. If ':ddis' has a weight
-        # of 25, this is a objective weight factor for optim_type='outcome' but it means 'we need to reduce
-        # deaths by 25%' if optim_type='money' (since there is no weight factor for the minimize money epi targets)
+        """
+        Create demo optimizations
+
+        Note that if optim_type='money' then the optimization 'weights' entered in the FE are
+        actually treated as relative scalings for the minimization target. e.g. If ':ddis' has a weight
+        of 25, this is a objective weight factor for optim_type='outcome' but it means 'we need to reduce
+        deaths by 25%' if optim_type='money' (since there is no weight factor for the minimize money epi targets)
+
+        :param dorun: If True, runs optimization immediately
+        :param tool: Choose optimization objectives based on whether tool is ``'cascade'`` or ``'tb'``
+        :param optim_type: set to ``'outcome'`` or ``'money'`` - use ``'money'`` to minimize money
+        :return: If ``dorun=True``, return list of results. Otherwise, returns an ``OptimInstructions`` instance
+
+        """
+
         if optim_type is None:
             optim_type = 'outcome'
         assert tool in ['cascade', 'tb']
@@ -633,7 +669,7 @@ class Project(object):
             json['objective_labels'] = sc.odict()
 
             for cascade_name in self.framework.cascades:
-                cascade = get_cascade_outputs(self.framework, cascade_name)
+                _, cascade = sanitize_cascade(self.framework, cascade_name)
 
                 if optim_type == 'outcome':
                     json['objective_weights']['conversion:%s' % (cascade_name)] = 1.

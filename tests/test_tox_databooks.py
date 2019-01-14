@@ -11,7 +11,7 @@ def test_databooks():
 
     F = ProjectFramework(at.LIBRARY_PATH + 'tb_framework.xlsx')
     F.save(tmpdir + 'f_blug.xlsx')
-    #
+
     # Copy a databook by loading and saving it
     data = ProjectData.from_spreadsheet(at.LIBRARY_PATH + "tb_databook.xlsx",F)
     data.save(tmpdir + 'd_blug.xlsx')
@@ -81,6 +81,25 @@ def test_databooks():
     d2.add_pop('asdf','The ASDF pop')
     d2.add_interaction('d_ctc','New interpop')
     d2.save(tmpdir + 'd_blug_blank_modified.xlsx')
+
+    # Test writing out a databook with uncertainty values
+    data = ProjectData.from_spreadsheet(at.LIBRARY_PATH + "tb_databook.xlsx",F)
+    data.tdve['alive'].ts[0].sigma = 100
+
+    data.save(tmpdir + 'd_blug_uncertainty.xlsx', write_uncertainty=True) # Every table has uncertainty
+
+    data.save(tmpdir + 'd_blug_uncertainty_auto.xlsx') # Only the 'alive' table has uncertainty
+
+    # Check stripping uncertainty values
+    data.save(tmpdir + 'd_blug_uncertainty_stripped.xlsx', write_uncertainty=False) # No tables have uncertainty
+
+    # Check the values get read in correctly
+    d3 = at.ProjectData.from_spreadsheet(tmpdir + 'd_blug_uncertainty.xlsx',F)
+    assert d3.tdve['alive'].ts[0].sigma == 100
+    d3 = at.ProjectData.from_spreadsheet(tmpdir + 'd_blug_uncertainty_auto.xlsx',F)
+    assert d3.tdve['alive'].ts[0].sigma == 100
+    d3 = at.ProjectData.from_spreadsheet(tmpdir + 'd_blug_uncertainty_stripped.xlsx',F)
+    assert d3.tdve['alive'].ts[0].sigma is None
 
 if __name__ == '__main__':
     test_databooks()

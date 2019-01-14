@@ -1,10 +1,10 @@
 """
 Manage Project versions and migration
 
-Migration refers to updating old :py:class:`Project` instances so that they
+Migration refers to updating old :class:`Project` instances so that they
 can be run with more recent versions of Atomica. This module defines
 
-- A set of 'migration functions' that each transform a :py:class:`Project` instance from one
+- A set of 'migration functions' that each transform a :class:`Project` instance from one
   version to another
 - An entry-point that sequentially calls the migration functions to update a project to
   the current version used in Atomica
@@ -15,7 +15,7 @@ import sys
 import io
 from distutils.version import LooseVersion
 from .system import logger
-from .version import version
+from .version import version, gitinfo
 import sciris as sc
 from .results import Result
 from .system import FrameworkSettings as FS
@@ -149,6 +149,7 @@ def migrate(proj):
             proj = m.upgrade(proj)
 
     proj.version = version  # Set project version to the current Atomica version
+    proj.gitinfo = gitinfo # Update gitinfo to current version
     if proj._result_update_required:
         logger.warning('Caution: due to migration, project results may be different if re-run.')
     return proj

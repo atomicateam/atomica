@@ -46,7 +46,7 @@ def test_progbooks():
     pset.save(tmpdir + 'progbook_test6.xlsx')
 
     # Test performance of a random coverage interaction simulation
-    P = at.Project(framework=at.LIBRARY_PATH+'tb_framework.xlsx',databook_path=at.LIBRARY_PATH+'tb_databook.xlsx',do_run=False)
+    P = at.Project(framework=at.LIBRARY_PATH+'tb_framework.xlsx', databook=at.LIBRARY_PATH + 'tb_databook.xlsx', do_run=False)
     P.load_progbook(at.LIBRARY_PATH+'tb_progbook.xlsx')
     instructions = at.ProgramInstructions(start_year=2018)
     pset = P.progsets[0]

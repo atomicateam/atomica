@@ -1,7 +1,7 @@
 """
 Implements various Optimizations in Atomica
 
-This module implements the :py:class:`Optimization` class, which contains the
+This module implements the :class:`Optimization` class, which contains the
 information required to perform an optimization in Atomica. An Optimization
 effectively serves as a mapping from one set of program instructions to another.
 
@@ -768,16 +768,16 @@ def optimize(project, optimization, parset, progset, instructions, x0=None, xmin
     together with the instructions (because relative constraints in the Optimization are
     interpreted as being relative to the allocation in the instructions).
 
-    :param project: A :py:class:`Project` instance
-    :param optimization: An :py:class:`Optimization` instance
-    :param parset: A :py:class:`ParameterSet` instance or name of a parset
-    :param progset: A :py:class:`ProgramSet` instance or name of a progset
-    :param instructions: A :py:class:`ProgramInstructions` instance
+    :param project: A :class:`Project` instance
+    :param optimization: An :class:`Optimization` instance
+    :param parset: A :class:`ParameterSet` instance or name of a parset
+    :param progset: A :class:`ProgramSet` instance or name of a progset
+    :param instructions: A :class:`ProgramInstructions` instance
     :param x0: Not for manual use - override initial values
     :param xmin: Not for manual use - override lower bounds
     :param xmax: Not for manual use - override upper bounds
     :param hard_constraints: Not for manual use - override hard constraints
-    :return: A :py:class:`ProgramInstructions` instance representing optimal instructions
+    :return: A :class:`ProgramInstructions` instance representing optimal instructions
 
     """
     # The ASD initialization, xmin and xmax values can optionally be

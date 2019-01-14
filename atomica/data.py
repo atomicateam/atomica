@@ -1,7 +1,7 @@
 """
 Implementation of Databook functionality
 
-This module defines the :py:class:`ProjectData` class, which serves as a
+This module defines the :class:`ProjectData` class, which serves as a
 Python-based representation of the Databook, as well as providing methods for
 reading Databooks into `ProjectData` instances, and saving `ProjectData` back
 to Excel files.
@@ -37,7 +37,7 @@ class ProjectData(sc.prettyobj):
     To instantiate, the ``ProjectData`` constructor is normally not used. Instead, use
     the static methods
 
-    - ``ProjectData.new()`` to create a new instance/databook given a :py:class:`ProjectFramework`
+    - ``ProjectData.new()`` to create a new instance/databook given a :class:`ProjectFramework`
     - ``ProjectData.from_spreadsheet()`` to load a databook
 
     """
@@ -48,16 +48,16 @@ class ProjectData(sc.prettyobj):
         # - Could load an existing one, with ProjectData.from_spreadsheet()
         # - Could make a new one, with ProjectData.new()
         self.pops = sc.odict()  #: This is an odict mapping code_name:{'label':full_name}
-        self.transfers = list() #: This stores a list of :py:class:`TimeDependentConnections` instances for transfers
-        self.interpops = list() #: This stores a list of :py:class:`TimeDependentConnections` instances for interactions
+        self.transfers = list()  #: This stores a list of :class:`TimeDependentConnections` instances for transfers
+        self.interpops = list()  #: This stores a list of :class:`TimeDependentConnections` instances for interactions
         self.tvec = None  #: This is the data's tvec used when instantiating new tables. Not _guaranteed_ to be the same for every TDVE/TDC table
-        self.tdve = sc.odict() #: This is an odict storing :py:class:`TimeDependentValuesEntry` instances keyed by the code name of the TDVE
-        self.tdve_pages = sc.odict() #: This is an odict mapping worksheet name to a list of TDVE code names appearing on that sheet
+        self.tdve = sc.odict()  #: This is an odict storing :class:`TimeDependentValuesEntry` instances keyed by the code name of the TDVE
+        self.tdve_pages = sc.odict()  #: This is an odict mapping worksheet name to a list of TDVE code names appearing on that sheet
 
         # Internal storage used with methods while writing
-        self._formats = None #: Temporary storage for the Excel formatting while writing a databook
-        self._book = None #: Temporary storage for the workbook while writing a databook
-        self._references = None #: Temporary storage for cell references while writing a databook
+        self._formats = None  #: Temporary storage for the Excel formatting while writing a databook
+        self._book = None  #: Temporary storage for the workbook while writing a databook
+        self._references = None  #: Temporary storage for cell references while writing a databook
 
     @property
     def start_year(self) -> float:
@@ -108,7 +108,7 @@ class ProjectData(sc.prettyobj):
           as they are
         - Calling ``ProjectData.change_tvec()`` will modify all existing tables
 
-        Note that the TDVE/TDC tables store time/value pairs sparsely within their :py:class:`TimeSeries` objects.
+        Note that the TDVE/TDC tables store time/value pairs sparsely within their :class:`TimeSeries` objects.
         Therefore, changing the time array won't modify any of the data - it will only have an effect the next time
         a databook is written (so typically this method would be called as part of preparing a modified databook).
 
@@ -124,26 +124,30 @@ class ProjectData(sc.prettyobj):
         """
         Extract a TimeSeries from a TDVE table or TDC table
 
-        :param name: The code name for the container storing the :py:class:`TimeSeries`
+        :param name: The code name for the container storing the :class:`TimeSeries`
                     - The code name of a transfer, interaction, or compartment/characteristic/parameter
                     - The name of a transfer parameter instantiated in model.build e.g. 'age_0-4_to_5-14'.
                     this is mainly useful when retrieving data for plotting, where variables are organized according
                     to names like 'age_0-4_to_5-14'
-        :param key: Specify the identifier for the :py:class:`TimeSeries`
+        :param key: Specify the identifier for the :class:`TimeSeries`
                         - If `name` is a comp/charac/par, then key should be a pop name
                         - If `name` is a transfer or interaction, then key should be a tuple (from_pop,to_pop)
                         - If `name` is the name of a model transfer parameter, then `key` should be left as `None`
-        :return: A :py:class:`TimeSeries`, or ``None`` if there were no matches
+        :return: A :class:`TimeSeries`, or ``None`` if there were no matches
 
         Regarding the specification of the key - the same transfer could be specified as
 
         - ``name='age', key=('0-4','5-14')``
         - ``name='age_0-4_to_5-14', key=None``
 
-        where the former is typically used when working with data and calibrations, and the latter is used in :py:class:`Model` and
-        is therefore encountered on the :py:class:`Result` and plotting side.
+        where the former is typically used when working with data and calibrations, and the latter is used in :class:`Model` and
+        is therefore encountered on the :class:`Result` and plotting side.
 
         """
+
+        # Exit immediately if the name is not specified
+        if not name:
+            return None
 
         # First, check if it's the name of a TDVE
         if name in self.tdve:
@@ -187,14 +191,13 @@ class ProjectData(sc.prettyobj):
         This method should be used (instead of the standard constructor) to produce a new
         class instance (e.g. if creating a new databook).
 
-        :param framework: A :py:class:`ProjectFramework` instance
+        :param framework: A :class:`ProjectFramework` instance
         :param tvec: A scalar, list, or array of times (typically would be generated with ``numpy.arange()``)
         :param pops: A number of populations, or a dict with specific names and labels for the pops
         :param transfers: A number of transfers, or a dict with names and labels for the transfers
-        :return: A new :py:class:`ProjectData` instance
+        :return: A new :class:`ProjectData` instance
 
         """
-
 
         if sc.isnumber(pops):
             new_pops = sc.odict()
@@ -306,19 +309,19 @@ class ProjectData(sc.prettyobj):
                 try:
                     self._read_pops(sheet)
                 except Exception as e:
-                    message = 'An error was detected on the "Population Definitions" sheet -> '
+                    message = 'An error was detected on the "Population Definitions" sheet'
                     raise Exception('%s -> %s' % (message, e)) from e
             elif sheet.title == 'Transfers':
                 try:
                     self._read_transfers(sheet)
                 except Exception as e:
-                    message = 'An error was detected on the "Transfers" sheet -> '
+                    message = 'An error was detected on the "Transfers" sheet'
                     raise Exception('%s -> %s' % (message, e)) from e
             elif sheet.title == 'Interactions':
                 try:
                     self._read_interpops(sheet)
                 except Exception as e:
-                    message = 'An error was detected on the "Interactions" sheet -> '
+                    message = 'An error was detected on the "Interactions" sheet'
                     raise Exception('%s -> %s' % (message, e)) from e
             elif sheet.title == 'Metadata':
                 continue
@@ -326,7 +329,6 @@ class ProjectData(sc.prettyobj):
                 self.tdve_pages[sheet.title] = []
                 tables, start_rows = read_tables(sheet)
                 for table, start_row in zip(tables, start_rows):
-
 
                     try:
                         tdve = TimeDependentValuesEntry.from_rows(table)
@@ -365,7 +367,6 @@ class ProjectData(sc.prettyobj):
                     # Store the TDVE on the page it was actually on, rather than the one in the framework. Then, if users move anything around, the change will persist
                     self.tdve_pages[sheet.title].append(code_name)
 
-
         # Set the ProjectData's tvec based on the first TDVE table
         # 99.9% of the time, all of the tables will have the same values and so this is generally safe
         # The only time unexpected behaviour might occur is if the first TDVE table has exotic data points
@@ -398,7 +399,7 @@ class ProjectData(sc.prettyobj):
 
         This function throws an informative error if there are any problems identified or otherwise returns True
 
-        :param framework: A :py:class:`ProjectFramework` instance to validate the data against
+        :param framework: A :class:`ProjectFramework` instance to validate the data against
         :return: True if ProjectData is valid. An error will be raised otherwise
 
         """
@@ -427,7 +428,7 @@ class ProjectData(sc.prettyobj):
                             else:
                                 self.tdve_pages[tdve_page] = [spec.name]
                     else:
-                        framework_units = framework.get_databook_units(spec.name) # Get the expected databook units
+                        framework_units = framework.get_databook_units(spec.name)  # Get the expected databook units
                         tdve = self.tdve[spec.name]
                         tdve_sheet = self.get_tdve_page(spec.name)
                         for name, ts in self.tdve[spec.name].ts.items():
@@ -444,17 +445,33 @@ class ProjectData(sc.prettyobj):
             for tdc in self.interpops:
                 if tdc.code_name == spec.name:
                     for (to_pop, from_pop), ts in tdc.ts.items():
-                        assert to_pop in self.pops, 'Population "%s" in "%s" not recognized. Should be one of: %s' % (name, self.tdve[spec.name].name, self.pops.keys())
-                        assert from_pop in self.pops, 'Population "%s" in "%s" not recognized. Should be one of: %s' % (name, self.tdve[spec.name].name, self.pops.keys())
+                        assert to_pop in self.pops, 'Population "%s" in "%s" not recognized. Should be one of: %s' % (to_pop, spec.name, self.pops.keys())
+                        assert from_pop in self.pops, 'Population "%s" in "%s" not recognized. Should be one of: %s' % (from_pop, spec.name, self.pops.keys())
                         assert ts.has_data, 'Data values missing for interaction %s, %s->%s' % (spec.name, to_pop, from_pop)
-                        assert ts.units.strip().title() == FS.DEFAULT_SYMBOL_INAPPLICABLE.title() # Units should be
+                        assert ts.units.lower().title() == FS.DEFAULT_SYMBOL_INAPPLICABLE.lower().title(), 'Units error in interaction %s, %s->%s. Interaction units must be "N.A."' % (spec.name, to_pop, from_pop)
                     break
             else:
                 raise Exception('Required interaction "%s" not found in databook' % spec.name)
 
+        for tdc in self.transfers:
+            for (to_pop, from_pop), ts in tdc.ts.items():
+                assert to_pop in self.pops, 'Population "%s" in "%s" not recognized. Should be one of: %s' % (to_pop, tdc.full.name, self.pops.keys())
+                assert from_pop in self.pops, 'Population "%s" in "%s" not recognized. Should be one of: %s' % (from_pop, tdc.full.name, self.pops.keys())
+                assert ts.has_data, 'Data values missing for transfer %s, %s->%s' % (tdc.full_name, to_pop, from_pop)
+                assert ts.units is not None, 'Units are missing for transfer %s, %s->%s' % (tdc.full_name, to_pop, from_pop)
         return True
 
-    def to_spreadsheet(self):
+    def to_spreadsheet(self, write_uncertainty=None):
+        """
+        Return content as an :class:`AtomicaSpreadsheet`
+
+        :param write_uncertainty: If True, uncertainty cells will always be printed.
+                                  If None, cells will be printed only for TDVEs with uncertainty values.
+                                  IF False, cells will not be shown at all even if data existed
+        :return: An :class:`AtomicaSpreadsheet` instance
+
+        """
+
         # Initialize the bytestream
         f = io.BytesIO()
 
@@ -466,9 +483,9 @@ class ProjectData(sc.prettyobj):
 
         # Write the contents
         self._write_pops()
-        self._write_tdve()
-        self._write_interpops()
-        self._write_transfers()
+        self._write_tdve(write_uncertainty=write_uncertainty)
+        self._write_interpops(write_uncertainty=write_uncertainty)
+        self._write_transfers(write_uncertainty=write_uncertainty)
 
         # Close the workbook
         self._book.close()
@@ -485,9 +502,20 @@ class ProjectData(sc.prettyobj):
         # Return the spreadsheet
         return spreadsheet
 
-    def save(self, fname):
-        # Shortcut for saving to disk - FE RPC will probably use `to_spreadsheet()` but BE users will probably use `save()`
-        ss = self.to_spreadsheet()
+    def save(self, fname, write_uncertainty=None) -> None:
+        """
+        Save databook to disk
+
+        This function provides a shortcut to generate a spreadsheet and immediately save it to disk.
+
+        :param fname: File name to write on disk
+        :param write_uncertainty: If True, uncertainty cells will always be printed.
+                                  If None, cells will be printed only for TDVEs with uncertainty values.
+                                  IF False, cells will not be shown at all even if data existed
+
+        """
+
+        ss = self.to_spreadsheet(write_uncertainty=write_uncertainty)
         ss.save(fname + '.xlsx' if not fname.endswith('.xlsx') else fname)
 
     def add_pop(self, code_name, full_name):
@@ -693,7 +721,6 @@ class ProjectData(sc.prettyobj):
 
         apply_widths(sheet, widths)
 
-
     def _read_transfers(self, sheet) -> None:
         """
         Writes the 'Transfers' sheet
@@ -706,8 +733,7 @@ class ProjectData(sc.prettyobj):
         for i in range(0, len(tables), 3):
             self.transfers.append(TimeDependentConnections.from_tables(tables[i:i + 3], 'transfer'))
 
-
-    def _write_transfers(self) -> None:
+    def _write_transfers(self, write_uncertainty) -> None:
         """
         Writes the 'Transfers' sheet
 
@@ -724,9 +750,8 @@ class ProjectData(sc.prettyobj):
         widths = dict()
         next_row = 0
         for transfer in self.transfers:
-            next_row = transfer.write(sheet, next_row, self._formats, self._references, widths)
+            next_row = transfer.write(sheet, next_row, self._formats, self._references, widths, write_units=True, write_assumption=True, write_uncertainty=write_uncertainty)
         apply_widths(sheet, widths)
-
 
     def _read_interpops(self, sheet) -> None:
         """
@@ -740,7 +765,7 @@ class ProjectData(sc.prettyobj):
             self.interpops.append(TimeDependentConnections.from_tables(tables[i:i + 3], 'interaction'))
         return
 
-    def _write_interpops(self) -> None:
+    def _write_interpops(self, write_uncertainty) -> None:
         """
         Writes the 'Interactions' sheet
 
@@ -755,10 +780,10 @@ class ProjectData(sc.prettyobj):
         widths = dict()
         next_row = 0
         for interpop in self.interpops:
-            next_row = interpop.write(sheet, next_row, self._formats, self._references, widths)
+            next_row = interpop.write(sheet, next_row, self._formats, self._references, widths, write_units=True, write_assumption=True, write_uncertainty=write_uncertainty)
         apply_widths(sheet, widths)
 
-    def _write_tdve(self) -> None:
+    def _write_tdve(self, write_uncertainty) -> None:
         """
         Writes the TDVE tables
 
@@ -767,20 +792,20 @@ class ProjectData(sc.prettyobj):
 
         """
 
-        widths = dict()
 
         for sheet_name, code_names in self.tdve_pages.items():
             sheet = self._book.add_worksheet(sheet_name)
+            widths = dict()
+
             next_row = 0
             has_editable_content = False
             for code_name in code_names:
                 has_editable_content = has_editable_content or (not self.tdve[code_name].has_data)  # there is editable content if any TDVE is missing data, so blue cells are present
-                next_row = self.tdve[code_name].write(sheet, next_row, self._formats, self._references, widths)
+                next_row = self.tdve[code_name].write(sheet, next_row, self._formats, references=self._references, widths=widths, write_units=True, write_assumption=True, write_uncertainty=write_uncertainty)
 
             if has_editable_content:
                 sheet.set_tab_color('#92D050')
             else:
                 sheet.set_tab_color('#808080')
 
-        for sheet_name in self.tdve_pages.keys():
             apply_widths(self._book.get_worksheet_by_name(sheet_name), widths)

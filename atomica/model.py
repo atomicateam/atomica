@@ -26,10 +26,19 @@ model_settings['iteration_limit'] = 100
 
 
 class BadInitialization(Exception):
-    # Throw this error if the simulation exited due to a bad initialization, specifically
-    # due to negative initial popsizes or an excessive residual.
-    # This can then be dealt with appropriately - e.g. calibration will catch this
-    # error and instruct ASD to reject the proposed parameters
+    """
+    Error for invalid conditions
+
+    This error gets raised if the simulation exited due to a bad initialization, specifically
+    due to negative initial popsizes or an excessive residual. This commonly happens if the
+    initial conditions are being programatically varied and thus may be an expected error.
+    This error can then be caught and dealt with appropriately. For example:
+
+    - calibration will catch this error and instruct ASD to reject the proposed parameters
+    - ``Ensemble.run_sims`` catches this error and tries another sample
+
+    """
+
     pass
 
 
@@ -41,7 +50,7 @@ class Variable(object):
     functionality that is common to all integration objects, and defines the interface to be implemented
     by derived classes.
 
-        :param pop: A :py:class:`Population` instance. This allows references back to the population containing an object
+        :param pop: A :class:`Population` instance. This allows references back to the population containing an object
                     (which facilitates a number of operations such as those that require the population's size)
         :param id: ID is a tuple that uniquely identifies the Variable within a model.
                     By convention, this is a ``population:code_name`` tuple
@@ -50,7 +59,7 @@ class Variable(object):
 
     def __init__(self, pop, id):
         self.id = id  #: Unique identifier for the integration object
-        self.t = None #: Array of time values. This should be a reference to the base array stored in a :py:class:`model` object
+        self.t = None #: Array of time values. This should be a reference to the base array stored in a :class:`model` object
         self.dt = None #: Time step size
         if 'vals' not in dir(self):
             self.vals = None #: The fundamental values stored by this object. Note that Characteristics implement this as a property method
@@ -60,9 +69,12 @@ class Variable(object):
     @property
     def name(self) -> str:
         """
-        The code name of the ``Variable`` e.g. `sus`
+        Variable code name
 
-        This property facilitates retrieving the name e.g. for plotting
+        This is implemented as a property method because the ``id`` of the ``Variable`` is a
+        tuple containing the population name and the variable code name, so this property
+        method returns just the variable code name portion. That way, storage does not need
+        to be duplicated.
 
         :return: A code name
 
@@ -70,15 +82,22 @@ class Variable(object):
 
         return self.id[-1]
 
-    def preallocate(self, tvec: np.array, dt: float):
+    def preallocate(self, tvec: np.array, dt: float) -> None:
         """
-        Preallocate arrays to improve performance
+        Preallocate data storage
 
         This method gets called just before integration, once the final sizes of the arrays are known.
+        Performance is improved by preallocating the arrays. The ``tvec`` attribute is assigned
+        as-is, so it is typically a reference to the array stored in the parent ``Model`` object. Thus,
+        there is no duplication of storage there, and ``Variable.tvec`` is mainly for convenience when
+        interpolating or plotting.
+
+        This method may be overloaded in derived classes to preallocate other variables specific
+        to those classes.
 
         :param tvec: An array of time values
         :param dt: Time step size
-        :return:
+
         """
         self.t = tvec
         self.dt = dt
@@ -93,6 +112,7 @@ class Variable(object):
         plotting library functions instead
 
         """
+
         plt.figure()
         plt.plot(self.t, self.vals, label=self.name)
         plt.legend()
@@ -108,8 +128,10 @@ class Variable(object):
         their update function to be called, while characteristics need their
         source compartments to be added up.
 
-        :param ti:
-        :return:
+        This method generally must be overloaded in derived classes e.g. :meth:`Parameter.update`
+
+        :param ti: Time index to update
+
         """
 
         return
@@ -120,7 +142,9 @@ class Variable(object):
 
         For Compartments and Links, this does nothing. For Characteristics and
         Parameters, it will set the dynamic flag, but in addition, any validation constraints e.g. a Parameter
-        that depends on Links cannot itself be dynamic, will be enforced
+        that depends on Links cannot itself be dynamic, will be enforced.
+
+        This method generally must be overloaded in derived classes e.g. :meth:`Parameter.set_dynamic`
 
         """
 
@@ -323,7 +347,7 @@ class Parameter(Variable):
     Parameters sheet. A parameter that maps to multiple transitions (e.g. ``doth_rate``) will have one parameter
     and multiple Link instances that depend on the same Parameter instance
 
-    :param pop: A :py:class:`Population` instance corresponding to the population that will contain this parameter
+    :param pop: A :class:`Population` instance corresponding to the population that will contain this parameter
     :param name: The code name for this parameter
 
     """
@@ -432,7 +456,6 @@ class Parameter(Variable):
 
         """
 
-
         if self.fcn_str is None:
             return # Only parameters with functions need to be made dynamic
         elif self.deps is not None: # If there are no dependencies, then we know that this is precompute-only
@@ -501,14 +524,17 @@ class Parameter(Variable):
                 if self.vals[ti] > self.limits[1]:
                     self.vals[ti] = self.limits[1]
 
-    def update(self, ti=None):
-        # Update the value of this Parameter at time indices ti
-        #
-        # INPUTS
-        # - ti : An int, or a numpy array with index values. If None, all time values will be used
-        #
-        # OUTPUTS
-        # - No outputs, the parameter value is updated in-place
+    def update(self, ti=None) -> None:
+        """
+        Update the value of this Parameter
+
+        If the parameter contains a function, this entails evaluating the function.
+        Typically this is done at a single time point during integration, or over all
+        time points for precomputing and postcomputing
+
+        :param ti: An ``int``, or a numpy array with index values. If ``None``, all time values will be used
+
+        """
 
         if not self._fcn or self.pop_aggregation:
             return
@@ -1191,6 +1217,9 @@ class Model(object):
                 if par.links:
 
                     transition = par.vals[ti]
+                    if transition < 0:
+                        logger.warning('Negative transition occurred')
+                        transition = 0
 
                     if not transition:
                         for link in par.links:
@@ -1219,10 +1248,6 @@ class Model(object):
 
                     # Linearly convert number down to that appropriate for one timestep.
                     elif quantity_type == FS.QUANTITY_TYPE_NUMBER:
-
-                        if transition < 0:
-                            logger.warning('Negative transition occurred')
-                            transition = 0
 
                         # Disaggregate proportionally across all source compartment sizes related to all links.
                         converted_amt = transition * (self.dt / par.timescale) # Number flow in this timestep, so it includes a timescale factor
@@ -1374,7 +1399,7 @@ class Model(object):
                     n = 0.0
                     for comp in comp_list:
                         n += comp.vals[ti]
-                    prop_coverage[k] = self.progset.programs[k].get_prop_covered(self.t[ti], self._program_cache['capacities'][k][ti], n, sample=False)
+                    prop_coverage[k] = self.progset.programs[k].get_prop_covered(self.t[ti], self._program_cache['capacities'][k][ti], n)
             prog_vals = self.progset.get_outcomes(prop_coverage)
 
         for par_name in self._par_list:
