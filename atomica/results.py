@@ -57,6 +57,17 @@ class Result(NamedItem):
         self.pop_names = [x.name for x in self.model.pops] #: A list of the population names present. This gets frequently used, so it is saved as an actual output
 
     @property
+    def used_programs(self) -> bool:
+        """
+        Flag whether programs were used or not
+        
+        :return: ``True`` if a progset and program instructions were present. Note that programs will be considered active even if the 
+               start/stop years in the instructions don't overlap the simulation years (so no overwrite actually took place).
+        """
+
+        return self.model.programs_active
+
+    @property
     def framework(self):
         """
         Return framework from Result
@@ -445,12 +456,12 @@ def export_results(results, filename=None, output_ordering=('output', 'result', 
         _write_df(writer, formats, 'Target parameters', pd.concat(par_df), output_ordering)
 
     # If any of the results used programs, output them
-    if any([x.model.programs_active for x in results]):
+    if any([x.used_programs for x in results]):
 
         # Work out which programs are present
         prog_names = list()
         for result in results:
-            if result.model.programs_active:
+            if result.used_programs:
                 prog_names += list(result.model.progset.programs.keys())
         prog_names = list(dict.fromkeys(prog_names))
 
@@ -484,7 +495,7 @@ def _programs_to_df(results, prog_name, tvals):
     data = dict()
 
     for result in results:
-        if result.model.programs_active and prog_name in result.model.progset.programs:
+        if result.used_programs and prog_name in result.model.progset.programs:
             programs_active = (result.model.program_instructions.start_year <= tvals) & (tvals <= result.model.program_instructions.stop_year)
 
             vals = PlotData.programs(result, outputs=prog_name, quantity='spending').interpolate(tvals)
