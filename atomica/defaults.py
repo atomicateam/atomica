@@ -36,7 +36,7 @@ def default_framework(which=None, show_options=False):
         ('tb_simple_dyn', 'Tuberculosis with demography'),
     ])
 
-    if which is None:
+    if which is None or which == 'default':
         which = 'udt'
     elif which == 'tb':
         label = 'Tuberculosis with transmission dynamics'
@@ -82,7 +82,7 @@ def default_project(which=None, do_run=True, addprogs=True, verbose=False, show_
     dtdict['tb'] = 0.5
 
     tool = 'cascade'
-    if which is None:
+    if which is None or which == 'default':
         which = 'udt'
     elif which == 'tb':
         tool = 'tb'  # This is not in the options and is handled as a special case
