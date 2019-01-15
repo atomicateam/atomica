@@ -1,0 +1,5 @@
+*
+!*.ipynb
+!.gitignore
+!*.rst
+!assets

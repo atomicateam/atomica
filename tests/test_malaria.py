@@ -1,4 +1,4 @@
-import atomica.ui as au
+import atomica as at
 import numpy as np
 import pylab as pl
 import matplotlib.pyplot as plt
@@ -6,20 +6,37 @@ from atomica.optimization import optimize
 
 # np.seterr('raise')
 
-F = au.ProjectFramework("frameworks/framework_malaria.xlsx")
-P = au.Project(framework=F, sim_dt=1./365.)
+F = at.ProjectFramework(at.LIBRARY_PATH+'malaria_framework.xlsx')
+P = at.Project(framework=F, sim_dt=1./365.)
 
-# P.create_databook(databook_path="databook_malaria.xlsx", num_pops=4, num_transfers=1, data_start=2010.)
-P.load_databook('databooks/databook_malaria.xlsx', do_run=False)
+# P.create_databook(databook_path=at.LIBRARY_PATH'malaria_databook.xlsx', num_pops=4, num_transfers=1, data_start=2010.)
+P.load_databook(at.LIBRARY_PATH+'malaria_databook.xlsx', do_run=False)
 
-# P.make_progbook("progbook_malaria.xlsx", progs=17)
-P.load_progbook('databooks/progbook_malaria.xlsx')
+# P.make_progbook(at.LIBRARY_PATH'malaria_progbook.xlsx', progs=17)
+P.load_progbook(at.LIBRARY_PATH+'malaria_progbook.xlsx''')
 
-instructions = au.ProgramInstructions()
+instructions = at.ProgramInstructions(2018)
 
-P.run_sim('default', 'default', instructions)
+res = P.run_sim('default', 'default', instructions)
 # P.save('malaria')
+P.plot(res)
 
-P.results[-1].plot()
-plt.show()
-
+# Model is still in flux
+# d = at.PlotData(res,'dalys',accumulate='integrate')
+# at.plot_series(d,plot_type='stacked',axis='pops')
+#
+# # Number of treatments
+# d = at.PlotData(res,'treated','gp')
+# at.plot_series(d)
+#
+# # Eligibility for treatments
+# d = at.PlotData(res,['hinf','himmmls','hwanmls'],'gp')
+# at.plot_series(d,plot_type='stacked')
+#
+# # Flow into treatment eligibility
+# d = at.PlotData(res,[':hinf',':himmmls',':hwanmls'],'gp')
+# at.plot_series(d,plot_type='stacked')
+#
+# # Treated actual flow
+# d = at.PlotData(res,'treated:flow','gp')
+# at.plot_series(d)

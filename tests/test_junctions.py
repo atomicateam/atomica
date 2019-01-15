@@ -1,20 +1,24 @@
 ## This script checks that the junction update is correct
 
 import numpy as np
-from atomica.ui import ProjectFramework, Project, ProjectData, PlotData, plot_series
+import atomica as at
+import os
 
-F_path = "./frameworks/framework_junction_test.xlsx"
-D_path = './temp/databook_junction_test.xlsx'
+testdir = at.parent_dir()
+tmpdir = os.path.join(testdir,'temp','')
 
-F = ProjectFramework(F_path)
-D = ProjectData.new(F,np.arange(2000,2001),pops={'pop1':'Population 1'},transfers=0)
+F_path = testdir + "framework_junction_test.xlsx"
+D_path = tmpdir + "databook_junction_test.xlsx"
+
+F = at.ProjectFramework(F_path)
+D = at.ProjectData.new(F,np.arange(2000,2001),pops={'pop1':'Population 1'},transfers=0)
 D.save(D_path)
 
-P = Project(name="test", framework=F, do_run=False)
+P = at.Project(name="test", framework=F, do_run=False)
 P.load_databook(databook_path=D_path, make_default_parset=True, do_run=True)
 
-d = PlotData(P.results[0],[':a',':b','b:',':c',':e','e'],project=P)
-plot_series(d,axis='pops')
+d = at.PlotData(P.results[0],[':ca',':cb','cb:',':cc',':ce','ce'],project=P)
+at.plot_series(d,axis='pops')
 
 # Do some validation checks
 pop = P.results[0].model.pops[0]
@@ -25,14 +29,14 @@ pop = P.results[0].model.pops[0]
 # Compartments E, F, G, H each get 750/2=375 people at the first timestep
 
 # Check junctions are flushed
-assert pop.get_comp('b').vals[0] == 0
-assert pop.get_comp('c').vals[0] == 0
-assert pop.get_comp('d').vals[0] == 0
+assert pop.get_comp('cb').vals[0] == 0
+assert pop.get_comp('cc').vals[0] == 0
+assert pop.get_comp('cd').vals[0] == 0
 
-assert pop.get_comp('e').vals[0] == 375
-assert pop.get_comp('f').vals[0] == 375
-assert pop.get_comp('g').vals[0] == 375
-assert pop.get_comp('h').vals[0] == 375
+assert pop.get_comp('ce').vals[0] == 375
+assert pop.get_comp('cf').vals[0] == 375
+assert pop.get_comp('cg').vals[0] == 375
+assert pop.get_comp('ch').vals[0] == 375
 
 # After this initial flush, the junctions should now be empty. However, junction C has an inflow of
 # 100 people per year directly from the input. Therefore, the flow into E and F should be 25/2=12.5, while
@@ -45,7 +49,7 @@ assert pop.get_links('jd1:flow')[0].vals[0] == 0
 assert pop.get_links('jd2:flow')[0].vals[0] == 0
 
 # Then, after the first timestep, there are 25 people in compartment A
-assert pop.get_comp('a').vals[1] == 25
+assert pop.get_comp('ca').vals[1] == 25
 
 # Which means that there are scheduled to be 25 people removed from A
 assert pop.get_links('a1')[0].vals[1] == 25

@@ -2,7 +2,7 @@
 # programs in TB. It can probably be safely removed after
 # it is implemented in the main codebase
 
-import atomica.ui as au
+import atomica as at
 import numpy as np
 import sciris as sc
 import re
@@ -25,7 +25,7 @@ fe_data_years = [2000,2015]
 fe_program_years = [2015,2018]
 
 def get_default_programs():
-    F = au.ProjectFramework("./frameworks/framework_tb.xlsx")
+    F = at.ProjectFramework(at.LIBRARY_PATH + 'tb_framework.xlsx')
     default_pops = sc.odict()
     default_pops['^0.*']   = '^0.*'
     default_pops['.*HIV.*']   = '.*HIV.*'
@@ -34,8 +34,8 @@ def get_default_programs():
 
     # Use these comments to make the blank template for *us* to fill out
     # Normally this is just a one-off process
-    D = au.ProjectData.new(F,tvec=np.array([0]),pops=default_pops,transfers=0)
-    default_progset = au.ProgramSet.from_spreadsheet('./databooks/progbook_tb_defaults.xlsx',framework=F,data=D)
+    D = at.ProjectData.new(F,tvec=np.array([0]),pops=default_pops,transfers=0)
+    default_progset = at.ProgramSet.from_spreadsheet(at.LIBRARY_PATH + 'tb_progbook_defaults.xlsx',framework=F,data=D)
     
     return sc.odict([(key, default_progset.programs[key].label) for key in default_progset.programs.keys()])
 
@@ -47,15 +47,15 @@ def generate_blank_default_spreadsheets(num_progs, default_pops = None):
         default_pops['.*[pP]rison.*']  = '.*[pP]rison.*'
         default_pops['^[^0](?!HIV)(?![pP]rison).*'] = '^[^0](?!HIV)(?![pP]rison).*'
 
-    F = au.ProjectFramework("./frameworks/framework_tb.xlsx")
-    D = au.ProjectData.new(F,tvec=np.array([0]),pops=default_pops,transfers=0)
-    ps = au.ProgramSet.new(framework=F,data=D,progs=num_progs,tvec=np.array([0]))
+    F = at.ProjectFramework(at.LIBRARY_PATH + 'tb_framework.xlsx')
+    D = at.ProjectData.new(F,tvec=np.array([0]),pops=default_pops,transfers=0)
+    ps = at.ProgramSet.new(framework=F,data=D,progs=num_progs,tvec=np.array([0]))
     ps.save('template_blank.xlsx')
 
 
 def generate_default_spreadsheets(fe_pops,fe_transfers,fe_data_years,fe_program_years, fe_progs=None):
 
-    F = au.ProjectFramework("./frameworks/framework_tb.xlsx")
+    F = at.ProjectFramework(at.LIBRARY_PATH + 'tb_framework.xlsx')
 
     # These commands get used to both write and read the template progbook
     # In practice, the main requirement is that this list of template pops
@@ -68,21 +68,21 @@ def generate_default_spreadsheets(fe_pops,fe_transfers,fe_data_years,fe_program_
 
     # Use these comments to make the blank template for *us* to fill out
     # Normally this is just a one-off process
-    D = au.ProjectData.new(F,tvec=np.array([0]),pops=default_pops,transfers=0)
-#    ps = au.ProgramSet.new(framework=F,data=D,progs=27,tvec=np.array([0]))
+    D = at.ProjectData.new(F,tvec=np.array([0]),pops=default_pops,transfers=0)
+#    ps = at.ProgramSet.new(framework=F,data=D,progs=27,tvec=np.array([0]))
 #    ps.save('template_blank.xlsx')
 
     # Normally, all we need to do is load in the filled out template
     # This is the file that contains the default values to use for each program
     # as well as the default targeting
-    default_progset = au.ProgramSet.from_spreadsheet('./databooks/progbook_tb_defaults.xlsx',framework=F,data=D)
+    default_progset = at.ProgramSet.from_spreadsheet(at.LIBRARY_PATH + 'tb_progbook_defaults.xlsx',framework=F,data=D)
 
     # Next, instantiate a new ProjectData and ProgramSet using the FE values
-    user_data = au.ProjectData.new(F,tvec=np.arange(fe_data_years[0],fe_data_years[1]+1),pops=fe_pops,transfers=fe_transfers)
+    user_data = at.ProjectData.new(F,tvec=np.arange(fe_data_years[0],fe_data_years[1]+1),pops=fe_pops,transfers=fe_transfers)
     progs = sc.odict()
     for prog in default_progset.programs.values():
         progs[prog.name] = prog.label
-    user_progset = au.ProgramSet.new(framework=F,data=user_data,progs=progs,tvec=np.arange(fe_program_years[0],fe_program_years[1]+1))
+    user_progset = at.ProgramSet.new(framework=F,data=user_data,progs=progs,tvec=np.arange(fe_program_years[0],fe_program_years[1]+1))
 
     # Assign a template pop to each user pop
     # It stops after the first match, so the regex should be ordered in
@@ -132,8 +132,9 @@ def generate_default_spreadsheets(fe_pops,fe_transfers,fe_data_years,fe_program_
     return user_data, user_progset
 
 new_data, new_progset = generate_default_spreadsheets(fe_pops,fe_transfers,fe_data_years,fe_program_years)
-new_data.save('temp/user_data.xlsx')
-new_progset.save('temp/user_progset.xlsx')
+tmpdir = at.atomica_path(['tests','temp'])
+new_data.save(tmpdir + 'user_data.xlsx')
+new_progset.save(tmpdir + 'user_progset.xlsx')
 
 progs = get_default_programs()
-print progs
+print(progs)
