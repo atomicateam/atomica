@@ -10,9 +10,10 @@ from collections import defaultdict
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import sciris as sc
 from scipy import stats
+import tqdm
 
+import sciris as sc
 from .excel import standard_formats
 from .system import FrameworkSettings as FS
 from .system import logger
@@ -689,7 +690,7 @@ class Ensemble(NamedItem):
         if baseline_results:
             self.set_baseline(baseline_results,**kwargs)
 
-    def run_sims(self,proj,n_samples:int,parset,progset=None,progset_instructions=None, result_names=None) -> None:
+    def run_sims(self,proj,n_samples:int,parset,progset=None,progset_instructions=None, result_names=None, parallel=False, max_attempts=50) -> None:
         """
         Run and store sampled simulations
 
@@ -698,14 +699,15 @@ class Ensemble(NamedItem):
 
         The other common scenario is having multiple results
 
-        :param n_samples:
-        :param parset:
-        :param progset:
+        :param n_samples: An integer number of samples
+        :param parset: A :class:`ParameterSet` instance
+        :param progset: Optionally a :class:`ProgramSet` instance
         :param progset_instructions: This can be a list of instructions
+        :param result_names: Optionally specify names for each result. The most common usage would be when passing in a list of program instructions
+                             corresponding to different budget scenarios. The result names should be a list the same length as the instructions, or
+                             containing a single element if not using programs.
 
         """
-
-        from .model import BadInitialization # avoid circular import
 
         assert (progset is None)==(progset_instructions is None), "If running with programs, both a progset and instructions must be provided"
 
@@ -729,31 +731,22 @@ class Ensemble(NamedItem):
             results = [proj.run_sim(parset=parset,result_name=y) for y in result_names]
 
         self.set_baseline(results)
-
-        n = 0
-        failed = 0
         self.samples = [] # Drop the old samples
 
-        while n < n_samples:
+        from .system import logger
+        import logging
+        logger.setLevel(logging.WARNING)
 
-            if failed > n_samples*10:
-                # This would probably happen if the ICs are very sensitive and any small perturbation
-                # causes them to become invalid
-                raise Exception('Failed 10x the number of requested simulations - something might have gone wrong')
-
-            try:
-                if progset:
-                    sampled_parset = parset.sample()
-                    sampled_progset = progset.sample()
-                    results = [proj.run_sim(parset=sampled_parset, progset=sampled_progset, progset_instructions=x, result_name=y) for x, y in zip(progset_instructions, result_names)]
-                else:
-                    sampled_parset = parset.sample()
-                    results = [proj.run_sim(parset=sampled_parset,result_name=y) for y in result_names]
+        if parallel:
+            # NB. The calling code must be wrapped in a 'if __name__ == '__main__'
+            all_results = sc.parallelize(run_sampled_sim, iterarg=n_samples, kwargs={'proj':proj, 'parset':parset, 'progset':progset,'progset_instructions':progset_instructions,'result_names':result_names})
+            self.update(all_results)
+        else:
+            for _ in tqdm.trange(n_samples):
+                results = run_sampled_sim(proj,parset,progset,progset_instructions,result_names)
                 self.add(results)
-                n += 1
-            except BadInitialization:
-                failed += 1
-                continue
+
+
 
     @property
     def n_samples(self) -> int:
@@ -1334,3 +1327,44 @@ class Ensemble(NamedItem):
             colormap = {x: y for x, y in zip(self.results, colors)}
             pd.scatter_matrix(df, c=[colormap[x] for x in df['result'].values], diagonal='kde')
             plt.suptitle(pop)
+
+def run_sampled_sim(proj,parset,progset,progset_instructions:list,result_names:list,max_attempts:int =50):
+    """
+    Internal function to run simulation with sampling
+
+    This function is intended for internal use only. It's purpose is to facilitate the implementation
+    of parallelization. It should normally be called via :meth:`Ensemble.run_sims`.
+
+    This standalone function samples and runs a simulation. It is a standalone function rather than
+    a method of :class:`Project` or :class:`Ensemble` so that it can be pickled for use in
+    ``sc.parallelize`` (otherwise, an error relating to not being able to pickle local functions or the
+    base class gets raised).
+
+    A sampled simulation may result in bad initial conditions. If that occurs, the parameters and program
+    set will be resampled up to a maximum of ``n_attempts`` times, after which an error will be raised.
+
+    :param proj: A :class:`Project` instance
+    :param parset: A :class:`ParameterSet` instance
+    :param progset: A :class:`ProgramSet` instance
+    :param progset_instructions: A list of instructions to run against a single sample
+    :param result_names: A list of result names (strings)
+    :param max_attempts: Maximum number of sampling attempts before raising an error
+    :return: A list of results that either contains 1 result, or the same number of results as instructions
+
+    """
+    from .model import BadInitialization  # avoid circular import
+
+    attempts = 0
+    while attempts < max_attempts:
+        try:
+            if progset:
+                sampled_parset = parset.sample()
+                sampled_progset = progset.sample()
+                results = [proj.run_sim(parset=sampled_parset, progset=sampled_progset, progset_instructions=x, result_name=y) for x, y in zip(progset_instructions, result_names)]
+            else:
+                sampled_parset = parset.sample()
+                results = [proj.run_sim(parset=sampled_parset, result_name=y) for y in result_names]
+            return results
+        except BadInitialization:
+            attempts += 1
+    raise Exception('Failed simulation after %d attempts - something might have gone wrong' % (max_attempts))

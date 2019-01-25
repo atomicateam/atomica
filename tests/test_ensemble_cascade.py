@@ -21,10 +21,9 @@ doubled_budget = default_budget.scale_alloc(2)
 #
 # Make a cascade plot comparing the same Results at different years, with
 # and without progsets
-
-ensemble = at.CascadeEnsemble(P.framework,'main',[2018,2020,2023])
-ensemble.run_sims(P,parset='default',n_samples=100)
-ensemble.plot_multi_cascade()
+ensemble = at.CascadeEnsemble(P.framework, 'main')
+ensemble.run_sims(P, parset='default', n_samples=100)
+ensemble.plot_multi_cascade(years=[2018,2020,2023])
 plt.title('Default parset')
 
 ensemble.run_sims(P,parset='default',progset=low_uncertainty_progset,progset_instructions=default_budget,n_samples=100)
