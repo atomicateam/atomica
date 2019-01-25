@@ -35,6 +35,12 @@ ensemble.run_sims(P,parset='default',progset=high_uncertainty_progset,progset_in
 ensemble.plot_multi_cascade()
 plt.title('Default progset (high uncertainty)')
 
+# Demonstrate calling an inherited Ensemble plotting function - in this case, a basic
+# series plot showing cascade evolution over time. Note that the Ensemble was created
+# with only 3 time points, so the series plot also only contains those three times
+ensemble.plot_series(style='std',pops='m_rural')
+plt.legend()
+
 ## COMPARING RESULTS
 #
 # We have a shortcut for comparing parameter scenarios - pass multiple instructions into `Ensemble.run_sims()` to automatically run them
@@ -90,4 +96,3 @@ ensemble.mapping_function = cascade_difference
 ensemble.run_sims(P,parset='default',progset=high_uncertainty_progset,progset_instructions=[default_budget,doubled_budget],n_samples=100,result_names=['Default','Doubled'])
 ensemble.plot_multi_cascade(years=2023)
 plt.title('Difference between doubled budget and default budget')
-
