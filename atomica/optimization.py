@@ -81,11 +81,26 @@ class SpendingAdjustment(Adjustment):
         Adjustment.__init__(self, name=prog_name)
         self.prog_name = prog_name
         self.t = sc.promotetoarray(t)  # Time at which to apply the adjustment
-        if isinstance(initial, list):
-            assert len(initial) == len(self.t), "If supplying initial values, you must either specify one, or one for every time point"
+
+        lower = sc.promotetolist(lower,keepnone=True)
+        if len(lower) == 1:
+            lower = lower*len(self.t)
         else:
-            initial = [initial] * len(self.t)
-        self.adjustables = [Adjustable(prog_name, limit_type, lower, upper, initial_value) for initial_value in initial]
+            assert len(lower) == len(self.t), "If supplying lower bounds, you must either specify one, or one for every time point"
+
+        upper = sc.promotetolist(upper,keepnone=True)
+        if len(upper) == 1:
+            upper = upper*len(self.t)
+        else:
+            assert len(upper) == len(self.t), "If supplying upper bounds, you must either specify one, or one for every time point"
+
+        initial = sc.promotetolist(initial,keepnone=True)
+        if len(initial) == 1:
+            initial = initial*len(self.t)
+        else:
+            assert len(initial) == len(self.t), "If supplying initial values, you must either specify one, or one for every time point"
+
+        self.adjustables = [Adjustable(prog_name, limit_type, lower_bound=lb, upper_bound=ub, initial_value=init) for lb,ub,init in zip(lower,upper,initial)]
 
     def update_instructions(self, adjustable_values, instructions):
         # There is one Adjustable for each time point, so the adjustable_values

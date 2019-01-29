@@ -36,7 +36,8 @@ from .results import Result
 from .migration import migrate
 import sciris as sc
 import numpy as np
-
+import tqdm
+import logging
 
 class ProjectSettings(object):
     def __init__(self, sim_start=None, sim_end=None, sim_dt=None):
@@ -409,14 +410,9 @@ class Project(object):
 
         parset = self.parset(parset)
         if progset is not None:
-            progset = progset if isinstance(progset, ProgramSet) else self.progset(progset)
-
-        if progset is None:
-            logger.info("Initiating a standard run of project '%s' (no programs)", self.name)
-        elif progset_instructions is None:
-            logger.info("Program set '%s' will be ignored while running project '%s' due to the absence of program set instructions", progset.name, self.name)
-        else:
-            logger.info("Initiating a run of project '%s' (with programs)", self.name)
+            progset = self.progset(progset)
+            if progset_instructions is None:
+                logger.info("Program set '%s' will be ignored while running project '%s' due to the absence of program set instructions", progset.name, self.name)
 
         if result_name is None:
             base_name = "parset_" + parset.name
@@ -436,6 +432,67 @@ class Project(object):
             self.results.append(result)
 
         return result
+
+    def run_sampled_sims(self,parset,progset=None,progset_instructions=None, result_names=None, n_samples:int =1,parallel=False, max_attempts=50) -> list:
+        """
+        Run sampled simulations
+
+        This method samples from the parset (and progset if provided). It is separate from `run_sim` for
+        several reasons
+
+        - To avoid inadvertantly blowing up the size of the project, `run_sampled_sims` does not support automatic result saving
+        - `run_sim` always returns a `Result` - if rolled into one functions, the return type would not be predictable
+        - `run_sim` only takes in a single ``ProgramInstructions`` and ``result_name`` whereas `run_sampled_sims` supports iteration
+           over multiple instructions
+
+
+        This method is different from proj.run_sim(samples=n_samples) in two ways
+        -
+
+        The other common scenario is having multiple results
+
+        :param n_samples: An integer number of samples
+        :param parset: A :class:`ParameterSet` instance
+        :param progset: Optionally a :class:`ProgramSet` instance
+        :param progset_instructions: This can be a list of instructions
+        :param result_names: Optionally specify names for each result. The most common usage would be when passing in a list of program instructions
+                             corresponding to different budget scenarios. The result names should be a list the same length as the instructions, or
+                             containing a single element if not using programs.
+        :return: A list of Results that can be passed to `Ensemble.update()`. If multiple instructions are provided, the return value of this
+                 function will be a list of lists, where the inner list iterates over different instructions for the same parset/progset samples.
+                 It is expected in that case that the Ensemble's mapping function would take in a list of results
+
+        """
+
+        assert (not progset) == (not progset_instructions), "If running with programs, both a progset and instructions must be provided"
+
+        parset = self.parset(parset)
+        progset = self.progset(progset) if progset is not None else None
+        progset_instructions = sc.promotetolist(progset_instructions, keepnone=True)
+
+        if not result_names:
+            if len(progset_instructions) > 1:
+                result_names = ['instructions_%d' % (i) for i in range(len(progset_instructions))]
+            else:
+                result_names = ['default']
+        else:
+            result_names = sc.promotetolist(result_names)
+            assert(len(result_names) == 1 and not progset) or (len(progset_instructions) == len(result_names)), "Number of result names must match number of instructions"
+
+        original_level = logger.getEffectiveLevel()
+        logger.setLevel(logging.WARNING) # Don't print debug messages inside the sampling loop - note that depending on the platform, this may apply within `sc.parallelize`
+
+        if n_samples == 1:
+            results = [_run_sampled_sim(self, parset, progset, progset_instructions, result_names, max_attempts=max_attempts)]
+        elif parallel:
+            # NB. The calling code must be wrapped in a 'if __name__ == '__main__' if on Windows
+            results = sc.parallelize(_run_sampled_sim, iterarg=n_samples, kwargs={'proj':self, 'parset':parset, 'progset':progset, 'progset_instructions':progset_instructions, 'result_names':result_names, 'max_attempts':max_attempts})
+        else:
+            results = [_run_sampled_sim(self, parset, progset, progset_instructions, result_names, max_attempts=max_attempts) for _ in tqdm.trange(n_samples)]
+
+        logger.setLevel(original_level) # Reset the logger
+
+        return results
 
     def calibrate(self, parset=None, adjustables=None, measurables=None, max_time=60, save_to_project=True, new_name=None,
                   default_min_scale=0.0, default_max_scale=2.0, default_weight=1.0, default_metric="fractional"):
@@ -713,3 +770,45 @@ class Project(object):
             return results
         else:
             return optim
+
+
+def _run_sampled_sim(proj, parset, progset, progset_instructions:list, result_names:list, max_attempts:int =50):
+    """
+    Internal function to run simulation with sampling
+
+    This function is intended for internal use only. It's purpose is to facilitate the implementation
+    of parallelization. It should normally be called via :meth:`Project.run_sim`.
+
+    This standalone function samples and runs a simulation. It is a standalone function rather than
+    a method of :class:`Project` or :class:`Ensemble` so that it can be pickled for use in
+    ``sc.parallelize`` (otherwise, an error relating to not being able to pickle local functions or the
+    base class gets raised).
+
+    A sampled simulation may result in bad initial conditions. If that occurs, the parameters and program
+    set will be resampled up to a maximum of ``n_attempts`` times, after which an error will be raised.
+
+    :param proj: A :class:`Project` instance
+    :param parset: A :class:`ParameterSet` instance
+    :param progset: A :class:`ProgramSet` instance
+    :param progset_instructions: A list of instructions to run against a single sample
+    :param result_names: A list of result names (strings)
+    :param max_attempts: Maximum number of sampling attempts before raising an error
+    :return: A list of results that either contains 1 result, or the same number of results as instructions
+
+    """
+    from .model import BadInitialization  # avoid circular import
+
+    attempts = 0
+    while attempts < max_attempts:
+        try:
+            if progset:
+                sampled_parset = parset.sample()
+                sampled_progset = progset.sample()
+                results = [proj.run_sim(parset=sampled_parset, progset=sampled_progset, progset_instructions=x, result_name=y) for x, y in zip(progset_instructions, result_names)]
+            else:
+                sampled_parset = parset.sample()
+                results = [proj.run_sim(parset=sampled_parset, result_name=y) for y in result_names]
+            return results
+        except BadInitialization:
+            attempts += 1
+    raise Exception('Failed simulation after %d attempts - something might have gone wrong' % (max_attempts))
