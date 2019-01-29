@@ -534,16 +534,23 @@ class TotalSpendConstraint(Constraint):
 
             x0_array = np.array(x0.values()).ravel()
             x0_array_scaled = x0_array / sum(x0_array) * total_spend  # Multiplicative rescaling to match the total spend
-            res = scipy.optimize.minimize(lambda x: np.sqrt(np.sum((x - x0_array_scaled) ** 2)), x0_array_scaled, bounds=bounds, constraints=LinearConstraint, options={'maxiter': 500})
+
+            def jacfcn(x):
+                dist = np.linalg.norm(x - x0_array_scaled)
+                if dist == 0:
+                    return np.zeros(x.shape)
+                else:
+                    return (x-x0_array_scaled)/dist
+
+            res = scipy.optimize.minimize(lambda x: np.linalg.norm(x - x0_array_scaled), x0_array_scaled, jac=jacfcn, bounds=bounds, constraints=LinearConstraint, options={'maxiter': 500})
 
             if not res['success']:
                 logger.error('TotalSpendConstraint failed - rejecting these proposed parameters with an objective value of np.inf')
                 penalty = np.inf
             else:
-                penalty += np.sqrt(np.sum((res['x'] - x0_array)**2))  # Penalty is the distance between the unconstrained budget and the constrained budget
+                penalty += np.linalg.norm(res['x'] - x0_array)  # Penalty is the distance between the unconstrained budget and the constrained budget
                 for name, val in zip(x0.keys(), res['x']):
                     instructions.alloc[name].insert(t, val)
-
         return penalty
 
 
