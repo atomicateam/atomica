@@ -14,3 +14,4 @@ notebooks to try them out interactively and explore the effect of making changes
     Plotting
     Plot-Programs
     Probability-Rescaling
+    Uncertainty
