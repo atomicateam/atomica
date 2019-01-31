@@ -1,4 +1,4 @@
-# Parallel sampling
+# This test demonstrates running samples in parallel
 
 import atomica as at
 import sciris as sc
