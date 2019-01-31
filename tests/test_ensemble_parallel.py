@@ -20,7 +20,7 @@ if __name__ == '__main__':
 
     ## Serial result generation
     with sc.Timer(label='serial runs') as t:
-        results = P.run_sampled_sims('default', high_uncertainty_progset, default_budget, n_samples=n_samples, parallel=False)
+        results = P.run_sampled_sims(parset='default', progset=high_uncertainty_progset, progset_instructions=default_budget, n_samples=n_samples,parallel=False)
 
     ## Parallel result generation
     # Note that parallization on a quad-core Windows machine has a 50% speedup at 1000 samples
@@ -29,7 +29,12 @@ if __name__ == '__main__':
     # to see benefits starting at fewer samples for more intensive models because there's less overhead relative
     # to model computation time)
     with sc.Timer(label='parallel runs') as t:
-        results = P.run_sampled_sims('default', high_uncertainty_progset, default_budget, n_samples=n_samples, parallel=True)
+        results = P.run_sampled_sims(parset='default', progset=high_uncertainty_progset, progset_instructions=default_budget, n_samples=n_samples,parallel=True)
+
+    ## Serial result via Ensemble
+    ensemble = at.CascadeEnsemble(P.framework,'main')
+    with sc.Timer(label='serial via Ensemble') as t:
+        ensemble.run_sims(P, parset='default', progset=high_uncertainty_progset, progset_instructions=default_budget, n_samples=n_samples,parallel=False)
 
     ## Parallel simulations via Ensemble
     # If there is insufficient memory to store all raw results, can run the simulation via the Ensemble instead in which

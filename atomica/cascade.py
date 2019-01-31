@@ -919,6 +919,7 @@ class CascadeEnsemble(Ensemble):
         ax.legend()
         ax.set_xticks(base_positions + (n_colors-1)*(w+g1)/2)
         ax.set_xticklabels(self.outputs)
+        return fig
 
 def _cascade_ensemble_mapping(results, cascade_dict, years, pops):
     # This mapping function returns PlotData for the cascade

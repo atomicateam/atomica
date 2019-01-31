@@ -1,8 +1,6 @@
 import atomica as at
-import numpy as np
-from scipy import stats
-import matplotlib.pyplot as plt
-import sciris as sc
+import logging
+at.logger.setLevel(logging.WARNING)
 
 testdir = at.parent_dir()
 
@@ -68,7 +66,6 @@ fig = all_default.plot_bars(years=2018, outputs='screen', pops=['m_rural', 'm_ur
 all_default.plot_bars(years=2022, outputs='screen', pops=['m_rural', 'm_urban'], fig=fig,horizontal=True)
 
 
-
 # Compare within ensemble across pops
 fig = all_default.plot_distribution(year=2020,outputs='screen',pops='m_rural')
 all_default.plot_distribution(year=2020,outputs='screen',pops='m_urban',fig=fig)
@@ -108,16 +105,4 @@ yld_diff = at.Ensemble(get_differences,'difference')
 yld_diff.update(zip(default_results,doubled_results))
 yld_diff.plot_distribution(pops='m_rural')
 
-
-
-# There are two ways to compare distributions
-
-# - Within an Ensemble
-#   - Comparing multiple outputs/pops
-#   - Comparing multiple results
-# - Across an Ensemble
-#   - Typically would be comparing corresponding outputs/pops
-#   - In theory could do more, but in practice this would probably be confusing
-#
-# The Ensemble has a simple rule - calling `plot_distribution()` will render everything onto the same figure
 

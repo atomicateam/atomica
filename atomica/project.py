@@ -433,7 +433,7 @@ class Project(object):
 
         return result
 
-    def run_sampled_sims(self,parset,progset=None,progset_instructions=None, result_names=None, n_samples:int =1,parallel=False, max_attempts=50) -> list:
+    def run_sampled_sims(self,parset,progset=None,progset_instructions=None, result_names=None, n_samples:int =1,parallel=False, max_attempts=None) -> list:
         """
         Run sampled simulations
 
@@ -458,6 +458,8 @@ class Project(object):
         :param result_names: Optionally specify names for each result. The most common usage would be when passing in a list of program instructions
                              corresponding to different budget scenarios. The result names should be a list the same length as the instructions, or
                              containing a single element if not using programs.
+        :param parallel: If True, run simulations in parallel (on Windows, must have ``if __name__ == '__main__'`` gating the calling code)
+        :param max_attempts: Number of retry attempts for bad initializations
         :return: A list of Results that can be passed to `Ensemble.update()`. If multiple instructions are provided, the return value of this
                  function will be a list of lists, where the inner list iterates over different instructions for the same parset/progset samples.
                  It is expected in that case that the Ensemble's mapping function would take in a list of results
@@ -776,7 +778,7 @@ class Project(object):
             return optim
 
 
-def _run_sampled_sim(proj, parset, progset, progset_instructions:list, result_names:list, max_attempts:int =50):
+def _run_sampled_sim(proj, parset, progset, progset_instructions:list, result_names:list, max_attempts:int =None):
     """
     Internal function to run simulation with sampling
 
@@ -800,7 +802,11 @@ def _run_sampled_sim(proj, parset, progset, progset_instructions:list, result_na
     :return: A list of results that either contains 1 result, or the same number of results as instructions
 
     """
+
     from .model import BadInitialization  # avoid circular import
+
+    if max_attempts is None:
+        max_attempts = 50
 
     attempts = 0
     while attempts < max_attempts:
