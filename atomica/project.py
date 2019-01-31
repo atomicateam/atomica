@@ -480,7 +480,7 @@ class Project(object):
             assert(len(result_names) == 1 and not progset) or (len(progset_instructions) == len(result_names)), "Number of result names must match number of instructions"
 
         original_level = logger.getEffectiveLevel()
-        logger.setLevel(logging.WARNING) # Don't print debug messages inside the sampling loop - note that depending on the platform, this may apply within `sc.parallelize`
+        logger.setLevel(logging.WARNING) # Never print debug messages inside the sampling loop - note that depending on the platform, this may apply within `sc.parallelize`
 
         if n_samples == 1:
             results = [_run_sampled_sim(self, parset, progset, progset_instructions, result_names, max_attempts=max_attempts)]
@@ -488,7 +488,11 @@ class Project(object):
             # NB. The calling code must be wrapped in a 'if __name__ == '__main__' if on Windows
             results = sc.parallelize(_run_sampled_sim, iterarg=n_samples, kwargs={'proj':self, 'parset':parset, 'progset':progset, 'progset_instructions':progset_instructions, 'result_names':result_names, 'max_attempts':max_attempts})
         else:
-            results = [_run_sampled_sim(self, parset, progset, progset_instructions, result_names, max_attempts=max_attempts) for _ in tqdm.trange(n_samples)]
+            if original_level <= logging.INFO:
+                # Print the progress bar if the logging level was INFO or lower
+                results = [_run_sampled_sim(self, parset, progset, progset_instructions, result_names, max_attempts=max_attempts) for _ in tqdm.trange(n_samples)]
+            else:
+                results = [_run_sampled_sim(self, parset, progset, progset_instructions, result_names, max_attempts=max_attempts) for _ in range(n_samples)]
 
         logger.setLevel(original_level) # Reset the logger
 

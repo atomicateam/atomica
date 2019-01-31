@@ -61,7 +61,7 @@ from .utils import NDict, nested_loop
 from .results import Result, Ensemble
 from .system import logger
 from .data import ProjectData
-
+import functools
 default_figsize = (10, 4)
 default_ax_position = [0.15, 0.2, 0.35, 0.7]
 
@@ -763,8 +763,6 @@ class CascadeEnsemble(Ensemble):
 
     def __init__(self,framework, cascade, years=None, baseline_results=None, pops=None):
 
-        from .plotting import PlotData # Import here to avoid circular dependencies
-
         if years is not None:
             years = sc.promotetoarray(years)
 
@@ -777,17 +775,11 @@ class CascadeEnsemble(Ensemble):
         if not cascade_name:
             cascade_name = 'Cascade'
 
-        def cascade_mapping(results):
-            # This mapping function returns PlotData for the cascade
-            # It's a closure containing the cascade, years, and pops requested
-            d = PlotData(results,outputs=cascade_dict,pops=pops)
-            if years is not None:
-                d.interpolate(years)
-            return d
+        mapfun = functools.partial(_cascade_ensemble_mapping,cascade_dict=cascade_dict,years=years, pops=pops)
 
         # Perform normal Ensemble initialization using the cascade mapping function defined above
         # (with the closure for the requested cascade, pops, and years)
-        super().__init__(name=cascade_name, mapping_function=cascade_mapping, baseline_results=baseline_results)
+        super().__init__(name=cascade_name, mapping_function=mapfun, baseline_results=baseline_results)
 
     def get_vals(self,pop=None,years=None) -> tuple:
         """
@@ -927,3 +919,13 @@ class CascadeEnsemble(Ensemble):
         ax.legend()
         ax.set_xticks(base_positions + (n_colors-1)*(w+g1)/2)
         ax.set_xticklabels(self.outputs)
+
+def _cascade_ensemble_mapping(results, cascade_dict, years, pops):
+    # This mapping function returns PlotData for the cascade
+    # It's a closure containing the cascade, years, and pops requested
+    # It's a separate function so it can be pickled and parallelized
+    from .plotting import PlotData
+    d = PlotData(results,outputs=cascade_dict,pops=pops)
+    if years is not None:
+        d.interpolate(years)
+    return d

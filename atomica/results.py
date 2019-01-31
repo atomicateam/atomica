@@ -739,10 +739,10 @@ class Ensemble(NamedItem):
             # NB. The calling code must be wrapped in a 'if __name__ == '__main__'
             # Currently not passing in any extra kwargs but that should be easy to add if/when required
             # (main reason for deferring implementation is so as to have suitable test code when developing)
-            self.samples = sc.parallelize(_sample_and_map, iterarg=n_samples, kwargs={'ensemble':self,'proj':proj, 'parset':parset, 'progset':progset,'progset_instructions':progset_instructions,'result_names':result_names})
+            self.samples = sc.parallelize(_sample_and_map, iterarg=n_samples, kwargs={'mapping_function':self.mapping_function,'proj':proj, 'parset':parset, 'progset':progset,'progset_instructions':progset_instructions,'result_names':result_names})
         else:
             for _ in tqdm.trange(n_samples):
-                sample = _sample_and_map(ensemble=self, proj=proj, parset=parset, progset=progset, progset_instructions=progset_instructions, result_names=result_names)
+                sample = _sample_and_map(mapping_function=self.mapping_function, proj=proj, parset=parset, progset=progset, progset_instructions=progset_instructions, result_names=result_names)
                 self.samples.append(sample)
 
 
@@ -1328,7 +1328,7 @@ class Ensemble(NamedItem):
             pd.scatter_matrix(df, c=[colormap[x] for x in df['result'].values], diagonal='kde')
             plt.suptitle(pop)
 
-def _sample_and_map(ensemble,proj,parset,progset,progset_instructions,result_names, **kwargs):
+def _sample_and_map(proj, parset, progset, progset_instructions, result_names, mapping_function, **kwargs):
     """
     Helper function to sample
 
@@ -1339,11 +1339,11 @@ def _sample_and_map(ensemble,proj,parset,progset,progset_instructions,result_nam
 
     """
 
-    # First, get a sample
-    results = proj.run_sampled_sims(parset=parset, progset=progset, progset_instructions=progset_instructions, result_names=result_names)
+    # First, get a single sample (could have multiple results if multiple instructions)
+    results = proj.run_sampled_sims(n_samples=1,parset=parset, progset=progset, progset_instructions=progset_instructions, result_names=result_names)
 
     # Then convert it to a plotdata via the mapping function
-    plotdata = ensemble.mapping_function(results, **kwargs)
+    plotdata = mapping_function(results[0], **kwargs)
 
     # Finally, return the plotdata instead of the result
     return plotdata
