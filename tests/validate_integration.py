@@ -55,7 +55,7 @@ def test_validate_model(model):
     if not os.path.isfile(databook_file) or not os.path.isfile(progbook_file):
         return
 
-    P1 = at.Project(framework=framework_file, databook_path=databook_file, do_run=False)
+    P1 = at.Project(framework=framework_file, databook=databook_file, do_run=False)
     P1.load_progbook(progbook_file)
     P1.update_settings(sim_end=2025) # Make sure we run until 2025
 

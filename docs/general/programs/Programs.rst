@@ -41,11 +41,10 @@ An example is shown below:
 
 Note that
 
-- A program must reach the same compartments in every population tions
-- To define the *unit cost* of the program, which determines how margeted. For example, it cannot target susceptible and vaccinated in children and only susceptible in adults. 
+- A program must reach the same compartments in every population targeted. For example, it cannot target susceptible and vaccinated in children and only susceptible in adults.
 - When running a simulation, a :class:`Project` loads in a framework file, a databook, and a program book. The compartments listed in the program book must match those defined in the framework file, and the populations listed in the databook must match those defined in the databook. In practice, these three Excel files tend to be stored together and replicated for each application being run. 
 
-The second program sheet defines quantites related to computing program coverage. As mentioned above, program coverage is computed based on spending. While more detail is provided below, the key steps required are
+The second program sheet defines quantities related to computing program coverage. As mentioned above, program coverage is computed based on spending. While more detail is provided below, the key steps required are
 
 - To define the amount of money that is spent on each program - the program book provides data entry for historical spending values, while model simulations use proposed spending values to compute future projectany people are reached for a given amount of money
 - In addition, optionally specify constraints on program coverage. These take the form of supply-side constraints, such as external limitations on program capacity (e.g., available hospital beds or drug production limitations), or demand-side constraints, such as a certain portion of the population being impossible to reach or more expensive to cover. 
@@ -221,10 +220,12 @@ Notice how the coverages for each program add to the individual program values -
 
 The random interaction assumes that there is no interaction in targeting between programs. In contrast, the nested and additive interactions correspond to specific assumptions about how programs are jointly targeted. The **nested interaction** maximizes overlap in coverage by having individuals be covered by as many programs as possible. Thus the programs are 'nested' such that anyone covered by a given program is also covered by all other programs that have a larger fractional coverage. As shown in the diagram, Program 2 has a smaller coverage than Program 1, so Program 2 is only targeted at people that have also received Program 1. Similarly, Program 3 has smaller coverage than Program 2, so Program 3 is only targeted at people that have also received Program 2. 
 
+
 .. image:: coverage_nested.png
 	:width: 600px
 
 Finally, the third type of modality interaction is **additive interaction**. Additive interaction minimizes the people that are covered by no programs by minimizing overlap in coverage. As long as the sum of the fractional coverages is less than 1, there will be no overlap between programs, as shown below:
+
 
 .. image:: coverage_additive.png
 	:width: 600px
@@ -239,7 +240,7 @@ This calculation is illustrated below
 .. image:: coverage_ar.png
 	:width: 600px
 
-In this example, Program 1 is the most effective program, followed by Program 2 and then Program 3. Because Program 1 and Program 2 have coverages that sum to less than 100%, those two programs are combined purely additively. That is, there is no overlap between Program 1 and Program 2 in the figure above. The remaining 10% are covered by Program 3 only. Afterwards, 100% of the population has been covered by one program, and there is 10% coverage for Program 3 remaining. This coverage is distributed randomly throughout the population, which results in 6% of the population being covered by Program 1 and Program 3, and 4% being covered by Program 2 and Program 3. This preferential additive algorithm means that as coverages increase, outcomes should always improve.
+In this example, Program 1 is the most effective program, followed by Program 2 and then Program 3. Because Program 1 and Program 2 have coverages that sum to less than 100%, those two programs are combined purely additively. That is, there is no overlap between Program 1 and Program 2 in the figure below. The remaining 10% are covered by Program 3 only. Afterwards, 100% of the population has been covered by one program, and there is 10% coverage for Program 3 remaining. This coverage is distributed randomly throughout the population, which results in 6% of the population being covered by Program 1 and Program 3, and 4% being covered by Program 2 and Program 3. This preferential additive algorithm means that as coverages increase, outcomes should always improve.
 
 Impact interactions
 -------------------
@@ -266,18 +267,19 @@ The relevant :class:`Covout` object is specific to the ``diag`` parameter. The c
 
 .. caution::
 
-	Note that because the 'source popsize' is computed using the source compartments for all transitions associated with a parameter, it can only be computed for transition parameters that have links associated with them. If a parameter in number units is targeted by a program and is *not* a transition parameter, the fraction outcome cannot be converted to a number of people. In that case, an informative error will be raised.
-
-Now, consider the case where the program is targeted at both susceptible and undiagnosed people (Case 2 in the figure above). This case is similar to a screening diagnosis where asymptomatic individuals are tested, and only those who have the condition test positive. Intuitively, of everyone that might be screened, there are twice as many people without the condition as with the condition. So if the tests are randomly distributed throughout the population, we would expect that of the 200 tests performed, only a third of them would be given to people with the condition, so only 67 tests would be positive (and thus there would only be 67 diagnoses). 
+	Note that because the 'source popsize' is computed using the source compartments for all transitions associated with a parameter, it can only be computed for transition parameters that have links associated with them. If a parameter in number units is targeted by a program and is *not* a transition parameter, the fraction outcome cannot be converted to a number of people. In that case, Atomica will raise an error.
 
 .. image:: number_outcome_case2.png
 	:width: 800px
 
+
+Now, consider the case where the program is targeted at both susceptible and undiagnosed people (Case 2 in the figure above). This case is similar to a screening diagnosis where asymptomatic individuals are tested, and only those who have the condition test positive. Intuitively, of everyone that might be screened, there are twice as many people without the condition as with the condition. So if the tests are randomly distributed throughout the population, we would expect that of the 200 tests performed, only a third of them would be given to people with the condition, so only 67 tests would be positive (and thus there would only be 67 diagnoses). 
+
 The calculation proceeds as follows - the program is targeted at both ``sus`` and ``undx`` so the number of people eligible for the program is 3000. The fractional coverage of the program is therefore ``200/3000=0.067``. The fraction coverage of the *parameter* is thus 0.066. However, the source popsize of the parameter is 1000, not 3000. The parameter outcome is still 1.0. Therefore the final parameter value is ``0.066*1.0*1000=67`` which is the required number of people. 
 
-Note that the parameter outcome of 1.0 reflects the fact that the test produces no false negatives. If the test only had a 50% chance of returning a positive result, then in both cases the outcome value should be set to 0.5, which will result in the expected number of diagnoses of 100 and 33, respectively. The outcome should be entered in the program book as the outcome *for people eligible for the transition*. The only people eligible for the transition are those belonging the source compartments associated with the parameter. So in the second case, the outcome for the 'diag' parameter is entered as 0.5 which is the probability that someone who has the condition tests positive, even though the program is also targeted at people who don't have the condition. 
+Note that the parameter outcome of 1.0 reflects the fact that the test produces no false negatives. If the test only had a 50% chance of returning a positive result, then in both cases the outcome value should be set to 0.5, which will result in the expected number of diagnoses of 100 and 33, respectively. The outcome should be entered in the program book as the outcome *for people eligible for the transition*. The only people eligible for the transition are those belonging the source compartments associated with the parameter. So in the second case, the outcome for the ``diag`` parameter is entered as 0.5 which is the probability that someone who has the condition tests positive, even though the program is also targeted at people who don't have the condition. 
 
-Finally, note that in the case where there are multiple programs, the program coverages may all have different denominators depending on their targeting. This is particularly relevant when modelling modalities where the same intervention might be delivered with differences in the specificity of targeting leading to different cost efficiencies. In that case, the program fractional coverages will all have different denominators. However, since the covout/parameter fractional coverage is equal to the program fractional coverages, they can still be combined and added. This is possible because even though the programs are targeted differently, the coverage interaction calculation is specific to the parameter and formally we are combining the 'covout coverage' rather than the 'program coverage'. So for example, if Case 1 and Case 2 above were actually different programs and were both present in the same simulation, we would simply perform the coverage interaction with fractional coverages of ``0.2`` and ``0.066``. 
+Finally, note that in the case where there are multiple programs, the program coverages may all have different denominators depending on their targeting. This is particularly relevant when modelling modalities where the same intervention might be delivered with differences in the specificity of targeting leading to different cost efficiencies. In that case, the program fractional coverages will all have different denominators. However, since the covout/parameter fractional coverage is equal to the program fractional coverages, they can still be combined and added. This is possible because even though the programs are targeted differently, the coverage interaction calculation is specific to the parameter and formally we are combining the 'parameter coverage' rather than the 'program coverage'. So for example, if Case 1 and Case 2 above were actually different programs and were both present in the same simulation, we would simply perform the coverage interaction with fractional coverages of ``0.2`` and ``0.066``. 
 
 .. image:: number_outcome_case3.png
 	:width: 800px

@@ -50,7 +50,7 @@ class NotFoundError(Exception):
     pass
 
 
-class FrameworkSettings():
+class FrameworkSettings:
     """
     Define system level keywords
 

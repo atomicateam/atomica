@@ -1,7 +1,7 @@
 """
-Implements data-based model parameters (:py:class:`ParameterSet`)
+Implements data-based model parameters (:class:`ParameterSet`)
 
-A :py:class:`ParameterSet` (or 'parset') is an intermediate representation of
+A :class:`ParameterSet` (or 'parset') is an intermediate representation of
 model parameters. The main role of the parset is to store the calibration
 values that are used to scale model parameters. Therefore, every parameter
 in the model appears in the parset, not just the parameters in the databook.
@@ -75,6 +75,20 @@ class Parameter(NamedItem):
 
         return self.ts[pop_name].interpolate(tvec)
 
+    def sample(self,constant:bool) -> None:
+        """
+        Perturb parameter based on uncertainties
+
+        This function modifies the parameter in-place. It would normally be called via
+        :meth:`ParameterSet.sample()` which is responsible for copying this instance first.
+
+        :param constant: If True, time series will be perturbed by a single constant offset. If False,
+                         an different perturbation will be applied to each time specific value independently.
+
+        """
+
+        for k,ts in self.ts.items():
+            self.ts[k] = ts.sample(constant)
 
 class ParameterSet(NamedItem):
     """
@@ -89,11 +103,11 @@ class ParameterSet(NamedItem):
         - The ParameterSet contains calibration scale factors
         - The ParameterSet expands transfers and interactions into per-population parameters
           so they are stored on an equal basis (whereas ProjectData segregates them in
-          :py:class:`TimeDependentValuesEntry` and :py:class:`TimeDependentConnections` due to
+          :class:`TimeDependentValuesEntry` and :class:`TimeDependentConnections` due to
           the difference in how they are formatted in the databook
 
-    :param framework: A :py:class:`ProjectFramework` instance
-    :param data: A :py:class:`ProjectData` instance
+    :param framework: A :class:`ProjectFramework` instance
+    :param data: A :class:`ProjectData` instance
     :param name: Optionally specify the name of the parset
 
     """
@@ -145,12 +159,12 @@ class ParameterSet(NamedItem):
 
     def all_pars(self):
         """
-        A generator that returns an iterator over all Parameters
+        Return an iterator over all Parameters
 
-        This is useful because transfers and interaction Parameters are stored in
-        nested dictionaries, so it's not trivial to iterate over all parameters
+        This is useful because transfers and interaction :class:`Parameter` instances are stored in
+        nested dictionaries, so it's not trivial to iterate over all of them.
 
-        :return: Generator over all Parameters
+        :return: Generator over all :class:`Parameter` instances contained in the ``ParameterSet``
 
         """
 
@@ -160,16 +174,17 @@ class ParameterSet(NamedItem):
             for par in obj.values():
                 yield par
 
-    def copy(self, new_name=None):
+    def sample(self,constant=True):
         """
-        Deep copy the parameter set, optionally changing the name
+        Return a sampled copy of the ParameterSet
 
-        :param new_name:
-        :return: A new ``ParameterSet`` instance
+        :param constant: If True, time series will be perturbed by a single constant offset. If False,
+                         an different perturbation will be applied to each time specific value independently.
+        :return: A new :class:`ParameterSet` with perturbed values
 
         """
 
-        x = sc.dcp(self)
-        if new_name is not None:
-            x.name = new_name
-        return x
+        new = sc.dcp(self)
+        for par in new.all_pars():
+            par.sample(constant)
+        return new

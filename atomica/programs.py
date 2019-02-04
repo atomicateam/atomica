@@ -7,18 +7,18 @@ set of programs, respectively.
 
 """
 
-import sciris as sc
-from .system import logger
-from .utils import NamedItem
-from numpy import array, exp, minimum, inf
-from .utils import TimeSeries
-from .system import FrameworkSettings as FS
-from .excel import standard_formats, apply_widths, update_widths, read_tables, TimeDependentValuesEntry, validate_category
-from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
+import io
+
+import numpy as np
 import openpyxl
 import xlsxwriter as xw
-import io
-import numpy as np
+from numpy import inf, array, exp, minimum
+from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
+
+import sciris as sc
+from .excel import standard_formats, apply_widths, update_widths, read_tables, TimeDependentValuesEntry, validate_category
+from .system import logger, FrameworkSettings as FS
+from .utils import NamedItem, TimeSeries
 
 
 class ProgramInstructions(object):
@@ -95,6 +95,7 @@ class ProgramInstructions(object):
                 elif spending is not None:
                     self.alloc[prog_name] = TimeSeries(t=self.start_year, vals=spending)
 
+
         self.capacity = sc.odict()  # Dict keyed by program name that stores a time series of capacities
         if capacity:
             for prog_name, vals in capacity.items():
@@ -104,6 +105,7 @@ class ProgramInstructions(object):
                     self.capacity[prog_name] = TimeSeries(t=self.start_year, vals=vals)
 
         self.coverage = sc.odict()  # Dict keyed by program name that stores a time series of coverages
+
         if coverage:
             for prog_name, vals in coverage.items():
                 if isinstance(vals, TimeSeries):
@@ -111,13 +113,33 @@ class ProgramInstructions(object):
                 else:
                     self.coverage[prog_name] = TimeSeries(t=self.start_year, vals=vals)
 
+    def scale_alloc(self, scale_factor: float) -> None:
+        """
+        Scale allocation by a constant
+
+        This method multiplies the budget by a constant to scale the total budget up or down.
+        The scale factor is applied at all time points.
+
+        :param scale_factor: Multiplicative factor for spending
+        :return: A new, scaled copy of the instructions
+
+        """
+        assert scale_factor >= 0, 'Cannot have a negative scale factor'
+        new = sc.dcp(self)
+        for ts in new.alloc.values():
+            ts.vals = [x * scale_factor for x in ts.vals]
+            ts.assumption = ts.assumption * scale_factor if ts.assumption is not None else None
+            ts.uncertainty = ts.sigma * scale_factor if ts.sigma is not None else None
+        return new
+
 
 class ProgramSet(NamedItem):
     """
     Representation of a single program
 
-    A Program object will be instantiated for every program listed on the 'Program Targeting'
-    sheet in the program book
+    A ProgramSet object is the code representation of a program book. It provides an interface for reading and
+    writing the program book, as well as retrieving program outcomes (due to interactions between programs, they
+    must be computed using the entire collection of programs).
 
     :param name: Optionally specify the name of the ProgramSet
     :param tvec: Optionally specify the years for data entry
@@ -144,8 +166,12 @@ class ProgramSet(NamedItem):
         self.modified = sc.now()
         self.currency = '$'  # The symbol for currency that will be used in the progbook
 
+        # Internal caches
+        self._book = None
+        self._formats = None
+        self._references = None
+
     def __repr__(self):
-        ''' Print out useful information'''
         output = sc.prepr(self)
         output += '    Program set name: %s\n' % self.name
         output += '            Programs: %s\n' % [prog for prog in self.programs]
@@ -154,15 +180,20 @@ class ProgramSet(NamedItem):
         output += '============================================================\n'
         return output
 
-    def get_code_name(self, name:str) -> str:
+    def _get_code_name(self, name: str) -> str:
         """
-        Retrieve code names
+        Return code name given code or full name
 
-        This function returns a code name given either a full name or a code name
-        This allows pops/comps/pars/progs to be removed by full name or code name
+        This function converts the input name to a code name, thereby allowing operations
+        like removing pops/comps/pars/progs to be performed by code name or by full name
 
-        :param name: A code name or full name (for parameters, compartments, populations, or programs)
-        :return: The requested quantity's code name
+        Code names are unique because they key the program dictionary. Full names are likely unique
+        but may not be. Code names will be returned as-is so take precedence over full names. For example,
+        if you have a program with a particular code name, and other programs with that same name used as
+        the full name, this method will return the program with the matching code name.
+
+        :param name: A code name or full name
+        :return: A code name
 
         """
 
@@ -187,6 +218,7 @@ class ProgramSet(NamedItem):
 
         raise Exception('Could not find full name for quantity "%s" (n.b. this is case sensitive)' % (name))
 
+
     def add_program(self, code_name:str, full_name:str) -> None:
         """
         Add a program to the ProgramSet
@@ -197,8 +229,10 @@ class ProgramSet(NamedItem):
         """
         # To add a program, we just need to construct one
         prog = Program(name=code_name, label=full_name, currency=self.currency)
+        if prog.name in self.programs:
+            raise Exception('Program with name "%s" is already present in the ProgramSet' % (prog.name))
         self.programs[prog.name] = prog
-        return
+
 
     def remove_program(self, name:str) -> None:
         """
@@ -208,7 +242,7 @@ class ProgramSet(NamedItem):
 
         """
         # Remove the program from the progs dict
-        code_name = self.get_code_name(name)
+        code_name = self._get_code_name(name)
 
         del self.programs[code_name]
         # Remove affected covouts
@@ -216,29 +250,36 @@ class ProgramSet(NamedItem):
             for pop in self.pops:
                 if (par, pop) in self.covouts and code_name in self.covouts.progs:
                     del self.covouts[(par, pop)].progs[code_name]
-        return
 
-    def add_pop(self, code_name:str, full_name:str) -> None:
+    def add_pop(self, code_name: str, full_name: str) -> None:
         """
-        Add a population to the ProgramSet
+        Add a population to the ``ProgramSet``
+
+        At this level, we can add any arbitrarily named population. When the progbook is loaded in,
+        the populations contained in the ``ProgramSet`` will be validated against the specified ProjectData
+        instance.
 
         :param code_name: The code name of the new population
         :param full_name: The full name of the new population
 
         """
+
         self.pops[code_name] = full_name
-        return
 
-    def remove_pop(self, name:str) -> None:
+    def remove_pop(self, name: str) -> None:
         """
-        Remove a population from the ProgramSet
+        Remove a population from the ``ProgramSet``
 
-        :param name: The code name or full name of the population to remove
+        This method will remove the population from the ProgramSet, as well as
+        from all program target pops and will also remove the covout objects
+        for the affected population.
+
+        :param name: Code name or full name of the population to remove
 
         """
 
-        # To remove a pop, we need to remove it from all programs, and also remove all affected covouts
-        code_name = self.get_code_name(name)
+        code_name = self._get_code_name(name)
+
         for prog in self.programs.values():
             if code_name in prog.target_pops:
                 prog.target_pops.remove(code_name)
@@ -246,65 +287,77 @@ class ProgramSet(NamedItem):
                 self.covouts.pop((prog.name, code_name))
 
         del self.pops[code_name]
-        return
 
-    def add_comp(self, code_name:str, full_name:str) -> None:
+    def add_comp(self, code_name: str, full_name: str) -> None:
         """
-        Add a compartment to the ProgramSet
+        Add a compartment
 
-        :param code_name: The code name of the new compartment
-        :param full_name: The full name of the new compartment
+        The primary use case would be when an existing project has a change made to the framework and it's
+        desired to update an already filled out program book.
+
+        :param code_name: Code name of the compartment to add
+        :param full_name: Full name of the compartment to add
 
         """
         self.comps[code_name] = full_name
-        return
 
-    def remove_comp(self, name:str) -> None:
+    def remove_comp(self, name: str) -> None:
         """
-        Remove a compartment from the ProgramSet
+        Remove a compartment
 
-        :param name: The code name or full name of the compartment to remove
+        The primary use case would be when an existing project has a change made to the framework and it's
+        desired to update an already filled out program book.
+
+        Note that removing a compartment also requires removing it as a target compartment from all
+        programs, which is automatically handled by this method.
+
+        :param code_name: Code name or full name of the compartment to remove
 
         """
-        
-        # If we remove a compartment, we need to remove it from every population
-        code_name = self.get_code_name(name)
+
+        code_name = self._get_code_name(name)
+
         for prog in self.programs.values():
             if code_name in prog.target_comps:
                 prog.target_comps.remove(code_name)
         del self.comps[code_name]
-        return
 
-    def add_par(self, code_name:str, full_name:str) -> None:
+    def add_par(self, code_name: str, full_name: str) -> None:
         """
-        Add a parameter to the ProgramSet
+        Add a parameter
 
-        :param code_name: The code name of the new parameter
-        :param full_name: The full name of the new parameter
+        The primary use case would be when an existing project has a change made to the framework and it's
+        desired to update an already filled out program book.
+
+        :param code_name: Code name of the parameter to add
+        :param full_name: Full name of the parameter to add
 
         """
+
         # add an impact parameter
         # a new impact parameter won't have any covouts associated with it, and no programs will be bound to it
         # So all we have to do is add it to the list
         self.pars[code_name] = full_name
-        return
 
-    def remove_par(self, name) -> None:
+    def remove_par(self, name: str) -> None:
         """
-        Remove a parameter from the ProgramSet
+        Remove a parameter
 
-        :param name: The code name or full name of the compartment to remove
+        The primary use case would be when an existing project has a change made to the framework and it's
+        desired to update an already filled out program book.
+
+        Note that removing a parameter also requires removing all of the :class:`Covout` instances associated with it.
+
+        :param name: Code name or full name of the parameter to remove
 
         """
 
-        # remove an impact parameter
-        # we need to remove all of the covouts that affect it
-        code_name = self.get_code_name(name)
+        code_name = self._get_code_name(name)
+
         for pop in self.pops:
             if (code_name, pop) in self.covouts:
                 del self.covouts[(code_name, pop)]
         del self.pars[code_name]
-        return
 
     #######################################################################################################
     # Methods for data I/O
@@ -405,9 +458,10 @@ class ProgramSet(NamedItem):
         :param project: A :py:class:`Project` instance
         :param name: Optionally specify the name of the ProgramSet to create
         :param _allow_missing_data: Internal only - optionally allow missing unit costs and spending (used for loading template progbook files)
-        :return: A :py:class:`ProgramSet`
+        :return: A :class:`ProgramSet`
 
         """
+
 
         framework, data = ProgramSet._normalize_inputs(framework, data, project)
 
@@ -430,7 +484,10 @@ class ProgramSet(NamedItem):
         return self
 
     def to_spreadsheet(self):
-        ''' Write the contents of a program set to a spreadsheet. '''
+        """
+        Write the contents of a program set to a spreadsheet.
+        """
+
         f = io.BytesIO()  # Write to this binary stream in memory
 
         self._book = xw.Workbook(f)
@@ -456,14 +513,14 @@ class ProgramSet(NamedItem):
         # Return the spreadsheet
         return spreadsheet
 
-    def save(self, filename=None, folder=None):
+    def save(self, filename=None, folder=None) -> str:
         # Shortcut for saving to disk - FE RPC will probably use `to_spreadsheet()` but BE users will probably use `save()`
         full_path = sc.makefilepath(filename=filename, folder=folder, default='Programs', ext='xlsx')
         ss = self.to_spreadsheet()
         ss.save(full_path)
         return full_path
 
-    def _read_targeting(self, sheet):
+    def _read_targeting(self, sheet) -> None:
         # This function reads a targeting sheet and instantiates all of the programs with appropriate targets, putting them
         # into `self.programs`
         tables, start_rows = read_tables(sheet)  # NB. only the first table will be read, so there can be other tables for comments on the first page
@@ -662,7 +719,7 @@ class ProgramSet(NamedItem):
             # NOTE - If the ts contains time values that aren't in the ProgramSet's tvec, then an error will be thrown
             # However, if the ProgramSet's tvec contains values that the ts does not, then that's fine, there
             # will just be an empty cell in the spreadsheet
-            next_row = tdve.write(sheet, next_row, self._formats, self._references, widths, assumption_heading='Assumption', write_units=True, write_uncertainty=True)
+            next_row = tdve.write(sheet, next_row, self._formats, self._references, widths, assumption_heading='Assumption', write_assumption=True, write_units=True, write_uncertainty=True)
 
         apply_widths(sheet, widths)
 
@@ -796,25 +853,29 @@ class ProgramSet(NamedItem):
 
     @staticmethod
     def new(name=None, tvec=None, progs=None, project=None, framework=None, data=None, pops=None, comps=None, pars=None):
-        ''' Generate a new progset with blank data. '''
-        # INPUTS
-        # - name : the name for the progset
-        # - tvec : an np.array() with the time values to write
-        # - progs : This can be
-        #       - A number of progs
-        #       - An odict of {code_name:display name} programs
-        # - project : specify a project to use the project's framework and data to initialize the comps, pars, and pops
-        # - framework : specify a framework to use the framework's comps and pars
-        # - data : specify a data to use the data's pops
-        # - pops : manually specify the populations. Can be
-        #       - A number of pops
-        #       - A dict of pop {code name:full name} (these will need to match a databook when the progset is read in)
-        # - comps : manually specify the compartments. Can be
-        #       - A number of comps
-        #       - A dict of comp {code name:full name} (needs to match framework when the progset is read in)
-        # - pars : manually specify the impact parameters. Can be
-        #       - A number of pars
-        #       - A dict of parameter {code name:full name} (needs to match framework when the progset is read in)
+        """
+        Generate a new progset with blank data
+
+        :param name: the name for the progset
+        :param tvec: an np.array() with the time values to write
+        :param progs: This can be
+              - A number of progs
+              - An odict of {code_name:display name} programs
+        :param project: specify a project to use the project's framework and data to initialize the comps, pars, and pops
+        :param framework: specify a framework to use the framework's comps and pars
+        :param data: specify a data to use the data's pops
+        :param pops: manually specify the populations. Can be
+              - A number of pops
+              - A dict of pop {code name:full name} (these will need to match a databook when the progset is read in)
+        :param comps: manually specify the compartments. Can be
+              - A number of comps
+              - A dict of comp {code name:full name} (needs to match framework when the progset is read in)
+        :param pars: manually specify the impact parameters. Can be
+              - A number of pars
+              - A dict of parameter {code name:full name} (needs to match framework when the progset is read in)
+        :return: A new :class:`ProgramSet` instances
+
+        """
 
         assert tvec is not None, 'You must specify the time points where data will be entered'
         # Prepare programs
@@ -884,12 +945,12 @@ class ProgramSet(NamedItem):
         [newps.add_program(k, v) for k, v in progs.items()]
         return newps
 
-    def validate(self):
+    def validate(self) -> None:
         """
         Perform basic validation checks
 
-        :raises Exception is anything is invalid
-        :return: None
+        :raises: Exception is anything is invalid
+
         """
         for prog in self.programs.values():
             if not prog.target_comps:
@@ -925,9 +986,14 @@ class ProgramSet(NamedItem):
             else:
                 alloc[prog.name] = instructions.alloc[prog.name].interpolate(tvec)
 
+        if instructions:
+            for prog_name in set(instructions.alloc.keys())-set(self.programs.keys()):
+                logger.warning('The instructions contain an overwrite for a program called "%s" but as this is not in the ProgramSet, it will have no effect',prog_name)
+
         return alloc
 
-    def get_capacities(self, tvec, dt, instructions=None, sample=False) -> dict:
+
+    def get_capacities(self, tvec, dt, instructions=None) -> dict:
         """
         Return timestep capacity for all programs
 
@@ -939,7 +1005,6 @@ class ProgramSet(NamedItem):
         :param tvec: array of times (in years) - this is required to interpolate time-varying unit costs and capacity_constraint constraints
         :param dt: scalar timestep size - this is required to adjust spending on incidence-type programs
         :param instructions: optionally specify instructions, which can supply a spending overwrite
-        :param sample: TODO implement sampling
         :return: Dict like ``{prog_name: np.array()}`` with program capacity at each timestep (in units of people)
 
         """
@@ -957,7 +1022,7 @@ class ProgramSet(NamedItem):
                 else:
                     spending = None
                 # Note that prog.get_capacity() returns capacity in units of people
-                capacities[prog.name] = prog.get_capacity(tvec=tvec, dt=dt, spending=spending, sample=False)
+                capacities[prog.name] = prog.get_capacity(tvec=tvec, dt=dt, spending=spending)
             else:
                 capacities[prog.name] = instructions.capacity[prog.name].interpolate(tvec)
                 # Capacity overwrites are input in units of people/year so convert to units of people here
@@ -966,7 +1031,8 @@ class ProgramSet(NamedItem):
 
         return capacities
 
-    def get_prop_coverage(self, tvec, capacities, num_eligible, instructions=None, sample=False) -> dict:
+
+    def get_prop_coverage(self, tvec, capacities, num_eligible, instructions=None) -> dict:
         """
         Return fractional coverage
 
@@ -988,7 +1054,6 @@ class ProgramSet(NamedItem):
                            the capacity needs to be in units of 'people' (not 'people/year') at this point
         :param num_eligible: dict of number of people covered by each program, computed externally and with one entry for each program
         :param instructions: optionally specify instructions, which can supply a coverage overwrite
-        :param sample: TODO implement sampling
         :return: Dict like ``{prog_name: np.array()}`` with fractional coverage values (dimensionless)
 
         """
@@ -996,17 +1061,15 @@ class ProgramSet(NamedItem):
         prop_coverage = sc.odict()  # Initialise outputs
         for prog in self.programs.values():
             if instructions is None or prog.name not in instructions.coverage:
-                prop_coverage[prog.name] = prog.get_prop_covered(tvec, capacities[prog.name], num_eligible[prog.name], sample=sample)
+                prop_coverage[prog.name] = prog.get_prop_covered(tvec, capacities[prog.name], num_eligible[prog.name])
             else:
                 prop_coverage[prog.name] = instructions.coverage[prog.name].interpolate(tvec)
                 prop_coverage[prog.name] = minimum(prop_coverage[prog.name], 1.)
         return prop_coverage
 
-    def get_outcomes(self, prop_coverage=None, sample=False) -> dict:
+    def get_outcomes(self, prop_coverage: dict) -> dict:
         """
         Get program outcomes given fractional coverage
-
-        Get a dictionary of parameter values associated with coverage levels (at a single point in time)
 
         Since the modality interactions in Covout.get_outcome() assume that the coverage is scalar, this function
         will also only work for scalar coverage. Therefore, the prop coverage would normally come from
@@ -1022,11 +1085,33 @@ class ProgramSet(NamedItem):
         by :meth:`Model.update_pars`.
 
         :param prop_coverage: dict with coverage values ``{prog_name:val}``
-        :param sample: TODO implement sampling
         :return: dict ``{(par,pop):val}`` containing parameter value overwrites
+
         """
 
-        return {(covout.par, covout.pop): covout.get_outcome(prop_coverage, sample=sample) for covout in self.covouts.values()}
+        return {(covout.par, covout.pop): covout.get_outcome(prop_coverage) for covout in self.covouts.values()}
+
+    def sample(self, constant: bool = True):
+        """
+        Perturb programs based on uncertainties
+
+        The covout objects contained within the ProgramSet cache the program outcomes. At construction,
+        the cache corresponds to the values entered in the databook. Calling this function will perturb
+        the caches based on the sigma values. A simulation subsequently run using the ProgramSet will
+        use the perturbed outcomes.
+
+        :param constant: If True, time series will be perturbed by a single constant offset. If False,
+                         an different perturbation will be applied to each time specific value independently.
+        :return: A new ``ProgramSet`` with values perturbed by sampling
+
+        """
+
+        new = sc.dcp(self)
+        for prog in new.programs.values():
+            prog.sample(constant)
+        for covout in new.covouts.values():
+            covout.sample()
+        return new
 
 class Program(NamedItem):
     """
@@ -1044,24 +1129,47 @@ class Program(NamedItem):
     :param target_comps: List of compartment code names for compartments targeted by the program
     :param currency: The currency to use (for display purposes only) - normally this would be set to ``ProgramSet.currency`` by ``ProgramSet.add_program()``
 
+    :param name: Short name of the program
+    :param label: Full name of the program
+    :param target_pops: List of population code names for pops targeted by the program
+    :param target_comps: List of compartment code names for compartments targeted by the program
+    :param currency: The currency to use (for display purposes only) - normally this would be set to ``ProgramSet.currency`` by ``ProgramSet.add_program()``
+
     """
 
-    def __init__(self, name:str, label:str=None, target_pops:list=None, target_comps:list=None, currency:str='$'):
-
+    def __init__(self, name, label=None, target_pops=None, target_comps=None, currency='$'):
         NamedItem.__init__(self, name)
         self.name = name  #: Short name of program
         self.label = name if label is None else label  #: Full name of the program
         self.target_pops = [] if target_pops is None else target_pops  #: List of populations targeted by the program
         self.target_comps = [] if target_comps is None else target_comps  #: Compartments targeted by the program - used for calculating coverage denominators
         self.baseline_spend = TimeSeries(assumption=0.0, units=currency + '/year')  #: A TimeSeries with any baseline spending data - currently not exposed in progbook
-        self.spend_data = TimeSeries(units=currency + '/year')  #: TimeSeries with spending data
-        self.unit_cost = TimeSeries(units=currency + '/person (one-off)')  #: TimeSeries with unit cost of program
-        self.capacity_constraint = TimeSeries(units='people/year')  #: TimeSeries with capacity_constraint of program - a hard upper bound on capacity
-        self.saturation = TimeSeries(units=FS.DEFAULT_SYMBOL_INAPPLICABLE) #: TimeSeries with saturation constraint (fractional coverage asymptotic upper bound)
-        self.coverage = TimeSeries(units='people/year')  #: TimeSeries with reference coverage values (not used in any calculations)
+        self.spend_data = TimeSeries(units=currency + '/year')  #: TimeSeries with spending data for the program
+        self.unit_cost = TimeSeries(units=currency + '/person (one-off)')  #: TimeSeries with unit cost of the program
+        self.capacity_constraint = TimeSeries(units='people/year')  #: TimeSeries with capacity constraint for the program
+        self.saturation = TimeSeries(units=FS.DEFAULT_SYMBOL_INAPPLICABLE)  #: TimeSeries with saturation constraint that is applied to fractional coverage
+        self.coverage = TimeSeries(units='people/year')  #: TimeSeries with capacity of program - optional - if not supplied, cost function is assumed to be linear
+
+    def sample(self, constant: bool) -> None:
+        """
+        Perturb program values based on uncertainties
+
+        Calling this function will perturb the original values based on their uncertainties. The
+        values will change in-place. Normally, this method would be called by
+        :meth:`ProgramSet.sample()` which will copy the ``Program`` instance first.
+
+        :param constant: If True, time series will be perturbed by a single constant offset. If False,
+                         an different perturbation will be applied to each time specific value independently.
+        """
+
+        self.spend_data = self.spend_data.sample(constant)
+        self.unit_cost = self.unit_cost.sample(constant)
+        self.capacity_constraint = self.capacity_constraint.sample(constant)
+        self.saturation = self.saturation.sample(constant)
+        self.coverage = self.coverage.sample(constant)
+
 
     def __repr__(self):
-        ''' Print out useful info'''
         output = sc.prepr(self)
         output += '          Program name: %s\n' % self.name
         output += '         Program label: %s\n' % self.label
@@ -1070,13 +1178,13 @@ class Program(NamedItem):
         output += '\n'
         return output
 
-    def get_spend(self, year=None, total:bool=False):
+    def get_spend(self, year=None, total:bool=False) -> np.array:
         """
-        Return default program spend
+        Retrieve program spending
 
-        :param year: A scalar, list, or array of time values to retrieve spending at
-        :param total: If True, the baseline spending value will be added to the returned spending value
-        :return: An array with spending values
+        :param year: Scalar, list, or array of years to retrieve spending in
+        :param total: If True, the baseline spend will be added to the spending data
+        :return: Array of spending values
 
         """
 
@@ -1085,7 +1193,7 @@ class Program(NamedItem):
         else:
             return self.spend_data.interpolate(year)
 
-    def get_capacity(self, tvec, spending, dt, sample=False):
+    def get_capacity(self, tvec, spending, dt):
         """
         Return timestep capacity
 
@@ -1098,11 +1206,15 @@ class Program(NamedItem):
         instructions (in which case, spending should be drawn from the instructions rather than
         the program's spending data). This is handled in :meth:`ProgramSet.get_capacities`
 
-        :param tvec: A vector of times
-        :param spending: A vector of spending values, the same size as ``tvec``
-        :param dt: The time step size
-        :param sample: TODO: Implement sampling
-        :return: Array the same size as ``tvec``, with coverage in units of 'people' (at each timestep)
+        This method returns the program's timestep capacity - that is, the capacity of the program per
+        timestep, at specified points in time. The spending and capacity constraint are automatically
+        adjusted depending on the units of the unit cost and capacity constraint such that the
+        calculation returns capacity in units of 'people' (*not* 'people/year')
+
+        :param tvec: A scalar, list, or array of times
+        :param spending: A vector of spending values (in units of '$/year'), the same size as ``tvec``
+        :param dt: The time step size (required because the number covered at each time step potentially depends on the spending per-timestep)
+        :return: Array the same size as ``tvec``, with capacity in units of 'people'
 
         """
 
@@ -1126,7 +1238,8 @@ class Program(NamedItem):
 
         return capacity
 
-    def get_prop_covered(self, tvec, capacity, eligible, sample=False):
+    def get_prop_covered(self, tvec, capacity, eligible):
+
         """
         Return proportion of people covered
 
@@ -1138,7 +1251,6 @@ class Program(NamedItem):
         :param capacity: An array of number of people covered (e.g. the output of ``Program.get_capacity()``)
                          This should be in units of 'people', rather than 'people/year'
         :param eligible: The number of people eligible for the program (computed from a model object or a Result)
-        :param sample: TODO - implement sampling
         :return: The fractional coverage (used to compute outcomes)
 
         """
@@ -1160,27 +1272,23 @@ class Program(NamedItem):
         return prop_covered
 
 class Covout(object):
-    '''
-    Coverage-outcome object
+    """
+    Store and compute program outcomes
 
-    Example:
-    Covout(par='contacts',
-           pop='Adults',
-           baseline=120,
-           progs={'Prog1':5, 'Prog2':20}
-           )
-    '''
+    The :class:`Covout` object is responsible for storing the
 
-    def __init__(self, par, pop, progs, cov_interaction=None, imp_interaction=None, uncertainty=0.0, baseline=0.0):
-        # Construct new Covout instance
-        # INPUTS
-        # - par : string with the code name of the parameter being overwritten
-        # - pop : string with the code name of the population being overwritten
-        # - progs : a dict containing {prog_name:outcome} with the single program outcomes
-        # - cov_interaction: one of 'additive', 'random', 'nested'
-        # - imp_interaction : a parsable string like 'Prog1+Prog2=10,Prog2+Prog3=20' with the interaction outcomes
-        # - uncertainty : a scalar standard deviation for the outcomes
-        # - baseline : the zero coverage baseline value
+
+    :param par: string with the code name of the parameter being overwritten
+    :param pop: string with the code name of the population being overwritten
+    :param progs: a dict containing ``{prog_name:outcome}`` with the single program outcomes
+    :param cov_interaction: one of 'additive', 'random', 'nested'
+    :param imp_interaction: a parsable string like ``'Prog1+Prog2=10,Prog2+Prog3=20'`` with the interaction outcomes
+    :param uncertainty: a scalar standard deviation for the outcomes
+    :param baseline: the zero coverage baseline value
+
+    """
+
+    def __init__(self, par: str, pop: str, progs: dict, cov_interaction: str = None, imp_interaction: str = None, uncertainty=0.0, baseline=0.0):
 
         if cov_interaction is None:
             cov_interaction = 'additive'
@@ -1191,29 +1299,11 @@ class Covout(object):
         self.pop = pop
         self.cov_interaction = cov_interaction
         self.imp_interaction = imp_interaction
+        self.progs = sc.dcp(progs)
         self.sigma = uncertainty
         self.baseline = baseline
-        self.progs = None #: A dictionary storing program outcomes keyed by program name
-        self.deltas = None #: An array of outcome deltas (outcome minus baseline)
-        self.n_progs = None #: The number of programs
-        self.update_progs(progs)
 
-    def update_progs(self, progs):
-        # Call this function with the program outcomes are changed
-        # Could be because program outcomes were sampled using sigma?
-        # This is important because it also updates the modality interaction outcomes
-        # These are otherwise expensive to compute
-
-        # First, sort the program dict by the magnitude of the delta
-        prog_tuple = [(k, v) for k, v in progs.items()]
-        prog_tuple = sorted(prog_tuple, key=lambda x: -abs(x[1]-self.baseline))
-        self.progs = sc.odict()
-        for item in prog_tuple:
-            self.progs[item[0]] = item[1]
-        self.deltas = np.array([x[1] - self.baseline for x in prog_tuple])  # Internally cache the deltas which are used
-        self.n_progs = len(progs)
-
-        # Parse any impact interactions that are present
+        # Parse the interactions into a numeric representation
         self._interactions = dict()
         if self.imp_interaction and not self.imp_interaction.lower() in ['best', 'synergistic']:
             for interaction in self.imp_interaction.split(','):
@@ -1223,16 +1313,74 @@ class Covout(object):
                     assert x in self.progs, 'The impact interaction refers to a program "%s" which does not appear in the available programs' % (x)
                 self._interactions[combo] = float(val) - self.baseline
 
+        self.update_outcomes()
+
+    @property
+    def n_progs(self) -> int:
+        """
+        Return the number of programs
+
+        :return: The number of programs with defined outcomes (usually this is a subset of all available programs)
+
+        """
+
+        return len(self.progs)
+
+    def sample(self) -> None:
+        """
+        Perturb the values entered in the databook
+
+        The :class:`Covout` instance is modified in-place. Note that the program outcomes are scalars
+        that do not vary over time - therefore, :meth:`Covout.sample()` does not have a ``constant``
+        argument.
+
+        """
+
+        if self.sigma is None:
+            return
+
+        for k, v in self.progs.items():
+            self.progs[k] = v + self.sigma * np.random.randn(1)[0]
+        # Perturb the interactions
+        if self._interactions:
+            for k, v in self.interactions.items():
+                self.interactions[k] = v + self.sigma * np.random.randn(1)[0]
+            tokens = ['%s=%.4f' % ('+'.join(k), v) for k, v in self.interactions.items()]
+            self.imp_interaction = ','.join(tokens)
+
+        self.update_outcomes()
+
+    def update_outcomes(self) -> None:
+        """
+        Update cache when outcomes change
+
+        This method should be called whenever the baseline, program outcomes, or interaction outcomes change.
+        It updates the internal cache so that get_outcome() uses the correct values. It's responsible for
+
+        1. Sorting the programs by outcome value
+        2. Compute the deltas relative to baseline
+        3. Pre-compute the outcomes associated with every possible combination of programs
+
+        """
+
+        # First, sort the program dict by the magnitude of the outcome
+        prog_tuple = [(k, v) for k, v in self.progs.items()]
+        prog_tuple = sorted(prog_tuple, key=lambda x: -abs(x[1]-self.baseline))
+        self._cached_progs = sc.odict()  # This list contains the perturbed/sampled values, in order
+        for item in prog_tuple:
+            self._cached_progs[item[0]] = item[1]
+        self._deltas = np.array([x[1] - self.baseline for x in prog_tuple])  # Internally cache the deltas which are used
+
         # Precompute the combinations and associated modality interaction outcomes - it's computationally expensive otherwise
         # We need to store it in two forms
         # - An (ordered) vector of outcomes, which is used by additive and random to do the modality interaction in vectorized form
         # - A dict of outcomes, which is used by nested to look up the outcome using a tupled key of program indices
         combination_strings = [bin(x)[2:].rjust(self.n_progs, '0') for x in range(2 ** self.n_progs)]  # ['00','01','10',...]
         self.combinations = np.array([list(int(y) for y in x) for x in combination_strings])
-        combination_outcomes = []
+        _combination_outcomes = []
         for prog_combination in self.combinations.astype(bool):
-            combination_outcomes.append(self.compute_impact_interaction(progs=prog_combination))
-        self.combination_outcomes = np.array(combination_outcomes)  # Reshape to column vector, since that's the shape of combination_coverage
+            _combination_outcomes.append(self.compute_impact_interaction(progs=prog_combination))
+        self._combination_outcomes = np.array(_combination_outcomes)  # Reshape to column vector, since that's the shape of combination_coverage
 
     def __repr__(self):
         output = sc.prepr(self)
@@ -1243,19 +1391,18 @@ class Covout(object):
         output += '\n'
         return output
 
-    def get_outcome(self, prop_covered, sample=False):
+    def get_outcome(self, prop_covered):
         """ Return parameter value given program coverages
 
-        The :py:class:`Covout` object contains a set of programs and outcomes. The :py:meth:`Covout.get_outcome` method
+        The :class:`Covout` object contains a set of programs and outcomes. The :meth:`Covout.get_outcome` method
         returns the outcome value associated for coverage of each program. Don't forget that any given Covout instance
         is already specific to a ``(par,pop)`` combination
 
         :param prop_covered: A dict with ``{prog_name:coverage}`` containing at least all of the
                              programs in `self.progs`. Note that `coverage` is expected to be a ``np.array``
-                             (such that that generated by :py:meth:`ProgramSet.get_prop_coverage`). However,
+                             (such that that generated by :meth:`ProgramSet.get_prop_coverage`). However,
                              because the modality calculations only work for scalars, only the first entry
                              in the array will be used.
-        :param sample: TODO
         :return: A scalar outcome (of type `np.double` or similar i.e. _not_ an array)
 
         """
@@ -1266,10 +1413,10 @@ class Covout(object):
         if self.n_progs == 0:
             return outcome  # If there are no programs active, return the baseline value immediately
         elif self.n_progs == 1:
-            return outcome + prop_covered[self.progs.keys()[0]][0] * self.deltas[0]
+            return outcome + prop_covered[self._cached_progs.keys()[0]][0] * self._deltas[0]
 
         cov = []
-        for prog in self.progs.keys():
+        for prog in self._cached_progs.keys():
             cov.append(prop_covered[prog][0])
         cov = np.array(cov)
 
@@ -1291,16 +1438,16 @@ class Covout(object):
                 net_random = self.combinations * random_portion + (self.combinations ^ 1) * (1 - random_portion)
                 combination_coverage = np.zeros((net_random.shape[0],))
                 for i in range(0, net_random.shape[1]):
-                    contribution = np.ones((net_random.shape[0], ))
+                    contribution = np.ones((net_random.shape[0],))
                     for j in range(0, net_random.shape[1]):
                         if i == j:
                             contribution *= additive_portion_coverage[:, j]
                         else:
                             contribution *= net_random[:, j]
                     combination_coverage += contribution
-                outcome += np.sum(combination_coverage * self.combination_outcomes.ravel())
+                outcome += np.sum(combination_coverage * self._combination_outcomes.ravel())
             else:
-                outcome += np.sum(cov * self.deltas)
+                outcome += np.sum(cov * self._deltas)
 
         # NESTED CALCULATION
         elif self.cov_interaction == 'nested':
@@ -1317,26 +1464,35 @@ class Covout(object):
                     combination_coverage[combination_index] = cov[idx[i]] - cov[idx[i - 1]]
                 prog_mask[idx[i]] = False  # Disable this program at the next iteration
 
-            outcome += np.sum(combination_coverage * self.combination_outcomes.ravel())
+            outcome += np.sum(combination_coverage * self._combination_outcomes.ravel())
 
         # RANDOM CALCULATION
         elif self.cov_interaction == 'random':
             # Outcome += c1(1-c2)* delta_out1 + c2(1-c1)*delta_out2 + c1c2* max(delta_out1,delta_out2)
             combination_coverage = np.product(self.combinations * cov + (self.combinations ^ 1) * (1 - cov), axis=1)
-            outcome += np.sum(combination_coverage.ravel() * self.combination_outcomes.ravel())
+            outcome += np.sum(combination_coverage.ravel() * self._combination_outcomes.ravel())
         else:
             raise Exception('Unknown reachability type "%s"', self.cov_interaction)
 
         return outcome
 
-    def compute_impact_interaction(self, progs=None):
-        # Takes in boolean array of active programs, which matches the order in
-        # self.progs and self.deltas
+    def compute_impact_interaction(self, progs: np.array) -> float:
+        """
+        Return the output for a given combination of programs
 
-        if progs is not None and not any(progs):
+        The outcome for various combinations of programs is cached prior to running the model.
+        This function retrieves the appropriate delta given a boolean array flagging which
+        programs are active
+
+        :param progs: A numpy boolean array, with length equal to the number of programs
+        :return: The delta value corresponding to the specified combination of programs
+
+        """
+
+        if not any(progs):
             return 0.0
         else:
-            progs_active = frozenset(np.array(self.progs.keys())[progs])
+            progs_active = frozenset(np.array(self._cached_progs.keys())[progs])
 
         if progs_active in self._interactions:
             # If the combination of programs has an explicitly specified outcome, then use it
@@ -1345,6 +1501,6 @@ class Covout(object):
             raise NotImplementedError
         else:
             # Otherwise, do the 'best' interaction and return the delta with the largest magnitude
-            tmp = self.deltas[progs]
+            tmp = self._deltas[progs]
             idx = np.argmax(abs(tmp))
             return tmp[idx]
