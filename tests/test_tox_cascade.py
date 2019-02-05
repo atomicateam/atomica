@@ -7,6 +7,11 @@ import os
 testdir = at.parent_dir()
 tmpdir = os.path.join(testdir,'temp','')
 
+try:
+    os.makedirs(tmpdir)
+except:
+    pass
+
 def test_cascade_validate():
     from atomica.cascade import validate_cascade
 

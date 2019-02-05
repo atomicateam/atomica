@@ -904,50 +904,74 @@ class Population(object):
         proposed = np.matmul(A, x)
         residual = np.sum((proposed.ravel()-b.ravel())**2)
 
+        # Accumulate any errors here. The errors could occur either at the system level or at the level
+        # of individual comps/characs. To avoid
+        error_msg = ''
+        characteristic_tolerence_failed = False
+
         # Print warning for characteristics that are not well matched by the compartment size solution
         for i in range(0, len(characs)):
-            if abs(proposed[i] - b[i]) > model_settings['tolerance']:  # project_settings.model_settings['tolerance']:
-                logger.warning("Characteristic '{0}' '{1}' - Requested {2}, "
-                               "Calculated {3}".format(self.name, characs[i].name, b[i], proposed[i]))
+            if abs(proposed[i] - b[i]) > model_settings['tolerance']:
+                characteristic_tolerence_failed = True
+                error_msg += "Characteristic '{0}' '{1}' - Requested {2}, Calculated {3}\n".format(self.name, characs[i].name, b[i], proposed[i])
 
-        # Print diagnostic output for compartments that were assigned a negative value
+        # Print expanded diagnostic for negative compartments showing parent characteristics
         def report_characteristic(charac, n_indent=0):
+            """
+            Recursively diagnose characteristic
+
+            If a compartment has been assigned a negative value, it is usually because
+            that negative value is required to match a target characteristic value. This
+            method takes the root characteristic, and prints out all of the compartments
+            relating to it, as well as descending further into any included characteristics.
+            This brings together all of the affected quantities to help diagnose where the
+            negative compartment size originates.
+
+            :param charac: A :class:`Characteristic` instance
+            :param n_indent: Indent level used to prefix the log message
+            :return: A string containing the debug output
+
+            """
+
+            msg = ''
             if charac.name in charac_indices:
-                logger.warning(n_indent * "\t" + "Characteristic '{0}': Target value = "
-                                                 "{1}".format(charac.name, b[charac_indices[charac.name]]))
+                msg += n_indent * "\t" + "Characteristic '{0}': Target value = {1}\n".format(charac.name, b[charac_indices[charac.name]])
             else:
-                logger.warning(n_indent * "\t" + "Characteristic '{0}' not in databook: "
-                                                 "Target value = N/A (0.0)".format(charac.name))
+                msg += n_indent * "\t" + "Characteristic '{0}' not in databook: Target value = N/A (0.0)\n".format(charac.name)
 
             n_indent += 1
             if isinstance(charac, Characteristic):
                 for inc in charac.includes:
                     if isinstance(inc, Characteristic):
-                        report_characteristic(inc, n_indent)
+                        msg += report_characteristic(inc, n_indent)
                     else:
-                        logger.warning(n_indent * '\t' + 'Compartment %s: Computed value = %f', inc.name, x[comp_indices[inc.name]])
+                        msg += n_indent * '\t' + 'Compartment %s: Computed value = %f\n' % (inc.name, x[comp_indices[inc.name]])
+            return msg
 
         for i in range(0, len(comps)):
             if x[i] < -model_settings['tolerance']:
-                logger.warning('Compartment %s %s - Calculated %f', self.name, comps[i].name, x[i])
+                error_msg += 'Compartment %s %s - Calculated %f\n' % (self.name, comps[i].name, x[i])
                 for charac in characs:
                     try:
                         if comps[i] in charac.get_included_comps():
-                            report_characteristic(charac)
+                            error_msg += report_characteristic(charac)
                     except Exception:
                         if comps[i] == charac:
-                            report_characteristic(charac)
+                            error_msg += report_characteristic(charac)
 
-        # Halt for an unsatisfactory overall solution (could relax this check later)
         if residual > model_settings["tolerance"]:
-            print(x)
-            raise BadInitialization("Residual was {0} which is unacceptably large (should be < {1}). "
-                                    "This points to a probable inconsistency in the initial "
-                                    "values.".format(residual, model_settings["tolerance"]))
-
-        # Halt for any negative popsizes
-        if np.any(np.less(x, -model_settings['tolerance'])):
-            raise BadInitialization('Negative initial popsizes')
+            # Halt for an unsatisfactory overall solution
+            raise BadInitialization("Global residual was %g which is unacceptably large (should be < %g)\n%s" % (residual, model_settings['tolerance'],error_msg))
+        elif np.any(np.less(x, -model_settings['tolerance'])):
+            # Halt for any negative popsizes
+            raise BadInitialization('Negative initial popsizes:\n%s' % (error_msg))
+        elif characteristic_tolerence_failed:
+            raise BadInitialization('Characteristics failed to meet tolerances\n%s' % (error_msg))
+        elif error_msg:
+            # Generic error message if any of the warning messages were encountered - not entirely sure when
+            # this would happen so if this *does* occur, it should be written as an explicit branch above
+            # (but it exists as a fallback to ensure that any inconsistencies result in the error being raised)
+            raise BadInitialization('Initialization error\n%s' % (error_msg))
 
         # Otherwise, insert the values
         for i, c in enumerate(comps):
@@ -1218,6 +1242,14 @@ class Model(object):
 
                     transition = par.vals[ti]
                     if transition < 0:
+                        # This condition is likely to occur if the parameter has a function but it has been
+                        # incorrectly/poorly defined so that it returns a negative value. If this is expected
+                        # to happen under certain conditions, then the Framework should have a minimum value of 0
+                        # entered for the parameter to make it explicit that the value is constrained to be positive.
+                        # This could be important if the parameter is *also* used as a dependency in other parameters
+                        # because clipping in the Framework is applied before downstream parameters are computed, whereas
+                        # the check here only relates to the links, so an incorrect negative value could still propagate
+                        # to other parameters (but we cannot be *certain* here that this isn't what the user intended)
                         logger.warning('Negative transition occurred')
                         transition = 0
 
