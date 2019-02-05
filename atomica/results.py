@@ -10,9 +10,11 @@ from collections import defaultdict
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import sciris as sc
 from scipy import stats
+import tqdm
+import logging
 
+import sciris as sc
 from .excel import standard_formats
 from .system import FrameworkSettings as FS
 from .system import logger
@@ -690,7 +692,7 @@ class Ensemble(NamedItem):
     """
 
 
-    def __init__(self, mapping_function, name:str=None, baseline_results=None,**kwargs):
+    def __init__(self, mapping_function=None, name:str=None, baseline_results=None,**kwargs):
 
         NamedItem.__init__(self, name)
         self.mapping_function = mapping_function  #: This function gets called by :meth:`Ensemble.add_sample`
@@ -700,71 +702,54 @@ class Ensemble(NamedItem):
         if baseline_results:
             self.set_baseline(baseline_results,**kwargs)
 
-    def run_sims(self,proj,n_samples:int,parset,progset=None,progset_instructions=None, result_names=None) -> None:
+    def run_sims(self,proj, parset, progset=None, progset_instructions=None, result_names=None, n_samples: int = 1, parallel=False, max_attempts=None) -> None:
         """
         Run and store sampled simulations
 
-        This method samples from the parset (and progset if provided). This is a simple method
-        for the most common usage case where the Ensemble is being used for single results.
+        Use this method to perform sampling if there is insufficient memory available to store
+        all simulations prior to inserting into the Ensemble. This method adds Results to the
+        Ensemble one at a time, so the memory required is never more than the number of Results
+        taken in by the mapping function (typically this would either be 1, or the number of
+        budget scenarios being compared).
 
-        The other common scenario is having multiple results
+        Note that a separate function, `_sample_and_map` is used, which does the conversion to
+        ``PlotData``. This is so that the data reduction is performed on the parallel workers
+        so that ``Multiprocessing`` only accumulates ``PlotData`` rather than ``Result`` instances.
 
-        :param n_samples:
-        :param parset:
-        :param progset:
+        :param proj: A :class:`Project` instance
+        :param n_samples: An integer number of samples
+        :param parset: A :class:`ParameterSet` instance
+        :param progset: Optionally a :class:`ProgramSet` instance
         :param progset_instructions: This can be a list of instructions
+        :param result_names: Optionally specify names for each result. The most common usage would be when passing in a list of program instructions
+                             corresponding to different budget scenarios. The result names should be a list the same length as the instructions, or
+                             containing a single element if not using programs.
+        :param parallel: If True, run simulations in parallel (on Windows, must have ``if __name__ == '__main__'`` gating the calling code)
+        :param max_attempts: Number of retry attempts for bad initializations
 
         """
 
-        from .model import BadInitialization # avoid circular import
-
-        assert (progset is None)==(progset_instructions is None), "If running with programs, both a progset and instructions must be provided"
-
-        if sc.isstring(parset):
-            parset = proj.parsets[parset]
-        if sc.isstring(progset):
-            progset = proj.progsets[progset]
-
-        progset_instructions = sc.promotetolist(progset_instructions)
-        if not result_names:
-            if len(progset_instructions) > 1:
-                result_names = ['instructions_%d' % (i) for i in range(len(progset_instructions))]
-            else:
-                result_names = ['default']
-        else:
-            assert(len(result_names) == 1 and not progset_instructions) or (len(progset_instructions) == len(result_names)), "Number of result names must match number of instructions"
-
-        if progset:
-            results = [proj.run_sim(parset=parset,progset=progset,progset_instructions=x,result_name=y) for x,y in zip(progset_instructions,result_names)]
-        else:
-            results = [proj.run_sim(parset=parset,result_name=y) for y in result_names]
-
-        self.set_baseline(results)
-
-        n = 0
-        failed = 0
         self.samples = [] # Drop the old samples
 
-        while n < n_samples:
+        if parallel:
+            # NB. The calling code must be wrapped in a 'if __name__ == '__main__'
+            # Currently not passing in any extra kwargs but that should be easy to add if/when required
+            # (main reason for deferring implementation is so as to have suitable test code when developing)
+            self.samples = sc.parallelize(_sample_and_map, iterarg=n_samples, kwargs={'mapping_function':self.mapping_function,'max_attempts':max_attempts,'proj':proj, 'parset':parset, 'progset':progset,'progset_instructions':progset_instructions,'result_names':result_names})
+        else:
+            original_level = logger.getEffectiveLevel()
+            logger.setLevel(logging.WARNING)  # Never print debug messages inside the sampling loop - note that depending on the platform, this may apply within `sc.parallelize`
 
-            if failed > n_samples*10:
-                # This would probably happen if the ICs are very sensitive and any small perturbation
-                # causes them to become invalid
-                raise Exception('Failed 10x the number of requested simulations - something might have gone wrong')
+            if original_level <= logging.INFO:
+                range_iterator = tqdm.trange(n_samples)
+            else:
+                range_iterator = range(n_samples)
 
-            try:
-                if progset:
-                    sampled_parset = parset.sample()
-                    sampled_progset = progset.sample()
-                    results = [proj.run_sim(parset=sampled_parset, progset=sampled_progset, progset_instructions=x, result_name=y) for x, y in zip(progset_instructions, result_names)]
-                else:
-                    sampled_parset = parset.sample()
-                    results = [proj.run_sim(parset=sampled_parset,result_name=y) for y in result_names]
-                self.add(results)
-                n += 1
-            except BadInitialization:
-                failed += 1
-                continue
+            for _ in range_iterator:
+                sample = _sample_and_map(mapping_function=self.mapping_function, proj=proj, parset=parset, progset=progset, progset_instructions=progset_instructions, result_names=result_names, max_attempts=max_attempts)
+                self.samples.append(sample)
+
+            logger.setLevel(original_level) # Reset the logger
 
     @property
     def n_samples(self) -> int:
@@ -881,7 +866,7 @@ class Ensemble(NamedItem):
         for sample in self.samples:
             for series in sample.series:
                 series_lookup[(series.result, series.pop, series.output)].append(series)
-        return dict(series_lookup)
+        return sc.odict(series_lookup)
 
     def set_baseline(self, results, **kwargs) -> None:
         """
@@ -921,7 +906,10 @@ class Ensemble(NamedItem):
         plotdata = self.mapping_function(results, **kwargs)
         assert isinstance(plotdata, PlotData)  # Make sure the mapping function returns the correct type
         # assert len(plotdata.results) == 1, 'The mapping function must return a PlotData instance with only one Result'
-        self.samples.append(plotdata.set_colors(pops=plotdata.pops, outputs=plotdata.outputs))
+        if not self.samples:
+            # Set the colors on the first PlotData to be added - for performance, only do this for the first sample
+            plotdata.set_colors(pops=plotdata.pops, outputs=plotdata.outputs)
+        self.samples.append(plotdata)
 
     def update(self, result_list, **kwargs) -> None:
         """
@@ -1021,7 +1009,7 @@ class Ensemble(NamedItem):
 
         return fig
 
-    def plot_series(self, fig=None, style='samples', results=None, outputs=None, pops=None):
+    def plot_series(self, fig=None, style='quartile', results=None, outputs=None, pops=None):
         """
         Plot a time series with uncertainty
 
@@ -1053,45 +1041,39 @@ class Ensemble(NamedItem):
             for output in outputs:
                 for pop in pops:
 
-                    vals = np.vstack(
-                        [x.vals.ravel() for x in series_lookup[result, pop, output]])  # Turn samples into a matrix
+                    these_series = series_lookup[result, pop, output]
+                    vals = np.vstack([x.vals.ravel() for x in these_series])  # Turn samples into a matrix
 
                     if self.baseline:
                         baseline_series = self.baseline[result, pop, output]
-                        h = plt.plot(baseline_series.tvec, baseline_series.vals,
-                                     label='%s: %s-%s-%s (baseline)' % (self.name, result, pop, output))[0]
+                        plt.plot(baseline_series.tvec, baseline_series.vals,color=baseline_series.color, label='%s: %s-%s-%s (baseline)' % (self.name, result, pop, output))[0]
                     else:
-                        h = plt.plot(series.tvec, np.median(vals, axis=0), linestyle='dashed',
-                                     label='%s: %s-%s-%s (median)' % (self.name, result, pop, output))[0]
-                    color = h.get_color()
+                        plt.plot(these_series[0].tvec, np.mean(vals, axis=0), color=these_series[0].color, linestyle='dashed',label='%s: %s-%s-%s (mean)' % (self.name, result, pop, output))[0]
 
                     if style == 'samples':
-                        for series in series_lookup[result, pop, output]:
-                            h = plt.plot(series.tvec, series.vals, color=color, alpha=0.05)
-                            if color is None:
-                                color = h.get_color()
+                        for series in these_series:
+                            plt.plot(series.tvec, series.vals, color=series.color, alpha=0.05)
+
                     elif style == 'quartile':
-                        ax.fill_between(self.samples[0].series[0].tvec, np.quantile(vals, 0.25, axis=0),
-                                        np.quantile(vals, 0.75, axis=0), alpha=0.15, color=color)
+                        ax.fill_between(these_series[0].tvec, np.quantile(vals, 0.25, axis=0),np.quantile(vals, 0.75, axis=0), alpha=0.15, color=these_series[0].color)
                     elif style == 'ci':
-                        ax.fill_between(self.samples[0].series[0].tvec, np.quantile(vals, 0.025, axis=0),
-                                        np.quantile(vals, 0.975, axis=0), alpha=0.15, color=color)
+                        ax.fill_between(these_series[0].tvec, np.quantile(vals, 0.025, axis=0),np.quantile(vals, 0.975, axis=0), alpha=0.15, color=these_series[0].color)
                     elif style == 'std':
                         if self.baseline:
-                            ax.fill_between(baseline_series.tvec, baseline_series.vals - np.std(vals, axis=0),
-                                            baseline_series.vals + np.std(vals, axis=0), alpha=0.15, color=color)
+                            ax.fill_between(baseline_series.tvec, baseline_series.vals - np.std(vals, axis=0),baseline_series.vals + np.std(vals, axis=0), alpha=0.15, color=baseline_series.color)
                         else:
-                            raise Exception('For consistency, standard deviation is added to the baseline result, but if no baseline is present, then the median is displayed, so not valid to add the std to the median')
+                            ax.fill_between(these_series[0].tvec, np.mean(vals, axis=0) - np.std(vals, axis=0),np.mean(vals, axis=0) + np.std(vals, axis=0), alpha=0.15, color=these_series[0].color)
                     else:
                         raise Exception('Unknown style')
 
-            proposed_label = "%s (%s)" % (output, series_lookup[result, pop, output][0].unit_string)
+            proposed_label = "%s (%s)" % (output, these_series[0].unit_string)
             if ax.yaxis.get_label().get_text():
                 assert proposed_label == ax.yaxis.get_label().get_text(), 'The outputs being superimposed have different units'
             else:
-                plt.ylabel(proposed_label)
+                ax.set_ylabel(proposed_label)
 
-        plt.xlabel('Year')
+        ax.set_xlabel('Year')
+        ax.legend()
         return fig
 
     def plot_bars(self, fig=None, years=None, results=None, outputs=None, pops=None, order=('years','results','outputs','pops'), horizontal=False, offset:float =None):
@@ -1147,25 +1129,30 @@ class Ensemble(NamedItem):
 
         base_order = ('years','results','outputs','pops')
         for year, result, output, pop in nested_loop([years,results,outputs,pops],map(base_order.index,order)):
+
+            if year is None:
+                vals = np.array([x.vals[0] for x in series_lookup[result, pop, output]])
+                year_val = series_lookup[result, pop, output][0].tvec[0]
+                labels.append('%s: %s-%s-%s (%g)' % (self.name, result, pop, output, year_val))
+            else:
+                vals = np.array([x.interpolate(year) for x in series_lookup[result, pop, output]])
+                labels.append('%s: %s-%s-%s (%g)' % (self.name, result, pop, output, year))
+
             if self.baseline:
                 if year is None:
                     baselines.append(self.baseline[result, pop, output].vals[0])
                 else:
                     baselines.append(self.baseline[result, pop, output].interpolate(year)[0])
-
-            if year is None:
-                vals = np.array([x.vals[0] for x in series_lookup[result, pop, output]])
             else:
-                vals = np.array([x.interpolate(year) for x in series_lookup[result, pop, output]])
+                baselines.append(np.mean(vals))
+
             x.append(vals.ravel())
-            labels.append('%s: %s-%s-%s (baseline, %g)' % (self.name, result, pop, output, year))
+
         locations = offset + np.arange(len(x))
         sample_array = np.vstack(x).T
-        if not baselines:
-            baseline = np.mean(sample_array,axis=0)
         sample_errors = np.std(sample_array,axis=0)
 
-        for location,baseline, error,label in zip(locations, baselines, sample_errors,labels):
+        for location,baseline, error,label in zip(locations, baselines, sample_errors, labels):
             if horizontal:
                 ax.barh(location, baseline, xerr=error, capsize=10,label=label, height=0.5)
             else:
@@ -1247,10 +1234,14 @@ class Ensemble(NamedItem):
 
                         if year is None:
                             vals = np.array([x.vals[0] for x in series_lookup[result, pop, output]])
+                            year_val = series_lookup[result, pop, output][0].tvec[0]
+                            labels.append('%s: %s-%s-%s (%g)' % (self.name, result, pop, output, year_val))
                         else:
                             vals = np.array([x.interpolate(year) for x in series_lookup[result, pop, output]])
+                            labels.append('%s: %s-%s-%s (%g)' % (self.name, result, pop, output, year))
                         x.append(vals.ravel())
-                        labels.append('%s: %s-%s-%s (baseline, %g)' % (self.name, result, pop, output, year))
+
+
         locations = offset + np.arange(len(x))
         plt.boxplot(np.vstack(x).T, positions=locations, manage_xticks=False)
         ax.set_xlim(-0.5, locations[-1] + 0.5)
@@ -1343,5 +1334,26 @@ class Ensemble(NamedItem):
 
             colors = sc.gridcolors(len(self.results))
             colormap = {x: y for x, y in zip(self.results, colors)}
-            pd.scatter_matrix(df, c=[colormap[x] for x in df['result'].values], diagonal='kde')
+            pd.plotting.scatter_matrix(df, c=[colormap[x] for x in df['result'].values], diagonal='kde')
             plt.suptitle(pop)
+
+
+def _sample_and_map(proj, parset, progset, progset_instructions, result_names, mapping_function, max_attempts, **kwargs):
+    """
+    Helper function to sample
+
+    This function runs a sampled simulation and also calls an Ensemble's mapping
+    function prior to returning. This means that the Result goes out of scope and
+    is discarded. Used when performing parallel simulations via `Ensemble.run_sims()`
+    (which is used for memory-constrained simulations)
+
+    """
+
+    # First, get a single sample (could have multiple results if multiple instructions)
+    results = proj.run_sampled_sims(n_samples=1,parset=parset, progset=progset, progset_instructions=progset_instructions, result_names=result_names, max_attempts=max_attempts)
+
+    # Then convert it to a plotdata via the mapping function
+    plotdata = mapping_function(results[0], **kwargs)
+
+    # Finally, return the plotdata instead of the result
+    return plotdata

@@ -41,5 +41,6 @@ setup(
         'pyswarm',
         'hyperopt',
         'sciris',
+        'tqdm'
     ],
 )

@@ -81,11 +81,26 @@ class SpendingAdjustment(Adjustment):
         Adjustment.__init__(self, name=prog_name)
         self.prog_name = prog_name
         self.t = sc.promotetoarray(t)  # Time at which to apply the adjustment
-        if isinstance(initial, list):
-            assert len(initial) == len(self.t), "If supplying initial values, you must either specify one, or one for every time point"
+
+        lower = sc.promotetolist(lower,keepnone=True)
+        if len(lower) == 1:
+            lower = lower*len(self.t)
         else:
-            initial = [initial] * len(self.t)
-        self.adjustables = [Adjustable(prog_name, limit_type, lower, upper, initial_value) for initial_value in initial]
+            assert len(lower) == len(self.t), "If supplying lower bounds, you must either specify one, or one for every time point"
+
+        upper = sc.promotetolist(upper,keepnone=True)
+        if len(upper) == 1:
+            upper = upper*len(self.t)
+        else:
+            assert len(upper) == len(self.t), "If supplying upper bounds, you must either specify one, or one for every time point"
+
+        initial = sc.promotetolist(initial,keepnone=True)
+        if len(initial) == 1:
+            initial = initial*len(self.t)
+        else:
+            assert len(initial) == len(self.t), "If supplying initial values, you must either specify one, or one for every time point"
+
+        self.adjustables = [Adjustable(prog_name, limit_type, lower_bound=lb, upper_bound=ub, initial_value=init) for lb,ub,init in zip(lower,upper,initial)]
 
     def update_instructions(self, adjustable_values, instructions):
         # There is one Adjustable for each time point, so the adjustable_values
@@ -519,16 +534,23 @@ class TotalSpendConstraint(Constraint):
 
             x0_array = np.array(x0.values()).ravel()
             x0_array_scaled = x0_array / sum(x0_array) * total_spend  # Multiplicative rescaling to match the total spend
-            res = scipy.optimize.minimize(lambda x: np.sqrt(np.sum((x - x0_array_scaled) ** 2)), x0_array_scaled, bounds=bounds, constraints=LinearConstraint, options={'maxiter': 500})
+
+            def jacfcn(x):
+                dist = np.linalg.norm(x - x0_array_scaled)
+                if dist == 0:
+                    return np.zeros(x.shape)
+                else:
+                    return (x-x0_array_scaled)/dist
+
+            res = scipy.optimize.minimize(lambda x: np.linalg.norm(x - x0_array_scaled), x0_array_scaled, jac=jacfcn, bounds=bounds, constraints=LinearConstraint, options={'maxiter': 500})
 
             if not res['success']:
                 logger.error('TotalSpendConstraint failed - rejecting these proposed parameters with an objective value of np.inf')
                 penalty = np.inf
             else:
-                penalty += np.sqrt(np.sum((res['x'] - x0_array)**2))  # Penalty is the distance between the unconstrained budget and the constrained budget
+                penalty += np.linalg.norm(res['x'] - x0_array)  # Penalty is the distance between the unconstrained budget and the constrained budget
                 for name, val in zip(x0.keys(), res['x']):
                     instructions.alloc[name].insert(t, val)
-
         return penalty
 
 
