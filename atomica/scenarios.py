@@ -1,15 +1,21 @@
 """
-Define classes and functions for handling scenarios
+Define classes for handling scenarios
 
-This module implements the classes used to represent the three
+
+This module implements the classes used to represent the four
 main types of scenarios in Atomica:
 
-* parameter scenarios
-* budget scenarios
-* coverage scenarios
+- Parameter scenarios
+- Budget scenarios
+- Capacity scenarios
+- Coverage scenarios
+
+There are broadly two kinds of scenario
+
+- Parameter scenarios which involve modifying a :class:`ParameterSet` instance
+- Program scenarios (budget, capacity, coverage) which involve modifying a :class:`ProgramInstructions` instance
 
 """
-
 
 import numpy as np
 import sciris as sc
@@ -18,50 +24,64 @@ from .utils import NamedItem
 from .programs import ProgramInstructions
 from .utils import TimeSeries
 
-
 class Scenario(NamedItem):
+    """
+    Base scenario class
+
+    All Scenario objects share this type. It is a NamedItem that also has an
+    ``active`` property which represents whether the scenario should be run
+    as part of :meth:`project.Project.run_scenarios`
+
+    """
+
     def __init__(self, name, active=None):
         NamedItem.__init__(self, name)
         self.active = active if active is not None else True
 
-    def get_parset(self, parset, settings):
-        return parset
+    def run(self):
+        """
+        Run scenario simulation
 
-    def get_progset(self, progset, settings, options):
-        return progset, options
+        This method should compute the modified parset or progset, pass it to
+        :meth:`project.Project.run_sim` and then return the result. It needs to be
+        implemented for each derived class.
 
+        :return: A Result object
+
+        """
+        raise NotImplementedError('Derived classes should implement this')
 
 class ParameterScenario(Scenario):
-    def __init__(self, name=None, scenario_values=None, active=None, parsetname=None):
+    def __init__(self, name=None, scenario_values:dict =None, active=None, parsetname=None):
         """
-        Given some data that describes a parameter scenario, creates the corresponding parameterSet
-        which can then be combined with a ParameterSet when running a model.
+        Define and run parameter scenarios
 
-        Params:
-            scenario_values:     list of values, organized such to reflect the structure of a linkpars structure in data
-                                 data['linkpars'] = {parameter_label : {pop_label : odict o }  where
-                                     o = dict/odict with keys:
-                                         t : np.array or list with year values
-                                         y : np.array or list with corresponding parameter values
-            active : If running via `project.run_scenarios` this flags whether to run the scenario
-            parsetname : If running via 'project.run_scenarios` this identifies which parset to use from the project
+        This object stores overwrites to parameter values that are used to modify
+        a :class:`ParameterSet` instance before running a simulation.
 
-        Example:
-            scvalues = dict()
-            param = 'birth_transit'
-            scvalues[param] = dict()
-            scvalues[param]['Pop1'] = dict()
-            scvalues[param]['Pop1']['y'] = [3e6, 1e4, 1e4, 2e6]
-            scvalues[param]['Pop1']['t'] = [2003.,2004.,2014.,2015.]
+        :param name: The name of the scenario. This will also be used to name the result
+        :param scenario_values: A dict of overwrites to parameter values. The structure is
+            ``{parameter_label: {pop_label: dict o}`` where the overwrite ``o`` contains keys
+             - ``t`` : np.array or list with year values
+             - ``y`` : np.array or list with corresponding parameter values
+             - ``smooth_onset`` (optional): Smoothly ramp parameter value rather than having a stepped change
+        :param active: If running via ``Project.run_scenarios`` this flags whether to run the scenario
+        :param parsetname: If running via ``Project.run_scenarios`` this identifies which parset to use from the project
 
-            OPTIONALLY can also specify
-            scvalues[param]['Pop1']['smooth_onset'] = 1
-            scvalues[param]['Pop1']['smooth_onset'] = [1,2,3,4] (same length as y)
+        Example usage:
 
-            pscenario = ParameterScenario(name="examplePS",scenario_values=scvalues)
-
+        >>> scvalues = dict()
+        >>> param = 'birth_transit'
+        >>> scvalues[param] = dict()
+        >>> scvalues[param]['Pop1'] = dict()
+        >>> scvalues[param]['Pop1']['y'] = [3e6, 1e4, 1e4, 2e6]
+        >>> scvalues[param]['Pop1']['t'] = [2003.,2004.,2014.,2015.]
+        >>> scvalues[param]['Pop1']['smooth_onset'] = 1
+        >>> scvalues[param]['Pop1']['smooth_onset'] = [1,2,3,4] (same length as y)
+        >>> pscenario = ParameterScenario(name="examplePS",scenario_values=scvalues)
 
         """
+
         super(ParameterScenario, self).__init__(name, active)
         self.parsetname = parsetname
         # TODO - could do some extra validation here
@@ -69,11 +89,23 @@ class ParameterScenario(Scenario):
 
     def get_parset(self, parset=None, settings=None):
         """
+        Return modified parset
+
+        This method takes in a :class:`ParameterSet` and modifies it by applying the overwrites
+        present in the scenario. This can thus be used to return the :class:`ParameterSet` for use in
+        other simulations that are manually run, or to do things like perform a budget scenario simulation
+        in conjunction with a parameter scenario.
+
         Get the corresponding parameterSet for this scenario, given an input parameterSet for the default baseline
         activity.
 
         The output depends on whether to overwrite (replace) or add values that appear in both the
         parameterScenario's parameterSet to the baseline parameterSet.
+
+        :param parset: A :class:`ParameterSet` instance
+        :param settings: A :class:`ProjectSettings` instance (e.g. ``proj.settings``)
+        :return: A new, modified :class:`ParameterSet` object
+
         """
 
         # Note - the parset will be overwritten between the first and last year specified in scvalues
@@ -145,10 +177,15 @@ class ParameterScenario(Scenario):
             return new_parset
 
     def run(self, project=None, parset=None, store_results=True):
-        # Run the ParameterScenario
-        # INPUTS
-        # - project : A Project instance
-        # - parset : Optionally a ParameterSet instance, otherwise will use `self.parsetname`
+        """
+        Run parameter scenario
+
+        :param project: A :class:`Project` instance
+        :param parset: Optionally a :class:`ParameterSet` instance, otherwise will use ``self.parsetname``
+        :param store_results: If True, the results will be copied into the project
+        :return: A :class:`Result` object
+
+        """
 
         if parset is None:
             parset = project.parsets[self.parsetname]
