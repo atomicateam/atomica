@@ -1,8 +1,28 @@
-sudo: required
 dist: xenial
-python:
-- "3.6"
-- "3.7"
+sudo: required
+
 language: python
+python:
+- '3.6'
+- '3.7'
 install: pip install tox-travis
 script: tox
+
+stages:
+  - test
+  - name: deploy
+    if: branch = master
+
+jobs:
+ include:
+   - stage: deploy
+
+deploy:
+  provider: pypi
+  distributions: sdist bdist_wheel
+  user: romesh
+  password:
+    secure: DmfAi3ULOlfB3sCXwmGK8CqwuZC3GOZDerEvRtbIWIaETAj0AFn1tvlvZNr1m8mSVTp4FQCSm2gOpriVXE8m0Pdm7Jx6EnN1tpn3qlJKZDQiMOXimZJ/U8LQYmXoFwnhb1sJoPJcpF+VCDoPH2ee2xX98uLHyub/vt2tVNBQEj76KQ08HCNVQcRPTDgj4ElJBsvVP3LEGMed5AxF/0B/iHgqp7Mnm+HlG/7d3MoKRmvZqxPcBCfXHybVXPjSRUKGupFBInCfAcd7gQML/YVPXUdnA8oL6H5SFmGaKYbVdfD9vJlV7Aveo3hagintC72bEY1Nb96LDlRm72J6W853qFw4j8FVu774u6OJYyl6SV0uemiXg49E7zft1IRhyfs+DOGRDQWnU7QcIajvoFDCnV8HPSmU1h5+EDyvJuhSQHyB87TakzaAMEHgVYFzrZAuqNkxT2R+xCFdtfl6szLX3Wu0gueCPmymC3EeaDVisQwuMQ5C6kdjPlBc7/s3uQ7uXWM7ZjW3l1swhuwoTF+gePhvrSCsymrH8zk8TieUfeh1BtS/FCqwH/h95AEUpkfHq/Wgnl/3zmb2N8vncjT6GHwLb/MPhREYeGgY12ENyflQcAWKpmoaWftb0Z3xOWz+usKR7dDoeYejLqi0Kj1ttwhYLITQ32c3gN91P2raGe4=
+  python: 3.7
+  install: skip
+  script: skip

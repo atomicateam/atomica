@@ -2,9 +2,17 @@
 # -*- coding: utf-8 -*-
 
 from setuptools import setup, find_packages
+import os
 
-with open("./atomica/version.py", "r") as f:
+cwd = os.path.abspath(os.path.dirname(__file__))
+
+# Read version
+with open(os.path.join(cwd,'atomica','version.py'), 'r') as f:
     version = [x.split('=')[1].replace('"','').strip() for x in f if x.startswith('version =')][0]
+
+# Read README.md for description
+with open(os.path.join(cwd,'README.md'), 'r') as f:
+    long_description = f.read()
 
 CLASSIFIERS = [
     'Environment :: Console',
@@ -24,6 +32,8 @@ setup(
     author='Atomica Team',
     author_email='info@atomica.tools',
     description='Toolbox for compartment-based dynamic systems with costing and optimization',
+    long_description=long_description,
+    long_description_content_type='text/markdown',
     url='http://github.com/atomicateam/atomica',
     keywords=['dynamic','compartment','optimization', 'disease'],
     platforms=['OS Independent'],
