@@ -7,11 +7,11 @@ import os
 cwd = os.path.abspath(os.path.dirname(__file__))
 
 # Read version
-with open(os.path.join(cwd,'atomica','version.py', 'r')) as f:
+with open(os.path.join(cwd,'atomica','version.py'), 'r') as f:
     version = [x.split('=')[1].replace('"','').strip() for x in f if x.startswith('version =')][0]
 
 # Read README.md for description
-with open(os.path.join(cwd,'README.md', 'r')) as f:
+with open(os.path.join(cwd,'README.md'), 'r') as f:
     long_description = f.read()
 
 CLASSIFIERS = [
