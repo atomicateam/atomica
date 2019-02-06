@@ -2,5 +2,5 @@ graft atomica
 
 include LICENSE
 include README.md
-
+prune tests/temp
 global-exclude *.py[cod] __pycache__ *.so *.dylib

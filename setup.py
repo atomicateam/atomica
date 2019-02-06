@@ -9,7 +9,7 @@ with open("./atomica/version.py", "r") as f:
 CLASSIFIERS = [
     'Environment :: Console',
     'Intended Audience :: Science/Research',
-    'License :: OSI Approved :: GPLv3',
+    'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
     'Operating System :: OS Independent',
     'Programming Language :: Python',
     'Topic :: Software Development :: Libraries :: Python Modules',
