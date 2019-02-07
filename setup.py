@@ -22,7 +22,6 @@ CLASSIFIERS = [
     'Programming Language :: Python',
     'Topic :: Software Development :: Libraries :: Python Modules',
     'Development Status :: 3 - Alpha',
-    'Programming Language :: Python :: 3.6',
     'Programming Language :: Python :: 3.7',
 ]
 
@@ -34,7 +33,7 @@ setup(
     description='Toolbox for compartment-based dynamic systems with costing and optimization',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    url='http://github.com/atomicateam/atomica',
+    url='https://atomica.tools',
     keywords=['dynamic','compartment','optimization', 'disease'],
     platforms=['OS Independent'],
     classifiers=CLASSIFIERS,
