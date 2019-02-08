@@ -1,6 +1,27 @@
-sudo: required
 dist: xenial
-python: "3.7"
+sudo: required
 language: python
+python:
+- '3.6'
+- '3.7'
 install: pip install tox-travis
 script: tox
+stages:
+- test
+- name: deploy
+  if: branch = master
+jobs:
+  include:
+  - stage: deploy
+    python: 3.7
+    install: skip
+    script: skip
+    if: NOT type = pull_request
+    deploy:
+      provider: pypi
+      distributions: sdist bdist_wheel
+      user: romesh
+      password:
+        secure: w7T2DQRm4jugoCanKygWB0Ub2BKm3VNMzKbGJ94mjDqy8t3gJTeWWYlnCruHGExUs9ZxUNCFAdGXPUFji6gZfI8gK6NiP4DAo3Ex5XJ9HCvjL+1erRz9t6YO1D5XcrIjHZWgsz8v/HhK333x+Tc2lm7ITWnIp0KELeOFCa9LO1g8k30/Q9EcrC/Y0QOfkfIU20w4YCbtUgbS1GkX1zoq/1zS7EqOEOWc1WM9cLxpVCCa/BgCEcC5DxjOYIhCqk9yznJrtf/GblMn7514zOLGoMiDmBkYLfBfrVSoFvmJbV6TsGUJNuLNkmR44pYG5igy3g7aacUCdlPgJX/qjErWzT14WX1VZdDbqi0Hag2sUlHV+HS8BSarGiU7Xezob4F32U99gWv+4WzOG8M5kac56lMUYSCn0mZlIWNKNR/va9s4fegeINhV3V/SxjDCN0Fm3tGUMSSUHlyeJ/2UztaijEIL7zFjrlu4WIYL3ELsA3UcYoKCFb2sAZFJNrKDAGAF621il7v/TZ9lAakaukOblWNNXK0OGj2a+ahw7nkhG1+TMTjQ890QVwCQ46FD4sMIldYtyWBPOJimRMokI3nTiL5PZKMsrB8NW0aJf3s1HkediIa2mzMDT/BwNkwx8NnZuls/FTwnFqjslQbOToJrJ/MAdXPFSy0GYNhrcLdHJBw=
+    on:
+      repo: atomicateam/atomica

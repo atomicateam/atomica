@@ -1,8 +1,12 @@
-# -*- coding: utf-8 -*-
 """
 Atomica version file.
+
 Standard location for module version number and date.
 """
 
-version = "1.0.11"
-versiondate = "2018-10-26"
+import sciris as sc
+
+version = "1.0.23"
+versiondate = "2019-02-06"
+gitinfo = sc.gitinfo(__file__, verbose=False)
+

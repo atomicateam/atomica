@@ -1,7 +1,19 @@
+"""
+Implements the automatic reconciliation algorithm
+
+In any given model run, the parameters calculated by the :class:`ProgramSet`
+should ideally match up with the values in the :class:`ParameterSet` so that
+there are no discontinuities in parameter value. This may not be the case depending
+on the data gathered and the calibration. Reconciliation aims to adjust the
+internal parameters of the :class:`ProgramSet` to best match a :class:`ParameterSet`
+in a particular year.
+
+"""
+
 import numpy as np
 import sciris as sc
 from .system import logger
-from .structure import FrameworkSettings as FS
+from .system import FrameworkSettings as FS
 import pandas as pd
 
 
@@ -32,9 +44,9 @@ def _extract_targets(result, progset, ti, eval_pars=None):
                 target_vals[(par_name, pop_name)] = par.vals[ti]
 
     # Get the coverage denominator in the reconciliation year (it's always the same, so can do it once here)
-    coverage_denominator = {x: y[ti] for x, y in result.get_coverage('denominator').items()}
+    num_eligible = {x: y[ti] for x, y in result.get_coverage('eligible').items()}
 
-    return target_vals, coverage_denominator
+    return target_vals, num_eligible
 
 
 def _update_progset(asd_vals, mapping, progset):
@@ -45,7 +57,7 @@ def _update_progset(asd_vals, mapping, progset):
     #             e.g.  [('unit_cost','BCG'),('outcome','v_rate','0-4','BCG')]
     #             The mapping is
     #             unit_cost - program
-    #             capacity - program
+    #             capacity_constraint - program
     #             baseline - par,pop
     #             outcome - par,pop,program
     # - progset : ProgramSet to modify, should have only one time
@@ -53,9 +65,9 @@ def _update_progset(asd_vals, mapping, progset):
         if target[0] == 'unit_cost':
             assert len(progset.programs[target[1]].unit_cost.vals) == 1
             progset.programs[target[1]].unit_cost.vals[0] = x
-        elif target[0] == 'capacity':
-            assert len(progset.programs[target[1]].capacity.vals) == 1
-            progset.programs[target[1]].capacity.vals[0] = x
+        elif target[0] == 'capacity_constraint':
+            assert len(progset.programs[target[1]].capacity_constraint.vals) == 1
+            progset.programs[target[1]].capacity_constraint.vals[0] = x
         elif target[0] == 'baseline':
             progset.covouts[(target[1], target[2])].baseline = x
         elif target[0] == 'outcome':
@@ -68,23 +80,23 @@ def _prepare_bounds(progset, unit_cost_bounds, baseline_bounds, capacity_bounds,
     # for every parameter being considered
     #
     # OUTPUTS
-    # bounds dict : {quantity:{key:(lower,upper)} where quantity is 'unit_cost','capacity','baseline','outcome', and key is:
+    # bounds dict : {quantity:{key:(lower,upper)} where quantity is 'unit_cost','capacity_constraint','baseline','outcome', and key is:
     #     for unit_cost - program
-    #     for capacity - program
+    #     for capacity_constraint - program
     #     for baseline - par,pop
     #     for outcome - par,pop,program
 
     bounds = dict()
     bounds['unit_cost'] = dict()
-    bounds['capacity'] = dict()
+    bounds['capacity_constraint'] = dict()
     bounds['baseline'] = dict()
     bounds['outcome'] = dict()
 
     for prog in progset.programs.values():
         if unit_cost_bounds:
             bounds['unit_cost'][prog.name] = prog.unit_cost.vals * np.array([1 - unit_cost_bounds, 1 + unit_cost_bounds])
-        if capacity_bounds and prog.capacity.has_data:
-            bounds['capacity'][prog.name] = prog.capacity.vals * np.array([1 - capacity_bounds, 1 + capacity_bounds])
+        if capacity_bounds and prog.capacity_constraint.has_data:
+            bounds['capacity_constraint'][prog.name] = prog.capacity_constraint.vals * np.array([1 - capacity_bounds, 1 + capacity_bounds])
 
     for covout in progset.covouts.values():
         if baseline_bounds:
@@ -110,11 +122,11 @@ def _prepare_asd_inputs(progset, bounds):
             xmin.append(bounds['unit_cost'][prog.name][0])
             xmax.append(bounds['unit_cost'][prog.name][1])
             mapping.append(('unit_cost', prog.name))
-        if prog.name in bounds['capacity']:  # Might need to check program_specific bounds here
-            x0.append(prog.capacity.vals[0])
-            xmin.append(bounds['capacity'][prog.name][0])
-            xmax.append(bounds['capacity'][prog.name][1])
-            mapping.append(('capacity', prog.name))
+        if prog.name in bounds['capacity_constraint']:  # Might need to check program_specific bounds here
+            x0.append(prog.capacity_constraint.vals[0])
+            xmin.append(bounds['capacity_constraint'][prog.name][0])
+            xmax.append(bounds['capacity_constraint'][prog.name][1])
+            mapping.append(('capacity_constraint', prog.name))
 
     for covout in progset.covouts.values():
         if (covout.par, covout.pop) in bounds['baseline']:
@@ -133,14 +145,14 @@ def _prepare_asd_inputs(progset, bounds):
     return x0, xmin, xmax, mapping
 
 
-def _objective(x, mapping, progset, eval_years, target_vals, coverage_denominator, dt):
+def _objective(x, mapping, progset, eval_years, target_vals, num_eligible, dt):
     _update_progset(x, mapping, progset)  # Apply the changes to the progset
-    num_coverage = progset.get_num_coverage(tvec=eval_years, dt=dt, sample=False)  # Get number coverage using latest unit costs but default spending
-    prop_coverage = progset.get_prop_coverage(tvec=eval_years, num_coverage=num_coverage, denominator=coverage_denominator, sample=False)
+    capacities = progset.get_capacities(tvec=eval_years, dt=dt)  # Get number coverage using latest unit costs but default spending
+    prop_coverage = progset.get_prop_coverage(tvec=eval_years, capacities=capacities, num_eligible=num_eligible)
 
     obj = 0.0
     for i in range(0, len(eval_years)):
-        outcomes = progset.get_outcomes(prop_coverage=prop_coverage, sample=False)
+        outcomes = progset.get_outcomes(prop_coverage=prop_coverage)
         for key in target_vals:  # Key is a (par,pop) tuple
             obj += (target_vals[key][i] - outcomes[key]) ** 2  # Add squared difference in parameter value
     return obj
@@ -173,10 +185,10 @@ def _convert_to_single_year(progset, reconciliation_year):
             prog.unit_cost.t = reconciliation_year.copy()
             prog.unit_cost.assumption = None
 
-        if prog.capacity.has_data:
-            prog.capacity.vals = prog.capacity.interpolate(reconciliation_year)
-            prog.capacity.t = reconciliation_year.copy()
-            prog.capacity.assumption = None
+        if prog.capacity_constraint.has_data:
+            prog.capacity_constraint.vals = prog.capacity_constraint.interpolate(reconciliation_year)
+            prog.capacity_constraint.t = reconciliation_year.copy()
+            prog.capacity_constraint.assumption = None
 
         # This is tricky - maybe we do want to retain other values? Depends on what ends up happening with coverage
         if prog.coverage.has_data:
@@ -189,33 +201,37 @@ def _convert_to_single_year(progset, reconciliation_year):
 # ASD takes in a list of values. So we need to map all of the things we are optimizing onto
 
 
-def reconcile(project, parset, progset, reconciliation_year, max_time=10, unit_cost_bounds=0.0, baseline_bounds=0.0, capacity_bounds=0.0, outcome_bounds=0.0, eval_pars=None, eval_range=None):
-    # INTERIM
-    #
-    # unit_cost_bounds = 0.2 means +/- 20%
-    # Same for the other bounds
+def reconcile(project, parset, progset, reconciliation_year: float, max_time=10, unit_cost_bounds=0.0, baseline_bounds=0.0, capacity_bounds=0.0, outcome_bounds=0.0, eval_pars=None, eval_range=None):
     """
-    Reconciles progset to identified parset, the objective being to match the parameters as closely as possible with identified standard deviation sigma
+    Modify a progset to optimally match a parset in a specified year
 
-    Params:
-        project                    Project object to run simulations for reconciliation process (type: Python object)
-        reconciliation year: The year in which reconciliation is to be performed
+    Reconciliation is a mapping from one progset to another. The output progset generates optimally matched output parameter
+    values compared to the specified parset, in the reconciliation year for the progset's default spending. The output progset
+    has internal attributes (such as unit costs) with values that are defined only in the reconciliation year. So while the
+    input progset may have time varying unit costs etc. after reconciliation, they will be constant.
 
+    The upper and lower bounds for unit costs, baseline, capacity_constraint, and outcome are specified as fractions of the initial value. For
+    example, entering ``unit_cost_bounds=0.2`` would mean that unit costs would be allowed to range from 0.8 to 1.2 times the
+    value in the input progset.
 
-        limits : Specifies how much each quantity can be adjusted by. Can be
-                 - A single number. This is shorthard for the limits being `value*[(1-limit),(1+limit)]` e.g. 0.2 would mean +/- 20%
-                 - A single number, specific to a particular quantity. A quantity can be:
-                 - A program unit cost - limits[prog_name]['unit_cost'] = 0.2
-
-
-        constrain_budget        Flag to inform algorithm whether to constrain total budget or not (type: bool)
-
-        eval_years  : Optional, [start_year,stop_year] can evaluate match between progset and parset over this range of times
-    Returns:
-        progset                 Updated progset with reconciled values
-        outcome                 String denoting original and reconciled parset/progset impact comparison
+    :param project: A :class:`Project` instance
+    :param parset: A :class:`ParameterSet` instance (or name of a parset contained in the project)
+    :param progset: A :class:`ProgramSet` instance (or name of a progset contained in the project)
+    :param reconciliation_year: Year to perform reconciliation in
+    :param max_time: Optionally override the maximum execution time in ASD
+    :param unit_cost_bounds: Optionally specify bounds for unit costs. Default is 0.0 (unit costs will not be changed)
+    :param baseline_bounds: Optionally specify bounds for baseline spending. Default is 0.0 (no changes)
+    :param capacity_bounds: Optionally specify bounds for capacity_constraint constraints. Default is 0.0 (no changes)
+    :param outcome_bounds: Optionally specify bounds for outcome values. Default is 0.0 (no changes)
+    :param eval_pars: Optionally select a subset of parameters for comparison. By default, all parameters overwritten by the progset will be used.
+    :param eval_range: Optionally specify a range of years over which to evaluate the progset-parset match. By default, it will only use the reconciliation year
+    :return: tuple containing
+            - A reconciled :class:`ProgramSet` instance
+            - A DataFrame comparing the unreconciled and reconciled progsets
+            - A DataFrame comparing the parset parameters and progset
 
     """
+
     # Sanitize inputs
     parset = project.parset(parset)
     progset = project.progset(progset)
@@ -232,7 +248,7 @@ def reconcile(project, parset, progset, reconciliation_year, max_time=10, unit_c
     parset_results = project.run_sim(parset=parset, progset=progset, store_results=False)
     ti = np.where((parset_results.model.t >= eval_range[0]) & (parset_results.model.t < eval_range[1]))[0]
     eval_years = parset_results.t[ti]
-    target_vals, coverage_denominator = _extract_targets(parset_results, progset, ti, eval_pars)
+    target_vals, num_eligible = _extract_targets(parset_results, progset, ti, eval_pars)
 
     # Prepare ASD inputs
     new_progset = _convert_to_single_year(progset, reconciliation_year[0])
@@ -246,7 +262,7 @@ def reconcile(project, parset, progset, reconciliation_year, max_time=10, unit_c
         'progset': new_progset,
         'eval_years': eval_years,
         'target_vals': target_vals,
-        'coverage_denominator': coverage_denominator,
+        'num_eligible': num_eligible,
         'dt': project.settings.sim_dt,
     }
 
@@ -274,10 +290,10 @@ def reconcile(project, parset, progset, reconciliation_year, max_time=10, unit_c
 
     # Before/after for parameters
     records = []
-    old_num_coverage = progset.get_num_coverage(tvec=eval_years, dt=project.settings.sim_dt)
-    new_num_coverage = new_progset.get_num_coverage(tvec=eval_years, dt=project.settings.sim_dt)
-    old_prop_coverage = progset.get_prop_coverage(tvec=eval_years, num_coverage=old_num_coverage, denominator=coverage_denominator)
-    new_prop_coverage = new_progset.get_prop_coverage(tvec=eval_years, num_coverage=new_num_coverage, denominator=coverage_denominator)
+    old_capacities = progset.get_capacities(tvec=eval_years, dt=project.settings.sim_dt)
+    new_capacities = new_progset.get_capacities(tvec=eval_years, dt=project.settings.sim_dt)
+    old_prop_coverage = progset.get_prop_coverage(tvec=eval_years, capacities=old_capacities, num_eligible=num_eligible)
+    new_prop_coverage = new_progset.get_prop_coverage(tvec=eval_years, capacities=new_capacities, num_eligible=num_eligible)
     for i, year in enumerate(eval_years):
         old_outcomes = progset.get_outcomes(prop_coverage={prog: cov[[i]] for prog, cov in old_prop_coverage.items()})  # Program outcomes for this year
         new_outcomes = new_progset.get_outcomes(prop_coverage={prog: cov[[i]] for prog, cov in new_prop_coverage.items()})  # Program outcomes for this year

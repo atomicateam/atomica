@@ -1,7 +1,7 @@
-import atomica.ui as au
+import atomica as at
 import matplotlib.pyplot as plt
 
-proj = au.demo('tb')
+proj = at.demo('tb')
 par_results = proj.results[-1]
 
 scvalues = dict()
@@ -15,5 +15,5 @@ scen = proj.make_scenario(which='parameter',name="Increased deaths", instruction
 scen_results = scen.run(proj,proj.parsets["default"])
 par_results.name = 'Baseline'
 scen_results.name = 'Scenario'
-d = au.PlotData([par_results,scen_results],outputs=scen_par,pops=scen_pop)
-au.plot_series(d,axis='results')
+d = at.PlotData([par_results,scen_results],outputs=scen_par,pops=scen_pop)
+at.plot_series(d,axis='results')

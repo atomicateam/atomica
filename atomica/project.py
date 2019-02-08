@@ -1,7 +1,8 @@
 """
-PROJECT
+Implements the :class:`Project` user interface for Atomica
 
-The main project class. Almost all functionality is provided by this class.
+The :class:`Project` class serves as the primary user interface for
+Atomica. Almost all functionality can be accessed via this interface.
 
 A project is based around 5 major lists:
     1. parsets -- an odict of parameter sets
@@ -15,16 +16,9 @@ In addition, a project contains:
     2. settings -- timestep, indices, etc.
     3. various kinds of metadata -- project name, creation date, etc.
 
-Methods for structure lists:
-    1. add -- add a new structure to the odict
-    2. remove -- remove a structure from the odict
-    3. copy -- copy a structure in the odict
-    4. rename -- rename a structure in the odict
-
-Version: 2018sep25
 """
 
-from .version import version
+from .version import version, gitinfo
 from .calibration import perform_autofit
 from .data import ProjectData
 from .framework import ProjectFramework
@@ -34,16 +28,16 @@ from .parameters import ParameterSet
 from .programs import ProgramSet
 from .scenarios import Scenario, ParameterScenario, BudgetScenario, CoverageScenario
 from .optimization import Optimization, optimize, OptimInstructions, InvalidInitialConditions
-from .system import logger, AtomicaException
-from .cascade import get_cascade_outputs
-from .utils import NDict
+from .system import logger
+from .cascade import sanitize_cascade
+from .utils import NDict, evaluate_plot_string
 from .plotting import PlotData, plot_series
-from .results import Result, evaluate_plot_string
+from .results import Result
 from .migration import migrate
 import sciris as sc
 import numpy as np
-from .excel import AtomicaSpreadsheet
-
+import tqdm
+import logging
 
 class ProjectSettings(object):
     def __init__(self, sim_start=None, sim_end=None, sim_dt=None):
@@ -74,21 +68,21 @@ class ProjectSettings(object):
 
 
 class Project(object):
-    def __init__(self, name="default", framework=None, frw_name=None, databook_path=None, do_run=True, **kwargs):
+    def __init__(self, name="default", framework=None, databook=None, do_run=True, **kwargs):
         """ Initialize the project. Keywords are passed to ProjectSettings. """
         # INPUTS
         # - framework : a Framework to use. This could be
         #               - A filename to an Excel file on disk
-        #               - An AtomicaSpreadsheet instance
+        #               - An sc.Spreadsheet instance
         #               - A ProjectFramework instance
         #               - None (this should generally not be used though!)
-        # - databook_path : The path to a databook file. The databook will be loaded into Project.data and the spreadsheet saved to Project.databook
+        # - databook : The path to a databook file. The databook will be loaded into Project.data and the spreadsheet saved to Project.databook
         # - do_run : If True, a simulation will be run upon project construction
 
         self.name = name
 
-        if sc.isstring(framework) or isinstance(framework, AtomicaSpreadsheet):
-            self.framework = ProjectFramework(inputs=framework, name=frw_name)
+        if sc.isstring(framework) or isinstance(framework, sc.Spreadsheet):
+            self.framework = ProjectFramework(inputs=framework)
         elif isinstance(framework, ProjectFramework):
             self.framework = framework
         else:
@@ -105,26 +99,25 @@ class Project(object):
         # Define metadata
         self.uid = sc.uuid()
         self.version = version
-        self.gitinfo = sc.gitinfo(__file__)
+        self.gitinfo = sc.dcp(gitinfo)
         self.created = sc.now()
         self.modified = sc.now()
         self.filename = None
 
-        self.progbook = None  # This will contain an AtomicaSpreadsheet when the user loads one
+        self.progbook = None  # This will contain an sc.Spreadsheet when the user loads one
         self.settings = ProjectSettings(**kwargs)  # Global settings
 
         self._result_update_required = False  # This flag is set to True by migration is the result objects contained in this Project are out of date due to a migration change
 
         # Load project data, if available
-        if framework and databook_path:
-            # TODO: Consider compatibility checks for framework/databook.
-            self.load_databook(databook_path=databook_path, do_run=do_run)
-        elif databook_path:
+        if framework and databook:
+            self.load_databook(databook_path=databook, do_run=do_run)
+        elif databook:
             logger.warning('Project was constructed without a Framework - databook spreadsheet is being saved to project, but data is not being loaded')
-            self.databook = AtomicaSpreadsheet(databook_path)  # Just load the spreadsheet in so that it isn't lost
+            self.databook = sc.Spreadsheet(databook)  # Just load the spreadsheet in so that it isn't lost
             self.data = None
         else:
-            self.databook = None  # This will contain an AtomicaSpreadsheet when the user loads one
+            self.databook = None  # This will contain an sc.Spreadsheet when the user loads one
             self.data = None
 
     def __repr__(self):
@@ -174,26 +167,35 @@ class Project(object):
         data.save(databook_path)
         return data
 
-    def load_databook(self, databook_path=None, make_default_parset=True, do_run=True):
+    def load_databook(self, databook_path=None, make_default_parset=True, do_run=True) -> None:
         """
-        Load a data spreadsheet.
+        Load a data spreadsheet
 
-        INPUTS:
-        - databook_path: a path string, which will load a file from disk, or an AtomicaSpreadsheet
-                         containing the contents of a databook
-        - make_default_parset: If True, a Parset called "default" will be immediately created from the
-                               newly-added data
-        - do_run: If True, a simulation will be run using the new parset
+        :param databook_path: a path string, which will load a file from disk, or an sc.Spreadsheet
+                                containing the contents of a databook
+        :param make_default_parset: If True, a Parset called "default" will be immediately created from the
+                                    newly-added data
+        :param do_run: If True, a simulation will be run using the new parset
+
         """
+
         if sc.isstring(databook_path):
             full_path = sc.makefilepath(filename=databook_path, default=self.name, ext='xlsx', makedirs=False)
-            databook_spreadsheet = AtomicaSpreadsheet(full_path)
+            databook_spreadsheet = sc.Spreadsheet(full_path)
         else:
             databook_spreadsheet = databook_path
 
-        self.data = ProjectData.from_spreadsheet(databook_spreadsheet, self.framework)
+        data = ProjectData.from_spreadsheet(databook_spreadsheet, self.framework)
+
+        # If there are existing progsets, make sure the new data is consistent with them
+        if self.progsets:
+            data_pops = set((x,y['label']) for x,y in data.pops.items())
+            for progset in self.progsets.values():
+                assert data_pops == set((x,y) for x,y in progset.pops.items()), 'Existing progsets exist with populations that do not match the new databook'
+
+        self.data = data
         self.data.validate(self.framework)  # Make sure the data is suitable for use in the Project (as opposed to just manipulating the databook)
-        self.databook = sc.dcp(databook_spreadsheet)  # Actually a shallow copy is fine here because AtomicaSpreadsheet contains no mutable properties
+        self.databook = sc.dcp(databook_spreadsheet)  # Actually a shallow copy is fine here because sc.Spreadsheet contains no mutable properties
         self.modified = sc.now()
         self.settings.update_time_vector(start=self.data.start_year)  # Align sim start year with data start year.
 
@@ -206,20 +208,19 @@ class Project(object):
             if not make_default_parset:
                 logger.warning("Project has been requested to run a simulation after loading databook, "
                                "despite no request to create a default parameter set.")
-            self.run_sim(parset="default")
+            self.run_sim(parset="default", store_results=True)
 
     def make_parset(self, name="default"):
         """ Transform project data into a set of parameters that can be used in model simulations. """
-        self.parsets.append(ParameterSet(name))
-        self.parsets[name].make_pars(self.framework, self.data)
+        self.parsets.append(ParameterSet(self.framework, self.data, name))
         return self.parsets[name]
 
-    def make_progbook(self, progbook_path=None, progs=None, data_start=None, data_end=None, blh_effects=False):
+    def make_progbook(self, progbook_path=None, progs=None, data_start=None, data_end=None):
         ''' Make a blank program databook'''
         # Get filepath
         if self.data is None:
             errormsg = 'Please upload a databook before creating a program book. The databook defines which populations will appear in the program book.'
-            raise AtomicaException(errormsg)
+            raise Exception(errormsg)
         full_path = sc.makefilepath(filename=progbook_path, default=self.name, ext='xlsx', makedirs=False)  # Directory will be created later in progset.save()
         if data_start is None:
             data_start = self.data.tvec[0]
@@ -228,31 +229,31 @@ class Project(object):
         progset = ProgramSet.new(tvec=np.arange(data_start, data_end + 1), progs=progs, framework=self.framework, data=self.data)
         progset.save(full_path)
 
-    def load_progbook(self, progbook_path=None, name="default", blh_effects=False, verbose=False):
-        ''' Load a programs databook'''
-        if verbose:
-            print('Making ProgramSet')
-        if verbose:
-            print('Uploading program data')
+    def load_progbook(self, progbook_path=None, name="default"):
+        """
+        Create a ProgramSet given a progbook
+
+        :param progbook_path: Path to a program spreadsheet or an AtomicaSpreadsheet instance
+        :param name: The name to assign to the new ProgramSet
+        :return: The newly created ProgramSet (also stored in ``self.progsets``)
+
+        """
+
         if self.data is None:
             errormsg = 'Please upload a databook before uploading a program book. The databook contains the population definitions required to read the program book.'
-            raise AtomicaException(errormsg)
+            raise Exception(errormsg)
 
         if sc.isstring(progbook_path):
             full_path = sc.makefilepath(filename=progbook_path, default=self.name, ext='xlsx', makedirs=False)
-            progbook_spreadsheet = AtomicaSpreadsheet(full_path)
+            progbook_spreadsheet = sc.Spreadsheet(full_path)
         else:
             progbook_spreadsheet = progbook_path
 
-        progset = ProgramSet.from_spreadsheet(spreadsheet=progbook_spreadsheet, framework=self.framework, data=self.data)
+        progset = ProgramSet.from_spreadsheet(spreadsheet=progbook_spreadsheet, framework=self.framework, data=self.data, name=name)
         progset.validate()
         self.progbook = sc.dcp(progbook_spreadsheet)  # Actually a shallow copy is fine here because AtomicaSpreadsheet contains no mutable properties
-
-        if verbose:
-            print('Updating program sets')
         self.progsets.append(progset)
-        if verbose:
-            print('Done with make_progset().')
+        return progset
 
     def make_scenario(self, name="default", which=None, instructions=None, json=None):
         if json is not None:
@@ -390,31 +391,33 @@ class Project(object):
         """ Modify the project settings, e.g. the simulation time vector. """
         self.settings.update_time_vector(start=sim_start, end=sim_end, dt=sim_dt)
 
-    def run_sim(self, parset=None, progset=None, progset_instructions=None,
-                store_results=True, result_type=None, result_name=None):
+    def run_sim(self, parset=None, progset=None, progset_instructions=None, store_results=False, result_name:str=None):
         """
-        Run model using a selected parset and store/return results.
-        An optional program set and use instructions can be passed in to simulate budget-based interventions.
+        Run a single simulation
+
+        This function is the main entry point for running model simulations, given a
+        parset and optionally program set + instructions.
+
+        :param parset: A :class:`ParameterSet` instance, or the name of a parset contained in ``self.parsets``.
+                        If ``None``, then the most recently added parset will be used (the last entry in ``self.parsets``)
+        :param progset: Optionally pass in a :class:`ProgramSet` instance, or the name of a progset contained in ``self.progsets``
+        :param progset_instructions: A :class:`ProgramInstructions` instance. Programs will only be used if a instructions are provided
+        :param store_results: If True, then the result will automatically be stored in ``self.results``
+        :param result_name: Optionally assign a specific name to the result (otherwise, a unique default name will automatically be selected)
+        :return: A :class:`Result` instance
+
         """
 
         parset = self.parset(parset)
-        if progset is not None:     # Do not grab a default program set in case one does not exist.
-            progset = progset if isinstance(progset, ProgramSet) else self.progset(progset)
-
-        if progset is None:
-            logger.info("Initiating a standard run of project '%s' (no programs)", self.name)
-        elif progset_instructions is None:
-            logger.info("Program set '%s' will be ignored while running project '%s' due to the absence of program set instructions", progset.name, self.name)
-        else:
-            logger.info("Initiating a run of project '%s' with programs", self.name)
+        if progset is not None:
+            progset = self.progset(progset)
+            if progset_instructions is None:
+                logger.info("Program set '%s' will be ignored while running project '%s' due to the absence of program set instructions", progset.name, self.name)
 
         if result_name is None:
             base_name = "parset_" + parset.name
             if progset is not None:
                 base_name = base_name + "_progset_" + progset.name
-            if result_type is not None:
-                base_name = result_type + "_" + base_name
-
             k = 1
             result_name = base_name
             while result_name in self.results:
@@ -424,12 +427,78 @@ class Project(object):
         tm = sc.tic()
         result = run_model(settings=self.settings, framework=self.framework, parset=parset, progset=progset,
                            program_instructions=progset_instructions, name=result_name)
-        sc.toc(tm, label="running '{0}' model".format(self.name))
-
+        logger.info('Elapsed time for running "%s": %ss',self.name,sc.sigfig(sc.toc(tm,output=True),3))
         if store_results:
             self.results.append(result)
 
         return result
+
+    def run_sampled_sims(self,parset,progset=None,progset_instructions=None, result_names=None, n_samples:int =1,parallel=False, max_attempts=None) -> list:
+        """
+        Run sampled simulations
+
+        This method samples from the parset (and progset if provided). It is separate from `run_sim` for
+        several reasons
+
+        - To avoid inadvertantly blowing up the size of the project, `run_sampled_sims` does not support automatic result saving
+        - `run_sim` always returns a `Result` - if rolled into one functions, the return type would not be predictable
+        - `run_sim` only takes in a single ``ProgramInstructions`` and ``result_name`` whereas `run_sampled_sims` supports iteration
+           over multiple instructions
+
+
+        This method is different from proj.run_sim(samples=n_samples) in two ways
+        -
+
+        The other common scenario is having multiple results
+
+        :param n_samples: An integer number of samples
+        :param parset: A :class:`ParameterSet` instance
+        :param progset: Optionally a :class:`ProgramSet` instance
+        :param progset_instructions: This can be a list of instructions
+        :param result_names: Optionally specify names for each result. The most common usage would be when passing in a list of program instructions
+                             corresponding to different budget scenarios. The result names should be a list the same length as the instructions, or
+                             containing a single element if not using programs.
+        :param parallel: If True, run simulations in parallel (on Windows, must have ``if __name__ == '__main__'`` gating the calling code)
+        :param max_attempts: Number of retry attempts for bad initializations
+        :return: A list of Results that can be passed to `Ensemble.update()`. If multiple instructions are provided, the return value of this
+                 function will be a list of lists, where the inner list iterates over different instructions for the same parset/progset samples.
+                 It is expected in that case that the Ensemble's mapping function would take in a list of results
+
+        """
+
+        assert (not progset) == (not progset_instructions), "If running with programs, both a progset and instructions must be provided"
+
+        parset = self.parset(parset)
+        progset = self.progset(progset) if progset is not None else None
+        progset_instructions = sc.promotetolist(progset_instructions, keepnone=True)
+
+        if not result_names:
+            if len(progset_instructions) > 1:
+                result_names = ['instructions_%d' % (i) for i in range(len(progset_instructions))]
+            else:
+                result_names = ['default']
+        else:
+            result_names = sc.promotetolist(result_names)
+            assert(len(result_names) == 1 and not progset) or (len(progset_instructions) == len(result_names)), "Number of result names must match number of instructions"
+
+        original_level = logger.getEffectiveLevel()
+        logger.setLevel(logging.WARNING) # Never print debug messages inside the sampling loop - note that depending on the platform, this may apply within `sc.parallelize`
+
+        if n_samples == 1:
+            results = [_run_sampled_sim(self, parset, progset, progset_instructions, result_names, max_attempts=max_attempts)]
+        elif parallel:
+            # NB. The calling code must be wrapped in a 'if __name__ == '__main__' if on Windows
+            results = sc.parallelize(_run_sampled_sim, iterarg=n_samples, kwargs={'proj':self, 'parset':parset, 'progset':progset, 'progset_instructions':progset_instructions, 'result_names':result_names, 'max_attempts':max_attempts})
+        else:
+            if original_level <= logging.INFO:
+                # Print the progress bar if the logging level was INFO or lower
+                results = [_run_sampled_sim(self, parset, progset, progset_instructions, result_names, max_attempts=max_attempts) for _ in tqdm.trange(n_samples)]
+            else:
+                results = [_run_sampled_sim(self, parset, progset, progset_instructions, result_names, max_attempts=max_attempts) for _ in range(n_samples)]
+
+        logger.setLevel(original_level) # Reset the logger
+
+        return results
 
     def calibrate(self, parset=None, adjustables=None, measurables=None, max_time=60, save_to_project=True, new_name=None,
                   default_min_scale=0.0, default_max_scale=2.0, default_weight=1.0, default_metric="fractional"):
@@ -510,7 +579,7 @@ class Project(object):
             optimized_instructions = optimize(self, optim, parset, progset, unoptimized_instructions)
         except InvalidInitialConditions:
             if optim_ins.json['optim_type'] == 'money':
-                raise AtomicaException('It was not possible to achieve the optimization target even with an increased budget. Specify or raise upper limits for spending, or decrease the optimization target')
+                raise Exception('It was not possible to achieve the optimization target even with an increased budget. Specify or raise upper limits for spending, or decrease the optimization target')
             else:
                 raise  # Just raise it as-is
 
@@ -520,8 +589,18 @@ class Project(object):
         results = [unoptimized_result, optimized_result]
         return results
 
-    def save(self, filename=None, folder=None):
-        """ Save the current project to a relevant object file. """
+    def save(self, filename:str =None, folder:str =None) -> str:
+        """
+        Save binary project file
+
+        This method saves the entire project as a binary blob to disk
+
+        :param filename: Name of the file to save
+        :param folder: Optionally specify a folder
+        :return: The full path of the file that was saved
+
+        """
+
         fullpath = sc.makefilepath(filename=filename, folder=folder, default=[self.filename, self.name], ext='prj', sanitize=True)
         self.filename = fullpath
         sc.saveobj(fullpath, self)
@@ -529,13 +608,39 @@ class Project(object):
 
     @staticmethod
     def load(filepath):
-        """ Convenience class method for loading a project in the absence of an instance. """
+        """
+        Load binary project file
+
+        This method is an alternate constructor that is used to load a binary file
+        saved using :meth:`Project.save`. Migration is automatically performed as
+        part of the loading operation.
+
+        :param filepath: The file path/name to load
+        :return: A new :class:`Project` instance
+
+        """
+
         P = sc.loadobj(filepath)
         assert isinstance(P, Project)
         P = migrate(P)
         return P
 
     def demo_scenarios(self, dorun=False, doadd=True):
+        """
+        Create demo scenarios
+
+        This method creates three default budget scenarios
+
+        - Default budget
+        - Doubled budget
+        - Zero budget
+
+        :param dorun: If True, and if doadd=True, simulations will be run
+        :param doadd: If True, scenario objects will be created and added to the project
+        :return: If ``doadd=False``, returns JSON scenarios. If ``doadd=True`` and ``dorun=False``, return ``None``. If ``doadd=True`` and ``dorun=True``, return list of Result objects
+
+        """
+
         json1 = sc.odict()
         json1['name'] = 'Default budget'
         json1['parsetname'] = -1
@@ -567,15 +672,21 @@ class Project(object):
             return json1
 
     def demo_optimization(self, dorun=False, tool=None, optim_type=None):
-        # INPUTS
-        # - dorun : If True, runs optimization immediately
-        # - tool : Choose optimization objectives based on whether tool is 'cascade' or 'tb'
-        # - optim_type : set to 'outcome' or 'money' - use 'money' to minimize money
-        #
-        # Note that if optim_type='money' then the optimization 'weights' entered in the FE are
-        # actually treated as relative scalings for the minimization target. e.g. If ':ddis' has a weight
-        # of 25, this is a objective weight factor for optim_type='outcome' but it means 'we need to reduce
-        # deaths by 25%' if optim_type='money' (since there is no weight factor for the minimize money epi targets)
+        """
+        Create demo optimizations
+
+        Note that if optim_type='money' then the optimization 'weights' entered in the FE are
+        actually treated as relative scalings for the minimization target. e.g. If ':ddis' has a weight
+        of 25, this is a objective weight factor for optim_type='outcome' but it means 'we need to reduce
+        deaths by 25%' if optim_type='money' (since there is no weight factor for the minimize money epi targets)
+
+        :param dorun: If True, runs optimization immediately
+        :param tool: Choose optimization objectives based on whether tool is ``'cascade'`` or ``'tb'``
+        :param optim_type: set to ``'outcome'`` or ``'money'`` - use ``'money'`` to minimize money
+        :return: If ``dorun=True``, return list of results. Otherwise, returns an ``OptimInstructions`` instance
+
+        """
+
         if optim_type is None:
             optim_type = 'outcome'
         assert tool in ['cascade', 'tb']
@@ -599,14 +710,14 @@ class Project(object):
             json['objective_labels'] = sc.odict()
 
             for cascade_name in self.framework.cascades:
-                cascade = get_cascade_outputs(self.framework, cascade_name)
+                _, cascade = sanitize_cascade(self.framework, cascade_name)
 
                 if optim_type == 'outcome':
                     json['objective_weights']['conversion:%s' % (cascade_name)] = 1.
                 elif optim_type == 'money':
                     json['objective_weights']['conversion:%s' % (cascade_name)] = 0.
                 else:
-                    raise AtomicaException('Unknown optim_type')
+                    raise Exception('Unknown optim_type')
 
                 if cascade_name.lower() == 'cascade':
                     json['objective_labels']['conversion:%s' % (cascade_name)] = 'Maximize the conversion rates along each stage of the cascade'
@@ -624,7 +735,7 @@ class Project(object):
                     elif optim_type == 'money':
                         json['objective_weights'][objective_name] = 0
                     else:
-                        raise AtomicaException('Unknown optim_type')
+                        raise Exception('Unknown optim_type')
 
                     if cascade_name.lower() == 'cascade':
                         json['objective_labels'][objective_name] = 'Maximize the number of people in cascade stage "%s"' % (stage_name)
@@ -651,10 +762,10 @@ class Project(object):
                                             'xdr_inf': 'Prevalence of active XDR-TB'}
 
             else:
-                raise AtomicaException('Unknown optim_type')
+                raise Exception('Unknown optim_type')
 
         else:
-            raise AtomicaException('Tool "%s" not recognized' % tool)
+            raise Exception('Tool "%s" not recognized' % tool)
         json['maxtime'] = 30  # WARNING, default!
         json['prog_spending'] = sc.odict()
         for prog_name in self.progset().programs.keys():
@@ -665,3 +776,49 @@ class Project(object):
             return results
         else:
             return optim
+
+
+def _run_sampled_sim(proj, parset, progset, progset_instructions:list, result_names:list, max_attempts:int =None):
+    """
+    Internal function to run simulation with sampling
+
+    This function is intended for internal use only. It's purpose is to facilitate the implementation
+    of parallelization. It should normally be called via :meth:`Project.run_sim`.
+
+    This standalone function samples and runs a simulation. It is a standalone function rather than
+    a method of :class:`Project` or :class:`Ensemble` so that it can be pickled for use in
+    ``sc.parallelize`` (otherwise, an error relating to not being able to pickle local functions or the
+    base class gets raised).
+
+    A sampled simulation may result in bad initial conditions. If that occurs, the parameters and program
+    set will be resampled up to a maximum of ``n_attempts`` times, after which an error will be raised.
+
+    :param proj: A :class:`Project` instance
+    :param parset: A :class:`ParameterSet` instance
+    :param progset: A :class:`ProgramSet` instance
+    :param progset_instructions: A list of instructions to run against a single sample
+    :param result_names: A list of result names (strings)
+    :param max_attempts: Maximum number of sampling attempts before raising an error
+    :return: A list of results that either contains 1 result, or the same number of results as instructions
+
+    """
+
+    from .model import BadInitialization  # avoid circular import
+
+    if max_attempts is None:
+        max_attempts = 50
+
+    attempts = 0
+    while attempts < max_attempts:
+        try:
+            if progset:
+                sampled_parset = parset.sample()
+                sampled_progset = progset.sample()
+                results = [proj.run_sim(parset=sampled_parset, progset=sampled_progset, progset_instructions=x, result_name=y) for x, y in zip(progset_instructions, result_names)]
+            else:
+                sampled_parset = parset.sample()
+                results = [proj.run_sim(parset=sampled_parset, result_name=y) for y in result_names]
+            return results
+        except BadInitialization:
+            attempts += 1
+    raise Exception('Failed simulation after %d attempts - something might have gone wrong' % (max_attempts))

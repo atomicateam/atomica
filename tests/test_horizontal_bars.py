@@ -1,8 +1,8 @@
-import atomica.ui as au
-from atomica.ui import ProjectFramework, Project
+import atomica as at
+from atomica import ProjectFramework, Project
 import os
 
-testdir = au.parent_dir()
+testdir = at.parent_dir()
 tmpdir = os.path.join(testdir,'temp','')
 
 F = ProjectFramework(testdir + "framework_sir_dynamic.xlsx")
@@ -25,6 +25,6 @@ scen_results = scen.run(P,P.parsets['default'])
 par_results.name = 'Baseline'
 scen_results.name = 'Scenario'
 
-d = au.PlotData([par_results,scen_results],outputs=['sus','inf','rec'],t_bins=10)
-au.plot_bars(d,stack_outputs=[['sus','inf']],orientation='horizontal')
+d = at.PlotData([par_results,scen_results],outputs=['sus','inf','rec'],t_bins=10)
+at.plot_bars(d,stack_outputs=[['sus','inf']],orientation='horizontal')
 

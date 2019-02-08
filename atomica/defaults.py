@@ -36,7 +36,7 @@ def default_framework(which=None, show_options=False):
         ('tb_simple_dyn', 'Tuberculosis with demography'),
     ])
 
-    if which is None:
+    if which is None or which == 'default':
         which = 'udt'
     elif which == 'tb':
         label = 'Tuberculosis with transmission dynamics'
@@ -82,7 +82,7 @@ def default_project(which=None, do_run=True, addprogs=True, verbose=False, show_
     dtdict['tb'] = 0.5
 
     tool = 'cascade'
-    if which is None:
+    if which is None or which == 'default':
         which = 'udt'
     elif which == 'tb':
         tool = 'tb'  # This is not in the options and is handled as a special case
@@ -103,10 +103,10 @@ def default_project(which=None, do_run=True, addprogs=True, verbose=False, show_
     framework_file = LIBRARY_PATH + which + '_framework.xlsx'
     if verbose:
         print('Loading databook')
-    P = Project(framework=framework_file, databook_path=LIBRARY_PATH + which + "_databook.xlsx", do_run=False, **kwargs)
+    P = Project(framework=framework_file, databook=LIBRARY_PATH + which + "_databook.xlsx", do_run=False, **kwargs)
     P.settings.sim_dt = dtdict[which]
     if do_run:
-        P.run_sim()
+        P.run_sim(store_results=True)
     if addprogs:
         if verbose:
             print('Loading progbook')
