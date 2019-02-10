@@ -295,15 +295,7 @@ class Characteristic(Variable):
         else:
             return self._vals
 
-    def set_dynamic(self) -> None:
-        '''
-        Make characteristic dynamic
-
-        If the characteristic is dynamic, then its value will be computed during integration
-        for use in Parameter functions. This will also make all included characteristics
-        and the denominator dynamic as well
-        '''
-
+    def set_dynamic(self):
         self._is_dynamic = True
 
         for inc in self.includes:
@@ -372,8 +364,8 @@ class Parameter(Variable):
         self.fcn_str = None  #: String representation of parameter function
         self.deps = None  #: Dict of dependencies containing lists of integration objects
         self._fcn = None  #: Internal cache for parsed parameter function (this will be dropped when pickled)
-        self._precompute = True #: If True and not ``dynamic``, the parameter function will be computed in a vector operation prior to integration. Otherwise, will be computed during or post-integration
-        self._is_dynamic = False #: If True, this parameter will be updated during integration. Note that ``precompute`` and ``dynamic`` are (functionally) mutually exclusive
+        self._precompute = False #: If True, the parameter function will be computed in a vector operation prior to integration
+        self._is_dynamic = False #: If True, this parameter will be updated during integration. Note that `precompute` and `dynamic` are mutually exclusive
 
         #: For transition parameters, the ``vals`` stored by the parameter is effectively a rate. The ``timescale``
         #: attribute informs the time period corresponding to the units in which the rate has been provided.
@@ -438,26 +430,13 @@ class Parameter(Variable):
                 deps[dep_name] = self.pop.get_variable(dep_name)
         self.deps = deps
 
-        self.set_dynamic(progset=progset, drives_transitions=bool(self.links))
+        # If this Parameter has links and a function, it must be updated during computation
+        if self.links and self.fcn_str:
+            self.set_dynamic(progset)
 
-    def set_dynamic(self, progset, drives_transitions:bool) -> bool:
+    def set_dynamic(self, progset=None) -> None:
         """
-        Set dynamic and precompute flag
-
-        There are three possible modes of parameter function evaluation
-
-        - Vectorized pre-integration computation (pre-compute)
-        - Elementwise computation at each timestep (dynamic)
-        - Vectorized post-integration computation
-
-        The vectorized operations are much faster and are preferred where possible for performance.
-        The computation mode is determined as follows:
-
-        - If the parameter does not depend (directly or indirectly) on compartment sizes, then we can precompute (self._is_dynamic=False and self._precompute=True)
-        - If the parameter depends on compartment sizes but does not drive transitions (directly or indirectly), then we can postcompute (self._is_dynamic=False and self._precompute=False)
-        - If the parameter depends on compartment sizes and drives transitions, must evaluate each timestep (self._is_dynamic=True and self._precompute=False)
-        - If the parameter depends on a parameter that is overwritten by programs, must evaluate each timestep (self._is_dynamic=True and self._precompute=False)
-
+        Mark this parameter as needing evaluation for integration
 
         If a parameter has a function and `set_dynamic()` has been called, that means the
         result of the function is required to drive a transition in the model. In this context,
@@ -476,58 +455,33 @@ class Parameter(Variable):
         the gains aren't large enough to justify the extra complexity otherwise.
 
         :param progset: A ``ProgramSet`` instance (the one contained in the Model containing this Parameter)
-        :param drives_transitions: If True, then the value will be used to drive transitions further down the line
-        :return: True if any ancestor node is a compartment or characteristic. If that's the case and ``drives_transitions=True`` then
-                 the parameter must be dynamic
+
         """
 
-        requires_dynamic = False
+        if self.fcn_str is None:
+            return # Only parameters with functions need to be made dynamic
+
         if self.pop_aggregation:
-            # If driving transitions and the parameter has a pop aggregation, then it must be dynamic because it only gets
-            # assigned a value after computation
-            self._is_dynamic = True # Flag as dynamic because the integration loop does the updating
-            self._precompute = False # Flag as not pre-computable because
-            if drives_transitions:
-                requires_dynamic = True # If transitions are being driven, then we will need downstream nodes to be computed
-
-        # Return early if there's no function or no dependencies
-        if (self.fcn_str is None) or (not self.deps):
-            return requires_dynamic
-
-        for deps in self.deps.values(): # deps is {'dep_name':[dep_objects]}
-            for dep in deps: # now iterating over the actual dependency objects
-                if isinstance(dep, Link):
-                    self._precompute = False  # Cannot be pre-computed because we depend on flow rate values
-                    if drives_transitions:
-                        raise Exception("Parameter %s depends on links, but also drives transitions. If a parameter drives transitions then it cannot depend on flow rates" % (self.name))
-                elif isinstance(dep, Compartment) or isinstance(dep, Characteristic):
-                    self._precompute = False # If we depend on compartment sizes, then we cannot be precomputed
-                    if drives_transitions:
-                        dep.set_dynamic() # Mark the characteristics as being dynamic
-                        requires_dynamic = True # Flag that all child parameters must be dynamic
-                elif isinstance(dep, Parameter):
-                    dep_requires_dynamic = dep.set_dynamic(progset=progset,drives_transitions=drives_transitions) # Find out whether we need to be dynamic or not
-                    requires_dynamic = requires_dynamic or dep_requires_dynamic
-
-                    if not dep._precompute:
-                        # If the dependency cannot be precomputed, then the current parameter can't precomputed
-                        self._precompute = False
-
-                    if progset and dep.name in progset.pars:
-                        # If the dependency can change due to programs, then the current parameter can't precomputed
-                        self._precompute = False
-                        if drives_transitions:
-                            self._is_dynamic = True
-                else:
-                    raise Exception('Unexpected dependency type')
-
-        if requires_dynamic and drives_transitions:
-            # Checking `drives_transitions` will mean that even intermediate parameters
-            # will become dynamic
             self._is_dynamic = True
-            self._precompute = False
 
-        return requires_dynamic
+        if self.deps: # If there are no dependencies, then we know that this is precompute-only
+            for deps in self.deps.values(): # deps is {'dep_name':[dep_objects]}
+                for dep in deps:
+                    if isinstance(dep, Link):
+                        raise Exception("A Parameter that depends on transition flow rates cannot be a dependency, it must be output only.")
+                    elif isinstance(dep, Compartment) or isinstance(dep, Characteristic):
+                        dep.set_dynamic()
+                        self._is_dynamic = True
+                    elif isinstance(dep, Parameter):
+                        dep.set_dynamic() # Run `set_dynamic()` on the parameter which will descend further to see if the Parameter depends on comps/characs or on overwritten parameters
+                        if dep._is_dynamic or (progset and dep.name in progset.pars):
+                            self._is_dynamic = True
+                    else:
+                        raise Exception('Unexpected dependency type')
+
+        # If not dynamic, then we need to precompute the function because the value is required for a transition
+        if not self._is_dynamic:
+            self._precompute = True
 
     def unlink(self):
         Variable.unlink(self)
