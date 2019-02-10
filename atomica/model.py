@@ -516,6 +516,8 @@ class Parameter(Variable):
                     if progset and dep.name in progset.pars:
                         # If the dependency can change due to programs, then the current parameter can't precomputed
                         self._precompute = False
+                        if drives_transitions:
+                            self._is_dynamic = True
                 else:
                     raise Exception('Unexpected dependency type')
 
