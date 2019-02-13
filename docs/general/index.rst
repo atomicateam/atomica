@@ -8,4 +8,4 @@ General content
     File-Logging
     Optimization
     programs/Programs
-    Parameter-Timescales
+    Parameters
