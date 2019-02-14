@@ -92,3 +92,4 @@ installing `numpy` may fail due to missing compiler options. In that case, you m
 (by installing Python through Anaconda, and using `conda install numpy scipy matplotlib`). In general, our experience
 has been that it is easier to set up the C binaries for `numpy` and the QT dependencies for `matplotlib` via Anaconda
 rather than doing this via the system, which involves different steps on every platform.
+
