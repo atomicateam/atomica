@@ -11,7 +11,10 @@ notebooks to try them out interactively and explore the effect of making changes
     Basic-workflow
     Databooks
     Frameworks
+    Model-dev
+    Model-user
     Plotting
     Plot-Programs
+    Plot-Units
     Probability-Rescaling
     Uncertainty
