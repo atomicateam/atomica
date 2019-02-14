@@ -411,6 +411,7 @@ class Parameter(Variable):
             if isinstance(v1, Link):
                 raise Exception('Links cannot be aggregated across populations')
             function_args[0] = v1
+            dep_list.append(v1.name)
 
             # Convert weighting variable to object reference
             if len(function_args) == 3:
@@ -418,6 +419,7 @@ class Parameter(Variable):
                 if isinstance(v2, Link):
                     raise Exception('Links cannot be used to weight interactions')
                 function_args[-1] = v2
+                dep_list.append(v2.name)
 
             self.pop_aggregation = [special_function] + function_args
 
@@ -458,7 +460,11 @@ class Parameter(Variable):
 
         if self.fcn_str is None:
             return # Only parameters with functions need to be made dynamic
-        elif self.deps is not None: # If there are no dependencies, then we know that this is precompute-only
+
+        if self.pop_aggregation:
+            self._is_dynamic = True
+
+        if self.deps: # If there are no dependencies, then we know that this is precompute-only
             for deps in self.deps.values(): # deps is {'dep_name':[dep_objects]}
                 for dep in deps:
                     if isinstance(dep, Link):
@@ -473,10 +479,9 @@ class Parameter(Variable):
                     else:
                         raise Exception('Unexpected dependency type')
 
-        # If not dynamic, then we need to precompute the function
+        # If not dynamic, then we need to precompute the function because the value is required for a transition
         if not self._is_dynamic:
             self._precompute = True
-
 
     def unlink(self):
         Variable.unlink(self)
@@ -1210,16 +1215,6 @@ class Model(object):
             [par.update() for par in pop.pars if (par.fcn_str and not (par._is_dynamic or par._precompute))]  # Update any remaining parameters
             for charac in pop.characs:
                 charac._vals = None  # Wipe out characteristic vals to save space
-
-                # TODO: Consider whether it is worth reimplementing space-saving measures.
-                # if not full_output:
-                #     for par in pop.pars:
-                #         if (not par.name in framework.linkpar_specs) \
-                #                 or (not 'output' in settings.linkpar_specs[par.name]) \
-                #                 or (settings.linkpar_specs[par.name] != 'y'):
-                #             par.vals = None
-                #             for link in par.links:
-                #                 link.vals = None
 
         self._program_cache = None  # Drop the program cache afterwards to save space
 
