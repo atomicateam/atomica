@@ -36,7 +36,7 @@ from .results import Result
 from .migration import migrate
 import sciris as sc
 import numpy as np
-# import tqdm
+import tqdm
 import logging
 
 class ProjectSettings(object):
