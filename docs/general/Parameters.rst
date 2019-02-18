@@ -13,14 +13,7 @@ Parameters are all defined on the 'Parameters' sheet of the framework. Depending
 Functions
 *********
 
-In the framework, a parameter can have a function associated with it, which can compute the value of a parameter based on the values of other integration objects like compartments, characteristics, parameters, and links (flow rates). You can also refer to the simulation time as `t` and the time step as `dt`. 
-
-Standard math operations can be performed, as well as common functions like ``max``, ``min``, ``exp`` etc. Valid functions can be found in ``function_parser.py``. In addition to the standard functions, two special functions are  
-
-- ``to_timestep(p,dt)`` that converts from annual probability to probability over a different time period 
-- ``to_annual(p,dt)`` that converts from a particular timestep probability to annual probability
-
-Together, these functions facilitate conversion from probabilities to proportions and vice versa.
+In the framework, a parameter can have a function associated with it, which can compute the value of a parameter based on the values of other integration objects like compartments, characteristics, parameters, and links (flow rates). You can also refer to the simulation time as `t` and the time step as `dt`. Standard math operations can be performed, as well as common functions like ``max``, ``min``, ``exp`` etc. Valid functions can be found in ``function_parser.py``. 
 
 Parameters are updated in the order in which they appear in the framework. This means that parameter functions can only refer to parameters that appear above them in the framework. Atomica will automatically validate this when the framework is loaded. This also means that any program overwrites that affect terms inside a parameter function will be performed prior to the function being evaluated. 
 
