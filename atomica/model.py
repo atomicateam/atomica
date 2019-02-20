@@ -1179,7 +1179,7 @@ class Model(object):
                             if not (source.tag_birth or source.tag_dead or source.is_junction):
                                 # Instantiate a link between corresponding compartments
                                 dest = target_pop_obj.get_comp(source.name)  # Get the corresponding compartment
-                                link_tag = par_name + '_' + source.name + ':flow'  # e.g. 'aging_0-4_to_15-64_sus:flow'
+                                link_tag = par_name + ':flow'  # e.g. 'aging_0-4_to_15-64_sus:flow'
                                 link = Link(pop, par, source, dest, link_tag)
                                 link.preallocate(self.t, self.dt)
                                 pop.links.append(link)
