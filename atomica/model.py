@@ -1015,7 +1015,7 @@ class Model(object):
         self._vars_by_pop = None  # Cache to look up lists of variables by name across populations
         self._pop_ids = sc.odict()  # Maps name of a population to its position index within populations list.
         self._program_cache = None
-        self._par_list = list(framework.pars.index)  # This is a list of all parameters code names in the model
+        self._par_list = None  # This is a list of all parameters code names in the model
 
         self.framework = sc.dcp(framework)  # Store a copy of the Framework used to generate this model
         self.framework.spreadsheet = None  # No need to keep the spreadsheet
@@ -1078,10 +1078,14 @@ class Model(object):
 
     def set_vars_by_pop(self):
         self._vars_by_pop = defaultdict(list)
+        par_names = []
         for pop in self.pops:
             for var in pop.comps + pop.characs + pop.pars + pop.links:
                 self._vars_by_pop[var.name].append(var)
+            for par in pop.pars:
+                par_names.append(par.name)
         self._vars_by_pop = dict(self._vars_by_pop)  # Stop new entries from appearing in here by accident
+        self._par_list = list(sc.odict.fromkeys(par_names))
 
     def __getstate__(self):
         self.unlink()
