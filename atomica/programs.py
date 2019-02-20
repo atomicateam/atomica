@@ -694,7 +694,16 @@ class ProgramSet(NamedItem):
                 logger.warning('Program %s: Typically if the unit cost is `/year` then the coverage would not be `/year`', prog.label)
             times.update(set(tdve.tvec))
 
-        self.tvec = array(sorted(list(times)))  # NB. This means that the ProgramSet's tvec (used when writing new programs) is based on the last Program to be read in
+        # Work out the currency
+        units = set([x.spend_data.units.split('/')[0].strip() for x in self.programs.values()])
+        units.update([x.unit_cost.units.split('/')[0].strip() for x in self.programs.values()])
+
+        if len(units) == 1:
+            self.currency = list(units)[0]
+        else:
+            raise Exception('The progbook contains multiple currencies: (%s). All spending must be specified in the same currency' % (units))
+
+        self.tvec = array(sorted(list(times)))  # NB. This means that  the ProgramSet's tvec (used when writing new programs) is based on the last Program to be read in
 
     def _write_spending(self):
         sheet = self._book.add_worksheet("Spending data")
