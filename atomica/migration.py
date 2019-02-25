@@ -361,3 +361,16 @@ def model_tidying(proj):
             prog.capacity_constraint = prog.capacity
             del prog.capacity
     return proj
+
+@migration('1.0.25', '1.0.26', 'Rename link labels')
+def model_tidying(proj):
+
+    for result in all_results(proj):
+        for pop in
+
+
+    for progset in all_progsets(proj):
+        for prog in progset.programs.values():
+            prog.capacity_constraint = prog.capacity
+            del prog.capacity
+    return proj
