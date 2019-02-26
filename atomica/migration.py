@@ -365,8 +365,10 @@ def model_tidying(proj):
 @migration('1.0.25', '1.0.26', 'Rename link labels')
 def model_tidying(proj):
 
+    #
     for result in all_results(proj):
-        for pop in
+        for pop in pops:
+
 
 
     for progset in all_progsets(proj):

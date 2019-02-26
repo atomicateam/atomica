@@ -591,7 +591,7 @@ class Link(Variable):
 
     #
     # *** Link values are always dt-based ***
-    def __init__(self, pop, parameter, source, dest, tag):
+    def __init__(self, pop, parameter, source, dest, tag=None):
         # Note that the Link's name is the transition tag
         Variable.__init__(self, pop=pop, id=(pop.name, source.name, dest.name, tag))  # A Link is only uniquely identified by (Pop,Source,Dest,Par)
         self.vals = None
@@ -1152,19 +1152,19 @@ class Model(object):
         # For each population pair, instantiate a Parameter with the values from the databook
         # For each compartment, instantiate a set of Links that all derive from that Parameter
         # NB. If a Program somehow targets the transfer parameter, those values will automatically... what?
-        for trans_type in parset.transfers:
-            if parset.transfers[trans_type]:
-                for pop_source in parset.transfers[trans_type]:
+        for transfer_name in parset.transfers:
+            if parset.transfers[transfer_name]:
+                for pop_source in parset.transfers[transfer_name]:
 
                     # This contains the data for all of the destination pops.
-                    transfer_parameter = parset.transfers[trans_type][pop_source]
+                    transfer_parameter = parset.transfers[transfer_name][pop_source]
 
                     pop = self.get_pop(pop_source)
 
                     for pop_target in transfer_parameter.ts:
 
                         # Create the parameter object for this link (shared across all compartments)
-                        par_name = trans_type + '_' + pop_source + '_to_' + pop_target  # e.g. 'aging_0-4_to_15-64'
+                        par_name = "%s_%s_to_%s" % (transfer_name, pop_source , pop_target)  # e.g. 'aging_0-4_to_15-64'
                         par = Parameter(pop=pop, name=par_name)
                         par.preallocate(self.t, self.dt)
                         par.scale_factor = transfer_parameter.y_factor[pop_target] * transfer_parameter.meta_y_factor
@@ -1179,7 +1179,6 @@ class Model(object):
                             if not (source.tag_birth or source.tag_dead or source.is_junction):
                                 # Instantiate a link between corresponding compartments
                                 dest = target_pop_obj.get_comp(source.name)  # Get the corresponding compartment
-                                link_tag = par_name + ':flow'  # e.g. 'aging_0-4_to_15-64_sus:flow'
                                 link = Link(pop, par, source, dest, link_tag)
                                 link.preallocate(self.t, self.dt)
                                 pop.links.append(link)
