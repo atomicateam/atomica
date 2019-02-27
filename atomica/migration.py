@@ -365,14 +365,11 @@ def model_tidying(proj):
 @migration('1.0.25', '1.0.26', 'Rename link labels')
 def model_tidying(proj):
 
-    #
+    # Normalize link labels - they should now always derive from their associated parameter
     for result in all_results(proj):
-        for pop in pops:
-
-
-
-    for progset in all_progsets(proj):
-        for prog in progset.programs.values():
-            prog.capacity_constraint = prog.capacity
-            del prog.capacity
+        for pop in result.model.pops:
+            for link in pop.links:
+                link.id = link.id[0:3] + (link.parameter.name + ':flow',)
+        result.model.set_vars_by_pop()
+        
     return proj
