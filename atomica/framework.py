@@ -911,6 +911,10 @@ def generate_framework_doc(framework,fname, databook_only=False):
                         if to_comp:
                             label += ' to %s' % (framework.get_label(to_comp))
                         fcn_deps[spec.name].add(label)
+                    elif dep == 't':
+                        fcn_deps[spec.name].add('Time')
+                    elif dep == 'dt':
+                        fcn_deps[spec.name].add('Step size')
                     else:
                         fcn_deps[spec.name].add(framework.get_label(dep))
 
