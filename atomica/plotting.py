@@ -724,7 +724,7 @@ class PlotData:
 
             if quantity == 'spending':
                 all_vals = result.get_alloc()
-                units = '$'
+                units = result.model.progset.currency
                 timescales = dict.fromkeys(all_vals,1.0)
             elif quantity in {'coverage_capacity','coverage_number'}:
                 if quantity == 'coverage_capacity':
@@ -751,7 +751,6 @@ class PlotData:
                         labels = output[output_name]  # These are the quantities being aggregated
 
                         # We only support summation for combining program spending, not averaging
-                        # TODO - if/when we track which currency, then should check here that all of the programs have the same currency
                         vals = sum(all_vals[x] for x in labels)
                         output_name = output_name
                         data_label = None  # No data present for aggregations
@@ -1487,7 +1486,7 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
 
                 units = list(set([plotdata[result, pop, output].unit_string for output in plotdata.outputs]))
                 if len(units) == 1 and units[0]:
-                    ax.set_ylabel(units[0].capitalize())
+                    ax.set_ylabel(units[0][0].upper() + units[0][1:])
 
                 if plotdata.pops[pop] != FS.DEFAULT_SYMBOL_INAPPLICABLE:
                     ax.set_title('%s-%s' % (plotdata.results[result], plotdata.pops[pop]))
