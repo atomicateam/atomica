@@ -34,6 +34,7 @@ def default_framework(which=None, show_options=False):
         ('hiv_dyn', 'HIV care cascade with demography'),
         ('tb_simple', 'Tuberculosis'),
         ('tb_simple_dyn', 'Tuberculosis with demography'),
+        ('environment', 'SIR model with environment'),
     ])
 
     if which is None or which == 'default':
@@ -76,6 +77,7 @@ def default_project(which=None, do_run=True, addprogs=True, verbose=False, show_
         ('hiv_dyn', 'HIV care cascade with demography (2 populations)'),
         ('tb_simple', 'Tuberculosis (1 population)'),
         ('tb_simple_dyn', 'Tuberculosis with demography (1 population)'),
+        ('environment', 'SIR model with environment (2 population)'),
     ])
 
     dtdict = sc.odict.fromkeys(options.keys(), 1.)

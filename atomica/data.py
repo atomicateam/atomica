@@ -684,6 +684,11 @@ class ProjectData(sc.prettyobj):
         assert tables[0][0][0].value.strip().lower() == 'abbreviation'
         assert tables[0][0][1].value.strip().lower() == 'full name'
 
+        # If pop type exists
+        if len(tables[0][0]) > 2:
+            cell_require_string(tables[0][0][2])
+            tables[0][0][2].value.strip().lower() == 'type'
+
         for row in tables[0][1:]:
             cell_require_string(row[0])
             cell_require_string(row[1])
@@ -692,7 +697,15 @@ class ProjectData(sc.prettyobj):
 
             if pop_name.lower() in FS.RESERVED_KEYWORDS:
                 raise Exception('Population name "%s" is a reserved keyword' % (pop_name.lower()))
-            self.pops[pop_name] = {'label': row[1].value.strip()}
+
+            if len(row) > 2:
+                if row[2].value is None:
+                    poptype = None
+                else:
+                    cell_require_string(row[2])
+                    poptype = row[2].value.strip()
+
+            self.pops[pop_name] = {'label': row[1].value.strip(),'type':poptype}
 
     def _write_pops(self) -> None:
         """
