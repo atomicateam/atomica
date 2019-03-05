@@ -60,7 +60,7 @@ class ProjectFramework(object):
         # For some pages, we only ever want to read in one DataFrame, and we want empty lines to be ignored. For example, on the
         # 'compartments' sheet, we want to ignore blank lines, while on the 'cascades' sheet we want the blank line to delimit the
         # start of a new cascade. So, for the sheet names below, multiple tables will be compressed to one table
-        merge_tables = {'databook pages', 'compartments', 'parameters', 'characteristics', 'transitions', 'interactions', 'plots'}
+        merge_tables = {'databook pages', 'compartments', 'parameters', 'characteristics', 'transitions', 'interactions', 'plots', 'population types'}
 
         for worksheet in workbook.worksheets:
             sheet_title = worksheet.title.lower()
@@ -203,6 +203,11 @@ class ProjectFramework(object):
         else:
             return sc.odict()
 
+    @property
+    def pop_types(self):
+        # Return odict with available population types
+        return self.sheets['population types'][0].set_index('code name').to_dict(orient='index',into=sc.odict)
+
     def get_interaction(self, interaction_name):
         return self.interactions.loc[interaction_name]
 
@@ -295,6 +300,11 @@ class ProjectFramework(object):
         if 'plot' in self.sheets and 'plots' not in self.sheets:
             logger.warning('A sheet called "Plot" was found, but it probably should be called "Plots"')
 
+        # VALIDATE POPULATION TYPES
+        # Default to having 'Default' and 'Environment'
+        if 'population types' not in self.sheets:
+            self.sheets['population types'] = [pd.DataFrame.from_records([('default', 'Default'), ('environment', 'Environment')], columns=['code name', 'description'])]
+
         # VALIDATE COMPARTMENTS
         required_columns = ['display name']
         defaults = {
@@ -304,7 +314,8 @@ class ProjectFramework(object):
             'databook page': None,
             'default value': None,
             'databook order': None,  # Default is for it to be randomly ordered if the databook page is not None
-            'guidance': None
+            'guidance': None,
+            'population type': None
         }
         valid_content = {
             'display name': None,  # Valid content being `None` means that it just cannot be empty
@@ -319,6 +330,9 @@ class ProjectFramework(object):
         except Exception as e:
             message = 'An error was detected on the "Compartments" sheet in the Framework file -> '
             raise Exception('%s -> %s' % (message, e)) from e
+
+        # Assign first population type to any empty population types
+        self.comps['population type'] = self.comps['population type'].fillna(self.pop_types.keys()[0])
 
         # Default setup weight is 1 if in databook or 0 otherwise
         # This is a separate check because the default value depends on other columns
@@ -336,7 +350,6 @@ class ProjectFramework(object):
             self.comps['calibrate'][default_calibrate] = 'y'
 
         # VALIDATE COMPARTMENTS
-
         for index, row in self.comps.iterrows():
             n_types = (row[['is sink', 'is source', 'is junction']] == 'y').astype(int).sum()  # This sums the number of Y's for each compartment
 
@@ -363,6 +376,9 @@ class ProjectFramework(object):
             if (row['databook page'] is not None) and not (row['databook page'] in self.sheets['databook pages'][0]['datasheet code name'].values):
                 raise InvalidFramework('Compartment "%s" has databook page "%s" but that page does not appear on the "databook pages" sheet' % (row.name,row['databook page']))
 
+            if row['population type'] not in self.pop_types.keys():
+                raise InvalidFramework('Compartment "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (row.name,row['population type'],self.pop_types.keys()))
+
         # VALIDATE CHARACTERISTICS
 
         required_columns = ['display name']
@@ -372,7 +388,8 @@ class ProjectFramework(object):
             'default value': None,
             'databook page': None,
             'databook order': None,
-            'guidance': None
+            'guidance': None,
+            'population type': None
         }
         valid_content = {
             'display name': None,
@@ -385,6 +402,9 @@ class ProjectFramework(object):
         except Exception as e:
             message = 'An error was detected on the "Characteristics" sheet in the Framework file -> '
             raise Exception('%s -> %s' % (message, e)) from e
+
+        # Assign first population type to any empty population types
+        self.characs['population type'] = self.characs['population type'].fillna(self.pop_types.keys()[0])
 
         if 'setup weight' not in self.characs:
             self.characs['setup weight'] = (~self.characs['databook page'].isnull()).astype(int)
@@ -419,6 +439,9 @@ class ProjectFramework(object):
             if (row['databook page'] is not None) and not (row['databook page'] in self.sheets['databook pages'][0]['datasheet code name'].values):
                 raise InvalidFramework('Characteristic "%s" has databook page "%s" but that page does not appear on the "databook pages" sheet' % (row.name,row['databook page']))
 
+            if row['population type'] not in self.pop_types.keys():
+                raise InvalidFramework('Characteristic "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (row.name,row['population type'],self.pop_types.keys()))
+
             for component in row['components'].split(','):
                 if not (component.strip() in self.comps.index or component.strip() in self.characs.index):
                     raise InvalidFramework('In Characteristic "%s", included component "%s" was not recognized as a Compartment or Characteristic' % (row.name, component))
@@ -431,6 +454,7 @@ class ProjectFramework(object):
         required_columns = ['display name']
         defaults = {
             'default value': None,
+            'population type': None
         }
         valid_content = {
             'display name': None,
@@ -442,6 +466,13 @@ class ProjectFramework(object):
         except Exception as e:
             message = 'An error was detected on the "Interactions" sheet in the Framework file -> '
             raise Exception('%s -> %s' % (message, e)) from e
+
+        # Assign first population type to any empty population types
+        self.interactions['population type'] = self.interactions['population type'].fillna(self.pop_types.keys()[0])
+
+        for _, row in self.interactions.iterrows():
+            if row['population type'] not in self.pop_types.keys():
+                raise InvalidFramework('Interaction "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (row.name, row['population type'], self.pop_types.keys()))
 
         # VALIDATE PARAMETERS
         # This is done last, because validating parameter dependencies requires checking compartments and characteristics
@@ -455,7 +486,8 @@ class ProjectFramework(object):
             'databook order': None,
             'targetable': 'n',
             'guidance': None,
-            'timescale': None
+            'timescale': None,
+            'population type': None
         }
         valid_content = {
             'display name': None,
@@ -468,6 +500,9 @@ class ProjectFramework(object):
         except Exception as e:
             message = 'An error was detected on the "Parameters" sheet in the Framework file -> '
             raise Exception('%s -> %s' % (message, e)) from e
+
+        # Assign first population type to any empty population types
+        self.pars['population type'] = self.pars['population type'].fillna(self.pop_types.keys()[0])
 
         self.pars['format'] = self.pars['format'].map(lambda x: x.strip() if sc.isstring(x) else x)
 
@@ -488,7 +523,10 @@ class ProjectFramework(object):
                 par['format'] = par['format'].lower()
 
             if (par['databook page'] is not None) and not (par['databook page'] in self.sheets['databook pages'][0]['datasheet code name'].values):
-                raise InvalidFramework('Compartment "%s" has databook page "%s" but that page does not appear on the "databook pages" sheet' % (par.name,par['databook page']))
+                raise InvalidFramework('Parameter "%s" has databook page "%s" but that page does not appear on the "databook pages" sheet' % (par.name,par['databook page']))
+
+            if par['population type'] not in self.pop_types.keys():
+                raise InvalidFramework('Parameter "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (par.name,par['population type'],self.pop_types.keys()))
 
             if par['function'] is None:
                 # In order to have a value, a transition parameter must either be

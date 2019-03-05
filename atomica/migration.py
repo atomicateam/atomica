@@ -22,6 +22,7 @@ from .system import FrameworkSettings as FS
 import atomica
 import types
 import numpy as np
+import pandas as pd
 
 # MODULE MIGRATIONS
 #
@@ -361,3 +362,20 @@ def model_tidying(proj):
             prog.capacity_constraint = prog.capacity
             del prog.capacity
     return proj
+
+
+@migration('1.0.26', '1.1.0', 'Add population type')
+def add_pop_type(proj):
+
+    fw = proj.framework
+
+    # Add default population type sheet
+    if 'population types' not in fw.sheets:
+        fw.sheets['population types'] = [pd.DataFrame.from_records([('default', 'Default'), ('environment', 'Environment')], columns=['code name', 'description'])]
+
+    for df in [fw.comps, fw.characs, fw.interactions, fw.pars]:
+        if 'population type' not in df:
+            df['population type'] = 'default'
+
+    return proj
+
