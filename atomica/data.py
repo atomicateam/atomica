@@ -193,28 +193,41 @@ class ProjectData(sc.prettyobj):
 
         :param framework: A :class:`ProjectFramework` instance
         :param tvec: A scalar, list, or array of times (typically would be generated with ``numpy.arange()``)
-        :param pops: A number of populations, or a dict with specific names and labels for the pops
-        :param transfers: A number of transfers, or a dict with names and labels for the transfers
+        :param pops: A number of populations, or a ``dict`` with either ``{name:label}`` or ``{name:{label:label,poptype:type}}``. Type defaults
+                     to the first population type in the framework
+        :param transfers: A number of transfers, or a ``dict`` with either ``{name:label}`` or ``{name:{label:label,poptype:type}}``.
+                     The type defaults to the first population type in the framework. Transfers can only take place between populations of the
+                     same type.
         :return: A new :class:`ProjectData` instance
 
         """
 
+        default_poptype = framework.pop_types.keys()[0]
+
+        new_pops = sc.odict()
         if sc.isnumber(pops):
-            new_pops = sc.odict()
             for i in range(0, pops):
-                new_pops['pop_%d' % (i)] = 'Population %d' % (i)
+                new_pops['pop_%d' % (i)] = {'label':'Population %d' % (i),'poptype':default_poptype}
         else:
-            new_pops = pops
+            for code_name, spec in pops.items():
+                if sc.isstring(spec):
+                    new_pops[code_name] = {'label':spec,'poptype':default_poptype}
+                else:
+                    new_pops[code_name] = spec
 
         if not new_pops:
             raise Exception('A new databook must have at least 1 population')
 
+        new_transfers = sc.odict()
         if sc.isnumber(transfers):
-            new_transfers = sc.odict()
             for i in range(0, transfers):
-                new_transfers['transfer_%d' % (i)] = 'Transfer %d' % (i)
+                new_transfers['transfer_%d' % (i)] = {'label':'Population %d' % (i),'poptype':default_poptype}
         else:
-            new_transfers = transfers
+            for code_name, spec in transfers.items():
+                if sc.isstring(spec):
+                    new_transfers[code_name] = {'label':spec,'poptype':default_poptype}
+                else:
+                    new_transfers[code_name] = spec
 
         # Make all of the empty TDVE objects - need to store them by page, and the page information is in the Framework
         data = ProjectData()
@@ -244,11 +257,11 @@ class ProjectData(sc.prettyobj):
                 data.tdve_pages[spec['datasheet title']] = list()
 
         # Now, proceed to add pops, transfers, and interactions
-        for code_name, full_name in new_pops.items():
-            data.add_pop(code_name, full_name)
+        for code_name, spec in new_pops.items():
+            data.add_pop(code_name, spec)
 
-        for code_name, full_name in new_transfers.items():
-            data.add_transfer(code_name, full_name)
+        for code_name, spec in new_transfers.items():
+            data.add_transfer(code_name, spec)
 
         for _, spec in framework.interactions.iterrows():
             interpop = data.add_interaction(spec.name, spec['display name'])
@@ -518,7 +531,7 @@ class ProjectData(sc.prettyobj):
         ss = self.to_spreadsheet(write_uncertainty=write_uncertainty)
         ss.save(fname + '.xlsx' if not fname.endswith('.xlsx') else fname)
 
-    def add_pop(self, code_name, full_name):
+    def add_pop(self, code_name:str, spec:dict):
         # Add a population with the given name and label (full name)
         code_name = code_name.strip()
         assert len(code_name) > 1, 'Population code name (abbreviation) "%s" is not valid - it must be at least two characters long' % (code_name)
@@ -527,7 +540,7 @@ class ProjectData(sc.prettyobj):
         if code_name.lower() in FS.RESERVED_KEYWORDS:
             raise Exception('Population name "%s" is a reserved keyword' % (code_name.lower()))
 
-        self.pops[code_name] = {'label': full_name}
+        self.pops[code_name] = sc.dcp(spec)
         for interaction in self.transfers + self.interpops:
             interaction.pops.append(code_name)
         for tdve in self.tdve.values():
@@ -586,7 +599,7 @@ class ProjectData(sc.prettyobj):
                 if k == pop_name:
                     del tdve.ts[k]
 
-    def add_transfer(self, code_name: str, full_name: str) -> TimeDependentConnections:
+    def add_transfer(self, code_name: str, spec: dict) -> TimeDependentConnections:
         """
         Add a new empty transfer
 
@@ -599,6 +612,10 @@ class ProjectData(sc.prettyobj):
         for transfer in self.transfers:
             assert code_name != transfer.code_name, 'Transfer with name "%s" already exists' % (code_name)
 
+        pop_names = [name for name,pop_spec in self.pops.items() if pop_spec['type'] == spec['type']]
+        raise('TODO - here need to find the populations relevant to the requested spec - or perhaps clearer for end users to take type as a separate argument?')
+        
+        # Here, need to list all relevant populations
         new_transfer = TimeDependentConnections(code_name, full_name, self.tvec, list(self.pops.keys()), type='transfer', ts=None)
         self.transfers.append(new_transfer)
         return new_transfer
@@ -698,12 +715,10 @@ class ProjectData(sc.prettyobj):
             if pop_name.lower() in FS.RESERVED_KEYWORDS:
                 raise Exception('Population name "%s" is a reserved keyword' % (pop_name.lower()))
 
-            if len(row) > 2:
-                if row[2].value is None:
-                    poptype = None
-                else:
-                    cell_require_string(row[2])
-                    poptype = row[2].value.strip()
+            poptype = None
+            if len(row) > 2 and row[2].value is not None:
+                cell_require_string(row[2])
+                poptype = row[2].value.strip()
 
             self.pops[pop_name] = {'label': row[1].value.strip(),'type':poptype}
 

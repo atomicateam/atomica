@@ -303,7 +303,7 @@ class ProjectFramework(object):
         # VALIDATE POPULATION TYPES
         # Default to having 'Default' and 'Environment'
         if 'population types' not in self.sheets:
-            self.sheets['population types'] = [pd.DataFrame.from_records([('default', 'Default'), ('environment', 'Environment')], columns=['code name', 'description'])]
+            self.sheets['population types'] = [pd.DataFrame.from_records([('default', 'Default')], columns=['code name', 'description'])]
 
         # VALIDATE COMPARTMENTS
         required_columns = ['display name']

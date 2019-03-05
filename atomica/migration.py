@@ -367,15 +367,21 @@ def model_tidying(proj):
 @migration('1.0.26', '1.1.0', 'Add population type')
 def add_pop_type(proj):
 
-    fw = proj.framework
+    if proj.framework:
 
-    # Add default population type sheet
-    if 'population types' not in fw.sheets:
-        fw.sheets['population types'] = [pd.DataFrame.from_records([('default', 'Default'), ('environment', 'Environment')], columns=['code name', 'description'])]
+        fw = proj.framework
 
-    for df in [fw.comps, fw.characs, fw.interactions, fw.pars]:
-        if 'population type' not in df:
-            df['population type'] = 'default'
+        # Add default population type sheet
+        if 'population types' not in fw.sheets:
+            fw.sheets['population types'] = [pd.DataFrame.from_records([('default', 'Default'), ('environment', 'Environment')], columns=['code name', 'description'])]
+
+        for df in [fw.comps, fw.characs, fw.interactions, fw.pars]:
+            if 'population type' not in df:
+                df['population type'] = 'default'
+
+    if proj.data:
+        for pop_spec in proj.data.pops.values():
+            if 'type' not in pop_spec:
+                pop_spec['type'] = proj.framework.pop_types.keys()[0]
 
     return proj
-
