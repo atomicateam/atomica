@@ -30,7 +30,7 @@ from .scenarios import Scenario, ParameterScenario, BudgetScenario, CoverageScen
 from .optimization import Optimization, optimize, OptimInstructions, InvalidInitialConditions
 from .system import logger
 from .cascade import sanitize_cascade
-from .utils import NDict, evaluate_plot_string
+from .utils import NDict, evaluate_plot_string, NamedItem
 from .plotting import PlotData, plot_series
 from .results import Result
 from .migration import migrate
@@ -67,7 +67,7 @@ class ProjectSettings(object):
         return None
 
 
-class Project(object):
+class Project(NamedItem):
     def __init__(self, name="default", framework=None, databook=None, do_run=True, **kwargs):
         """ Initialize the project. Keywords are passed to ProjectSettings. """
         # INPUTS
@@ -79,7 +79,7 @@ class Project(object):
         # - databook : The path to a databook file. The databook will be loaded into Project.data and the spreadsheet saved to Project.databook
         # - do_run : If True, a simulation will be run upon project construction
 
-        self.name = name
+        NamedItem.__init__(self, name)
 
         if sc.isstring(framework) or isinstance(framework, sc.Spreadsheet):
             self.framework = ProjectFramework(inputs=framework)
@@ -100,8 +100,6 @@ class Project(object):
         self.uid = sc.uuid()
         self.version = version
         self.gitinfo = sc.dcp(gitinfo)
-        self.created = sc.now()
-        self.modified = sc.now()
         self.filename = None
 
         self.progbook = None  # This will contain an sc.Spreadsheet when the user loads one

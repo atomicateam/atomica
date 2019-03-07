@@ -8,7 +8,7 @@ def test_migration():
     # This is known not to work in Python 3.6 because SafeUUID in the
     # UUID module was only introduced in Python 3.7. Therefore, we skip
     # this test in versions older than Python 3.7
-    if sys.version_info[0] < 6:
+    if sys.version_info[1] < 7:
         return
 
     at.logger.setLevel('DEBUG')
