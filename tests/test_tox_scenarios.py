@@ -2,9 +2,8 @@
 Check whether automated model documentation template generation works
 """
 
-import os
 import atomica as at
-import sciris as sc
+import numpy as np
 
 def test_program_scenarios():
 
@@ -98,7 +97,48 @@ def test_timevarying_progscen():
     d = at.PlotData.programs([res_baseline,scen_result],quantity='coverage_fraction')
     at.plot_series(d)
 
+def test_combined_scenario():
+
+    P = at.demo('tb',do_run=False)
+
+    res_baseline = P.run_sim(P.parsets[0],P.progsets[0],at.ProgramInstructions(2018))
+
+    # Make a parameter overwrite]
+    scvalues = dict()
+    scvalues['b_rate'] = dict()
+    scvalues['b_rate']['0-4'] = dict()
+    scvalues['b_rate']['0-4']["t"] = [2016., 2020., 2050]
+    scvalues['b_rate']['0-4']["y"] = [270000,300000,300000]
+
+    # Make instructions for the program scenario
+    res = P.scen
+    coverage = res_baseline.get_coverage('fraction',2018)
+    alloc = {'BCG':at.TimeSeries([2018,2020],[345000,500000])}
+    coverage = {'PCF':at.TimeSeries([2018,2020],[0.00274411,0.004])}
+    instructions = at.ProgramInstructions(2018,alloc=alloc,coverage=coverage)
+
+    # Instantiate the combined scenario
+    scen = at.CombinedScenario(name='Combined test',parsetname='default',progsetname='default',scvalues=scvalues,instructions=instructions)
+
+    # Run the scenario via `Project.run_scenarios()` and check the output
+    for s in P.scens.values():
+        s.active = False
+    P.scens.append(scen)
+    scen_result = P.run_scenarios(store_results=False)[0]
+
+    # Check parameter overwrite
+    d = at.PlotData([res_baseline,scen_result],outputs='b_rate',pops='0-4')
+    at.plot_series(d,axis='results')
+
+    # Check budget overwrite
+    d = at.PlotData.programs([res_baseline,scen_result],quantity='spending',outputs='BCG')
+    at.plot_series(d,axis='results')
+
+    # Check coverage overwrite
+    d = at.PlotData.programs([res_baseline,scen_result],quantity='coverage_fraction',outputs='PCF')
+    at.plot_series(d,axis='results')
+
 if __name__ == '__main__':
     test_program_scenarios()
     test_timevarying_progscen()
-
+    test_combined_scenario()

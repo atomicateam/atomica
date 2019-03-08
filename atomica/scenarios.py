@@ -51,6 +51,55 @@ class Scenario(NamedItem):
         """
         raise NotImplementedError('Derived classes should implement this')
 
+class CombinedScenario(Scenario):
+    """
+    Define combined (budget+program) scenario
+
+    :param name: The name of the scenario. This will also be used to name the result
+    :param active: If running via ``Project.run_scenarios`` this flags whether to run the scenario
+    :param parsetname: If running via ``Project.run_scenarios`` this identifies which parset to use from the project
+    :param progsetname: If running via ``Project.run_scenarios`` this identifies which progset to use. If set to ``None`` then programs will not be used
+    :param scvalues: Parameter value overwrites, used as input to :class:`ParameterScenario`
+    :param instructions: A :class`ProgramInstructions` instance containing required program overwrites (budget, capacity, coverage)
+
+    """
+    def __init__(self, name=None, active=None, parsetname=None, progsetname=None, scvalues=None, instructions=None):
+        super(CombinedScenario, self).__init__(name, active)
+        self.parsetname = parsetname
+        self.progsetname = progsetname
+        self.scvalues = scvalues
+        self.instructions = instructions
+
+    def run(self, project=None, parset=None, progset=None, store_results=True):
+        """
+        Run combined scenario
+
+        :param project: A :class:`Project` instance
+        :param parset: Optionally a :class:`ParameterSet` instance, otherwise will use ``self.parsetname``
+        :param progset: Optionally a :class:`ProgramSet` instance, otherwise will use ``self.progsetname``
+        :param store_results: If True, the results will be copied into the project
+        :return: A :class:`Result` object
+
+        """
+
+        if parset is None:
+            parset = project.parsets[self.parsetname]
+
+        if progset is None and self.progsetname is not None:
+            progset = project.progsets[self.parsetname]
+
+        scenario_parset = ParameterScenario(scenario_values=self.scvalues).get_parset(parset, project.settings)
+
+        if progset is not None:
+            if self.instructions is None:
+                raise Exception('If using programs, the CombinedScenario must contain instructions specifying at minimum the program start year')
+            result = project.run_sim(parset=scenario_parset, progset=progset, progset_instructions=self.instructions, result_name=self.name, store_results=store_results)
+        else:
+            result = project.run_sim(parset=scenario_parset, result_name=self.name, store_results=store_results)
+
+        return result
+
+
 class ParameterScenario(Scenario):
     def __init__(self, name=None, scenario_values:dict =None, active=None, parsetname=None):
         """
