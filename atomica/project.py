@@ -25,8 +25,8 @@ from .framework import ProjectFramework
 from .model import run_model
 from .parameters import ParameterSet
 
-from .programs import ProgramSet
-from .scenarios import Scenario, ParameterScenario, BudgetScenario, CoverageScenario
+from .programs import ProgramSet, ProgramInstructions
+from .scenarios import Scenario, ParameterScenario, CombinedScenario
 from .optimization import Optimization, optimize, OptimInstructions, InvalidInitialConditions
 from .system import logger
 from .cascade import sanitize_cascade
@@ -253,20 +253,13 @@ class Project(NamedItem):
         self.progsets.append(progset)
         return progset
 
-    def make_scenario(self, name="default", which=None, instructions=None, json=None):
-        if json is not None:
-            if which == 'budget':
-                scenario = BudgetScenario(**json)
-            elif which == 'coverage':
-                scenario = CoverageScenario(**json)
-            else:
-                raise Exception('Parameter scenarios from JSON not implemented')
+    def make_scenario(self, which='combined', **kwargs):
+        if which == 'parameter':
+            scenario = ParameterScenario(**kwargs)
+        elif which == 'combined':
+            scenario = CombinedScenario(**kwargs)
         else:
-            if which == 'parameter':
-                scenario = ParameterScenario(name=name, scenario_values=instructions)
-            else:
-                raise Exception('Budget scenarios not from JSON not implemented')
-
+            raise Exception('Unknown scenario type')
         self.scens.append(scenario)
         return scenario
 
@@ -623,7 +616,7 @@ class Project(NamedItem):
         P = migrate(P)
         return P
 
-    def demo_scenarios(self, dorun=False, doadd=True):
+    def demo_scenarios(self, dorun=False):
         """
         Create demo scenarios
 
@@ -633,41 +626,35 @@ class Project(NamedItem):
         - Doubled budget
         - Zero budget
 
+        The scenarios will be created and added to the project's list of scenarios
+
         :param dorun: If True, and if doadd=True, simulations will be run
         :param doadd: If True, scenario objects will be created and added to the project
-        :return: If ``doadd=False``, returns JSON scenarios. If ``doadd=True`` and ``dorun=False``, return ``None``. If ``doadd=True`` and ``dorun=True``, return list of Result objects
 
         """
 
-        json1 = sc.odict()
-        json1['name'] = 'Default budget'
-        json1['parsetname'] = -1
-        json1['progsetname'] = -1
-        json1['start_year'] = self.data.end_year  # This allows the tests to run on the BE where this default never gets modified e.g. by set_scen_info()
-        json1['alloc_year'] = self.data.end_year
-        json1['alloc'] = self.progset(json1['progsetname']).get_alloc(tvec=json1['alloc_year'])
-        json1['active'] = True
+        parsetname = self.parsets[-1].name
+        progsetname = self.progsets[-1].name
+        start_year = self.data.end_year # By default, apply budget overwrites in the data end year
 
-        json2 = sc.dcp(json1)
-        json2['name'] = 'Doubled budget'
-        json2['alloc'][:] *= 2.0
-        json2['active'] = True
+        # Add default budget scenario
+        current_alloc = self.progset(progsetname).get_alloc(start_year)
+        self.scens.append(CombinedScenario(name='Default budget',parsetname=parsetname,progsetname=progsetname,active=True,instructions=ProgramInstructions(start_year,alloc=current_alloc)))
 
-        json3 = sc.dcp(json1)
-        json3['name'] = 'Zero budget'
-        json3['alloc'][:] *= 0.0
-        json3['active'] = True
+        # Add doubled budget
+        doubled_budget = {x: v * 2 for x, v in current_alloc.items()}
+        self.scens.append(CombinedScenario(name='Doubled budget',parsetname=parsetname,progsetname=progsetname,active=True,instructions=ProgramInstructions(start_year,alloc=doubled_budget)))
 
-        if doadd:
-            for json in [json1, json2, json3]:
-                self.make_scenario(which='budget', json=json)
-            if dorun:
-                results = self.run_scenarios()
-                return results
-            else:
-                return None
+        # Add zero budget
+        zero_budget = {x: 0 for x, v in current_alloc.items()}
+        self.scens.append(CombinedScenario(name='Zero budget',parsetname=parsetname,progsetname=progsetname,active=True,instructions=ProgramInstructions(start_year,alloc=zero_budget)))
+
+        if dorun:
+            results = self.run_scenarios()
+            return results
         else:
-            return json1
+            return None
+
 
     def demo_optimization(self, dorun=False, tool=None, optim_type=None):
         """

@@ -334,7 +334,7 @@ class TimeSeries(object):
 
         :param t: A time value. If ``None``, will return assumption regardless of whether
                   time data has been entered or not
-        :return: The value at the corresponding time
+        :return: The value at the corresponding time. Returns None if the value no value present
         """
 
         if t is None or len(self.t) == 0:
@@ -342,7 +342,7 @@ class TimeSeries(object):
         elif t in self.t:
             return self.vals[self.t.index(t)]
         else:
-            raise Exception('Item not found')
+            return None
 
     def get_arrays(self):
         """

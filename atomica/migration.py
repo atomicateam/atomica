@@ -143,9 +143,7 @@ def migrate(proj):
     else:
         logger.info('Migrating Project "%s" from %s->%s', proj.name, proj.version, version)
     for m in migrations:  # Run the migrations in increasing version order
-        if sc.compareversions(proj.version, m.original_version) > 0:
-            continue
-        else:
+        if sc.compareversions(proj.version, m.new_version) < 0:
             proj = m.upgrade(proj)
 
     proj.version = version  # Set project version to the current Atomica version
@@ -360,4 +358,73 @@ def model_tidying(proj):
         for prog in progset.programs.values():
             prog.capacity_constraint = prog.capacity
             del prog.capacity
+    return proj
+
+@migration('1.0.17', '1.1.1', 'Replace scenarios')
+def replace_scenarios(proj):
+    # This migration replaces existing scenarios with equivalent CombinedScenarios
+    from .scenarios import ParameterScenario, BudgetScenario, CoverageScenario, CombinedScenario
+    from .utils import NDict, TimeSeries
+    from .programs import ProgramInstructions
+
+    new_scens = NDict()
+
+    for name,scen in proj.scens.items():
+
+        scen_name = scen.name
+        active = scen.active
+        parsetname = scen.parsetname
+        progsetname = None
+        scvalues = None
+        instructions = None
+
+        if isinstance(scen,ParameterScenario):
+            scvalues = scen.scenario_values
+
+        elif isinstance(scen,BudgetScenario):
+            # Convert budget scenario to instructions based on existing logic
+            if scen.alloc_year is not None:
+                # If the alloc_year is prior to the program start year, then just use the spending value directly for all times
+                # For more sophisticated behaviour, the alloc should be passed into the BudgetScenario as a TimeSeries
+                alloc = sc.odict()
+                for prog_name, val in scen.alloc.items():
+                    assert not isinstance(val, TimeSeries)  # Value must not be a TimeSeries
+                    if val is None:
+                        continue  # Use default spending for any program that does not have a spending overwrite
+                    alloc[prog_name] = TimeSeries(scen.alloc_year, val)
+                    if scen.alloc_year > scen.start_year and proj.progsets:
+                        # Add in current spending if a programs instance already exists
+                        progset = proj.progsets[-1]
+                        # If adding spending in a future year, linearly ramp from the start year
+                        spend_data = progset.programs[prog_name].spend_data
+                        alloc[prog_name].insert(scen.start_year, spend_data.interpolate(scen.start_year))  # This will result in a linear ramp
+            else:
+                alloc = sc.odict()
+                for prog_name, val in scen.alloc.items():
+                    if not isinstance(val, TimeSeries):
+                        alloc[prog_name] = TimeSeries(scen.start_year, val)
+                    else:
+                        alloc[prog_name] = sc.dcp(val)
+            for ts in alloc.values():
+                ts.vals = [x * scen.budget_factor for x in ts.vals]
+            instructions = ProgramInstructions(alloc=alloc, start_year=scen.start_year)  # Instructions for default spending
+            if proj.progsets:
+                progsetname = proj.progsets[-1].name
+
+        elif isinstance(scen,CoverageScenario):
+            coverage = sc.odict()
+            for prog_name, val in scen.coverage.items():
+                if not isinstance(val, TimeSeries):
+                    coverage[prog_name] = TimeSeries(scen.start_year, val)
+                else:
+                    coverage[prog_name] = sc.dcp(val)
+
+            instructions = ProgramInstructions(coverage=coverage, start_year=scen.start_year)  # Instructions for default spending
+            if proj.progsets:
+                progsetname = proj.progsets[-1].name
+
+        new_scen = CombinedScenario(name=scen_name,active=active,parsetname=parsetname,progsetname=progsetname,scvalues=scvalues,instructions=instructions)
+        new_scens.append(new_scen)
+
+    proj.scens = new_scens
     return proj
