@@ -138,6 +138,14 @@ def test_combined_scenario():
     d = at.PlotData.programs([res_baseline,scen_result],quantity='coverage_fraction',outputs='PCF')
     at.plot_series(d,axis='results')
 
+    # Check the combined scenario would work for just parameters or just programs
+    pars_only = at.CombinedScenario(name='Parameters only', scvalues=scvalues)
+    r2 = pars_only.run(project=P,parset=P.parsets['default'])
+
+    progs_only = at.CombinedScenario(name='Programs only', instructions=instructions)
+    r3 = progs_only.run(project=P,parset=P.parsets['default'],progset=P.progsets['default'])
+
+
 if __name__ == '__main__':
     test_program_scenarios()
     test_timevarying_progscen()

@@ -92,7 +92,7 @@ class CombinedScenario(Scenario):
             scenario_parset = ParameterScenario(scenario_values=self.scvalues).get_parset(parset, project.settings)
         else:
             scenario_parset = parset
-            
+
         if progset is not None:
             if self.instructions is None:
                 raise Exception('If using programs, the CombinedScenario must contain instructions specifying at minimum the program start year')
