@@ -32,7 +32,7 @@ jobs:
       testRunTitle: 'Python $(python.version)'
     condition: succeededOrFailed()
 
-- job: 'deploy'
+- job: deploy
     dependsOn: tox
     condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
 
