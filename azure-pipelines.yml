@@ -31,13 +31,15 @@ jobs:
       testRunTitle: 'Python $(python.version)'
     condition: succeededOrFailed()
 
-- job: 'deploy'
-  dependsOn: 'tox'
-  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
+# TODO - Switch deployment over to Azure DevOps
 
-  steps:
-  - script: python setup.py build && python setup.py sdist
-    displayName: 'Build distribution'
-
-  - script: twine -upload -u $(pypi.username) -p $(pypi.password) dist/*
-    displayName: 'Upload using Twine'
+#- job: 'deploy'
+#  dependsOn: 'tox'
+#  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
+#
+#  steps:
+#  - script: python setup.py build && python setup.py sdist
+#    displayName: 'Build distribution'
+#
+#  - script: twine -upload -u $(pypi.username) -p $(pypi.password) dist/*
+#    displayName: 'Upload using Twine'
