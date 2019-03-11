@@ -35,6 +35,7 @@ jobs:
   dependsOn: 'tox'
   condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
 
+  steps:
   - script: python setup.py build && python setup.py sdist
     displayName: 'Build distribution'
 
