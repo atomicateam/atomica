@@ -1,6 +1,6 @@
 jobs:
 
-- job: tox
+- job: 'tox'
 
   pool:
     vmImage: 'ubuntu-16.04'
@@ -20,7 +20,6 @@ jobs:
       versionSpec: '$(python.version)'
 
   - script: python -m pip install --upgrade pip && python -m pip install tox
-
     displayName: 'Install Tox'
 
   - script: tox -e $(TOXENV)
@@ -32,12 +31,12 @@ jobs:
       testRunTitle: 'Python $(python.version)'
     condition: succeededOrFailed()
 
-- job: deploy
-    dependsOn: tox
-    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
+- job: 'deploy'
+  dependsOn: 'tox'
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
 
-    - script: python setup.py build && python setup.py sdist
-      displayName: 'Build distribution'
+  - script: python setup.py build && python setup.py sdist
+    displayName: 'Build distribution'
 
-    - script: twine -upload -u $(pypi.username) -p $(pypi.password) dist/*
-      displayName: 'Upload using Twine'
+  - script: twine -upload -u $(pypi.username) -p $(pypi.password) dist/*
+    displayName: 'Upload using Twine'
