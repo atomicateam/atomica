@@ -1,11 +1,6 @@
-# Python package
-# Create and test a Python package on multiple Python versions.
-# Add steps that analyze code, save the dist with the build record, publish to a PyPI-compatible index, and more:
-# https://docs.microsoft.com/azure/devops/pipelines/languages/python
-
 jobs:
 
-- job: 'tox'
+- job: tox
 
   pool:
     vmImage: 'ubuntu-16.04'
@@ -37,10 +32,12 @@ jobs:
       testRunTitle: 'Python $(python.version)'
     condition: succeededOrFailed()
 
+- job: 'deploy'
+    dependsOn: tox
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
 
+    - script: python setup.py build && python setup.py sdist
+      displayName: 'Build distribution'
 
-#- task: TwineAuthenticate@0
-#  inputs:
-#    artifactFeeds: 'feed_name1, feed_name2'
-#    externalFeeds: 'feed_name1, feed_name2'
-#- script: 'twine -r {feedName/EndpointName} --config-file $(PYPIRC_PATH) {package path to publish}'
+    - script: twine -upload -u $(pypi.username) -p $(pypi.password) dist/*
+      displayName: 'Upload using Twine'
