@@ -4,9 +4,10 @@
 # https://docs.microsoft.com/azure/devops/pipelines/languages/python
 
 variables:
-PYTEST_ADDOPTS: "--junitxml=build/test-results/$(TOXENV).xml"
+  PYTEST_ADDOPTS: "--junitxml=build/test-results/$(TOXENV).xml"
 
 jobs:
+  
 - job: 'tox'
 
   pool:
