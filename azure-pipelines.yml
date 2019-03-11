@@ -1,0 +1,45 @@
+jobs:
+
+- job: 'tox'
+
+  pool:
+    vmImage: 'ubuntu-16.04'
+  strategy:
+    matrix:
+      Python36:
+        python.version: '3.6'
+        TOXENV: 'py36'
+      Python37:
+        python.version: '3.7'
+        TOXENV: 'py37'
+
+  steps:
+  - task: UsePythonVersion@0
+    displayName: 'Use Python $(python.version)'
+    inputs:
+      versionSpec: '$(python.version)'
+
+  - script: python -m pip install --upgrade pip && python -m pip install tox
+    displayName: 'Install Tox'
+
+  - script: tox -e $(TOXENV)
+    displayName: 'Run Tox'
+
+  - task: PublishTestResults@2
+    inputs:
+      testResultsFiles: '**/test-*.xml'
+      testRunTitle: 'Python $(python.version)'
+    condition: succeededOrFailed()
+
+# TODO - Switch deployment over to Azure DevOps
+
+#- job: 'deploy'
+#  dependsOn: 'tox'
+#  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
+#
+#  steps:
+#  - script: python setup.py build && python setup.py sdist
+#    displayName: 'Build distribution'
+#
+#  - script: twine -upload -u $(pypi.username) -p $(pypi.password) dist/*
+#    displayName: 'Upload using Twine'
