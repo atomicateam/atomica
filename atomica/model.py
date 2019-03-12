@@ -1212,7 +1212,12 @@ class Model(object):
             self.update_junctions()
 
         for pop in self.pops:
-            [par.update() for par in pop.pars if (par.fcn_str and not (par._is_dynamic or par._precompute))]  # Update any remaining parameters
+
+            for par in pop.pars:
+                if par.fcn_str and not (par._is_dynamic or par._precompute):
+                    par.update()
+                    par.constrain()
+
             for charac in pop.characs:
                 charac._vals = None  # Wipe out characteristic vals to save space
 
