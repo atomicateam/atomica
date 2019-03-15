@@ -377,6 +377,28 @@ class TimeSeries(object):
         else:
             raise Exception('Item not found')
 
+    def remove_before(self,t_remove) -> None:
+        """
+        Remove times from start
+
+        :param tval: Remove times up to but not including this time
+        """
+
+        for tval in sc.dcp(self.t):
+            if tval < t_remove:
+                self.remove(tval)
+
+    def remove_after(self, t_remove) -> None:
+        """
+        Remove times from start
+
+        :param tval: Remove times up to but not including this time
+        """
+
+        for tval in sc.dcp(self.t):
+            if tval > t_remove:
+                self.remove(tval)
+
     def remove_between(self, t_remove):
         # t is a two element vector [min,max] such that
         # times > min and < max are removed

@@ -30,7 +30,7 @@ from .scenarios import Scenario, ParameterScenario, CombinedScenario
 from .optimization import Optimization, optimize, OptimInstructions, InvalidInitialConditions
 from .system import logger
 from .cascade import sanitize_cascade
-from .utils import NDict, evaluate_plot_string, NamedItem
+from .utils import NDict, evaluate_plot_string, NamedItem, TimeSeries
 from .plotting import PlotData, plot_series
 from .results import Result
 from .migration import migrate
@@ -634,20 +634,32 @@ class Project(NamedItem):
         """
 
         parsetname = self.parsets[-1].name
-        progsetname = self.progsets[-1].name
-        start_year = self.data.end_year # By default, apply budget overwrites in the data end year
+        progset = self.progsets[-1]
+        start_year = self.data.end_year
+
+        # Come up with the current allocation by truncating after the start year
+        current_budget = {}
+        for prog in progset.programs.values():
+            if prog.spend_data.has_time_data:
+                current_budget[prog.name] = sc.dcp(prog.spend_data)
+            else:
+                current_budget[prog.name] = TimeSeries(start_year,prog.spend_data.assumption)
 
         # Add default budget scenario
-        current_alloc = self.progset(progsetname).get_alloc(start_year)
-        self.scens.append(CombinedScenario(name='Default budget',parsetname=parsetname,progsetname=progsetname,active=True,instructions=ProgramInstructions(start_year,alloc=current_alloc)))
+        self.scens.append(CombinedScenario(name='Default budget',parsetname=parsetname,progsetname=progset.name,active=True,instructions=ProgramInstructions(start_year,alloc=current_budget)))
 
         # Add doubled budget
-        doubled_budget = {x: v * 2 for x, v in current_alloc.items()}
-        self.scens.append(CombinedScenario(name='Doubled budget',parsetname=parsetname,progsetname=progsetname,active=True,instructions=ProgramInstructions(start_year,alloc=doubled_budget)))
+        doubled_budget = sc.dcp(current_budget)
+        for ts in doubled_budget.values():
+            ts.remove_after(start_year)
+            ts.insert(start_year+1,ts.get(start_year)*2)
+        self.scens.append(CombinedScenario(name='Doubled budget',parsetname=parsetname,progsetname=progset.name,active=True,instructions=ProgramInstructions(start_year,alloc=doubled_budget)))
 
         # Add zero budget
-        zero_budget = {x: 0 for x, v in current_alloc.items()}
-        self.scens.append(CombinedScenario(name='Zero budget',parsetname=parsetname,progsetname=progsetname,active=True,instructions=ProgramInstructions(start_year,alloc=zero_budget)))
+        zero_budget = sc.dcp(doubled_budget)
+        for ts in zero_budget.values():
+            ts.insert(start_year+1,0.0)
+        self.scens.append(CombinedScenario(name='Zero budget',parsetname=parsetname,progsetname=progset.name,active=True,instructions=ProgramInstructions(start_year,alloc=zero_budget)))
 
         if dorun:
             results = self.run_scenarios()
