@@ -373,9 +373,12 @@ def replace_scenarios(proj):
 
         scen_name = scen.name
         active = scen.active
-        parsetname = scen.parsetname
-        if not parsetname:
+
+        try:
+            parsetname = proj.parset(scen.parsetname).name
+        except:
             parsetname = proj.parsets[-1].name
+
         progsetname = None
         scvalues = None
         instructions = None
@@ -410,8 +413,12 @@ def replace_scenarios(proj):
             for ts in alloc.values():
                 ts.vals = [x * scen.budget_factor for x in ts.vals]
             instructions = ProgramInstructions(alloc=alloc, start_year=scen.start_year)  # Instructions for default spending
-            if proj.progsets:
-                progsetname = proj.progsets[-1].name
+
+            print(scen.progsetname)
+            try:
+                progsetname = proj.progset(scen.progsetname).name
+            except:
+                progsetname = proj.parsets[-1].name
 
         elif isinstance(scen,CoverageScenario):
             coverage = sc.odict()
@@ -422,8 +429,10 @@ def replace_scenarios(proj):
                     coverage[prog_name] = sc.dcp(val)
 
             instructions = ProgramInstructions(coverage=coverage, start_year=scen.start_year)  # Instructions for default spending
-            if proj.progsets:
-                progsetname = proj.progsets[-1].name
+            try:
+                progsetname = proj.progset(scen.progsetname).name
+            except:
+                progsetname = proj.parsets[-1].name
 
         new_scen = CombinedScenario(name=scen_name,active=active,parsetname=parsetname,progsetname=progsetname,scvalues=scvalues,instructions=instructions)
         new_scens.append(new_scen)
