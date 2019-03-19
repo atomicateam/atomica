@@ -59,15 +59,15 @@ class CombinedScenario(Scenario):
     :param active: If running via ``Project.run_scenarios`` this flags whether to run the scenario
     :param parsetname: If running via ``Project.run_scenarios`` this identifies which parset to use from the project
     :param progsetname: If running via ``Project.run_scenarios`` this identifies which progset to use. If set to ``None`` then programs will not be used
-    :param scvalues: Parameter value overwrites, used as input to :class:`ParameterScenario`
+    :param scenario_values: Parameter value overwrites, used as input to :class:`ParameterScenario`
     :param instructions: A :class`ProgramInstructions` instance containing required program overwrites (budget, capacity, coverage)
 
     """
-    def __init__(self, name=None, active=None, parsetname=None, progsetname=None, scvalues=None, instructions=None):
+    def __init__(self, name=None, active=None, parsetname=None, progsetname=None, scenario_values=None, instructions=None):
         super(CombinedScenario, self).__init__(name, active)
         self.parsetname = parsetname
         self.progsetname = progsetname
-        self.scvalues = scvalues
+        self.scenario_values = scenario_values
         self.instructions = instructions
 
     def run(self, project=None, parset=None, progset=None, store_results=True):
@@ -88,8 +88,8 @@ class CombinedScenario(Scenario):
         if progset is None and self.progsetname is not None:
             progset = project.progsets[self.parsetname]
 
-        if self.scvalues is not None:
-            scenario_parset = ParameterScenario(scenario_values=self.scvalues).get_parset(parset, project.settings)
+        if self.scenario_values is not None:
+            scenario_parset = ParameterScenario(scenario_values=self.scenario_values).get_parset(parset, project.settings)
         else:
             scenario_parset = parset
 
@@ -244,101 +244,4 @@ class ParameterScenario(Scenario):
 
         scenario_parset = self.get_parset(parset, project.settings)
         result = project.run_sim(parset=scenario_parset, result_name=self.name, store_results=store_results)
-        return result
-
-
-class BudgetScenario(Scenario):
-
-    def __init__(self, name=None, parsetname=None, progsetname=None, alloc=None, start_year=None, active=None, alloc_year=None, budget_factor=1.0):
-        # A BudgetScenario specifies spending overwrites
-        # The start_year corresponds to the year in which the programs turn on
-        # The alloc can be a dict of scalar spends, that take effect in the program start year, or a TimeSeries of spending values
-        # If it is a TimeSeries of spending values, the BudgetScenario will attempt to unify them with the program data. ProgramInstructions
-        # uses the alloc directly, to provide maximum control of spending. The BudgetScenario is where the fact that the scenario should linearly
-        # ramp spending is defined. As a shortcut, if the alloc_year is specified, then the alloc will be converted to the appropriate form
-        super(BudgetScenario, self).__init__(name, active)
-        logger.debug('Creating budget scenario with name=%s, parsetname=%s, progsetname=%s, start_year=%s' % (name, progsetname, parsetname, start_year))
-        self.parsetname = parsetname
-        self.progsetname = progsetname
-        self.alloc_year = alloc_year  # If the alloc has scalar values, add them in this year
-        self.alloc = sc.dcp(alloc)
-        self.start_year = start_year  # Turn on programs in this year (can be different to when the spending changes are applied)
-        self.budget_factor = budget_factor
-        return None
-
-    def run(self, project=None, parset=None, progset=None, store_results=True):
-        # Run the BudgetScenario
-        # If parset and progset are not provided, use the ones set in self.parsetname and self.progsetname
-
-        if parset is None:
-            parset = project.parsets[self.parsetname]
-
-        if progset is None:
-            progset = project.progsets[self.progsetname]
-
-        if self.alloc_year is not None:
-            # If the alloc_year is prior to the program start year, then just use the spending value directly for all times
-            # For more sophisticated behaviour, the alloc should be passed into the BudgetScenario as a TimeSeries
-            alloc = sc.odict()
-            for prog_name, val in self.alloc.items():
-                assert not isinstance(val, TimeSeries)  # Value must not be a TimeSeries
-                if val is None:
-                    continue  # Use default spending for any program that does not have a spending overwrite
-                alloc[prog_name] = TimeSeries(self.alloc_year, val)
-                if self.alloc_year > self.start_year:
-                    # If adding spending in a future year, linearly ramp from the start year
-                    spend_data = progset.programs[prog_name].spend_data
-                    alloc[prog_name].insert(self.start_year, spend_data.interpolate(self.start_year))  # This will result in a linear ramp
-        else:
-            alloc = sc.odict()
-            for prog_name, val in self.alloc.items():
-                if not isinstance(val, TimeSeries):
-                    alloc[prog_name] = TimeSeries(self.start_year, val)
-                else:
-                    alloc[prog_name] = sc.dcp(val)
-
-        for ts in alloc.values():
-            ts.vals = [x * self.budget_factor for x in ts.vals]  # TimeSeries uses lists instead of arrays for fast insertion/removal
-
-        instructions = ProgramInstructions(alloc=alloc, start_year=self.start_year)  # Instructions for default spending
-        result = project.run_sim(parset=parset, progset=progset, progset_instructions=instructions, result_name=self.name, store_results=store_results)
-        return result
-
-
-class CoverageScenario(Scenario):
-
-    def __init__(self, name=None, parsetname=None, progsetname=None, coverage=None, start_year=None, active=None):
-        # A BudgetScenario specifies spending overwrites
-        # The start_year corresponds to the year in which the programs turn on
-        # The alloc can be a dict of scalar spends, that take effect in the program start year, or a TimeSeries of spending values
-        # If it is a TimeSeries of spending values, the BudgetScenario will attempt to unify them with the program data. ProgramInstructions
-        # uses the alloc directly, to provide maximum control of spending. The BudgetScenario is where the fact that the scenario should linearly
-        # ramp spending is defined. As a shortcut, if the alloc_year is specified, then the alloc will be converted to the appropriate form
-        super(CoverageScenario, self).__init__(name, active)
-        logger.debug('Creating coverage scenario with name=%s, parsetname=%s, progsetname=%s, start_year=%s' % (name, progsetname, parsetname, start_year))
-        self.parsetname = parsetname
-        self.progsetname = progsetname
-        self.coverage = sc.dcp(coverage)
-        self.start_year = start_year  # Turn on programs in this year (can be different to when the spending changes are applied)
-        return None
-
-    def run(self, project=None, parset=None, progset=None, store_results=True):
-        # Run the BudgetScenario
-        # If parset and progset are not provided, use the ones set in self.parsetname and self.progsetname
-
-        if parset is None:
-            parset = project.parsets[self.parsetname]
-
-        if progset is None:
-            progset = project.progsets[self.progsetname]
-
-        coverage = sc.odict()
-        for prog_name, val in self.coverage.items():
-            if not isinstance(val, TimeSeries):
-                coverage[prog_name] = TimeSeries(self.start_year, val)
-            else:
-                coverage[prog_name] = sc.dcp(val)
-
-        instructions = ProgramInstructions(coverage=coverage, start_year=self.start_year)  # Instructions for default spending
-        result = project.run_sim(parset=parset, progset=progset, progset_instructions=instructions, result_name=self.name, store_results=store_results)
         return result

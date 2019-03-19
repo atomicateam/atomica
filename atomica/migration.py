@@ -42,6 +42,8 @@ atomica.structure.TimeSeries = atomica.utils.TimeSeries  # Moved 'TimeSeries' in
 # The migration function can then replace Placeholder instances with actual
 # instances - see the AtomicaSpreadsheet -> sciris.Spreadsheet migration function
 atomica.excel.AtomicaSpreadsheet = _Placeholder
+atomica.scenarios.BudgetScenario = _Placeholder
+atomica.scenarios.CoverageScenario = _Placeholder
 
 # PROJECT MIGRATIONS
 #
@@ -380,11 +382,11 @@ def replace_scenarios(proj):
             parsetname = proj.parsets[-1].name
 
         progsetname = None
-        scvalues = None
+        scenario_values = None
         instructions = None
 
         if isinstance(scen,ParameterScenario):
-            scvalues = scen.scenario_values
+            scenario_values = scen.scenario_values
 
         elif isinstance(scen,BudgetScenario):
             # Convert budget scenario to instructions based on existing logic
@@ -414,7 +416,6 @@ def replace_scenarios(proj):
                 ts.vals = [x * scen.budget_factor for x in ts.vals]
             instructions = ProgramInstructions(alloc=alloc, start_year=scen.start_year)  # Instructions for default spending
 
-            print(scen.progsetname)
             try:
                 progsetname = proj.progset(scen.progsetname).name
             except:
@@ -434,7 +435,7 @@ def replace_scenarios(proj):
             except:
                 progsetname = proj.parsets[-1].name
 
-        new_scen = CombinedScenario(name=scen_name,active=active,parsetname=parsetname,progsetname=progsetname,scvalues=scvalues,instructions=instructions)
+        new_scen = CombinedScenario(name=scen_name,active=active,parsetname=parsetname,progsetname=progsetname,scenario_values=scenario_values,instructions=instructions)
         new_scens.append(new_scen)
 
     proj.scens = new_scens

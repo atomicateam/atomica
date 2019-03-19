@@ -52,7 +52,7 @@ def run_parameter_scenario(proj):
     scvalues[spec.name][pop_name] = dict()
     scvalues[spec.name][pop_name]["t"] = [2015., 2020.]
     scvalues[spec.name][pop_name]["y"] = par.interpolate(scvalues[spec.name][pop_name]["t"],pop_name) * np.array([1,1.5]).ravel()
-    scen = proj.make_scenario(which='parameter', name="Test", instructions=scvalues)
+    scen = proj.make_scenario(which='parameter', name="Test", scenario_values=scvalues)
     scen.run(proj, proj.parsets["default"])
 
     return
