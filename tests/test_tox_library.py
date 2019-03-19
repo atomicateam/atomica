@@ -83,7 +83,8 @@ def run_budget_scenario(proj):
 
     alloc = proj.progsets[0].get_alloc(2018)
     doubled_budget = {x:v*2 for x,v in alloc.items()}
-    scen = at.BudgetScenario(name='Doubled budget',alloc=doubled_budget,start_year=2018)
+    instructions = at.ProgramInstructions(start_year=2018,alloc=doubled_budget)
+    scen = at.CombinedScenario(name='Doubled budget',instructions=instructions)
     scen.run(proj,parset='default',progset='default')
 
     return
@@ -100,7 +101,8 @@ def run_coverage_scenario(proj):
     print('Testing coverage scenario')
 
     half_coverage = {x:0.5 for x in proj.progsets[0].programs.keys()}
-    scen = at.CoverageScenario(name='Reduced coverage',coverage=half_coverage,start_year=2018)
+    instructions = at.ProgramInstructions(start_year=2018,coverage=half_coverage)
+    scen = at.CombinedScenario(name='Doubled budget',instructions=instructions)
     scen.run(proj,parset='default',progset='default')
 
     return
@@ -183,6 +185,6 @@ if __name__ == '__main__':
     np.seterr(all='raise')
 
     for m in models:
-        if m == 'malaria':
+        if m == 'malaria' or m == 'environment': # Present for local development but not ready to ship yet
             continue
         test_model(m)

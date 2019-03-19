@@ -21,8 +21,7 @@ import numpy as np
 import sciris as sc
 from .system import logger
 from .utils import NamedItem
-from .programs import ProgramInstructions
-from .utils import TimeSeries
+
 
 class Scenario(NamedItem):
     """
@@ -50,6 +49,7 @@ class Scenario(NamedItem):
 
         """
         raise NotImplementedError('Derived classes should implement this')
+
 
 class CombinedScenario(Scenario):
     """
@@ -84,9 +84,13 @@ class CombinedScenario(Scenario):
 
         if parset is None:
             parset = project.parsets[self.parsetname]
+        else:
+            parset = project.parset(parset)
 
         if progset is None and self.progsetname is not None:
             progset = project.progsets[self.parsetname]
+        else:
+            progset = project.progset(progset)
 
         if self.scenario_values is not None:
             scenario_parset = ParameterScenario(scenario_values=self.scenario_values).get_parset(parset, project.settings)
