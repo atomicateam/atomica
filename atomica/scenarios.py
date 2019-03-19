@@ -64,7 +64,7 @@ class CombinedScenario(Scenario):
 
     """
     def __init__(self, name=None, active=None, parsetname=None, progsetname=None, scenario_values=None, instructions=None):
-        super(CombinedScenario, self).__init__(name, active)
+        super().__init__(name, active)
         self.parsetname = parsetname
         self.progsetname = progsetname
         self.scenario_values = scenario_values
@@ -89,7 +89,7 @@ class CombinedScenario(Scenario):
 
         if progset is None and self.progsetname is not None:
             progset = project.progsets[self.parsetname]
-        else:
+        elif progset is not None:
             progset = project.progset(progset)
 
         if self.scenario_values is not None:
@@ -138,7 +138,7 @@ class ParameterScenario(Scenario):
 
         """
 
-        super(ParameterScenario, self).__init__(name, active)
+        super().__init__(name, active)
         self.parsetname = parsetname
         # TODO - could do some extra validation here
         self.scenario_values = scenario_values

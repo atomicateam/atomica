@@ -64,11 +64,11 @@ def test_program_scenarios():
     at.plot_bars(d)
 
     # Run a budget scenario via the actual scenario infrastructure
-    scen = at.BudgetScenario(name='Doubled budget scenario', alloc=doubled_budget, start_year=2018)
+    scen = at.CombinedScenario(name='Doubled budget scenario', instructions=at.ProgramInstructions(alloc=doubled_budget, start_year=2018))
     res_doubled_scen = scen.run(P, parset='default', progset='default')
 
     # Run a coverage scenario via the scenario infrastructure
-    scen = at.CoverageScenario(name='Double coverage scenario', coverage=doubled_coverage, start_year=2018)
+    scen = at.CombinedScenario(name='Double coverage scenario', instructions=at.ProgramInstructions(coverage=doubled_coverage, start_year=2018))
     res_coverage_scen = scen.run(P, parset='default', progset='default')
 
     # Check that the infrastructure gives the same result as direct instructions and
@@ -92,7 +92,7 @@ def test_timevarying_progscen():
          'Harm reduction 1':0.25,
          'Harm reduction 2':at.TimeSeries([2018,2020],[0.7,0.2]),
     }
-    scen = at.CoverageScenario('Reduced coverage','default','default',coverage=coverage,start_year=2018)
+    scen = at.CombinedScenario('Reduced coverage',parsetname='default',progsetname='default',instructions=at.ProgramInstructions(coverage=coverage,start_year=2018))
     scen_result = scen.run(project=P)
     d = at.PlotData.programs([res_baseline,scen_result],quantity='coverage_fraction')
     at.plot_series(d)
@@ -104,21 +104,19 @@ def test_combined_scenario():
     res_baseline = P.run_sim(P.parsets[0],P.progsets[0],at.ProgramInstructions(2018))
 
     # Make a parameter overwrite]
-    scvalues = dict()
-    scvalues['b_rate'] = dict()
-    scvalues['b_rate']['0-4'] = dict()
-    scvalues['b_rate']['0-4']["t"] = [2016., 2020., 2050]
-    scvalues['b_rate']['0-4']["y"] = [270000,300000,300000]
+    scenario_values = dict()
+    scenario_values['b_rate'] = dict()
+    scenario_values['b_rate']['0-4'] = dict()
+    scenario_values['b_rate']['0-4']["t"] = [2016., 2020., 2050]
+    scenario_values['b_rate']['0-4']["y"] = [270000,300000,300000]
 
     # Make instructions for the program scenario
-    res = P.scen
-    coverage = res_baseline.get_coverage('fraction',2018)
     alloc = {'BCG':at.TimeSeries([2018,2020],[345000,500000])}
     coverage = {'PCF':at.TimeSeries([2018,2020],[0.00274411,0.004])}
     instructions = at.ProgramInstructions(2018,alloc=alloc,coverage=coverage)
 
     # Instantiate the combined scenario
-    scen = at.CombinedScenario(name='Combined test',parsetname='default',progsetname='default',scvalues=scvalues,instructions=instructions)
+    scen = at.CombinedScenario(name='Combined test',parsetname='default',progsetname='default',scenario_values=scenario_values,instructions=instructions)
 
     # Run the scenario via `Project.run_scenarios()` and check the output
     for s in P.scens.values():
@@ -139,7 +137,7 @@ def test_combined_scenario():
     at.plot_series(d,axis='results')
 
     # Check the combined scenario would work for just parameters or just programs
-    pars_only = at.CombinedScenario(name='Parameters only', scvalues=scvalues)
+    pars_only = at.CombinedScenario(name='Parameters only', scenario_values=scenario_values)
     r2 = pars_only.run(project=P,parset=P.parsets['default'])
 
     progs_only = at.CombinedScenario(name='Programs only', instructions=instructions)
