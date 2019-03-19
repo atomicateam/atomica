@@ -362,7 +362,7 @@ def model_tidying(proj):
             del prog.capacity
     return proj
 
-@migration('1.0.25', '1.0.26', 'Rename link labels')
+@migration('1.0.27', '1.0.28', 'Rename link labels')
 def model_tidying(proj):
 
     # Normalize link labels - they should now always derive from their associated parameter
