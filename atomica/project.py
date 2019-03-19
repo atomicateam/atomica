@@ -613,8 +613,12 @@ class Project(NamedItem):
 
         P = sc.loadobj(filepath)
         assert isinstance(P, Project)
-        P = migrate(P)
         return P
+
+    def __setstate__(self, d):
+        self.__dict__ = d
+        P = migrate(self)
+        self.__dict__ = P.__dict__
 
     def demo_scenarios(self, dorun=False):
         """
@@ -629,7 +633,6 @@ class Project(NamedItem):
         The scenarios will be created and added to the project's list of scenarios
 
         :param dorun: If True, and if doadd=True, simulations will be run
-        :param doadd: If True, scenario objects will be created and added to the project
 
         """
 

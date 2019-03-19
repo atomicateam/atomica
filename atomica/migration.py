@@ -374,6 +374,8 @@ def replace_scenarios(proj):
         scen_name = scen.name
         active = scen.active
         parsetname = scen.parsetname
+        if not parsetname:
+            parsetname = proj.parsets[-1].name
         progsetname = None
         scvalues = None
         instructions = None
