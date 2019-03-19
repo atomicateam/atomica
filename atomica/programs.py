@@ -479,7 +479,7 @@ class ProgramSet(NamedItem):
         # Load individual sheets
         self._read_targeting(workbook['Program targeting'])
         self._read_spending(workbook['Spending data'], _allow_missing_data=_allow_missing_data)
-        self._read_effects(workbook['Program effects'])
+        self._read_effects(workbook['Program effects'], framework=framework, data=data)
 
         return self
 
@@ -732,17 +732,27 @@ class ProgramSet(NamedItem):
 
         apply_widths(sheet, widths)
 
-    def _read_effects(self, sheet):
+    def _read_effects(self, sheet, framework, data):
         # Read the program effects sheet. Here we instantiate a costcov object for every non-empty row
 
         tables, start_rows = read_tables(sheet)
         pop_codenames = {v.lower().strip(): x for x, v in self.pops.items()}
         par_codenames = {v.lower().strip(): x for x, v in self.pars.items()}
+        transfer_names = set()
+        for transfer in data.transfers:
+            for pops in transfer.ts.keys():
+                transfer_names.add(('%s_%s_to_%s' % (transfer.code_name,pops[0],pops[1])).lower())
 
         self.covouts = sc.odict()
 
         for table in tables:
-            par_name = par_codenames[table[0][0].value.strip().lower()]  # Code name of the parameter we are working with
+            full_name = table[0][0].value.strip().lower()
+            if full_name in par_codenames:
+                par_name = par_codenames[table[0][0].value.strip().lower()]  # Code name of the parameter we are working with
+            elif full_name in transfer_names:
+                par_name = table[0][0].value.strip() # Preserve case
+            else:
+                raise Exception('Program name "%s" was not found in the framework parameters or in the databook transfers' % (table[0][0].value.strip()))
             headers = [x.value.strip() if sc.isstring(x.value) else x.value for x in table[0]]
             idx_to_header = {i: h for i, h in enumerate(headers)}  # Map index to header
 
