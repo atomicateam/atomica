@@ -654,6 +654,7 @@ class Project(NamedItem):
         # Add doubled budget
         doubled_budget = sc.dcp(current_budget)
         for ts in doubled_budget.values():
+            ts.insert(start_year,ts.interpolate(start_year))
             ts.remove_after(start_year)
             ts.insert(start_year+1,ts.get(start_year)*2)
         self.scens.append(CombinedScenario(name='Doubled budget',parsetname=parsetname,progsetname=progset.name,active=True,instructions=ProgramInstructions(start_year,alloc=doubled_budget)))
