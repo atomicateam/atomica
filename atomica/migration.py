@@ -42,8 +42,6 @@ atomica.structure.TimeSeries = atomica.utils.TimeSeries  # Moved 'TimeSeries' in
 # The migration function can then replace Placeholder instances with actual
 # instances - see the AtomicaSpreadsheet -> sciris.Spreadsheet migration function
 atomica.excel.AtomicaSpreadsheet = _Placeholder
-atomica.scenarios.BudgetScenario = _Placeholder
-atomica.scenarios.CoverageScenario = _Placeholder
 
 # PROJECT MIGRATIONS
 #
@@ -386,7 +384,7 @@ def replace_scenarios(proj):
         instructions = None
 
         if isinstance(scen,ParameterScenario):
-            scenario_values = scen.scenario_values
+            new_scen = scen # No need to migrate parameter scenarios
 
         elif isinstance(scen,BudgetScenario):
             # Convert budget scenario to instructions based on existing logic
@@ -414,12 +412,13 @@ def replace_scenarios(proj):
                         alloc[prog_name] = sc.dcp(val)
             for ts in alloc.values():
                 ts.vals = [x * scen.budget_factor for x in ts.vals]
-            instructions = ProgramInstructions(alloc=alloc, start_year=scen.start_year)  # Instructions for default spending
 
             try:
                 progsetname = proj.progset(scen.progsetname).name
             except:
                 progsetname = proj.parsets[-1].name
+
+            new_scen = atomica.BudgetScenario(name=scen_name,active=active,parsetname=parsetname,progsetname=progsetname,alloc=alloc,start_year=scen.start_year)
 
         elif isinstance(scen,CoverageScenario):
             coverage = sc.odict()
@@ -429,13 +428,13 @@ def replace_scenarios(proj):
                 else:
                     coverage[prog_name] = sc.dcp(val)
 
-            instructions = ProgramInstructions(coverage=coverage, start_year=scen.start_year)  # Instructions for default spending
             try:
                 progsetname = proj.progset(scen.progsetname).name
             except:
                 progsetname = proj.parsets[-1].name
 
-        new_scen = CombinedScenario(name=scen_name,active=active,parsetname=parsetname,progsetname=progsetname,scenario_values=scenario_values,instructions=instructions)
+            new_scen = atomica.CoverageScenario(name=scen_name,active=active,parsetname=parsetname,progsetname=progsetname,coverage=coverage,start_year=scen.start_year)
+
         new_scens.append(new_scen)
 
     proj.scens = new_scens

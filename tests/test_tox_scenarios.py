@@ -64,11 +64,11 @@ def test_program_scenarios():
     at.plot_bars(d)
 
     # Run a budget scenario via the actual scenario infrastructure
-    scen = at.CombinedScenario(name='Doubled budget scenario', instructions=at.ProgramInstructions(alloc=doubled_budget, start_year=2018))
+    scen = at.BudgetScenario(name='Doubled budget scenario', alloc=doubled_budget, start_year=2018)
     res_doubled_scen = scen.run(P, parset='default', progset='default')
 
     # Run a coverage scenario via the scenario infrastructure
-    scen = at.CombinedScenario(name='Double coverage scenario', instructions=at.ProgramInstructions(coverage=doubled_coverage, start_year=2018))
+    scen = at.CoverageScenario(name='Double coverage scenario', coverage=doubled_coverage, start_year=2018)
     res_coverage_scen = scen.run(P, parset='default', progset='default')
 
     # Check that the infrastructure gives the same result as direct instructions and
