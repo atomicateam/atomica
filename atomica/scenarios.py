@@ -21,8 +21,9 @@ import numpy as np
 import sciris as sc
 from .system import logger
 from .utils import NamedItem
-from .programs import ProgramInstructions
-
+from .programs import ProgramInstructions, ProgramSet
+from .parameters import ParameterSet
+from .results import Result
 
 class Scenario(NamedItem):
     """
@@ -32,13 +33,27 @@ class Scenario(NamedItem):
     ``active`` property which represents whether the scenario should be run
     as part of :meth:`project.Project.run_scenarios`
 
+    The optional variables ``parsetname`` and ``progsetname`` reference the name of parsets
+    and progsets to use via :meth:`Scenario.run`. These should match the names of objects in the
+    project passed into :meth:`Scenario.run`. However, :meth:`Scenario.run` can also take in
+    a parset and/or progset directly, allowing the scenario to be used with other parsets and
+    progsets on the fly. If  ``parsetname`` and ``progsetname`` are not set in the :class:`Scenario`
+    then they must be passed into :meth:`Scenario.run`.
+
+    :param name: The name of the scenario - also sets the result name via :meth:`Scenario.run`
+    :param parsetname: If running via ``Project.run_scenarios`` this identifies which parset to use from the project
+    :param progsetname: If running via ``Project.run_scenarios`` this identifies which progset to use. If set to ``None`` then programs will not be used
+    :param active: If running via ``Project.run_scenarios`` this flags whether to run the scenario
+
     """
 
-    def __init__(self, name, active=None):
+    def __init__(self, name:str, active:bool=True, parsetname:str =None, progsetname:str =None):
         NamedItem.__init__(self, name)
-        self.active = active if active is not None else True
+        self.parsetname = parsetname
+        self.progsetname = progsetname
+        self.active = active
 
-    def get_parset(self,parset,project):
+    def get_parset(self,parset,project) -> ParameterSet:
         """
         Get scenario parset
 
@@ -51,7 +66,7 @@ class Scenario(NamedItem):
 
         return parset
 
-    def get_progset(self,progset, project):
+    def get_progset(self, progset:ProgramSet, project) -> ProgramSet:
         """
         Get scenario progset
 
@@ -64,7 +79,7 @@ class Scenario(NamedItem):
 
         return progset
 
-    def get_instructions(self, progset, project):
+    def get_instructions(self, progset:ProgramSet, project) -> ProgramInstructions:
 
         """
         Get scenario instructions
@@ -79,7 +94,7 @@ class Scenario(NamedItem):
 
         return None
 
-    def run(self, project=None, parset=None, progset=None, store_results=True):
+    def run(self, project, parset:ParameterSet =None, progset:ProgramSet =None, store_results:bool =True) -> Result:
         """
         Run scenario
 
@@ -119,6 +134,12 @@ class CombinedScenario(Scenario):
     """
     Define combined (budget+program) scenario
 
+    This object stores both a set of scenario values and a set of program instructions.
+    This allows it to simultaneously apply parameter, budget, and coverage overwrites.
+
+    As usual, parameter values from programs take precedence over parameter values from parsets, and
+    within programs, coverage takes precedence ovetoxr budgets.
+
     :param name: The name of the scenario. This will also be used to name the result
     :param active: If running via ``Project.run_scenarios`` this flags whether to run the scenario
     :param parsetname: If running via ``Project.run_scenarios`` this identifies which parset to use from the project
@@ -127,52 +148,47 @@ class CombinedScenario(Scenario):
     :param instructions: A :class`ProgramInstructions` instance containing required program overwrites (budget, capacity, coverage)
 
     """
-    def __init__(self, name=None, active=None, parsetname=None, progsetname=None, scenario_values=None, instructions=None):
-        super().__init__(name, active)
-        self.parsetname = parsetname
-        self.progsetname = progsetname
+
+    def __init__(self, name:str =None, active:bool =True, parsetname:str =None, progsetname:str =None, scenario_values:dict =None, instructions:ProgramInstructions =None):
+        super().__init__(name, active, parsetname, progsetname)
         self.scenario_values = scenario_values
         self.instructions = instructions
 
-    def get_parset(self, parset, project):
+    def get_parset(self, parset, project) -> ParameterSet:
         if self.scenario_values is not None:
             scenario_parset = ParameterScenario(scenario_values=self.scenario_values).get_parset(parset, project)
         else:
             scenario_parset = parset
         return scenario_parset
 
-    def get_instructions(self, progset, project):
+    def get_instructions(self, progset:ProgramSet, project) -> ProgramInstructions:
         return self.instructions
 
 
 class BudgetScenario(Scenario):
 
-    def __init__(self, name=None, active=None, parsetname=None, progsetname=None, alloc=None, start_year=2018):
-        super().__init__(name, active)
-        self.parsetname = parsetname
-        self.progsetname = progsetname
+    def __init__(self, name=None, active:bool=True, parsetname:str =None, progsetname:str =None, alloc:dict =None, start_year=2018):
+        super().__init__(name, active, parsetname, progsetname)
         self.start_year = start_year # Program start year
-        self.alloc = sc.dcp(alloc)
+        self.alloc = sc.dcp(alloc) if alloc is not None else sc.odict()
 
-    def get_instructions(self, progset, project):
+    def get_instructions(self, progset:ProgramSet, project) -> ProgramInstructions:
         return ProgramInstructions(start_year=self.start_year, alloc=self.alloc)
 
 
 class CoverageScenario(Scenario):
 
-    def __init__(self, name=None, active=None, parsetname=None, progsetname=None, coverage=None, start_year=2018):
-        super().__init__(name, active)
-        self.parsetname = parsetname
-        self.progsetname = progsetname
+    def __init__(self, name=None, active:bool=True, parsetname:str =None, progsetname:str =None, coverage:dict =None, start_year=2018):
+        super().__init__(name, active, parsetname, progsetname)
         self.start_year = start_year # Program start year
-        self.coverage = sc.dcp(coverage)
+        self.coverage = sc.dcp(coverage) if coverage is not None else sc.odict()
 
-    def get_instructions(self, progset, project):
+    def get_instructions(self, progset:ProgramSet, project) -> ProgramInstructions:
         return ProgramInstructions(start_year=self.start_year, coverage=self.coverage)
 
 
 class ParameterScenario(Scenario):
-    def __init__(self, name=None, scenario_values:dict =None, active=None, parsetname=None):
+    def __init__(self, name:str =None, scenario_values:dict =None, active:bool=True, parsetname:str =None):
         """
         Define and run parameter scenarios
 
@@ -201,13 +217,12 @@ class ParameterScenario(Scenario):
         >>> pscenario = ParameterScenario(name="examplePS",scenario_values=scvalues)
 
         """
-
-        super().__init__(name, active)
+        super().__init__(name, active, parsetname)
         self.parsetname = parsetname
         # TODO - could do some extra validation here
         self.scenario_values = scenario_values
 
-    def get_parset(self, parset, project):
+    def get_parset(self, parset:ParameterSet, project) -> ParameterSet:
         """
         Return modified parset
 

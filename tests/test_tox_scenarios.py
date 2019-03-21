@@ -145,6 +145,6 @@ def test_combined_scenario():
 
 
 if __name__ == '__main__':
-    test_program_scenarios()
-    test_timevarying_progscen()
+    # test_program_scenarios()
+    # test_timevarying_progscen()
     test_combined_scenario()

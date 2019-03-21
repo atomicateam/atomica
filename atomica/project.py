@@ -26,7 +26,7 @@ from .model import run_model
 from .parameters import ParameterSet
 
 from .programs import ProgramSet, ProgramInstructions
-from .scenarios import Scenario, ParameterScenario, CombinedScenario
+from .scenarios import Scenario, ParameterScenario, CombinedScenario, BudgetScenario, CoverageScenario
 from .optimization import Optimization, optimize, OptimInstructions, InvalidInitialConditions
 from .system import logger
 from .cascade import sanitize_cascade
@@ -253,9 +253,22 @@ class Project(NamedItem):
         self.progsets.append(progset)
         return progset
 
-    def make_scenario(self, which='combined', **kwargs):
+    def make_scenario(self, which:str ='combined', **kwargs):
+        """
+        Make new scenario and store in Project
+
+        :param which: String identifying type - one of ``['parameter','budget','coverage','combined']``
+        :param kwargs: Arguments to pass to appropriate :class:`Scenario` constructor
+        :return: New scenario instance
+
+        """
+
         if which == 'parameter':
             scenario = ParameterScenario(**kwargs)
+        elif which == 'budget':
+            scenario = BudgetScenario(**kwargs)
+        elif which == 'coverage':
+            scenario = CoverageScenario(**kwargs)
         elif which == 'combined':
             scenario = CombinedScenario(**kwargs)
         else:
