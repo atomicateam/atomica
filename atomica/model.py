@@ -591,7 +591,7 @@ class Link(Variable):
 
     #
     # *** Link values are always dt-based ***
-    def __init__(self, pop, parameter, source, dest, tag):
+    def __init__(self, pop, parameter, source, dest, tag=None):
         # Note that the Link's name is the transition tag
         Variable.__init__(self, pop=pop, id=(pop.name, source.name, dest.name, tag))  # A Link is only uniquely identified by (Pop,Source,Dest,Par)
         self.vals = None
@@ -1015,7 +1015,7 @@ class Model(object):
         self._vars_by_pop = None  # Cache to look up lists of variables by name across populations
         self._pop_ids = sc.odict()  # Maps name of a population to its position index within populations list.
         self._program_cache = None
-        self._par_list = list(framework.pars.index)  # This is a list of all parameters code names in the model
+        self._par_list = None  # This is a list of all parameters code names in the model
 
         self.framework = sc.dcp(framework)  # Store a copy of the Framework used to generate this model
         self.framework.spreadsheet = None  # No need to keep the spreadsheet
@@ -1078,10 +1078,14 @@ class Model(object):
 
     def set_vars_by_pop(self):
         self._vars_by_pop = defaultdict(list)
+        par_names = []
         for pop in self.pops:
             for var in pop.comps + pop.characs + pop.pars + pop.links:
                 self._vars_by_pop[var.name].append(var)
+            for par in pop.pars:
+                par_names.append(par.name)
         self._vars_by_pop = dict(self._vars_by_pop)  # Stop new entries from appearing in here by accident
+        self._par_list = list(sc.odict.fromkeys(par_names))
 
     def __getstate__(self):
         self.unlink()
@@ -1148,19 +1152,19 @@ class Model(object):
         # For each population pair, instantiate a Parameter with the values from the databook
         # For each compartment, instantiate a set of Links that all derive from that Parameter
         # NB. If a Program somehow targets the transfer parameter, those values will automatically... what?
-        for trans_type in parset.transfers:
-            if parset.transfers[trans_type]:
-                for pop_source in parset.transfers[trans_type]:
+        for transfer_name in parset.transfers:
+            if parset.transfers[transfer_name]:
+                for pop_source in parset.transfers[transfer_name]:
 
                     # This contains the data for all of the destination pops.
-                    transfer_parameter = parset.transfers[trans_type][pop_source]
+                    transfer_parameter = parset.transfers[transfer_name][pop_source]
 
                     pop = self.get_pop(pop_source)
 
                     for pop_target in transfer_parameter.ts:
 
                         # Create the parameter object for this link (shared across all compartments)
-                        par_name = trans_type + '_' + pop_source + '_to_' + pop_target  # e.g. 'aging_0-4_to_15-64'
+                        par_name = "%s_%s_to_%s" % (transfer_name, pop_source , pop_target)  # e.g. 'aging_0-4_to_15-64'
                         par = Parameter(pop=pop, name=par_name)
                         par.preallocate(self.t, self.dt)
                         par.scale_factor = transfer_parameter.y_factor[pop_target] * transfer_parameter.meta_y_factor
@@ -1175,8 +1179,7 @@ class Model(object):
                             if not (source.tag_birth or source.tag_dead or source.is_junction):
                                 # Instantiate a link between corresponding compartments
                                 dest = target_pop_obj.get_comp(source.name)  # Get the corresponding compartment
-                                link_tag = par_name + '_' + source.name + ':flow'  # e.g. 'aging_0-4_to_15-64_sus:flow'
-                                link = Link(pop, par, source, dest, link_tag)
+                                link = Link(pop, par, source, dest, par.name + ':flow')
                                 link.preallocate(self.t, self.dt)
                                 pop.links.append(link)
                                 if link.name in pop.link_lookup:
@@ -1212,7 +1215,12 @@ class Model(object):
             self.update_junctions()
 
         for pop in self.pops:
-            [par.update() for par in pop.pars if (par.fcn_str and not (par._is_dynamic or par._precompute))]  # Update any remaining parameters
+
+            for par in pop.pars:
+                if par.fcn_str and not (par._is_dynamic or par._precompute):
+                    par.update()
+                    par.constrain()
+
             for charac in pop.characs:
                 charac._vals = None  # Wipe out characteristic vals to save space
 
