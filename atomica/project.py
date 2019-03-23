@@ -662,7 +662,9 @@ class Project(NamedItem):
                 current_budget[prog.name] = TimeSeries(start_year,prog.spend_data.assumption)
 
         # Add default budget scenario
-        self.scens.append(CombinedScenario(name='Default budget',parsetname=parsetname,progsetname=progset.name,active=True,instructions=ProgramInstructions(start_year,alloc=current_budget)))
+        # self.scens.append(CombinedScenario(name='Default budget',parsetname=parsetname,progsetname=progset.name,active=True,instructions=ProgramInstructions(start_year,alloc=current_budget)))
+        self.scens.append(BudgetScenario(name='Default budget', parsetname=parsetname, progsetname=progset.name,
+            active=True, alloc=current_budget, start_year=start_year))
 
         # Add doubled budget
         doubled_budget = sc.dcp(current_budget)
@@ -670,13 +672,17 @@ class Project(NamedItem):
             ts.insert(start_year,ts.interpolate(start_year))
             ts.remove_after(start_year)
             ts.insert(start_year+1,ts.get(start_year)*2)
-        self.scens.append(CombinedScenario(name='Doubled budget',parsetname=parsetname,progsetname=progset.name,active=True,instructions=ProgramInstructions(start_year,alloc=doubled_budget)))
+        # self.scens.append(CombinedScenario(name='Doubled budget',parsetname=parsetname,progsetname=progset.name,active=True,instructions=ProgramInstructions(start_year,alloc=doubled_budget)))
+        self.scens.append(BudgetScenario(name='Doubled budget', parsetname=parsetname, progsetname=progset.name,
+            active=True, alloc=doubled_budget, start_year=start_year))
 
         # Add zero budget
         zero_budget = sc.dcp(doubled_budget)
         for ts in zero_budget.values():
             ts.insert(start_year+1,0.0)
-        self.scens.append(CombinedScenario(name='Zero budget',parsetname=parsetname,progsetname=progset.name,active=True,instructions=ProgramInstructions(start_year,alloc=zero_budget)))
+        # self.scens.append(CombinedScenario(name='Zero budget',parsetname=parsetname,progsetname=progset.name,active=True,instructions=ProgramInstructions(start_year,alloc=zero_budget)))
+        self.scens.append(BudgetScenario(name='Zero budget', parsetname=parsetname, progsetname=progset.name,
+            active=True, alloc=zero_budget, start_year=start_year))
 
         if dorun:
             results = self.run_scenarios()
