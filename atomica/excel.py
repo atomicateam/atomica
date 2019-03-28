@@ -200,12 +200,14 @@ class TimeDependentConnections(object):
                An interaction can only be Y/N for clarity, if it is Y then a row is displayed for the TimeSeries. Actually, the Y/N can be
                decided in the first instance based on the provided TimeSeries i.e. if a TimeSeries is provided for an interaction, then the
                interaction must have been marked with Y
+    :param pop_type: Specify pop_type, which is used by :meth:`ProjectData.add_pop` to determine which TDCs to add new populations to
 
     """
 
-    def __init__(self, code_name:str, full_name:str, tvec, pops:list, type:str, ts:dict=None):
+    def __init__(self, code_name:str, full_name:str, tvec, pops:list, type:str, ts:dict=None, pop_type:str=None):
         self.code_name = code_name
         self.full_name = full_name
+        self.pop_type = pop_type
         self.type = type
         self.pops = pops
         self.tvec = tvec
@@ -248,6 +250,11 @@ class TimeDependentConnections(object):
         # Read the name table
         code_name = tables[0][1][0].value
         full_name = tables[0][1][1].value
+        if len(tables[0][0]) > 2 and sc.isstring(tables[0][0][2].value) and tables[0][0][2].value.strip().lower() == 'population type':
+            pop_type = tables[0][1][2].value.strip()
+        else:
+            pop_type = None
+
         interaction_type = interaction_type
 
         # Read the pops from the Y/N table. The Y/N content of the table depends on the timeseries objects that
@@ -328,7 +335,7 @@ class TimeDependentConnections(object):
                         ts.insert(t, cell_get_number(cell))  # If cell_get_number returns None, this gets handled accordingly by ts.insert()
                 ts_entries[(from_pop, to_pop)] = ts
 
-        return TimeDependentConnections(code_name, full_name, tvec, pops, interaction_type, ts=ts_entries)
+        return TimeDependentConnections(code_name, full_name, tvec, pops, interaction_type, ts=ts_entries, pop_type=pop_type)
 
     def write(self, worksheet, start_row, formats, references:dict=None, widths:dict=None, assumption_heading='Constant', write_units:bool=None, write_uncertainty:bool=None, write_assumption:bool=None) -> int:
         """
@@ -365,11 +372,17 @@ class TimeDependentConnections(object):
         update_widths(widths, 0, 'Abbreviation')
         worksheet.write(current_row, 1, 'Full Name', formats["center_bold"])
         update_widths(widths, 1, 'Full Name')
+        worksheet.write(current_row, 2, 'Population type', formats["center_bold"])
+        update_widths(widths, 2, 'Population type')
 
         current_row += 1
         worksheet.write(current_row, 0, self.code_name)
         update_widths(widths, 0, self.code_name)
         worksheet.write(current_row, 1, self.full_name)
+        update_widths(widths, 1, self.full_name)
+        worksheet.write(current_row, 2, self.pop_type)
+        update_widths(widths, 2, self.pop_type)
+
         references[self.code_name] = "='%s'!%s" % (worksheet.name, xlrc(current_row, 0, True, True))
         references[self.full_name] = "='%s'!%s" % (worksheet.name, xlrc(current_row, 1, True, True))  # Reference to the full name
 

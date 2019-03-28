@@ -60,7 +60,7 @@ class ProjectFramework(object):
         # For some pages, we only ever want to read in one DataFrame, and we want empty lines to be ignored. For example, on the
         # 'compartments' sheet, we want to ignore blank lines, while on the 'cascades' sheet we want the blank line to delimit the
         # start of a new cascade. So, for the sheet names below, multiple tables will be compressed to one table
-        merge_tables = {'databook pages', 'compartments', 'parameters', 'characteristics', 'transitions', 'interactions', 'plots', 'population types'}
+        merge_tables = {'databook pages', 'compartments', 'parameters', 'characteristics', 'interactions', 'plots', 'population types'}
 
         for worksheet in workbook.worksheets:
             sheet_title = worksheet.title.lower()
@@ -236,36 +236,70 @@ class ProjectFramework(object):
         return False
 
     def _process_transitions(self):
+        """
+        Parse the dataframes associated with the transition sheet into an edge-list representation
+        
+        
+        :return: 
+        """
         # Parse the dataframe associated with the transition sheet into an edge-list representation
         # with a dict where the key is a parameter name and the value is a list of (from,to) tuples
         #
         # Expects a sheet called 'Transitions' to be present and correctly filled out
-        t = self.sheets['transitions'][0].copy()  # Copy the dataframe on this sheet
-        assert isinstance(t, pd.DataFrame)  # This could be a list if there was more than one item present, but this should have been dealt with earlier
 
-        self.transitions = {x: list() for x in list(self.pars.index)}
-        comp_names = set(self.comps.index)
+        # First, assign the transition matrices to population types
+        self.transitions = {x: list() for x in self.pars.index}
+        comps = self.comps['population type'].to_dict() # Look up which pop type is associated with each compartment
+        pars = self.pars['population type'].to_dict() # Look up which pop type is associated with each parameter
 
-        for _, from_row in t.iterrows():  # For each row in the transition matrix
-            from_row.dropna(inplace=True)
-            from_comp = from_row[0]
-            if from_comp not in comp_names:
-                raise InvalidFramework('A compartment "%s" appears in the first column of the matrix on the Transitions sheet, but it was not defined on the Compartments sheet' % (from_comp))
-            from_row = from_row[1:]
-            for to_comp, par_names in from_row.iteritems():
-                for par_name in par_names.split(','):
-                    par_name = par_name.strip()
-                    if par_name not in self.transitions:
-                        raise InvalidFramework('Parameter %s appears in the transition matrix but not on the Parameters page' % (par_name))
-                    if to_comp not in comp_names:
-                        raise InvalidFramework('A compartment "%s" appears in the first row of the matrix on the Transitions sheet, but it was not defined on the Compartments sheet' % (to_comp))
-                    self.transitions[par_name].append((from_comp, to_comp))
+        pop_types = set()
+        for i,df in enumerate(self.sheets['transitions']):
+            cols = list(df.columns)
+            if cols[0] is None:
+                cols[0] = self.pop_types.keys()[0]
+            if cols[0] in pop_types:
+                raise InvalidFramework('More than one transition matrix is assigned to the same population type. This can happen if multiple transition matrices are being assigned to the default population type')
+            else:
+                pop_types.add(cols[0])
+                df.columns = cols
+            df = df.set_index(df.columns[0])
+
+            if df.index.name not in self.pop_types:
+                raise InvalidFramework('Transition matrix has population type "%s" but this is not a recognized population type (available population types are %s)' % (df.index.name, list(self.pop_types.keys())))
+
+            # Check all compartments are within the specified population type
+            for comp in set(list(df.index) + list(df.columns)):
+                if comp not in comps:
+                    raise InvalidFramework('A compartment "%s" appears in the first column of the matrix on the Transitions sheet, but it was not defined on the Compartments sheet' % (comp))
+                elif comps[comp] != df.index.name:
+                    raise InvalidFramework('Compartment "%s" belongs to pop type "%s" but it appears in the transition matrix for "%s"' % (comp, comps[comp], df.index.name))
+
+            self.sheets['transitions'][i] = df
+
+        # Next, import each dataframe
+        for df in self.sheets['transitions']:
+            for _, from_row in df.iterrows():  # For each row in the transition matrix
+                from_row.dropna(inplace=True)
+                from_comp = from_row.name
+                for to_comp, par_names in from_row.iteritems():
+                    for par_name in par_names.split(','):
+                        par_name = par_name.strip()
+
+                        if par_name not in self.transitions:
+                            raise InvalidFramework('Parameter "%s" appears in the transition matrix but not on the Parameters page' % (par_name))
+
+                        if pars[par_name] != df.index.name:
+                            raise InvalidFramework('Compartment "%s" belongs to pop type "%s" but it appears in the transition matrix for "%s"' % (par, pars[par_name], df.index.name))
+
+                        self.transitions[par_name].append((from_comp, to_comp))
 
     def _validate(self):
         # This function validates the content of Framework. There are two aspects to this
         # - Adding in any missing values using appropriate defaults
         # - Checking that the provided information is internally consistent
-
+        # This is called automatically during construction, therefore any changes
+        # made during validation will occur prior to users interacting with the ProjectFramework
+        
         # Check for required sheets
         for page in ['databook pages', 'compartments', 'parameters', 'characteristics', 'transitions']:
             if page not in self.sheets:
@@ -301,7 +335,7 @@ class ProjectFramework(object):
             logger.warning('A sheet called "Plot" was found, but it probably should be called "Plots"')
 
         # VALIDATE POPULATION TYPES
-        # Default to having 'Default' and 'Environment'
+        # Default to having 'Default'
         if 'population types' not in self.sheets:
             self.sheets['population types'] = [pd.DataFrame.from_records([('default', 'Default')], columns=['code name', 'description'])]
 
@@ -447,7 +481,6 @@ class ProjectFramework(object):
                     raise InvalidFramework('In Characteristic "%s", included component "%s" was not recognized as a Compartment or Characteristic' % (row.name, component))
 
         # VALIDATE INTERACTIONS
-
         if 'interactions' not in self.sheets:
             self.sheets['interactions'] = [pd.DataFrame(columns=['code name', 'display name'])]
 
@@ -652,7 +685,7 @@ class ProjectFramework(object):
 
         # VALIDATE NAMES - No collisions, no keywords
 
-        code_names = list(self.comps.index) + list(self.characs.index) + list(self.pars.index) + list(self.interactions.index)
+        code_names = list(self.comps.index) + list(self.characs.index) + list(self.pars.index) + list(self.interactions.index) + list(self.pop_types.keys())
         tmp = set()
         for name in code_names:
 
