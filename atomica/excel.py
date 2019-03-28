@@ -204,12 +204,14 @@ class TimeDependentConnections(object):
 
     """
 
-    def __init__(self, code_name:str, full_name:str, tvec, pops:list, type:str, ts:dict=None, pop_type:str=None):
+    def __init__(self, code_name:str, full_name:str, tvec, from_pops:list, to_pops:list, interpop_type:str, ts:dict=None, from_pop_type:str=None, to_pop_type:str=None):
         self.code_name = code_name
         self.full_name = full_name
-        self.pop_type = pop_type
-        self.type = type
-        self.pops = pops
+        self.type = interpop_type
+        self.from_pop_type = from_pop_type
+        self.from_pops = from_pops
+        self.to_pop_type = to_pop_type
+        self.to_pops = to_pops
         self.tvec = tvec
         self.ts = ts if ts is not None else sc.odict()
 
@@ -250,18 +252,29 @@ class TimeDependentConnections(object):
         # Read the name table
         code_name = tables[0][1][0].value
         full_name = tables[0][1][1].value
-        if len(tables[0][0]) > 2 and sc.isstring(tables[0][0][2].value) and tables[0][0][2].value.strip().lower() == 'population type':
-            pop_type = tables[0][1][2].value.strip()
+        if len(tables[0][0]) > 2 and sc.isstring(tables[0][0][2].value) and tables[0][0][2].value.strip().lower() == 'from population type':
+            cell_require_string(tables[0][1][2])
+            from_pop_type = tables[0][1][2].value.strip()
         else:
-            pop_type = None
+            from_pop_type = None
 
-        interaction_type = interaction_type
+        if len(tables[0][0]) > 3 and sc.isstring(tables[0][0][3].value) and tables[0][0][3].value.strip().lower() == 'to population type':
+            cell_require_string(tables[0][1][3])
+            to_pop_type = tables[0][1][3].value.strip()
+        else:
+            to_pop_type = None
+
+        if interaction_type == 'transfer':
+            assert from_pop_type == to_pop_type, 'Transfers can only occur between populations of the same type'
 
         # Read the pops from the Y/N table. The Y/N content of the table depends on the timeseries objects that
         # are present. That is, if the Y/N matrix contains a Y then a TimeSeries must be read in, and vice versa.
         # Therefore, we don't actually parse the matrix, and instead just read in all the TimeSeries instances
         # that are defined and infer the matrix that way.
-        pops = [x.value for x in tables[1][0][1:] if x.value]
+        to_pops = [x.value for x in tables[1][0][1:] if x.value]
+        from_pops = []
+        for row in tables[1][1:]:
+            from_pops.append(row[0].value)
 
         # Now read any TimeSeries entries that are present. First we need to work out which columns are which, and
         # what times are present
@@ -299,8 +312,8 @@ class TimeDependentConnections(object):
 
         for row in tables[2][1:]:
             if row[0].value != '...':
-                assert row[0].value in pops, 'Population "%s" not found - should be contained in %s' % (row[0].value, pops)
-                assert row[2].value in pops, 'Population "%s" not found - should be contained in %s' % (row[2].value, pops)
+                assert row[0].value in from_pops, 'Population "%s" not found - should be contained in %s' % (row[0].value, from_pops)
+                assert row[2].value in to_pops, 'Population "%s" not found - should be contained in %s' % (row[2].value, to_pops)
                 vals = [x.value for x in row]
                 from_pop = vals[0]
                 to_pop = vals[2]
@@ -335,7 +348,7 @@ class TimeDependentConnections(object):
                         ts.insert(t, cell_get_number(cell))  # If cell_get_number returns None, this gets handled accordingly by ts.insert()
                 ts_entries[(from_pop, to_pop)] = ts
 
-        return TimeDependentConnections(code_name, full_name, tvec, pops, interaction_type, ts=ts_entries, pop_type=pop_type)
+        return TimeDependentConnections(code_name, full_name, tvec, from_pops=from_pops, to_pops=to_pops, interpop_type=interaction_type, ts=ts_entries, from_pop_type=from_pop_type, to_pop_type=to_pop_type)
 
     def write(self, worksheet, start_row, formats, references:dict=None, widths:dict=None, assumption_heading='Constant', write_units:bool=None, write_uncertainty:bool=None, write_assumption:bool=None) -> int:
         """
@@ -364,7 +377,7 @@ class TimeDependentConnections(object):
             write_assumption = any((ts.assumption is not None for ts in self.ts.values()))
 
         if not references:
-            references = {x: x for x in self.pops}  # Default null mapping for populations
+            references = {x: x for x in self.from_pops+self.to_pops}  # Default null mapping for populations
 
         # First, write the name entry table
         current_row = start_row
@@ -372,16 +385,20 @@ class TimeDependentConnections(object):
         update_widths(widths, 0, 'Abbreviation')
         worksheet.write(current_row, 1, 'Full Name', formats["center_bold"])
         update_widths(widths, 1, 'Full Name')
-        worksheet.write(current_row, 2, 'Population type', formats["center_bold"])
-        update_widths(widths, 2, 'Population type')
+        worksheet.write(current_row, 2, 'From population type', formats["center_bold"])
+        update_widths(widths, 2, 'From population type')
+        worksheet.write(current_row, 3, 'To population type', formats["center_bold"])
+        update_widths(widths, 3, 'To population type')
 
         current_row += 1
         worksheet.write(current_row, 0, self.code_name)
         update_widths(widths, 0, self.code_name)
         worksheet.write(current_row, 1, self.full_name)
         update_widths(widths, 1, self.full_name)
-        worksheet.write(current_row, 2, self.pop_type)
-        update_widths(widths, 2, self.pop_type)
+        worksheet.write(current_row, 2, self.from_pop_type)
+        update_widths(widths, 2, self.from_pop_type)
+        worksheet.write(current_row, 3, self.to_pop_type)
+        update_widths(widths, 3, self.to_pop_type)
 
         references[self.code_name] = "='%s'!%s" % (worksheet.name, xlrc(current_row, 0, True, True))
         references[self.full_name] = "='%s'!%s" % (worksheet.name, xlrc(current_row, 1, True, True))  # Reference to the full name
@@ -430,11 +447,11 @@ class TimeDependentConnections(object):
             else:
                 return('=IF(%s="Y","%s","...")' % (gating_cell, content))
 
-        for from_idx in range(0, len(self.pops)):
-            for to_idx in range(0, len(self.pops)):
+        for from_idx in range(0, len(self.from_pops)):
+            for to_idx in range(0, len(self.to_pops)):
                 current_row += 1
-                from_pop = self.pops[from_idx]
-                to_pop = self.pops[to_idx]
+                from_pop = self.from_pops[from_idx]
+                to_pop = self.to_pops[to_idx]
                 entry_tuple = (from_pop, to_pop)
                 entry_cell = table_references[entry_tuple]
 
@@ -540,45 +557,45 @@ class TimeDependentConnections(object):
 
         """
 
-        nodes = self.pops
         entries = self.ts
 
         if not references:
-            references = {x: x for x in nodes}  # This is a null-mapping that takes say 'adults'->'adults' thus simplifying the workflow. Otherwise, it's assumed a reference exists for every node
+            references = {x: x for x in self.from_pops+self.to_pops}  # This is a null-mapping that takes say 'adults'->'adults' thus simplifying the workflow. Otherwise, it's assumed a reference exists for every node
 
         table_references = {}
         values_written = {}
 
         # Write the headers
-        for i, node in enumerate(nodes):
-            worksheet.write_formula(start_row + i + 1, 0, references[node], formats['center_bold'], value=node)
-            update_widths(widths, 0, node)
+        for i, node in enumerate(self.to_pops):
             worksheet.write_formula(start_row, i + 1, references[node], formats['center_bold'], value=node)
             update_widths(widths, i + 1, node)
+        for i, node in enumerate(self.from_pops):
+            worksheet.write_formula(start_row + i + 1, 0, references[node], formats['center_bold'], value=node)
+            update_widths(widths, 0, node)
 
         # Prepare the content - first replace the dict with one keyed by index. This is because we cannot apply formatting
         # after writing content, so have to do the writing in a single pass over the entire matrix
         if boolean_choice:
-            content = np.full((len(nodes), len(nodes)), 'N', dtype=object)  # This will also coerce the value to string in preparation for writing
+            content = np.full((len(self.from_pops), len(self.to_pops)), 'N', dtype=object)  # This will also coerce the value to string in preparation for writing
         else:
-            content = np.full((len(nodes), len(nodes)), '', dtype=object)  # This will also coerce the value to string in preparation for writing
+            content = np.full((len(self.from_pops), len(self.to_pops)), '', dtype=object)  # This will also coerce the value to string in preparation for writing
 
         for interaction, value in entries.items():
-            from_node, to_node = interaction
-            if not self.enable_diagonal and from_node == to_node:
+            from_pop, to_pop = interaction
+            if not self.enable_diagonal and from_pop == to_pop:
                 raise Exception('Trying to write a diagonal entry to a table that is not allowed to contain diagonal terms')  # This is because data loss will occur if the user adds entries on the diagonal, then writes the table, and then reads it back in
-            from_idx = nodes.index(from_node)
-            to_idx = nodes.index(to_node)
+            from_idx = self.from_pops.index(from_pop)
+            to_idx = self.to_pops.index(to_pop)
             if boolean_choice:
                 value = 'Y' if value else 'N'
             content[from_idx, to_idx] = value
 
         # Write the content
-        for from_idx in range(0, len(nodes)):
-            for to_idx in range(0, len(nodes)):
+        for from_idx in range(0, len(self.from_pops)):
+            for to_idx in range(0, len(self.to_pops)):
                 row = start_row + 1 + from_idx
                 col = to_idx + 1
-                if not self.enable_diagonal and to_idx == from_idx:  # Disable the diagonal if that's what's desired
+                if not self.enable_diagonal and self.to_pops[to_idx] == self.from_pops[from_idx]:  # Disable the diagonal if it's linking the same two quantities and that's desired
                     val = FS.DEFAULT_SYMBOL_INAPPLICABLE
                     worksheet.write(row, col, val, formats["center"])
                     worksheet.data_validation(xlrc(row, col), {"validate": "list", "source": ["N.A."]})
@@ -589,10 +606,10 @@ class TimeDependentConnections(object):
                         worksheet.data_validation(xlrc(row, col), {"validate": "list", "source": ["Y", "N"]})
                         worksheet.conditional_format(xlrc(row, col), {'type': 'cell', 'criteria': 'equal to', 'value': '"Y"', 'format': formats['unlocked_boolean_true']})
                         worksheet.conditional_format(xlrc(row, col), {'type': 'cell', 'criteria': 'equal to', 'value': '"N"', 'format': formats['unlocked_boolean_false']})
-                table_references[(nodes[from_idx], nodes[to_idx])] = xlrc(row, col, True, True)  # Store reference to this interaction
-                values_written[table_references[(nodes[from_idx], nodes[to_idx])]] = val
+                table_references[(self.from_pops[from_idx], self.to_pops[to_idx])] = xlrc(row, col, True, True)  # Store reference to this interaction
+                values_written[table_references[(self.from_pops[from_idx], self.to_pops[to_idx])]] = val
 
-        next_row = start_row + 1 + len(nodes) + 1
+        next_row = start_row + 1 + len(self.from_pops) + 1
         return next_row, table_references, values_written
 
 

@@ -19,6 +19,7 @@ from collections import defaultdict
 import sciris as sc
 import numpy as np
 import matplotlib.pyplot as plt
+from .programs import ProgramSet
 
 model_settings = dict()
 model_settings['tolerance'] = 1e-6
@@ -398,14 +399,14 @@ class Parameter(Variable):
         assert sc.isstring(fcn_str), "Parameter function must be supplied as a string"
         self.fcn_str = fcn_str
         self._fcn, dep_list = parse_function(self.fcn_str)
-        if fcn_str.startswith("SRC_POP_AVG") or fcn_str.startswith("TGT_POP_AVG") or \
-                fcn_str.startswith("SRC_POP_SUM") or fcn_str.startswith("TGT_POP_SUM"):
+        if fcn_str.startswith("SRC_POP_AVG") or fcn_str.startswith("TGT_POP_AVG") or fcn_str.startswith("SRC_POP_SUM") or fcn_str.startswith("TGT_POP_SUM"):
             # The function is like 'SRC_POP_AVG(par_name,interaction_name,charac_name)'
             # self.pop_aggregation will be ['SRC_POP_AVG',parname,interaction_name,charac_object]
             special_function, temp_list = self.fcn_str.split("(")
             function_args = temp_list.rstrip(")").split(',')
             function_args = [x.strip() for x in function_args]
 
+            raise Exception('TODO') # TODO - need to store the name of the variables here and validate them after all pops are constructed (or better yet, validate against the framework)
             # Convert average variable to object reference
             v1 = self.pop.get_variable(function_args[0])[0]
             if isinstance(v1, Link):
@@ -458,8 +459,11 @@ class Parameter(Variable):
 
         """
 
-        if self.fcn_str is None:
-            return # Only parameters with functions need to be made dynamic
+        if self.fcn_str is None or self._is_dynamic or self._precompute:
+            # Only parameters with functions need to be made dynamic
+            # If the parameter is marked dynamic or precompute, that means this parameter and any of its
+            # dependencies have already been checked
+            return
 
         if self.pop_aggregation:
             self._is_dynamic = True
@@ -635,7 +639,7 @@ class Population(object):
     Each model population must contain a set of compartments with equivalent names.
     """
 
-    def __init__(self, framework, name: str, label: str, progset):
+    def __init__(self, framework, name: str, label:str, progset:ProgramSet, pop_type:str):
         """
         Construct a Population
 
@@ -650,20 +654,19 @@ class Population(object):
         :param progset: A ProgramSet instance
         """
 
-        self.name = name  # This is the code name
-        self.label = label  # This is the full name
+        self.name = name  #: The code name of the population
+        self.label = label  #: The full name/label of the population
+        self.type = pop_type #: The population's type
 
-        self.comps = list()  # List of cascade compartments that this model population subdivides into.
-        # List of characteristics and output parameters.
-        # Dependencies computed during integration, pure outputs added after.
-        self.characs = list()
-        self.links = list()  # List of intra-population cascade transitions within this model population.
-        self.pars = list()
+        self.comps = list()  #: List of Compartment objects
+        self.characs = list() #: List of Characteristic objects
+        self.links = list()  #: List of Link objects
+        self.pars = list() #: List of Parameter objects
 
-        self.comp_lookup = dict()  # Maps name of a compartment to a compartment
-        self.charac_lookup = dict()
-        self.par_lookup = dict()
-        self.link_lookup = dict()  # Map name of Link to a list of Links with that name
+        self.comp_lookup = dict()  #: Maps name of a compartment to a Compartment
+        self.charac_lookup = dict() #: Maps name of a compartment to a Characteristic
+        self.par_lookup = dict() #: Maps name of a parameter to a Parameter
+        self.link_lookup = dict()  #: Maps name of link to a list of Links with that name
 
         self.gen_cascade(framework=framework, progset=progset)  # Convert compartmental cascade into lists of compartment and link objects.
 
@@ -808,52 +811,55 @@ class Population(object):
 
         # Instantiate compartments
         for comp_name in list(comps.index):
-            self.comps.append(Compartment(pop=self, name=comp_name))
-            if comps.at[comp_name, "is source"] == 'y':
-                self.comps[-1].tag_birth = True
-            if comps.at[comp_name, "is sink"] == 'y':
-                self.comps[-1].tag_dead = True
-            if comps.at[comp_name, "is junction"] == 'y':
-                self.comps[-1].is_junction = True
+            if comps.at[comp_name,'population type'] == self.type:
+                self.comps.append(Compartment(pop=self, name=comp_name))
+                if comps.at[comp_name, "is source"] == 'y':
+                    self.comps[-1].tag_birth = True
+                if comps.at[comp_name, "is sink"] == 'y':
+                    self.comps[-1].tag_dead = True
+                if comps.at[comp_name, "is junction"] == 'y':
+                    self.comps[-1].is_junction = True
         self.comp_lookup = {comp.name: comp for comp in self.comps}
 
         # Characteristics first pass, instantiate objects
         for charac_name in list(characs.index):
-            self.characs.append(Characteristic(pop=self, name=charac_name))
+            if characs.at[charac_name,'population type'] == self.type:
+                self.characs.append(Characteristic(pop=self, name=charac_name))
         self.charac_lookup = {charac.name: charac for charac in self.characs}
 
         # Characteristics second pass, add includes and denominator
-        for charac_name, charac in zip(list(characs.index), self.characs):
-            includes = [x.strip() for x in characs.at[charac_name, 'components'].split(',')]
+        for charac in self.characs:
+            includes = [x.strip() for x in characs.at[charac.name, 'components'].split(',')]
             for inc_name in includes:
                 charac.add_include(self.get_variable(inc_name)[0])  # nb. We expect to only get one match for the name, so use index 0
-            denominator = characs.at[charac_name, "denominator"]
+            denominator = characs.at[charac.name, "denominator"]
             if denominator is not None:
                 charac.add_denom(self.get_variable(denominator)[0])  # nb. framework import strips whitespace from the overall field
 
         # Parameters first pass, create parameter objects and links
         for par_name in list(pars.index):
-            par = Parameter(pop=self, name=par_name)
-            par.units = pars.at[par_name, "format"]
-            par.timescale = pars.at[par_name, "timescale"]
-            self.pars.append(par)
-            if framework.transitions[par_name]:
-                for pair in framework.transitions[par_name]:
-                    src = self.get_comp(pair[0])
-                    dst = self.get_comp(pair[1])
-                    tag = par.name + ':flow'
-                    new_link = Link(self, par, src, dst, tag)
-                    if tag not in self.link_lookup:
-                        self.link_lookup[tag] = [new_link]
-                    else:
-                        self.link_lookup[tag].append(new_link)
-                    self.links.append(new_link)
+            if pars.at[par_name,'population type'] == self.type:
+                par = Parameter(pop=self, name=par_name)
+                par.units = pars.at[par_name, "format"]
+                par.timescale = pars.at[par_name, "timescale"]
+                self.pars.append(par)
+                if framework.transitions[par_name]:
+                    for pair in framework.transitions[par_name]:
+                        src = self.get_comp(pair[0])
+                        dst = self.get_comp(pair[1])
+                        tag = par.name + ':flow'
+                        new_link = Link(self, par, src, dst, tag)
+                        if tag not in self.link_lookup:
+                            self.link_lookup[tag] = [new_link]
+                        else:
+                            self.link_lookup[tag].append(new_link)
+                        self.links.append(new_link)
         self.par_lookup = {par.name: par for par in self.pars}
 
         # Parameters second pass, process f_stacks, deps, and limits
-        for par_name, par in zip(list(pars.index), self.pars):
-            min_value = pars.at[par_name, 'minimum value']
-            max_value = pars.at[par_name, 'maximum value']
+        for par in self.pars:
+            min_value = pars.at[par.name, 'minimum value']
+            max_value = pars.at[par.name, 'maximum value']
 
             if (min_value is not None) or (max_value is not None):
                 par.limits = [-np.inf, np.inf]
@@ -862,7 +868,7 @@ class Population(object):
                 if max_value is not None:
                     par.limits[1] = max_value
 
-            fcn_str = pars.at[par_name, 'function']
+            fcn_str = pars.at[par.name, 'function']
             if fcn_str is not None:
                 par.set_fcn(framework, fcn_str, progset)
 
@@ -878,7 +884,6 @@ class Population(object):
     def initialize_compartments(self, parset, framework, t_init):
         # Given a set of characteristics and their initial values, compute the initial
         # values for the compartments by solving the set of characteristics simultaneously
-
 
         characs = [c for c,d in zip(self.characs, (~framework.characs['databook page'].isnull() & framework.characs['setup weight'])) if d]
         characs += [c for c,d in zip(self.comps, (~framework.comps['databook page'].isnull() & framework.comps['setup weight'])) if d]
@@ -1114,8 +1119,8 @@ class Model(object):
         self.t = settings.tvec  # Note: Class @property method returns a new object each time.
         self.dt = settings.sim_dt
 
-        for k, (pop_name, pop_label) in enumerate(zip(parset.pop_names, parset.pop_labels)):
-            self.pops.append(Population(framework=self.framework, name=pop_name, label=pop_label, progset=self.progset))
+        for k, (pop_name, pop_label, pop_type) in enumerate(zip(parset.pop_names, parset.pop_labels, parset.pop_types)):
+            self.pops.append(Population(framework=self.framework, name=pop_name, label=pop_label, progset=self.progset, pop_type=pop_type))
             # Memory is allocated, speeding up model. However, values are NaN to enforce proper parset value saturation.
             self.pops[-1].preallocate(self.t, self.dt)
             self._pop_ids[pop_name] = k
@@ -1451,7 +1456,7 @@ class Model(object):
             if pars[0].pop_aggregation:
                 # NB. `par.pop_aggregation` is (agg_fcn,par_name,interaction_name,charac_name) where the last item is optional
 
-                par_vals = [par.pop_aggregation[1].vals[ti] for par in pars]  # Value of variable being averaged
+                par_vals = [par.vals[ti] for par in self._vars_by_pop[pars[0].pop_aggregation[1]]]  # Value of variable being averaged
                 par_vals = np.array(par_vals).reshape(-1, 1)
 
                 weights = self.interactions[pars[0].pop_aggregation[2]][:, :, ti].copy()
@@ -1465,7 +1470,7 @@ class Model(object):
 
                 # If we are weighting by a variable, multiply the weights matrix accordingly
                 if len(pars[0].pop_aggregation) == 4:
-                    charac_vals = [par.pop_aggregation[3].vals[ti] for par in pars]  # Value of weighting variable
+                    charac_vals = [par.vals[ti] for par in self._vars_by_pop[pars[0].pop_aggregation[3]]]  # Value of weighting variable
                     charac_vals = np.array(charac_vals).reshape(-1, 1)
                     weights *= charac_vals.T
 

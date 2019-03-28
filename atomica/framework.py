@@ -487,7 +487,8 @@ class ProjectFramework(object):
         required_columns = ['display name']
         defaults = {
             'default value': None,
-            'population type': None
+            'from population type': None,
+            'to population type': None
         }
         valid_content = {
             'display name': None,
@@ -501,11 +502,14 @@ class ProjectFramework(object):
             raise Exception('%s -> %s' % (message, e)) from e
 
         # Assign first population type to any empty population types
-        self.interactions['population type'] = self.interactions['population type'].fillna(self.pop_types.keys()[0])
+        self.interactions['from population type'] = self.interactions['from population type'].fillna(self.pop_types.keys()[0])
+        self.interactions['to population type'] = self.interactions['to population type'].fillna(self.pop_types.keys()[0])
 
         for _, row in self.interactions.iterrows():
-            if row['population type'] not in self.pop_types.keys():
-                raise InvalidFramework('Interaction "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (row.name, row['population type'], self.pop_types.keys()))
+            if row['from population type'] not in self.pop_types.keys():
+                raise InvalidFramework('Interaction "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (row.name, row['from population type'], self.pop_types.keys()))
+            if row['to population type'] not in self.pop_types.keys():
+                raise InvalidFramework('Interaction "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (row.name, row['to population type'], self.pop_types.keys()))
 
         # VALIDATE PARAMETERS
         # This is done last, because validating parameter dependencies requires checking compartments and characteristics

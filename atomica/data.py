@@ -269,10 +269,10 @@ class ProjectData(sc.prettyobj):
             data.add_transfer(code_name, spec['label'],pop_type=spec['type'])
 
         for _, spec in framework.interactions.iterrows():
-            interpop = data.add_interaction(spec.name, spec['display name'], pop_type=spec['population type'])
+            interpop = data.add_interaction(spec.name, spec['display name'], from_pop_type=spec['from population type'], to_pop_type=spec['to population type'])
             if 'default value' in spec and spec['default value']:
-                for from_pop in interpop.pops:
-                    for to_pop in interpop.pops:
+                for from_pop in interpop.from_pops:
+                    for to_pop in interpop.to_pops:
                         ts = TimeSeries(units=interpop.allowed_units[0])
                         ts.insert(None, spec['default value'])
                         interpop.ts[(from_pop, to_pop)] = ts
@@ -432,6 +432,11 @@ class ProjectData(sc.prettyobj):
 
         # Make sure that all of the quantities the Framework says we should read in have been read in, and that
         # those quantities all have some data values associated with them
+        default_pop_type = list(framework.pop_types.keys())[0]
+        for pop in self.pops.values():
+            if pop['type'] is None:
+                pop['type'] = default_pop_type
+
         for df in [framework.comps, framework.characs, framework.pars]:
             for _, spec in df.iterrows():
 
@@ -457,8 +462,14 @@ class ProjectData(sc.prettyobj):
                         framework_units = framework.get_databook_units(spec.name)  # Get the expected databook units
                         tdve = self.tdve[spec.name]
                         tdve_sheet = self.get_tdve_page(spec.name)
+                        location = 'Error in TDVE table "%s" on sheet "%s"' % (tdve.name, tdve_sheet)
+                        
+                        required_pops = [x for x,y in self.pops.items() if y['type'] == tdve.pop_type] # The TDVE should contain values for all populations of that type, otherwise cannot construct the ParameterSet. Check that these populations are all present
+                        missing_pops = set(required_pops).difference(tdve.ts.keys())
+                        if missing_pops:
+                            raise Exception("%s. The following populations were not supplied but are required: %s" % (location,missing_pops))
+                        
                         for name, ts in self.tdve[spec.name].ts.items():
-                            location = 'Error in TDVE table "%s" on sheet "%s"' % (tdve.name, tdve_sheet)
                             assert name in self.pops, '%s. Population "%s" not recognized. Should be one of: %s' % (location, name, self.pops.keys())
                             assert ts.has_data, '%s. Data values missing for %s (%s)' % (location, self.tdve[spec.name].name, name)
                             assert ts.units is not None, '%s. Units missing for %s (%s)' % (location, self.tdve[spec.name].name, name)
@@ -467,18 +478,20 @@ class ProjectData(sc.prettyobj):
                                 if 'format' in spec and spec['format'] is not None and ts.units.lower().strip() != spec['format'].lower().strip():
                                     assert ts.units == framework_units, '%s. Unit "%s" for %s (%s) does not match the declared units from the Framework (expecting "%s")' % (location, ts.units, self.tdve[spec.name].name, name, framework_units)
 
+        for tdc in self.interpops + self.transfers:
+            if tdc.from_pop_type is None:  # Supply default pop type
+                tdc.from_pop_type = default_pop_type
+            if tdc.to_pop_type is None:  # Supply default pop type
+                tdc.to_pop_type = default_pop_type
+
         for _, spec in framework.interactions.iterrows():
             for tdc in self.interpops:
                 if tdc.code_name == spec.name:
-
-                    if tdc.pop_type is None: # Supply default pop type
-                        tdc.pop_type = list(framework.pop_types.keys())[0]
-
-                    for (to_pop, from_pop), ts in tdc.ts.items():
+                    for (from_pop, to_pop), ts in tdc.ts.items():
                         assert to_pop in self.pops, 'Population "%s" in "%s" not recognized. Should be one of: %s' % (to_pop, spec.name, self.pops.keys())
-                        assert self.pops[to_pop]['type'] == tdc.pop_type, 'Interaction "%s" has population type "%s", but contains Population "%s", which is type "%s"' % (tdc.full_name,tdc.pop_type,to_pop,self.pops[to_pop]['type'])
+                        assert self.pops[to_pop]['type'] == tdc.to_pop_type, 'Interaction "%s" has to-population type "%s", but contains Population "%s", which is type "%s"' % (tdc.full_name,tdc.to_pop_type,to_pop,self.pops[to_pop]['type'])
                         assert from_pop in self.pops, 'Population "%s" in "%s" not recognized. Should be one of: %s' % (from_pop, spec.name, self.pops.keys())
-                        assert self.pops[from_pop]['type'] == tdc.pop_type, 'Interaction "%s" has population type "%s", but contains Population "%s", which is type "%s"' % (tdc.full_name,tdc.pop_type,from_pop,self.pops[from_pop]['type'])
+                        assert self.pops[from_pop]['type'] == tdc.from_pop_type, 'Interaction "%s" has from-population type "%s", but contains Population "%s", which is type "%s"' % (tdc.full_name,tdc.from_pop_type,from_pop,self.pops[from_pop]['type'])
                         assert ts.has_data, 'Data values missing for interaction %s, %s->%s' % (spec.name, to_pop, from_pop)
                         assert ts.units.lower().title() == FS.DEFAULT_SYMBOL_INAPPLICABLE.lower().title(), 'Units error in interaction %s, %s->%s. Interaction units must be "N.A."' % (spec.name, to_pop, from_pop)
                     break
@@ -486,15 +499,11 @@ class ProjectData(sc.prettyobj):
                 raise Exception('Required interaction "%s" not found in databook' % spec.name)
 
         for tdc in self.transfers:
-
-            if tdc.pop_type is None: # Supply default pop type
-                tdc.pop_type = list(framework.pop_types.keys())[0]
-
-            for (to_pop, from_pop), ts in tdc.ts.items():
+            for (from_pop, to_pop), ts in tdc.ts.items():
                 assert to_pop in self.pops, 'Population "%s" in "%s" not recognized. Should be one of: %s' % (to_pop, tdc.full.name, self.pops.keys())
-                assert self.pops[to_pop]['type'] == tdc.pop_type, 'Transfer "%s" has population type "%s", but contains Population "%s", which is type "%s"' % (tdc.full_name, tdc.pop_type, to_pop, self.pops[to_pop]['type'])
+                assert self.pops[to_pop]['type'] == tdc.to_pop_type, 'Transfer "%s" has population type "%s", but contains Population "%s", which is type "%s"' % (tdc.full_name, tdc.to_pop_type, to_pop, self.pops[to_pop]['type'])
                 assert from_pop in self.pops, 'Population "%s" in "%s" not recognized. Should be one of: %s' % (from_pop, tdc.full.name, self.pops.keys())
-                assert self.pops[from_pop]['type'] == tdc.pop_type, 'Transfer "%s" has population type "%s", but contains Population "%s", which is type "%s"' % (tdc.full_name, tdc.pop_type, from_pop, self.pops[from_pop]['type'])
+                assert self.pops[from_pop]['type'] == tdc.from_pop_type, 'Transfer "%s" has population type "%s", but contains Population "%s", which is type "%s"' % (tdc.full_name, tdc.from_pop_type, from_pop, self.pops[from_pop]['type'])
                 assert ts.has_data, 'Data values missing for transfer %s, %s->%s' % (tdc.full_name, to_pop, from_pop)
                 assert ts.units is not None, 'Units are missing for transfer %s, %s->%s' % (tdc.full_name, to_pop, from_pop)
         return True
@@ -586,8 +595,10 @@ class ProjectData(sc.prettyobj):
         self.pops[code_name] = {'label':full_name,'type':pop_type}
 
         for interaction in self.transfers + self.interpops:
-            if interaction.pop_type == pop_type:
-                interaction.pops.append(code_name)
+            if interaction.from_pop_type == pop_type:
+                interaction.from_pops.append(code_name)
+            if interaction.to_pop_type == pop_type:
+                interaction.to_pops.append(code_name)
 
         for tdve in self.tdve.values():
             # Since TDVEs in databooks must have the unit set in the framework, all ts objects must share the same units
@@ -679,7 +690,7 @@ class ProjectData(sc.prettyobj):
         pop_names = [name for name,pop_spec in self.pops.items() if pop_spec['type'] == pop_type]
 
         # Here, need to list all relevant populations
-        new_transfer = TimeDependentConnections(code_name, full_name, self.tvec, pop_names, type='transfer', ts=None, pop_type=pop_type)
+        new_transfer = TimeDependentConnections(code_name, full_name, self.tvec, from_pops=pop_names, to_pops=pop_names, interpop_type='transfer', ts=None, from_pop_type=pop_type, to_pop_type=pop_type)
         self.transfers.append(new_transfer)
         return new_transfer
 
@@ -724,7 +735,7 @@ class ProjectData(sc.prettyobj):
         del self.transfers[idx]
 
     # NB. Differences in the model will only happen if the model knows what to do with the new interaction
-    def add_interaction(self, code_name:str, full_name:str, pop_type:str) -> TimeDependentConnections:
+    def add_interaction(self, code_name:str, full_name:str, from_pop_type:str, to_pop_type:str) -> TimeDependentConnections:
         """
         Add a new empty interaction
 
@@ -735,12 +746,14 @@ class ProjectData(sc.prettyobj):
 
         :param code_name: The code name of the interaction to create
         :param full_name: The full name of the interaction to create
-        :param pop_type: The name of a population type, which will identify the populations to be added
+        :param from_pop_type: The name of a population type, which will identify the populations to be added
+        :param to_pop_type: The name of a population type, which will identify the populations to be added
         :return: Newly instantiated TimeDependentConnections object (also added to ``ProjectData.interpops``)
 
         """
 
-        assert pop_type in self._pop_types, 'Population type %s not found in framework' % (pop_type)
+        assert from_pop_type in self._pop_types, 'Population type %s not found in framework' % (from_pop_type)
+        assert to_pop_type in self._pop_types, 'Population type %s not found in framework' % (to_pop_type)
 
         if FS.RESERVED_SYMBOLS.intersection(code_name):
             raise Exception('Code name "%s" is not valid: it cannot contain any of these reserved symbols %s' % (code_name, FS.RESERVED_SYMBOLS))
@@ -748,8 +761,9 @@ class ProjectData(sc.prettyobj):
         for interaction in self.interpops:
             assert code_name != interaction.code_name, 'Interaction with name "%s" already exists' % (code_name)
 
-        pop_names = [name for name,pop_spec in self.pops.items() if pop_spec['type'] == pop_type]
-        interpop = TimeDependentConnections(code_name, full_name, self.tvec, pop_names, type='interaction', ts=None, pop_type=pop_type)
+        from_pops = [name for name,pop_spec in self.pops.items() if pop_spec['type'] == from_pop_type]
+        to_pops = [name for name,pop_spec in self.pops.items() if pop_spec['type'] == to_pop_type]
+        interpop = TimeDependentConnections(code_name, full_name, self.tvec, from_pops=from_pops, to_pops=to_pops, interpop_type='interaction', ts=None, from_pop_type=from_pop_type, to_pop_type=to_pop_type)
         self.interpops.append(interpop)
         return interpop
 
@@ -780,10 +794,10 @@ class ProjectData(sc.prettyobj):
         assert tables[0][0][0].value.strip().lower() == 'abbreviation'
         assert tables[0][0][1].value.strip().lower() == 'full name'
 
-        # If pop type exists
+        # If pop typ column exists, check the heading is correct
         if len(tables[0][0]) > 2:
             cell_require_string(tables[0][0][2])
-            tables[0][0][2].value.strip().lower() == 'type'
+            assert tables[0][0][2].value.strip().lower() == 'population type'
 
         for row in tables[0][1:]:
             cell_require_string(row[0])
