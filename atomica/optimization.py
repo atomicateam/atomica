@@ -332,16 +332,27 @@ class MaximizeCascadeStage(Measurable):
 
 
 class MaximizeCascadeConversionRate(Measurable):
-    # This Measurable will maximize the conversion rate, summed over all cascade stages
-    def __init__(self, cascade_name, t, pop_names='all', weight=1.0):
-        # pop_names can be a single pop name (including all), or a list of pop names
-        # aggregations are supported by setting pop_names to a dict e.g.
-        # pop_names = {'foo':['0-4','5-14']}
+    """
+    Maximize overall conversion rate
+
+    Maximize conversion summed over all cascade stages
+
+    :param cascade_name: The name of one of the cascades in the Framework
+    :param t: A single time value e.g. 2020
+    :param pop_names: A single pop name (including 'all'), a list of populations,
+                  or a dict/list of dicts, each with a single aggregation e.g. ``{'foo':['0-4','5-14']}``
+    :param weight: Weighting factor for this Measurable in the overall objective function
+
+    """
+
+    def __init__(self, cascade_name, t:float, pop_names='all', weight=1.0):
         Measurable.__init__(self, cascade_name, t=t, weight=-weight, pop_names=pop_names)
         if not isinstance(self.pop_names, list):
             self.pop_names = [self.pop_names]
 
     def get_objective_val(self, model):
+        if self.t < model.t[0] or self.t > model.t[-1]:
+            raise Exception('Measurable year for optimization (%d) is outside the simulation range (%d-%d)' % (self.t,model.t[0],model.t[-1]))
         result = Result(model=model)
         val = 0
         for pop_name in self.pop_names:
@@ -831,7 +842,7 @@ def optimize(project, optimization, parset, progset, instructions, x0=None, xmin
     # Check that the initial conditions are OK
     initial_objective = _objective_fcn(x0, **args)
     if not np.isfinite(initial_objective):
-        raise InvalidInitialConditions()
+        raise InvalidInitialConditions('Optimization cannot begin because the objective function was NaN for the specified initialization')
 
     if optimization.method == 'asd':
         optim_args = {
