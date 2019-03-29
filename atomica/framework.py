@@ -461,14 +461,17 @@ class ProjectFramework(object):
                 raise InvalidFramework('Characteristic "%s" has a nonzero setup weight, but does not appear in the databook' % row.name)
 
             if row['denominator'] is not None:
-                if not (row['denominator'] in self.comps.index or row['denominator'] in self.characs.index):
-                    raise InvalidFramework('In Characteristic "%s", denominator "%s" was not recognized as a Compartment or Characteristic' % (row.name, row['denominator']))
-                if row['denominator'] in self.characs.index:
+
+                if row['denominator'] in self.comps.index:
+                    if row['population type'] != self.comps.at[row['denominator'], 'population type']:
+                        raise InvalidFramework('In Characteristic "%s", included compartment "%s" does not have a matching population type' % (row.name, row['denominator']))
+                elif row['denominator'] in self.characs.index:
+                    if row['population type'] != self.characs.at[row['denominator'], 'population type']:
+                        raise InvalidFramework('In Characteristic "%s", included characteristic "%s" does not have a matching population type' % (row.name, row['denominator']))
                     if not (self.characs.loc[row['denominator']]['denominator'] is None):
                         raise InvalidFramework('Characteristic "%s" uses the characteristic "%s" as a denominator. However, "%s" also has a denominator, which means that it cannot be used as a denominator for "%s"' % (row.name, row['denominator'], row['denominator'], row.name))
-                spec = self.get_variable(row['denominator'])[0]
-                if spec['population type'] != row['population type']:
-                    raise InvalidFramework('In Characteristic "%s", denominator "%s" has a different population type - should be "%s"' % (row.name, spec.name, row['population type']))
+                else:
+                    raise InvalidFramework('In Characteristic "%s", denominator "%s" was not recognized as a Compartment or Characteristic' % (row.name, row['denominator']))
 
             if (row['databook page'] is None) and (row['calibrate'] is not None):
                 raise InvalidFramework('Compartment "%s" is marked as being eligible for calibration, but it does not appear in the databook' % row.name)
@@ -491,8 +494,9 @@ class ProjectFramework(object):
                     raise InvalidFramework('In Characteristic "%s", included component "%s" was not recognized as a Compartment or Characteristic' % (row.name, component))
 
         # VALIDATE INTERACTIONS
+
         if 'interactions' not in self.sheets:
-            self.sheets['interactions'] = [pd.DataFrame(columns=['code name', 'display name'])]
+            self.sheets['interactions'] = [pd.DataFrame(columns=['code name', 'display name', 'to population type', 'from population type'])]
 
         required_columns = ['display name']
         defaults = {

@@ -436,6 +436,8 @@ class ProjectData(sc.prettyobj):
         for pop in self.pops.values():
             if pop['type'] is None:
                 pop['type'] = default_pop_type
+            else:
+                assert pop['type'] in self._pop_types, 'Error in population "%s": population type "%s" not found in framework' % (pop['label'],pop['type'])
 
         for df in [framework.comps, framework.characs, framework.pars]:
             for _, spec in df.iterrows():
@@ -580,7 +582,7 @@ class ProjectData(sc.prettyobj):
 
         # Add a population with the given name and label (full name)
 
-        assert pop_type in self._pop_types, 'Population type %s not found in framework' % (pop_type)
+        assert pop_type in self._pop_types, 'Population type "%s" not found in framework' % (pop_type)
 
         code_name = code_name.strip()
         assert len(code_name) > 1, 'Population code name (abbreviation) "%s" is not valid - it must be at least two characters long' % (code_name)
@@ -588,9 +590,6 @@ class ProjectData(sc.prettyobj):
 
         if code_name.lower() in FS.RESERVED_KEYWORDS:
             raise Exception('Population name "%s" is a reserved keyword' % (code_name.lower()))
-
-        if FS.RESERVED_SYMBOLS.intersection(code_name):
-            raise Exception('Code name "%s" is not valid: it cannot contain any of these reserved symbols %s' % (code_name, FS.RESERVED_SYMBOLS))
 
         self.pops[code_name] = {'label':full_name,'type':pop_type}
 
@@ -627,9 +626,6 @@ class ProjectData(sc.prettyobj):
         if new_code_name.lower() in FS.RESERVED_KEYWORDS:
             raise Exception('Population name "%s" is a reserved keyword' % (new_code_name.lower()))
 
-        if FS.RESERVED_SYMBOLS.intersection(new_code_name):
-            raise Exception('Code name "%s" is not valid: it cannot contain any of these reserved symbols %s' % (new_code_name, FS.RESERVED_SYMBOLS))
-
         # First change the name of the key
         self.pops.rename(existing_code_name, new_code_name)
 
@@ -638,8 +634,12 @@ class ProjectData(sc.prettyobj):
 
         # Update interactions and transfers - need to change all of the to/from tuples
         for interaction in self.transfers + self.interpops:
-            idx = interaction.pops.index(existing_code_name)
-            interaction.pops[idx] = new_code_name
+            idx = interaction.from_pops.index(existing_code_name)
+            interaction.from_pops[idx] = new_code_name
+
+            idx = interaction.to_pops.index(existing_code_name)
+            interaction.to_pops[idx] = new_code_name
+
             for from_pop, to_pop in interaction.ts.keys():
                 if to_pop == existing_code_name and from_pop == existing_code_name:
                     interaction.ts.rename((from_pop, to_pop), (new_code_name, new_code_name))
@@ -658,7 +658,9 @@ class ProjectData(sc.prettyobj):
         del self.pops[pop_name]
 
         for interaction in self.transfers + self.interpops:
-            interaction.pops.remove(pop_name)
+            interaction.to_pops.remove(pop_name)
+            interaction.from_pops.remove(pop_name)
+
             for k in list(interaction.ts.keys()):
                 if k[0] == pop_name or k[1] == pop_name:
                     del interaction.ts[k]
@@ -684,9 +686,6 @@ class ProjectData(sc.prettyobj):
         for transfer in self.transfers:
             assert code_name != transfer.code_name, 'Transfer with name "%s" already exists' % (code_name)
 
-        if FS.RESERVED_SYMBOLS.intersection(code_name):
-            raise Exception('Code name "%s" is not valid: it cannot contain any of these reserved symbols %s' % (code_name, FS.RESERVED_SYMBOLS))
-
         pop_names = [name for name,pop_spec in self.pops.items() if pop_spec['type'] == pop_type]
 
         # Here, need to list all relevant populations
@@ -707,9 +706,6 @@ class ProjectData(sc.prettyobj):
         # Check no name collisions
         for transfer in self.transfers:
             assert new_code_name != transfer.code_name, 'Transfer with name "%s" already exists' % (new_code_name)
-
-        if FS.RESERVED_SYMBOLS.intersection(new_code_name):
-            raise Exception('Code name "%s" is not valid: it cannot contain any of these reserved symbols %s' % (new_code_name, FS.RESERVED_SYMBOLS))
 
         # Find the transfer to change
         for transfer in self.transfers:
@@ -754,9 +750,6 @@ class ProjectData(sc.prettyobj):
 
         assert from_pop_type in self._pop_types, 'Population type %s not found in framework' % (from_pop_type)
         assert to_pop_type in self._pop_types, 'Population type %s not found in framework' % (to_pop_type)
-
-        if FS.RESERVED_SYMBOLS.intersection(code_name):
-            raise Exception('Code name "%s" is not valid: it cannot contain any of these reserved symbols %s' % (code_name, FS.RESERVED_SYMBOLS))
 
         for interaction in self.interpops:
             assert code_name != interaction.code_name, 'Interaction with name "%s" already exists' % (code_name)

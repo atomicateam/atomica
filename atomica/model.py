@@ -400,7 +400,7 @@ class Parameter(Variable):
         self._fcn, dep_list = parse_function(self.fcn_str)
         if fcn_str.startswith("SRC_POP_AVG") or fcn_str.startswith("TGT_POP_AVG") or fcn_str.startswith("SRC_POP_SUM") or fcn_str.startswith("TGT_POP_SUM"):
             # The function is like 'SRC_POP_AVG(par_name,interaction_name,charac_name)'
-            # self.pop_aggregation will be ['SRC_POP_AVG',parname,interaction_name,charac_object]
+            # self.pop_aggregation will be ['SRC_POP_AVG',par_name,interaction_name,charac_object]
             special_function, temp_list = self.fcn_str.split("(")
             function_args = temp_list.rstrip(")").split(',')
             function_args = [x.strip() for x in function_args]
@@ -474,8 +474,6 @@ class Parameter(Variable):
                 self.deps[dep_name] = [x.id for x in self.deps[dep_name]]
         if self._fcn is not None:
             self._fcn = None
-        if self.pop_aggregation and len(self.pop_aggregation) == 4:
-            self.pop_aggregation[3] = self.pop_aggregation[3].id
 
     def relink(self, objs):
         # Given a dictionary of objects, restore the internal references
@@ -486,8 +484,6 @@ class Parameter(Variable):
                 self.deps[dep_name] = [objs[x] for x in self.deps[dep_name]]
         if self.fcn_str:
             self._fcn = parse_function(self.fcn_str)[0]
-        if self.pop_aggregation and len(self.pop_aggregation) == 4:
-            self.pop_aggregation[3] = objs[self.pop_aggregation[3]]
 
     def constrain(self, ti=None) -> None:
         """
@@ -1452,7 +1448,7 @@ class Model(object):
             if pars[0].pop_aggregation:
                 # NB. `par.pop_aggregation` is (agg_fcn,par_name,interaction_name,charac_name) where the last item is optional
 
-                par_vals = [par.vals[ti] for par in self._vars_by_pop[pars[0].pop_aggregation[1]]]  # Value otest toxf variable being averaged
+                par_vals = [par.vals[ti] for par in self._vars_by_pop[pars[0].pop_aggregation[1]]]  # Value of variable being averaged
                 par_vals = np.array(par_vals).reshape(-1, 1)
 
                 # NOTE - When doing cross-population interactions, 'pars' is from the 'to' pop
