@@ -137,7 +137,7 @@ class Variable(object):
 
         return
 
-    def set_dynamic(self) -> None:
+    def set_dynamic(self, **kwargs) -> None:
         """
         Make the variable a dependency
 
@@ -296,7 +296,7 @@ class Characteristic(Variable):
         else:
             return self._vals
 
-    def set_dynamic(self):
+    def set_dynamic(self, **kwargs):
         self._is_dynamic = True
 
         for inc in self.includes:
@@ -363,7 +363,7 @@ class Parameter(Variable):
         self._source_popsize_cache_time = None #: Internal cache for the time at which the source popsize was previously computed
         self._source_popsize_cache_val = None #: Internal cache for the last previously computed source popsize
         self.fcn_str = None  #: String representation of parameter function
-        self.deps = None  #: Dict of dependencies containing lists of integration objects
+        self.deps = dict()  #: Dict of dependencies containing lists of integration objects
         self._fcn = None  #: Internal cache for parsed parameter function (this will be dropped when pickled)
         self._precompute = False #: If True, the parameter function will be computed in a vector operation prior to integration
         self._is_dynamic = False #: If True, this parameter will be updated during integration. Note that `precompute` and `dynamic` are mutually exclusive
@@ -377,7 +377,6 @@ class Parameter(Variable):
         #: The effective duration used in the simulation is ``duration*timescale`` with units of years (so it will behave correctly if
         #: one wanted to use 1/365.25 instead of 1/365)
         self.timescale = 1.0
-
 
     def set_fcn(self, framework, fcn_str, progset) -> None:
         """
@@ -405,31 +404,11 @@ class Parameter(Variable):
             special_function, temp_list = self.fcn_str.split("(")
             function_args = temp_list.rstrip(")").split(',')
             function_args = [x.strip() for x in function_args]
-
-            raise Exception('TODO') # TODO - need to store the name of the variables here and validate them after all pops are constructed (or better yet, validate against the framework)
-            # Convert average variable to object reference
-            v1 = self.pop.get_variable(function_args[0])[0]
-            if isinstance(v1, Link):
-                raise Exception('Links cannot be aggregated across populations')
-            function_args[0] = v1
-            dep_list.append(v1.name)
-
-            # Convert weighting variable to object reference
-            if len(function_args) == 3:
-                v2 = self.pop.get_variable(function_args[2])[0]
-                if isinstance(v2, Link):
-                    raise Exception('Links cannot be used to weight interactions')
-                function_args[-1] = v2
-                dep_list.append(v2.name)
-
             self.pop_aggregation = [special_function] + function_args
-
-        deps = {}
-        interactions = set(framework.interactions.index)
-        for dep_name in dep_list:
-            if not (dep_name in interactions or dep_name in ['t', 'dt']):  # There are no integration variables associated with the interactions, as they are treated as a special matrix
-                deps[dep_name] = self.pop.get_variable(dep_name)
-        self.deps = deps
+        else:
+            for dep_name in dep_list:
+                if not (dep_name in ['t', 'dt']):  # There are no integration variables associated with the interactions, as they are treated as a special matrix
+                    self.deps[dep_name] = self.pop.get_variable(dep_name) # nb. this lookup will fail if the user has a function that depends on a quantity outside this population
 
         # If this Parameter has links and a function, it must be updated during computation
         if self.links and self.fcn_str:
@@ -885,8 +864,8 @@ class Population(object):
         # Given a set of characteristics and their initial values, compute the initial
         # values for the compartments by solving the set of characteristics simultaneously
 
-        characs = [c for c,d in zip(self.characs, (~framework.characs['databook page'].isnull() & framework.characs['setup weight'])) if d]
-        characs += [c for c,d in zip(self.comps, (~framework.comps['databook page'].isnull() & framework.comps['setup weight'])) if d]
+        characs = [c for c,d in zip(self.characs, (~framework.characs['databook page'].isnull() & framework.characs['setup weight'] & (framework.characs['population type'] == self.type))) if d]
+        characs += [c for c,d in zip(self.comps, (~framework.comps['databook page'].isnull() & framework.comps['setup weight'] & (framework.comps['population type'] == self.type))) if d]
 
         comps = [c for c in self.comps if not (c.tag_birth or c.tag_dead)]
         charac_indices = {c.name: i for i, c in enumerate(characs)}  # Make lookup dict for characteristic indices
@@ -1119,6 +1098,9 @@ class Model(object):
         self.t = settings.tvec  # Note: Class @property method returns a new object each time.
         self.dt = settings.sim_dt
 
+        # First construct all of the object instances nested within each population
+        # This also performs population-specific initialization of dependencies
+        # e.g. parameter functions, but NOT any that transcend populations i.e. pop aggregations
         for k, (pop_name, pop_label, pop_type) in enumerate(zip(parset.pop_names, parset.pop_labels, parset.pop_types)):
             self.pops.append(Population(framework=self.framework, name=pop_name, label=pop_label, progset=self.progset, pop_type=pop_type))
             # Memory is allocated, speeding up model. However, values are NaN to enforce proper parset value saturation.
@@ -1129,10 +1111,12 @@ class Model(object):
         # Expand interactions into matrix form
         self.interactions = dict()
         for name, weights in parset.interactions.items():
-            self.interactions[name] = np.zeros((len(self.pops), len(self.pops), len(self.t)))
+            from_pops = [x.name for x in self.pops if x.type == self.framework.interactions.at[name,'from population type']]
+            to_pops = [x.name for x in self.pops if x.type == self.framework.interactions.at[name,'to population type']]
+            self.interactions[name] = np.zeros((len(from_pops), len(to_pops), len(self.t)))
             for from_pop, par in weights.items():
                 for to_pop in par.pops:
-                    self.interactions[name][parset.pop_names.index(from_pop), parset.pop_names.index(to_pop), :] = par.interpolate(self.t, to_pop) * par.y_factor[to_pop] * par.meta_y_factor
+                    self.interactions[name][from_pops.index(from_pop), to_pops.index(to_pop), :] = par.interpolate(self.t, to_pop) * par.y_factor[to_pop] * par.meta_y_factor
 
         # Insert values for Framework parameters
         # The units for these come from the framework
@@ -1191,6 +1175,18 @@ class Model(object):
 
         # Now that all object have been created, update _vars_by_pop() accordingly
         self.set_vars_by_pop()
+
+        # Finally, validate any population aggregations that are present
+        # And set dependencies for any pars used for aggregating or weighting
+        # These can be identified *using* self._vars_by_pop because we just constructed it
+        for par in self._par_list:
+            pars = self._vars_by_pop[par]
+            if pars[0].pop_aggregation:
+                for var in self._vars_by_pop[pars[0].pop_aggregation[1]]:
+                    var.set_dynamic(self.progset)
+                if len(pars[0].pop_aggregation) > 3:
+                    for var in self._vars_by_pop[pars[0].pop_aggregation[3]]:
+                        var.set_dynamic(progset=self.progset)
 
     def process(self):
         """ Run the full model. """
@@ -1456,9 +1452,11 @@ class Model(object):
             if pars[0].pop_aggregation:
                 # NB. `par.pop_aggregation` is (agg_fcn,par_name,interaction_name,charac_name) where the last item is optional
 
-                par_vals = [par.vals[ti] for par in self._vars_by_pop[pars[0].pop_aggregation[1]]]  # Value of variable being averaged
+                par_vals = [par.vals[ti] for par in self._vars_by_pop[pars[0].pop_aggregation[1]]]  # Value otest toxf variable being averaged
                 par_vals = np.array(par_vals).reshape(-1, 1)
 
+                # NOTE - When doing cross-population interactions, 'pars' is from the 'to' pop
+                # and 'par_vals' is from the 'from pop
                 weights = self.interactions[pars[0].pop_aggregation[2]][:, :, ti].copy()
 
                 if pars[0].pop_aggregation[0] in {'SRC_POP_AVG', 'SRC_POP_SUM'}:
@@ -1470,9 +1468,9 @@ class Model(object):
 
                 # If we are weighting by a variable, multiply the weights matrix accordingly
                 if len(pars[0].pop_aggregation) == 4:
-                    charac_vals = [par.vals[ti] for par in self._vars_by_pop[pars[0].pop_aggregation[3]]]  # Value of weighting variable
-                    charac_vals = np.array(charac_vals).reshape(-1, 1)
-                    weights *= charac_vals.T
+                    vals = [par.vals[ti] for par in self._vars_by_pop[pars[0].pop_aggregation[3]]]  # Value of weighting variable
+                    vals = np.array(vals).reshape(-1, 1)
+                    weights *= vals.T
 
                 if pars[0].pop_aggregation[0] in {'SRC_POP_AVG', 'TGT_POP_AVG'}:
                     weights /= np.sum(weights, axis=1, keepdims=1)  # Normalize the interaction

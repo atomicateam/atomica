@@ -255,7 +255,7 @@ class ProjectFramework(object):
         pop_types = set()
         for i,df in enumerate(self.sheets['transitions']):
             cols = list(df.columns)
-            if cols[0] is None:
+            if cols[0] is None or cols[0].lower().strip() == 'transition matrix': # The template for single population type frameworks has 'Transition matrix' where the population type would normally go
                 cols[0] = self.pop_types.keys()[0]
             if cols[0] in pop_types:
                 raise InvalidFramework('More than one transition matrix is assigned to the same population type. This can happen if multiple transition matrices are being assigned to the default population type')
@@ -466,6 +466,9 @@ class ProjectFramework(object):
                 if row['denominator'] in self.characs.index:
                     if not (self.characs.loc[row['denominator']]['denominator'] is None):
                         raise InvalidFramework('Characteristic "%s" uses the characteristic "%s" as a denominator. However, "%s" also has a denominator, which means that it cannot be used as a denominator for "%s"' % (row.name, row['denominator'], row['denominator'], row.name))
+                spec = self.get_variable(row['denominator'])[0]
+                if spec['population type'] != row['population type']:
+                    raise InvalidFramework('In Characteristic "%s", denominator "%s" has a different population type - should be "%s"' % (row.name, spec.name, row['population type']))
 
             if (row['databook page'] is None) and (row['calibrate'] is not None):
                 raise InvalidFramework('Compartment "%s" is marked as being eligible for calibration, but it does not appear in the databook' % row.name)
@@ -477,7 +480,14 @@ class ProjectFramework(object):
                 raise InvalidFramework('Characteristic "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (row.name,row['population type'],self.pop_types.keys()))
 
             for component in row['components'].split(','):
-                if not (component.strip() in self.comps.index or component.strip() in self.characs.index):
+                component = component.strip()
+                if component in self.comps.index:
+                    if row['population type'] != self.comps.at[component,'population type']:
+                        raise InvalidFramework('In Characteristic "%s", included compartment "%s" does not have a matching population type' % (row.name, component))
+                elif component in self.characs.index:
+                    if row['population type'] != self.characs.at[component,'population type']:
+                        raise InvalidFramework('In Characteristic "%s", included characteristic "%s" does not have a matching population type' % (row.name, component))
+                else:
                     raise InvalidFramework('In Characteristic "%s", included component "%s" was not recognized as a Compartment or Characteristic' % (row.name, component))
 
         # VALIDATE INTERACTIONS
@@ -553,6 +563,12 @@ class ProjectFramework(object):
 
         # Now validate each parameter
         defined = set()  # Track which parameters have already been defined
+
+        def cross_pop_message(par, quantity_type, quantity_name):
+            spec = self.get_variable(quantity_name)[0]
+            message = f"The function for parameter '{par.name}' in the '{par['population type']}' population type refers to {quantity_type} '{quantity_name}' in the '{spec['population type']}' population type. All cross-population interactions must take place within a population aggregation e.g. SRC_POP_SUM"
+            return message
+
         for i, par in self.pars.iterrows():
 
             # Convert case for standard units - this is required for validation
@@ -579,6 +595,8 @@ class ProjectFramework(object):
                     raise InvalidFramework(message)
 
                 _, deps = parse_function(par['function'])  # Parse the function to get dependencies
+                is_aggregation =  (par['function'].startswith("SRC_POP_AVG") or par['function'].startswith("TGT_POP_AVG") or par['function'].startswith("SRC_POP_SUM") or par['function'].startswith("TGT_POP_SUM"))
+
                 for dep in deps:
                     if dep in ['t', 'dt']:
                         # These are special variables passed in by model.py
@@ -596,6 +614,8 @@ class ProjectFramework(object):
                             if dep_name not in self.pars.index:
                                 message = 'The function for parameter "%s" depends on the flow rate "%s:flow". This requires a parameter called "%s" to be defined in the Framework, but no parameter with that name was found' % (par.name, dep_name, dep_name)
                                 raise InvalidFramework(message)
+                            elif not is_aggregation and self.pars.at[dep_name, 'population type'] != par['population type']:
+                                raise InvalidFramework(cross_pop_message(par, 'compartment', dep_name))
 
                             if not self.transitions[dep_name]:
                                 # If the user is trying to get the flow rate for a non-transition parameter
@@ -604,26 +624,67 @@ class ProjectFramework(object):
                         else:
                             # If the user requested the flow between compartments
                             deps = dep.split('___')
-                            if deps[0] and deps[0] not in self.comps.index:
-                                message = 'The function for parameter "%s" depends on the flow rate "%s". This requires a source compartment called "%s" to be defined in the Framework, but no compartment with that name was found' % (par.name, dep.replace('___',':'), deps[0])
-                                raise InvalidFramework(message)
-                            if deps[1] and deps[1] not in self.comps.index:
-                                message = 'The function for parameter "%s" depends on the flow rate "%s". This requires a destination compartment called "%s" to be defined in the Framework, but no compartment with that name was found' % (par.name, dep.replace('___',':'), deps[1])
-                                raise InvalidFramework(message)
+                            if deps[0]:
+                                if deps[0] not in self.comps.index:
+                                    message = 'The function for parameter "%s" depends on the flow rate "%s". This requires a source compartment called "%s" to be defined in the Framework, but no compartment with that name was found' % (par.name, dep.replace('___',':'), deps[0])
+                                    raise InvalidFramework(message)
+                                elif not is_aggregation and  self.comps.at[deps[0],'population type'] != par['population type']:
+                                    raise InvalidFramework(cross_pop_message(par, 'compartment', deps[0]))
+                            if deps[1]:
+                                if deps[1] not in self.comps.index:
+                                    message = 'The function for parameter "%s" depends on the flow rate "%s". This requires a destination compartment called "%s" to be defined in the Framework, but no compartment with that name was found' % (par.name, dep.replace('___',':'), deps[1])
+                                    raise InvalidFramework(message)
+                                elif not is_aggregation and  self.comps.at[deps[1], 'population type'] != par['population type']:
+                                    raise InvalidFramework(cross_pop_message(par, 'compartment', deps[1]))
 
                     elif dep in self.comps.index:
-                        continue
+                        if not is_aggregation and self.comps.at[dep, 'population type'] != par['population type']:
+                            raise InvalidFramework(cross_pop_message(par, 'compartment', dep))
                     elif dep in self.characs.index:
-                        continue
+                        if not is_aggregation and self.characs.at[dep, 'population type'] != par['population type']:
+                            raise InvalidFramework(cross_pop_message(par, 'characteristic', dep))
                     elif dep in self.interactions.index:
-                        if not (par['function'].startswith("SRC_POP_AVG") or par['function'].startswith("TGT_POP_AVG") or
-                                par['function'].startswith("SRC_POP_SUM") or par['function'].startswith("TGT_POP_SUM")):
+                        if not is_aggregation:
                             message = 'The function for parameter "%s" includes the Interaction "%s", which means that the parameter function can only be one of: "SRC_POP_AVG", "TGT_POP_AVG", "SRC_POP_SUM" or "TGT_POP_SUM"' % (par.name, dep)
                             raise InvalidFramework(message)
+
+                        if (len(dep) > 2) and (par['function'].startswith("SRC_POP_SUM") or par['function'].startswith("TGT_POP_SUM")):
+                            logger.warning(f"Parameter '{par.name}' has a weighting variable but uses a summation aggregation. It should very likely use SRC_POP_AVG or TGT_POP_AVG instead")
+
+                        # If a population aggregation includes a weighting interaction, then the 'to' population must match this parameter
+                        if self.interactions.at[dep,'to population type'] != par['population type']:
+                            message = f'''
+                                The parameter '{par.name}' has population type '{par['population type']}' and 
+                                weights the interaction using '{dep}', which is defined as applying from 
+                                type '{self.interactions.at[dep,'from population type']}' to type '{self.interactions.at[dep,'to population type']}'.
+                                If weighting a cross-type interaction, the 'to' population type in the interaction must match the parameter
+                                '''
+                            raise InvalidFramework(' '.join(message.split()))
+
+                        # If population aggregation includes a weighting interaction, then the 'from' population must match all other variables in the aggregation
+                        for dep2 in deps:
+                            if dep2 != dep:
+                                var = self.get_variable(dep2)[0]
+                                if var['population type'] != self.interactions.at[dep, 'from population type']:
+                                    message = f'''
+                                        The parameter '{par.name}' has uses interaction weighting '{dep}', which is defined as applying from 
+                                        type '{self.interactions.at[dep,'from population type']}' to type '{self.interactions.at[dep,'to population type']}'.
+                                        If weighting a cross-type interaction, the quantity being averaged and the optional weighting quantity must 
+                                        belong to the 'from' population type. However, the parameter contains the quantity '{dep2}' which has
+                                        population type '{var['population type']}'
+                                        '''
+                                    raise InvalidFramework(' '.join(message.split()))
+
+                        if (self.interactions.at[dep,'to population type'] != self.interactions.at[dep,'from population type']):
+                            if par['function'].startswith('TGT_'):
+                                raise InvalidFramework(f"Parameter '{par.name}' uses interaction {dep} which crosses population types. Because this interaction is directed, only SRC_POP_SUM and SRC_POP_AVG can be used")
+
                     elif dep in self.pars.index:
                         if dep not in defined:
                             message = 'The function for parameter "%s" depends on the parameter "%s", which needs to be defined in the Framework before "%s". Please move "%s" up on the "Parameters" sheet of the Framework file, so that it appears before "%s"' % (par.name, dep, par.name, dep, par.name)
                             raise InvalidFramework(message)
+                        elif not is_aggregation and self.pars.at[dep, 'population type'] != par['population type']:
+                            raise InvalidFramework(cross_pop_message(par, 'parameter', dep))
                     else:
                         message = 'The function for parameter "%s" depends on a quantity "%s", but no Compartment, Characteristic, or Parameter with this name was found' % (par.name, dep)
                         raise InvalidFramework(message)

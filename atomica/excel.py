@@ -252,13 +252,13 @@ class TimeDependentConnections(object):
         # Read the name table
         code_name = tables[0][1][0].value
         full_name = tables[0][1][1].value
-        if len(tables[0][0]) > 2 and sc.isstring(tables[0][0][2].value) and tables[0][0][2].value.strip().lower() == 'from population type':
+        if len(tables[0][0]) > 2 and sc.isstring(tables[0][0][2].value) and tables[0][0][2].value.strip().lower() == 'from population type' and tables[0][1][2].value is not None:
             cell_require_string(tables[0][1][2])
             from_pop_type = tables[0][1][2].value.strip()
         else:
             from_pop_type = None
 
-        if len(tables[0][0]) > 3 and sc.isstring(tables[0][0][3].value) and tables[0][0][3].value.strip().lower() == 'to population type':
+        if len(tables[0][0]) > 3 and sc.isstring(tables[0][0][3].value) and tables[0][0][3].value.strip().lower() == 'to population type' and tables[0][1][3].value is not None:
             cell_require_string(tables[0][1][3])
             to_pop_type = tables[0][1][3].value.strip()
         else:
