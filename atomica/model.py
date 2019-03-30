@@ -1176,17 +1176,18 @@ class Model(object):
         # Insert parameter initial values and do any required precomputation
         for par_name in self.framework.pars.index:
             cascade_par = parset.pars[par_name]
-            pars = self._vars_by_pop[cascade_par.name]
-            for par in pars:
-                par.scale_vactor = cascade_par.meta_y_factor # Set meta scale factor regardless of whether a population-specific y-factor is also provided
-                if par.pop.name in cascade_par.y_factor:
-                    par.scale_factor *= cascade_par.y_factor[par.pop.name] # Add in population-specific scale factor
-                if not par.fcn_str and cascade_par.has_values(par.pop.name): # Note that a parameter might appear in the databook and have a function - in which case, the function takes precedence (the databook values only get used for plotting)
-                    par.vals = cascade_par.interpolate(tvec=self.t, pop_name=par.pop.name) * par.scale_factor
-                    par.constrain()  # Sampling might result in the parameter value going out of bounds (or user might have entered bad values in the databook) so ensure they are clipped here
-                elif par.fcn_str and par._precompute:
-                    par.update()
-                    par.constrain()
+            if cascade_par.name in self._vars_by_pop: # The parameter could be missing if it is defined in a population type that is not present in the simulation
+                pars = self._vars_by_pop[cascade_par.name]
+                for par in pars:
+                    par.scale_vactor = cascade_par.meta_y_factor # Set meta scale factor regardless of whether a population-specific y-factor is also provided
+                    if par.pop.name in cascade_par.y_factor:
+                        par.scale_factor *= cascade_par.y_factor[par.pop.name] # Add in population-specific scale factor
+                    if not par.fcn_str and cascade_par.has_values(par.pop.name): # Note that a parameter might appear in the databook and have a function - in which case, the function takes precedence (the databook values only get used for plotting)
+                        par.vals = cascade_par.interpolate(tvec=self.t, pop_name=par.pop.name) * par.scale_factor
+                        par.constrain()  # Sampling might result in the parameter value going out of bounds (or user might have entered bad values in the databook) so ensure they are clipped here
+                    elif par.fcn_str and par._precompute:
+                        par.update()
+                        par.constrain()
 
     def process(self):
         """ Run the full model. """
@@ -1462,7 +1463,10 @@ class Model(object):
 
                 # NOTE - When doing cross-population interactions, 'pars' is from the 'to' pop
                 # and 'par_vals' is from the 'from pop
-                weights = self.interactions[pars[0].pop_aggregation[2]][:, :, ti].copy()
+                if len(pars[0].pop_aggregation) < 3:
+                    weights = np.ones((len(par_vals),len(pars)))
+                else:
+                    weights = self.interactions[pars[0].pop_aggregation[2]][:, :, ti].copy()
 
                 if pars[0].pop_aggregation[0] in {'SRC_POP_AVG', 'SRC_POP_SUM'}:
                     weights = weights.T
