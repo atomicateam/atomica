@@ -58,7 +58,9 @@ class Parameter(NamedItem):
 
         """
 
-        if self.ts[pop_name].has_data:
+        if pop_name not in self.ts:
+            return False
+        elif self.ts[pop_name].has_data:
             return True
         else:
             return False

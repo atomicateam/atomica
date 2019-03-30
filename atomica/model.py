@@ -1118,25 +1118,10 @@ class Model(object):
                 for to_pop in par.pops:
                     self.interactions[name][from_pops.index(from_pop), to_pops.index(to_pop), :] = par.interpolate(self.t, to_pop) * par.y_factor[to_pop] * par.meta_y_factor
 
-        # Insert values for Framework parameters
-        # The units for these come from the framework
-        for pop in self.pops:
-            for par in pop.pars: # Note - parameters are stored in the population in framework order - the same order they should be evaluated in
-                if par.name in parset.pars: # Add in data parameters
-                    cascade_par = parset.pars[par.name]
-                    par.scale_factor = cascade_par.y_factor[pop.name] * cascade_par.meta_y_factor
-                    if not par.fcn_str and cascade_par.has_values(pop.name):
-                        par.vals = cascade_par.interpolate(tvec=self.t, pop_name=pop.name) * par.scale_factor
-                        par.constrain() # Sampling might results in the parameter value going out of bounds (or user might have entered bad values in the databook) so ensure they are clipped here
 
-                if par.fcn_str and par._precompute: # Note that a parameter might appear in the databook and have a function - in which case, the function takes precedence (the databook values only get used for plotting)
-                    par.update()
-                    par.constrain()
-
-        # Propagating transfer parameter parset values into Model object.
-        # For each population pair, instantiate a Parameter with the values from the databook
-        # For each compartment, instantiate a set of Links that all derive from that Parameter
-        # NB. If a Program somehow targets the transfer parameter, those values will automatically... what?
+        # Instantiate transfer parameters
+        # Note transfer parameters can currently only be data parameters (i.e. they don't have any functions) so
+        # no need to worry about setting functions and flagging dependencies for them
         for transfer_name in parset.transfers:
             if parset.transfers[transfer_name]:
                 for pop_source in parset.transfers[transfer_name]:
@@ -1175,17 +1160,30 @@ class Model(object):
         # Now that all object have been created, update _vars_by_pop() accordingly
         self.set_vars_by_pop()
 
-        # Finally, validate any population aggregations that are present
-        # And set dependencies for any pars used for aggregating or weighting
-        # These can be identified *using* self._vars_by_pop because we just constructed it
+        # Flag dependencies for aggregated parameters prior to precomputing
         for par in self._par_list:
             pars = self._vars_by_pop[par]
             if pars[0].pop_aggregation:
                 for var in self._vars_by_pop[pars[0].pop_aggregation[1]]:
-                    var.set_dynamic(self.progset)
+                    var.set_dynamic(progset=self.progset)
                 if len(pars[0].pop_aggregation) > 3:
                     for var in self._vars_by_pop[pars[0].pop_aggregation[3]]:
                         var.set_dynamic(progset=self.progset)
+
+        # Insert parameter initial values and do any required precomputation
+        for par_name in self.framework.pars.index:
+            cascade_par = parset.pars[par_name]
+            pars = self._vars_by_pop[cascade_par.name]
+            for par in pars:
+                par.scale_vactor = cascade_par.meta_y_factor # Set meta scale factor regardless of whether a population-specific y-factor is also provided
+                if par.pop.name in cascade_par.y_factor:
+                    par.scale_factor *= cascade_par.y_factor[par.pop.name] # Add in population-specific scale factor
+                if not par.fcn_str and cascade_par.has_values(par.pop.name): # Note that a parameter might appear in the databook and have a function - in which case, the function takes precedence (the databook values only get used for plotting)
+                    par.vals = cascade_par.interpolate(tvec=self.t, pop_name=par.pop.name) * par.scale_factor
+                    par.constrain()  # Sampling might result in the parameter value going out of bounds (or user might have entered bad values in the databook) so ensure they are clipped here
+                elif par.fcn_str and par._precompute:
+                    par.update()
+                    par.constrain()
 
     def process(self):
         """ Run the full model. """
@@ -1456,7 +1454,7 @@ class Model(object):
             if pars[0].pop_aggregation:
                 # NB. `par.pop_aggregation` is (agg_fcn,par_name,interaction_name,charac_name) where the last item is optional
 
-                par_vals = [par.vals[ti] for par in self._vars_by_pop[pars[0].pop_aggregation[1]]]  # Value of variable being averaged
+                par_vals = [x.vals[ti] for x in self._vars_by_pop[pars[0].pop_aggregation[1]]]  # Value of variable being averaged
                 par_vals = np.array(par_vals).reshape(-1, 1)
 
                 # NOTE - When doing cross-population interactions, 'pars' is from the 'to' pop
