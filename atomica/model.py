@@ -860,29 +860,32 @@ class Population(object):
         # Given a set of characteristics and their initial values, compute the initial
         # values for the compartments by solving the set of characteristics simultaneously
 
-        characs = [c for c,d in zip(self.characs, (~framework.characs['databook page'].isnull() & framework.characs['setup weight'] & (framework.characs['population type'] == self.type))) if d]
-        characs += [c for c,d in zip(self.comps, (~framework.comps['databook page'].isnull() & framework.comps['setup weight'] & (framework.comps['population type'] == self.type))) if d]
+        # Build up the comps and characs containing the setup values in the databook - the `b` in `x=A*b`
+        characs_to_use = framework.characs.index[(~framework.characs['databook page'].isnull() & framework.characs['setup weight'] & (framework.characs['population type'] == self.type))]
+        comps_to_use = framework.comps.index[(~framework.comps['databook page'].isnull() & framework.comps['setup weight'] & (framework.comps['population type'] == self.type))]
+        b_objs = [self.charac_lookup[x] for x in characs_to_use] + [self.comp_lookup[x] for x in comps_to_use]
 
+        # Build up the comps corresponding to the `x` values in `x=A*b` i.e. the compartments being solved for
         comps = [c for c in self.comps if not (c.tag_birth or c.tag_dead)]
-        charac_indices = {c.name: i for i, c in enumerate(characs)}  # Make lookup dict for characteristic indices
+        charac_indices = {c.name: i for i, c in enumerate(b_objs)}  # Make lookup dict for characteristic indices
         comp_indices = {c.name: i for i, c in enumerate(comps)}  # Make lookup dict for compartment indices
 
-        b = np.zeros((len(characs), 1))
-        A = np.zeros((len(characs), len(comps)))
+        b = np.zeros((len(b_objs), 1))
+        A = np.zeros((len(b_objs), len(comps)))
 
         # Construct the characteristic value vector (b) and the includes matrix (A)
-        for i, c in enumerate(characs):
+        for i, obj in enumerate(b_objs):
             # Look up the characteristic value
-            par = parset.pars[c.name]
+            par = parset.pars[obj.name]
             b[i] = par.interpolate(tvec=np.array([t_init]), pop_name=self.name)[0] * par.y_factor[self.name] * par.meta_y_factor
-            if isinstance(c, Characteristic):
-                if c.denominator is not None:
-                    denom_par = parset.pars[c.denominator.name]
+            if isinstance(obj, Characteristic):
+                if obj.denominator is not None:
+                    denom_par = parset.pars[obj.denominator.name]
                     b[i] *= denom_par.interpolate(tvec=np.array([t_init]), pop_name=self.name)[0] * denom_par.y_factor[self.name] * denom_par.meta_y_factor
-                for inc in c.get_included_comps():
+                for inc in obj.get_included_comps():
                     A[i, comp_indices[inc.name]] = 1.0
             else:
-                A[i, comp_indices[c.name]] = 1.0
+                A[i, comp_indices[obj.name]] = 1.0
 
         # Solve the linear system (nb. lstsq returns the minimum norm solution
         x = np.linalg.lstsq(A, b.ravel(), rcond=None)[0].reshape(-1, 1)
@@ -895,10 +898,10 @@ class Population(object):
         characteristic_tolerence_failed = False
 
         # Print warning for characteristics that are not well matched by the compartment size solution
-        for i in range(0, len(characs)):
+        for i in range(0, len(b_objs)):
             if abs(proposed[i] - b[i]) > model_settings['tolerance']:
                 characteristic_tolerence_failed = True
-                error_msg += "Characteristic '{0}' '{1}' - Requested {2}, Calculated {3}\n".format(self.name, characs[i].name, b[i], proposed[i])
+                error_msg += "Characteristic '{0}' '{1}' - Requested {2}, Calculated {3}\n".format(self.name, b_objs[i].name, b[i], proposed[i])
 
         # Print expanded diagnostic for negative compartments showing parent characteristics
         def report_characteristic(charac, n_indent=0):
@@ -936,7 +939,7 @@ class Population(object):
         for i in range(0, len(comps)):
             if x[i] < -model_settings['tolerance']:
                 error_msg += 'Compartment %s %s - Calculated %f\n' % (self.name, comps[i].name, x[i])
-                for charac in characs:
+                for charac in b_objs:
                     try:
                         if comps[i] in charac.get_included_comps():
                             error_msg += report_characteristic(charac)
