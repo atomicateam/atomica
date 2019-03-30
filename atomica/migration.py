@@ -378,21 +378,50 @@ def model_tidying(proj):
 @migration('1.0.28', '1.1.0', 'Add population type')
 def add_pop_type(proj):
 
+    default_pop_type = 'default'
+
     if proj.framework:
 
         fw = proj.framework
 
         # Add default population type sheet
-        if 'population types' not in fw.sheets:
-            fw.sheets['population types'] = [pd.DataFrame.from_records([('default', 'Default'), ('environment', 'Environment')], columns=['code name', 'description'])]
+        fw.sheets['population types'] = [pd.DataFrame.from_records([(default_pop_type, 'Default')], columns=['code name', 'description'])]
 
-        for df in [fw.comps, fw.characs, fw.interactions, fw.pars]:
-            if 'population type' not in df:
-                df['population type'] = 'default'
+        for df in [fw.comps, fw.characs, fw.pars]:
+            df['population type'] = default_pop_type
+
+        fw.interactions['to population type'] = default_pop_type
+        fw.interactions['from population type'] = default_pop_type
+
 
     if proj.data:
         for pop_spec in proj.data.pops.values():
-            if 'type' not in pop_spec:
-                pop_spec['type'] = proj.framework.pop_types.keys()[0]
+                pop_spec['type'] = default_pop_type
+
+        # Fix up TDVE types
+        # Fix up transfers and interactions
+        for tdve in proj.data.tdve.values():
+            tdve.type = default_pop_type
+
+        for interaction in proj.data.transfers + proj.data.interpops:
+            interaction.from_pop_type = default_pop_type
+            interaction.to_pop_type = default_pop_type
+
+    for parset in proj.parsets.values():
+        parset.pop_types = [pop['type'] for pop in proj.data.pops.values()] # If there are parsets without data, then we don't know what pop types to add. Project is essentially incomplete and considered unusable
+
+    for progset in all_progsets(proj):
+        for pop in progset.pops.keys():
+            progset.pops[pop] = {'label':progset.pops[pop], 'type':default_pop_type}
+
+        for comp in progset.comps.keys():
+            progset.comps[comp] = {'label':progset.comps[comp], 'type':default_pop_type}
+
+        for par in progset.pars.keys():
+            progset.pars[par] = {'label':progset.pars[par], 'type':default_pop_type}
+
+
+
+
 
     return proj
