@@ -6,6 +6,7 @@ import numpy as np
 import xlrd
 
 import atomica as at
+import numpy as np
 
 def test_creation():
     F = at.ProjectFramework(at.LIBRARY_PATH+'combined_framework.xlsx')
@@ -52,19 +53,25 @@ def test_demo_values():
     P3.settings.update_time_vector(start=2016,end=2021)
     R3 = P3.run_sim('default')
 
+    # Check SIR values
+    assert np.allclose(R1.model.pops[0].get_comp('sus').vals, R3.model.pops[0].get_comp('sus').vals, equal_nan=True)
+    assert np.allclose(R1.model.pops[0].get_par('foi').vals, R3.model.pops[0].get_par('foi').vals, equal_nan=True)
 
+    # Check UDT values
+    assert np.allclose(R2.model.pops[0].get_comp('undx').vals, R3.model.pops[3].get_comp('undx').vals, equal_nan=True)
 
-    R1.model.pops[0].get_comp('sus').vals
-    R3.model.pops[0].get_comp('sus').vals
+    # Check interaction values
+    # Work through the interaction calculation between SIR and UDT
+    interactions = P3.parsets[0].interactions[1]
+    x = {}
+    for to_pop in ['UDT1','UDT2']:
+        x[to_pop] = np.zeros(R3.t.shape)
+        for from_pop in ['SIR1','SIR2','SIR3']:
+            x[to_pop] += R3.get_variable(from_pop,'foi')[0].vals * interactions[from_pop].ts[to_pop].interpolate(R3.t)
+    assert np.allclose(R3.get_variable('UDT1','sum_foi')[0].vals, x['UDT1'], equal_nan=True)
+    assert np.allclose(R3.get_variable('UDT2','sum_foi')[0].vals, x['UDT2'], equal_nan=True)
 
-    R2.model.pops[0].get_comp('undx').vals
-    R3.model.pops[3].get_comp('undx').vals
-
-def test_demo():
-    P = at.demo('combined',do_run=False)
-    R = P.run_sim('default')
 
 if __name__ == "__main__":
-    # test_creation()
+    test_creation()
     test_demo_values()
-    # test_demo()
