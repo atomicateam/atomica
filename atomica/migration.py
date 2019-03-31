@@ -234,7 +234,7 @@ def all_frameworks(proj):
             for r in result:
                 yield r.framework
         elif isinstance(result, Result):
-            yield r.framework
+            yield result.framework
 
 @migration('1.0.5', '1.0.6', 'Simplify ParameterSet storage')
 def simplify_parset_storage(proj):
