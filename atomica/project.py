@@ -708,7 +708,7 @@ class Project(NamedItem):
             json['objective_labels'] = sc.odict()
 
             for cascade_name in self.framework.cascades:
-                _, cascade = sanitize_cascade(self.framework, cascade_name)
+                cascade = sanitize_cascade(self.framework, cascade_name)[1]
 
                 if optim_type == 'outcome':
                     json['objective_weights']['conversion:%s' % (cascade_name)] = 1.

@@ -19,7 +19,7 @@ def test_cascade_validate():
     fnames = os.listdir(at.LIBRARY_PATH)
     # NB. To test a single file, set e.g. `fnames=['framework_tb.xlsx']`
     for fname in fnames:
-        if fname.endswith('_framework.xlsx'):
+        if fname.endswith('_framework.xlsx') and not fname.startswith('~'):
             print("Validating %s" % (fname))
             F = ProjectFramework(at.LIBRARY_PATH+fname)
 

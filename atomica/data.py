@@ -42,7 +42,7 @@ class ProjectData(sc.prettyobj):
 
     """
 
-    def __init__(self):
+    def __init__(self, framework):
         # This is just an overview of the structure of ProjectData
         # There are two pathways to a ProjectData
         # - Could load an existing one, with ProjectData.from_spreadsheet()
@@ -53,9 +53,9 @@ class ProjectData(sc.prettyobj):
         self.tvec = None  #: This is the data's tvec used when instantiating new tables. Not _guaranteed_ to be the same for every TDVE/TDC table
         self.tdve = sc.odict()  #: This is an odict storing :class:`TimeDependentValuesEntry` instances keyed by the code name of the TDVE
         self.tdve_pages = sc.odict()  #: This is an odict mapping worksheet name to an (ordered) list of TDVE code names appearing on that sheet
-        
+
         # Internal storage used with methods while writing
-        self._pop_types = None #: Store set of valid population names from framework
+        self._pop_types = list(framework.pop_types.keys()) #: Store set of valid population types from framework
         self._formats = None  #: Temporary storage for the Excel formatting while writing a databook
         self._book = None  #: Temporary storage for the workbook while writing a databook
         self._references = None  #: Temporary storage for cell references while writing a databook
@@ -203,16 +203,16 @@ class ProjectData(sc.prettyobj):
 
         """
 
-        default_poptype = framework.pop_types.keys()[0] # Use the first
-
         new_pops = sc.odict()
+        default_pop_type = list(framework.pop_types.keys())[0]
+
         if sc.isnumber(pops):
             for i in range(0, pops):
-                new_pops['pop_%d' % (i)] = {'label':'Population %d' % (i),'type':default_poptype}
+                new_pops['pop_%d' % (i)] = {'label':'Population %d' % (i),'type':default_pop_type}
         else:
             for code_name, spec in pops.items():
                 if sc.isstring(spec):
-                    new_pops[code_name] = {'label':spec,'type':default_poptype}
+                    new_pops[code_name] = {'label':spec,'type':default_pop_type}
                 else:
                     new_pops[code_name] = spec
 
@@ -222,17 +222,16 @@ class ProjectData(sc.prettyobj):
         new_transfers = sc.odict()
         if sc.isnumber(transfers):
             for i in range(0, transfers):
-                new_transfers['transfer_%d' % (i)] = {'label':'Population %d' % (i),'type':default_poptype}
+                new_transfers['transfer_%d' % (i)] = {'label':'Population %d' % (i),'type':default_pop_type}
         else:
             for code_name, spec in transfers.items():
                 if sc.isstring(spec):
-                    new_transfers[code_name] = {'label':spec,'type':default_poptype}
+                    new_transfers[code_name] = {'label':spec,'type':default_pop_type}
                 else:
                     new_transfers[code_name] = spec
 
         # Make all of the empty TDVE objects - need to store them by page, and the page information is in the Framework
-        data = ProjectData()
-        data._pop_types = set(framework.pop_types.keys())
+        data = ProjectData(framework=framework)
         data.tvec = sc.promotetoarray(tvec)
         pages = defaultdict(list)  # This will store {sheet_name:(code_name,databook_order)} which will then get sorted further
 
@@ -311,8 +310,7 @@ class ProjectData(sc.prettyobj):
         # e.g. the fact that 'Alive' is a Characteristic is stored in the Framework and Data but not in the Databook. So for example, we read in
         # a TDVE table called 'Alive', but it needs to be stored in data.specs['charac']['ch_alive'] and the 'charac' and 'ch_alive' are only available in the Framework
 
-        self = ProjectData()
-        self._pop_types = set(framework.pop_types.keys())
+        self = ProjectData(framework=framework)
 
         if sc.isstring(spreadsheet):
             spreadsheet = sc.Spreadsheet(spreadsheet)
@@ -432,12 +430,10 @@ class ProjectData(sc.prettyobj):
 
         # Make sure that all of the quantities the Framework says we should read in have been read in, and that
         # those quantities all have some data values associated with them
-        default_pop_type = list(framework.pop_types.keys())[0]
         for pop in self.pops.values():
             if pop['type'] is None:
-                pop['type'] = default_pop_type
-            else:
-                assert pop['type'] in self._pop_types, 'Error in population "%s": population type "%s" not found in framework' % (pop['label'],pop['type'])
+                pop['type'] = self._pop_types[0]
+            assert pop['type'] in self._pop_types, 'Error in population "%s": population type "%s" not found in framework. If the framework defines a non-default population type, then it must be explicitly specified in databooks and program books.' % (pop['label'],pop['type'])
 
         for df in [framework.comps, framework.characs, framework.pars]:
             for _, spec in df.iterrows():
@@ -465,7 +461,8 @@ class ProjectData(sc.prettyobj):
                         tdve = self.tdve[spec.name]
                         tdve_sheet = self.get_tdve_page(spec.name)
                         location = 'Error in TDVE table "%s" on sheet "%s"' % (tdve.name, tdve_sheet)
-                        
+                        assert tdve.pop_type in self._pop_types, '%s. Population type "%s" did not match any in the framework' % (location, tdve.pop_type)
+
                         required_pops = [x for x,y in self.pops.items() if y['type'] == tdve.pop_type] # The TDVE should contain values for all populations of that type, otherwise cannot construct the ParameterSet. Check that these populations are all present
                         missing_pops = set(required_pops).difference(tdve.ts.keys())
                         if missing_pops:
@@ -473,18 +470,20 @@ class ProjectData(sc.prettyobj):
                         
                         for name, ts in self.tdve[spec.name].ts.items():
                             assert name in self.pops, '%s. Population "%s" not recognized. Should be one of: %s' % (location, name, self.pops.keys())
-                            assert ts.has_data, '%s. Data values missing for %s (%s)' % (location, self.tdve[spec.name].name, name)
-                            assert ts.units is not None, '%s. Units missing for %s (%s)' % (location, self.tdve[spec.name].name, name)
+                            assert ts.has_data, '%s. Data values missing for %s (%s)' % (location, tdve.name, name)
+                            assert ts.units is not None, '%s. Units missing for %s (%s)' % (location, tdve.name, name)
                             if ts.units.strip().lower() != framework_units.strip().lower():
                                 # If the units don't match the framework's 'databook' units, see if they at least match the standard unit (for legacy databooks)
                                 if 'format' in spec and spec['format'] is not None and ts.units.lower().strip() != spec['format'].lower().strip():
-                                    assert ts.units == framework_units, '%s. Unit "%s" for %s (%s) does not match the declared units from the Framework (expecting "%s")' % (location, ts.units, self.tdve[spec.name].name, name, framework_units)
+                                    assert ts.units == framework_units, '%s. Unit "%s" for %s (%s) does not match the declared units from the Framework (expecting "%s")' % (location, ts.units, tdve.name, name, framework_units)
 
         for tdc in self.interpops + self.transfers:
             if tdc.from_pop_type is None:  # Supply default pop type
-                tdc.from_pop_type = default_pop_type
+                tdc.from_pop_type = self._pop_types[0]
+            assert tdc.from_pop_type in self._pop_types, 'Error in transfer/interaction "%s": from population type "%s" not found in framework. If the framework defines a non-default population type, then it must be explicitly specified in databooks and program books.' % (tdc.full_name,tdc.from_pop_type)
             if tdc.to_pop_type is None:  # Supply default pop type
-                tdc.to_pop_type = default_pop_type
+                tdc.to_pop_type = self._pop_types[0]
+            assert tdc.to_pop_type in self._pop_types, 'Error in transfer/interaction "%s": to population type "%s" not found in framework. If the framework defines a non-default population type, then it must be explicitly specified in databooks and program books.' % (tdc.full_name,tdc.to_pop_type)
 
         for _, spec in framework.interactions.iterrows():
             for tdc in self.interpops:
@@ -567,7 +566,7 @@ class ProjectData(sc.prettyobj):
         ss = self.to_spreadsheet(write_uncertainty=write_uncertainty)
         ss.save(fname + '.xlsx' if not fname.endswith('.xlsx') else fname)
 
-    def add_pop(self, code_name:str, full_name:str, pop_type:str) -> None:
+    def add_pop(self, code_name:str, full_name:str, pop_type:str=None) -> None:
         """
         Add a population
 
@@ -580,8 +579,8 @@ class ProjectData(sc.prettyobj):
 
         """
 
-        # Add a population with the given name and label (full name)
-
+        if pop_type is None:
+            pop_type = self._pop_types[0]
         assert pop_type in self._pop_types, 'Population type "%s" not found in framework' % (pop_type)
 
         code_name = code_name.strip()
@@ -670,15 +669,19 @@ class ProjectData(sc.prettyobj):
                 if k == pop_name:
                     del tdve.ts[k]
 
-    def add_transfer(self, code_name:str, full_name:str, pop_type:str) -> TimeDependentConnections:
+    def add_transfer(self, code_name:str, full_name:str, pop_type:str=None) -> TimeDependentConnections:
         """
         Add a new empty transfer
 
         :param code_name: The code name of the transfer to create
         :param full_name: The full name of the transfer to create
+        :param pop_type: Code name of the population type. Default is first population type in the framework
         :return: Newly instantiated TimeDependentConnections object (also added to ``ProjectData.transfers``)
 
         """
+
+        if pop_type is None:
+            pop_type = self._pop_types[0]
 
         assert pop_type in self._pop_types, 'Population type %s not found in framework' % (pop_type)
 
@@ -731,7 +734,7 @@ class ProjectData(sc.prettyobj):
         del self.transfers[idx]
 
     # NB. Differences in the model will only happen if the model knows what to do with the new interaction
-    def add_interaction(self, code_name:str, full_name:str, from_pop_type:str, to_pop_type:str) -> TimeDependentConnections:
+    def add_interaction(self, code_name:str, full_name:str, from_pop_type:str=None, to_pop_type:str=None) -> TimeDependentConnections:
         """
         Add a new empty interaction
 
@@ -742,11 +745,16 @@ class ProjectData(sc.prettyobj):
 
         :param code_name: The code name of the interaction to create
         :param full_name: The full name of the interaction to create
-        :param from_pop_type: The name of a population type, which will identify the populations to be added
-        :param to_pop_type: The name of a population type, which will identify the populations to be added
+        :param from_pop_type: The name of a population type, which will identify the populations to be added. Default is first population type in the framework
+        :param to_pop_type: The name of a population type, which will identify the populations to be added. Default is first population type in the framework
         :return: Newly instantiated TimeDependentConnections object (also added to ``ProjectData.interpops``)
 
         """
+
+        if from_pop_type is None:
+            from_pop_type = self._pop_types[0]
+        if to_pop_type is None:
+            to_pop_type = self._pop_types[0]
 
         assert from_pop_type in self._pop_types, 'Population type %s not found in framework' % (from_pop_type)
         assert to_pop_type in self._pop_types, 'Population type %s not found in framework' % (to_pop_type)

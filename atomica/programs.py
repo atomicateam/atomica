@@ -146,7 +146,10 @@ class ProgramSet(NamedItem):
 
     """
 
-    def __init__(self, name="default", tvec=None):
+    def __init__(self, name="default", framework=None, data=None, tvec=None):
+
+        assert framework is not None, 'Must specify framework and data when instantiating a ProgramSet'
+        assert data is not None, 'Must specify framework and data when instantiating a ProgramSet'
 
         NamedItem.__init__(self, name)
 
@@ -158,9 +161,23 @@ class ProgramSet(NamedItem):
 
         # Populations, parameters, and compartments - these are all the available ones printed when writing a progbook
         # They are all of the form {code_name:{'label':full_name, 'type':pop_type}}
-        self.pops = sc.odict()
+        self.pops = sc.dcp(data.pops) # ProjectData already stores dicts with 'label' and 'type' keys
+
+        # Get comps from framework
         self.comps = sc.odict()
+        for _, spec in framework.comps.iterrows():
+            if spec['is source'] == 'y' or spec['is sink'] == 'y' or spec['is junction'] == 'y':
+                continue
+            else:
+                self.comps[spec.name] = {'label':spec['display name'],'type':spec['population type']}
+
+        # Get pars from framework
         self.pars = sc.odict()
+        for _, spec in framework.pars.iterrows():
+            if spec['targetable'] == 'y':
+                self.pars[spec.name] = {'label':spec['display name'],'type':spec['population type']}
+
+        self._pop_types = list(framework.pop_types.keys())
 
         # Metadata
         self.created = sc.now()
@@ -171,6 +188,7 @@ class ProgramSet(NamedItem):
         self._book = None
         self._formats = None
         self._references = None
+
 
     def __repr__(self):
         output = sc.prepr(self)
@@ -201,16 +219,16 @@ class ProgramSet(NamedItem):
         if name in self.pars or name in self.comps or name in self.pops or name in self.programs:
             return name
 
-        for code_name, full_name in self.pops.items():
-            if name == full_name:
+        for code_name, spec in self.pops.items():
+            if name == spec['label']:
                 return code_name
 
-        for code_name, full_name in self.comps.items():
-            if name == full_name:
+        for code_name, spec in self.comps.items():
+            if name == spec['label']:
                 return code_name
 
-        for code_name, full_name in self.pars.items():
-            if name == full_name:
+        for code_name, spec in self.pars.items():
+            if name == spec['label']:
                 return code_name
 
         for prog in self.programs.values():
@@ -252,7 +270,7 @@ class ProgramSet(NamedItem):
                 if (par, pop) in self.covouts and code_name in self.covouts.progs:
                     del self.covouts[(par, pop)].progs[code_name]
 
-    def add_pop(self, code_name: str, full_name: str, pop_type: str) -> None:
+    def add_pop(self, code_name: str, full_name: str, pop_type: str=None) -> None:
         """
         Add a population to the ``ProgramSet``
 
@@ -264,6 +282,9 @@ class ProgramSet(NamedItem):
         :param full_name: The full name of the new population
 
         """
+
+        if pop_type is None:
+            pop_type = self._pop_types[0]
 
         self.pops[code_name] = {'label':full_name, 'type':pop_type}
 
@@ -289,7 +310,7 @@ class ProgramSet(NamedItem):
 
         del self.pops[code_name]
 
-    def add_comp(self, code_name: str, full_name: str, pop_type: str) -> None:
+    def add_comp(self, code_name: str, full_name: str, pop_type: str=None) -> None:
         """
         Add a compartment
 
@@ -300,6 +321,9 @@ class ProgramSet(NamedItem):
         :param full_name: Full name of the compartment to add
 
         """
+        if pop_type is None:
+            pop_type = self._pop_types[0]
+
         self.comps[code_name] = {'label':full_name, 'type':pop_type}
 
     def remove_comp(self, name: str) -> None:
@@ -323,7 +347,7 @@ class ProgramSet(NamedItem):
                 prog.target_comps.remove(code_name)
         del self.comps[code_name]
 
-    def add_par(self, code_name: str, full_name: str, pop_type: str) -> None:
+    def add_par(self, code_name: str, full_name: str, pop_type: str=None) -> None:
         """
         Add a parameter
 
@@ -332,8 +356,12 @@ class ProgramSet(NamedItem):
 
         :param code_name: Code name of the parameter to add
         :param full_name: Full name of the parameter to add
+        :param pop_type: Code name of the population type
 
         """
+
+        if pop_type is None:
+            pop_type = self._pop_types[0]
 
         # add an impact parameter
         # a new impact parameter won't have any covouts associated with it, and no programs will be bound to it
@@ -363,41 +391,6 @@ class ProgramSet(NamedItem):
     #######################################################################################################
     # Methods for data I/O
     #######################################################################################################
-
-    def _set_available(self, framework, data) -> None:
-        """
-        Update pops, comps and pars
-
-        The :class:`ProgramSet` maintains a listing of populations, compartments,
-        and parameters for the purpose of writing the progbook. At runtime, these
-        need to agree with whichever :class:`ProjectFramework` and :class:`ProjectData`
-        that are loaded into a :class:`Project`. Typically the :class:`ProgramSet` is
-        created within the context of an existing project. This function takes in
-        the framework and data that the :class:`ProgramSet` instance is intended to be
-        used in conjunction with, and sets the available pops, comps, and pars appropriately.
-
-
-        :param framework: A :class:`ProjectFramework` instance
-        :param data: A :class:`ProjectData` instance
-
-        """
-
-        # Get pops from data
-        self.pops = sc.dcp(data.pops) # ProjectData already stores dicts with 'label' and 'type' keys
-
-        # Get comps from framework
-        self.comps = sc.odict()
-        for _, spec in framework.comps.iterrows():
-            if spec['is source'] == 'y' or spec['is sink'] == 'y' or spec['is junction'] == 'y':
-                continue
-            else:
-                self.comps[spec.name] = {'label':spec['display name'],'type':spec['population type']}
-
-        # Get pars from framework
-        self.pars = sc.odict()
-        for _, spec in framework.pars.iterrows():
-            if spec['targetable'] == 'y':
-                self.pars[spec.name] = {'label':spec['display name'],'type':spec['population type']}
 
     @staticmethod
     def _normalize_inputs(framework, data, project) -> tuple:
@@ -468,8 +461,7 @@ class ProgramSet(NamedItem):
         framework, data = ProgramSet._normalize_inputs(framework, data, project)
 
         # Populate the available pops, comps, and pars based on the framework and data provided at this step
-        self = ProgramSet(name=name)
-        self._set_available(framework, data)
+        self = ProgramSet(name=name, framework=framework, data=data)
 
         # Create and load spreadsheet
         if sc.isstring(spreadsheet):
@@ -913,8 +905,7 @@ class ProgramSet(NamedItem):
 
         framework, data = ProgramSet._normalize_inputs(framework, data, project) # This step will fail if the framework and data cannot be resolved
 
-        newps = ProgramSet(name, tvec)
-        newps._set_available(framework, data)
+        newps = ProgramSet(name=name, tvec=tvec, framework=framework, data=data)
         if not newps.pars:
             logger.warning('No parameters were marked as "Targetable" in the Framework, so no program effects were added')
 
@@ -927,9 +918,10 @@ class ProgramSet(NamedItem):
         """
         Perform basic validation checks
 
-        :raises: Exception is anything is invalid
+        :raises: Exception if anything is invalid
 
         """
+
         for prog in self.programs.values():
             if not prog.target_comps:
                 raise Exception('Program "%s" does not target any compartments' % (prog.name))

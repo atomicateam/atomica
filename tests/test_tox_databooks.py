@@ -56,8 +56,8 @@ def test_databooks():
 
     # Remove a transfer, add an interaction, add a pop
     d2.remove_transfer('inc')
-    d2.add_interaction('d_ctc','New interpop','default','default')
-    d2.add_pop('asdf','The ASDF pop','default')
+    d2.add_interaction('d_ctc','New interpop')
+    d2.add_pop('asdf','The ASDF pop')
     d2.save(tmpdir + 'd_blug_newpop.xlsx')
 
     # Make a brand new databook
@@ -78,8 +78,8 @@ def test_databooks():
 
     # Modify incomplete databook
     d2 = ProjectData.from_spreadsheet(tmpdir + 'd_blug_blank.xlsx',F)
-    d2.add_pop('asdf','The ASDF pop','default')
-    d2.add_interaction('d_ctc','New interpop','default','default')
+    d2.add_pop('asdf','The ASDF pop')
+    d2.add_interaction('d_ctc','New interpop')
     d2.save(tmpdir + 'd_blug_blank_modified.xlsx')
 
     # Test writing out a databook with uncertainty values

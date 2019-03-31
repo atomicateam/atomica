@@ -337,7 +337,7 @@ class ProjectFramework(object):
         # VALIDATE POPULATION TYPES
         # Default to having 'Default'
         if 'population types' not in self.sheets:
-            self.sheets['population types'] = [pd.DataFrame.from_records([('default', 'Default')], columns=['code name', 'description'])]
+            self.sheets['population types'] = [pd.DataFrame.from_records([(FS.DEFAULT_POP_TYPE, 'Default')], columns=['code name', 'description'])]
 
         # VALIDATE COMPARTMENTS
         required_columns = ['display name']
@@ -366,6 +366,8 @@ class ProjectFramework(object):
             raise Exception('%s -> %s' % (message, e)) from e
 
         # Assign first population type to any empty population types
+        # In general, if the user has specified any pop types, then the first population type will be
+        # selected as the default in downstream functions e.g. `ProjectData.add_pop`
         self.comps['population type'] = self.comps['population type'].fillna(self.pop_types.keys()[0])
 
         # Default setup weight is 1 if in databook or 0 otherwise
@@ -819,7 +821,7 @@ class ProjectFramework(object):
         # Check that the cascades are validly nested
         # This will also check the fallback cascade
         for cascade_name in self.cascades.keys():
-            validate_cascade(self, cascade_name, used_fallback_cascade)
+            validate_cascade(self, cascade_name, fallback_used=used_fallback_cascade)
 
         # VALIDATE INITIALIZATION
         characs = []

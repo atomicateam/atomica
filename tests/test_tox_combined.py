@@ -1,14 +1,7 @@
 import atomica as at
-import sciris as sc
-import os
 import numpy as np
 
-import xlrd
-
-import atomica as at
-import numpy as np
-
-def test_creation():
+def test_combined_creation():
     F = at.ProjectFramework(at.LIBRARY_PATH+'combined_framework.xlsx')
     pops = {
         'SIR1':{'label':'SIR 1','type':'sir'},
@@ -42,7 +35,7 @@ def test_creation():
     ps2.add_program('test','test')
     ps2.save('combined_added.xlsx')
 
-def test_demo_values():
+def test_combined_values():
     P1 = at.demo('sir',do_run=False)
     P1.settings.update_time_vector(start=2016,end=2021)
     R1 = P1.run_sim('default')
@@ -71,7 +64,19 @@ def test_demo_values():
     assert np.allclose(R3.get_variable('UDT1','sum_foi')[0].vals, x['UDT1'], equal_nan=True)
     assert np.allclose(R3.get_variable('UDT2','sum_foi')[0].vals, x['UDT2'], equal_nan=True)
 
+def test_combined_cascades():
+    P = at.demo('combined')
+    sir_cascade = at.get_cascade_vals(P.results[0],'sir_cascade')[0]
+    udt_cascade = at.get_cascade_vals(P.results[0],'udt_cascade')[0]
+
+    # Check aggregation is correctly applied
+    udt_1pop_cascade = at.get_cascade_vals(P.results[0],'udt_cascade',pops='UDT1')[0]
+    udt_explicit_cascade = at.get_cascade_vals(P.results[0],'udt_cascade',pops=['UDT1','UDT2'])[0]
+
+    assert np.allclose(udt_cascade[0], 2*udt_1pop_cascade[0], equal_nan=True)
+    assert np.allclose(udt_cascade[0], udt_explicit_cascade[0], equal_nan=True)
 
 if __name__ == "__main__":
-    test_creation()
-    test_demo_values()
+    test_combined_creation()
+    test_combined_values()
+    test_combined_cascades()
