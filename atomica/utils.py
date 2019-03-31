@@ -19,7 +19,14 @@ def parent_dir():
 
 
 class NamedItem():
-    def __init__(self, name=None):
+    def __init__(self, name:str=None):
+        """
+        NamedItem constructor
+
+        A name must be a string
+
+        :param name:
+        """
         if name is None:
             name = '<unnamed>'
         self.name = name
@@ -52,8 +59,8 @@ class NDict(sc.odict):
         # like a normal odict
         sc.odict.__setitem__(self, key, item)
 
-        # If it is a NamedItem, then synchronize the name of the object with the specified key
-        if isinstance(item, NamedItem):
+        # If it is a NamedItem, then synchronize the name of the object with the specified string key
+        if sc.isstring(key) and isinstance(item, NamedItem):
             item.name = key
             item.modified = sc.now()
         return None
