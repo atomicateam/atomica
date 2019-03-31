@@ -435,4 +435,8 @@ def add_pop_type(proj):
         for par in progset.pars.keys():
             progset.pars[par] = {'label':progset.pars[par], 'type':FS.DEFAULT_POP_TYPE}
 
+    for result in all_results():
+        for pop in result.model.pops:
+            pop.type = FS.DEFAULT_POP_TYPE
+            
     return proj
