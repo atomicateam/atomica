@@ -85,9 +85,9 @@ class ParameterScenario(Scenario):
         super(ParameterScenario, self).__init__(name, active)
         self.parsetname = parsetname
         # TODO - could do some extra validation here
-        self.scenario_values = scenario_values
+        self.scenario_values = sc.dcp(scenario_values) if scenario_values is not None else dict()
 
-    def get_parset(self, parset=None, settings=None):
+    def get_parset(self, parset, settings):
         """
         Return modified parset
 
@@ -112,6 +112,7 @@ class ParameterScenario(Scenario):
         # on a per-parameter+pop basis. Within the scenario, only the data points in scvalues will be used
 
         new_parset = sc.dcp(parset)
+        new_parset.name = self.name + '_' + parset.name
 
         for par_label in self.scenario_values.keys():
             par = new_parset.pars[par_label]  # This is the parameter we are updating
@@ -131,8 +132,7 @@ class ParameterScenario(Scenario):
                     overwrite['smooth_onset'] = 1e-5
 
                 if np.isscalar(overwrite['smooth_onset']):
-                    onset = np.zeros((len(overwrite['y']),))
-                    onset[0] = overwrite['smooth_onset']
+                    onset = [overwrite['smooth_onset']]*len(overwrite['y'])
                 else:
                     assert len(overwrite['smooth_onset']) == len(overwrite['y']), 'Smooth onset must be either a scalar or an array with length matching y-values'
                     onset = overwrite['smooth_onset']
@@ -150,7 +150,7 @@ class ParameterScenario(Scenario):
                     if onset[i] > 0:
                         t = overwrite['t'][i] - onset[i]
 
-                        if i > 0 and t > overwrite['t'][i - 1]:
+                        if i > 0 and t <= overwrite['t'][i - 1]:
                             # If the smooth onset extends to before the previous point, then just use the
                             # previous point directly instead
                             y = overwrite['y'][i - 1] / par.y_factor[pop_label] / par.meta_y_factor
@@ -173,8 +173,7 @@ class ParameterScenario(Scenario):
                 # Add an extra point to return the parset back to it's original value after the final overwrite
                 par.ts[pop_label].insert(max(overwrite['t']) + 1e-5, original_y_end)
 
-            new_parset.name = self.name + '_' + parset.name
-            return new_parset
+        return new_parset
 
     def run(self, project=None, parset=None, store_results=True):
         """
