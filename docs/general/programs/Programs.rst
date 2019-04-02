@@ -285,3 +285,12 @@ Finally, note that in the case where there are multiple programs, the program co
 	:width: 800px
 
 This is depicted visually above, assuming that the coverage interaction is additive, and we correctly recover the expected result that 267 people would be diagnosed. 
+
+Targeting transfers
+===================
+
+An advanced feature in the Programs system is the ability to target transfers between populations. This allows movements in and out of key populations to be affected by programs. It is not aimed at general use, and is therefore slightly more involved.
+
+Transfers between populations are handled in the same way as normal transitions - there is a parameter in the `Model` governing the flow rate, with values supplied from the 'Transfers' sheet of the databook, and a set of `Links` between every compartment in the source and destination. These items don't appear explicitly in the Framework (in the transition matrix or in the parameter list) because they are specific to the populations defined in the databook. The key things to be aware of are
+
+- The name of the Parameter is `'<transfer name>_<source_pop>_<dest_pop>'` so for example, if the transfer had code name 'inc' for incarceration from the `15-64` population to the `Prisoners` population, 

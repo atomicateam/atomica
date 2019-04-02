@@ -360,12 +360,22 @@ def model_tidying(proj):
             del prog.capacity
     return proj
 
-@migration('1.0.17', '1.1.1', 'Replace scenarios')
+@migration('1.0.27', '1.0.28', 'Rename link labels')
+def model_tidying(proj):
+
+    # Normalize link labels - they should now always derive from their associated parameter
+    for result in all_results(proj):
+        for pop in result.model.pops:
+            for link in pop.links:
+                link.id = link.id[0:3] + (link.parameter.name + ':flow',)
+        result.model.set_vars_by_pop()
+    return proj
+
+@migration('1.0.30', '1.1.3', 'Replace scenarios')
 def replace_scenarios(proj):
-    # This migration replaces existing scenarios with equivalent CombinedScenarios
-    from .scenarios import ParameterScenario, BudgetScenario, CoverageScenario, CombinedScenario
+    # This migration upgrades existing scenarios to match the latest definitions
+    from .scenarios import ParameterScenario, BudgetScenario, CoverageScenario
     from .utils import NDict, TimeSeries
-    from .programs import ProgramInstructions
 
     new_scens = NDict()
 
@@ -378,10 +388,6 @@ def replace_scenarios(proj):
             parsetname = proj.parset(scen.parsetname).name
         except:
             parsetname = proj.parsets[-1].name
-
-        progsetname = None
-        scenario_values = None
-        instructions = None
 
         if isinstance(scen,ParameterScenario):
             new_scen = scen # No need to migrate parameter scenarios
@@ -438,4 +444,5 @@ def replace_scenarios(proj):
         new_scens.append(new_scen)
 
     proj.scens = new_scens
+
     return proj
