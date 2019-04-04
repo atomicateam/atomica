@@ -62,9 +62,9 @@ def test_combined_values():
     for to_pop in ['UDT1','UDT2']:
         x[to_pop] = np.zeros(R3.t.shape)
         for from_pop in ['SIR1','SIR2','SIR3']:
-            x[to_pop] += R3.get_variable(from_pop,'foi')[0].vals * interactions[from_pop].ts[to_pop].interpolate(R3.t)
-    assert np.allclose(R3.get_variable('UDT1','sum_foi')[0].vals, x['UDT1'], equal_nan=True)
-    assert np.allclose(R3.get_variable('UDT2','sum_foi')[0].vals, x['UDT2'], equal_nan=True)
+            x[to_pop] += R3.get_variable('foi',from_pop)[0].vals * interactions[from_pop].ts[to_pop].interpolate(R3.t)
+    assert np.allclose(R3.get_variable('sum_foi','UDT1')[0].vals, x['UDT1'], equal_nan=True)
+    assert np.allclose(R3.get_variable('sum_foi','UDT2')[0].vals, x['UDT2'], equal_nan=True)
 
 def test_combined_cascades():
     P = at.demo('combined')

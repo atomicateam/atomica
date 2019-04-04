@@ -368,7 +368,7 @@ if "makeplots" in torun:
     # Low level debug plots.
     if test in ['tb','sir']:
         for var in test_vars:
-            P.results["parset_default"].get_variable(test_pop,var)[0].plot()
+            P.results["parset_default"].get_variable(var,test_pop)[0].plot()
 
         # Plot population decomposition.
         d = at.PlotData(P.results["parset_default"],outputs=decomp,pops=plot_pop)

@@ -163,9 +163,9 @@ class Result(NamedItem):
                 for pop_name in prog.target_pops:
                     for comp_name in prog.target_comps:
                         if prog.name not in num_eligible:
-                            num_eligible[prog.name] = self.get_variable(pop_name, comp_name)[0].vals.copy()
+                            num_eligible[prog.name] = self.get_variable(comp_name, pop_name)[0].vals.copy()
                         else:
-                            num_eligible[prog.name] += self.get_variable(pop_name, comp_name)[0].vals
+                            num_eligible[prog.name] += self.get_variable(comp_name, pop_name)[0].vals
 
             # Note that `ProgramSet.get_prop_coverage()` takes in capacity in units of 'people' which matches
             # the units of 'num_eligible' so we therefore use the returned value from `ProgramSet.get_capacities()`
@@ -258,7 +258,7 @@ class Result(NamedItem):
         output = sc.prepr(self)
         return output
 
-    def get_variable(self, pops: str, name: str) -> list:
+    def get_variable(self, name:str,  pops:str=None) -> list:
         """
         Retrieve integration objects
 

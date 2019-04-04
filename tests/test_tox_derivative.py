@@ -14,8 +14,8 @@ def test_derivative():
     P = at.Project(name="test", framework=F, do_run=False)
     P.load_databook(databook_path=D.to_spreadsheet(), make_default_parset=True, do_run=True)
 
-    dm_prev = P.results[0].get_variable('mosquitos','dm_prev')[0]
-    m_prev = P.results[0].get_variable('mosquitos','m_prev')[0]
+    dm_prev = P.results[0].get_variable('dm_prev', 'mosquitos')[0]
+    m_prev = P.results[0].get_variable('m_prev', 'mosquitos')[0]
 
     assert np.allclose(dm_prev.vals[m_prev.t==2000], 0.1, equal_nan=True)
     assert np.allclose(dm_prev.vals[m_prev.t==2010], 0.1, equal_nan=True)
