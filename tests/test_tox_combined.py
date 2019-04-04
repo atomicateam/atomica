@@ -76,7 +76,12 @@ def test_combined_cascades():
     assert np.allclose(udt_cascade[0], 2*udt_1pop_cascade[0], equal_nan=True)
     assert np.allclose(udt_cascade[0], udt_explicit_cascade[0], equal_nan=True)
 
+def test_combined_plots():
+    P = at.demo('combined')
+    P.results[0].plot()
+
 if __name__ == "__main__":
     test_combined_creation()
     test_combined_values()
     test_combined_cascades()
+    test_combined_plots()

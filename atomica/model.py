@@ -747,7 +747,7 @@ class Population(object):
 
             return links
         else:
-            raise NotFoundError("Object '{0}' not found.".format(name))
+            raise NotFoundError(f"Object '{name}' not found in population '{self.name}'")
 
     def get_comp(self, comp_name):
         """ Allow compartments to be retrieved by name rather than index. Returns a Compartment. """

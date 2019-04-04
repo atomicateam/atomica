@@ -19,6 +19,7 @@ from .excel import standard_formats
 from .system import FrameworkSettings as FS
 from .system import logger
 from .utils import NamedItem, evaluate_plot_string, nested_loop, interpolate
+from .function_parser import parse_function
 
 
 class Result(NamedItem):
@@ -346,6 +347,24 @@ class Result(NamedItem):
         this_plot = df.loc[df['name'] == plot_name, :].iloc[0]  # A Series with the row of the 'Plots' sheet corresponding to the plot we want to render
 
         quantities = evaluate_plot_string(this_plot['quantities'])
+
+        # Work out which populations these are defined in
+        if not pops:
+            if sc.isstring(quantities):
+                pop_type = self.framework.get_variable(quantities)[0]['population type']
+            elif isinstance(quantities,list):
+                pop_type = self.framework.get_variable(quantities[0])[0]['population type']
+            elif isinstance(quantities,dict):
+                v = list(quantities.values())[0]
+                if isinstance(v, list):
+                    pop_type = self.framework.get_variable(v[0])[0]['population type']
+                elif sc.isstring(v):
+                    # It could be a function aggregation or it could be a single one
+                    _, deps = parse_function(v)
+                    pop_type = self.framework.get_variable(deps[0])[0]['population type']
+            else:
+                raise Exception('Could not determine population type')
+            pops = [x.name for x in self.model.pops if x.type == pop_type]
 
         d = PlotData(self, outputs=quantities, pops=pops, project=project)
         h = plot_series(d, axis='pops', data=(project.data if project is not None else None))
