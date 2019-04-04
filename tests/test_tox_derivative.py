@@ -3,10 +3,11 @@
 
 import numpy as np
 import atomica as at
+import os
 
 def test_derivative():
 
-    testdir = at.atomica_path(['tests'])
+    testdir = os.path.abspath(os.path.join(os.path.dirname(__file__)))+os.sep # Must be relative to current file to work with tox
 
     F = at.ProjectFramework(testdir + "framework_derivative_test.xlsx")
     D = at.ProjectData.new(F,np.arange(2000,2010),pops={'mosquitos':'Mosquitos'},transfers=0)

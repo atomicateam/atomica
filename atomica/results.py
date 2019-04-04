@@ -17,7 +17,7 @@ import logging
 import sciris as sc
 from .excel import standard_formats
 from .system import FrameworkSettings as FS
-from .system import logger
+from .system import logger, NotFoundError
 from .utils import NamedItem, evaluate_plot_string, nested_loop, interpolate
 from .function_parser import parse_function
 
@@ -272,7 +272,16 @@ class Result(NamedItem):
 
         """
 
-        return self.model.get_pop(pops).get_variable(name)
+        if pops is not None:
+            return self.model.get_pop(pops).get_variable(name)
+        else:
+            vars = []
+            for pop in self.model.pops:
+                try:
+                    vars += pop.get_variable(name)
+                except NotFoundError:
+                    pass
+            return vars
 
     def export_raw(self, filename=None) -> pd.DataFrame:
         """
@@ -349,22 +358,24 @@ class Result(NamedItem):
         quantities = evaluate_plot_string(this_plot['quantities'])
 
         # Work out which populations these are defined in
+        # Going via Result.get_variable() means that it will automatically
+        # work correctly for flow rate syntax as well
         if not pops:
             if sc.isstring(quantities):
-                pop_type = self.framework.get_variable(quantities)[0]['population type']
+                vars = self.get_variable(quantities)
             elif isinstance(quantities,list):
-                pop_type = self.framework.get_variable(quantities[0])[0]['population type']
+                vars = self.get_variable(quantities[0])
             elif isinstance(quantities,dict):
                 v = list(quantities.values())[0]
                 if isinstance(v, list):
-                    pop_type = self.framework.get_variable(v[0])[0]['population type']
+                    vars = self.get_variable(v[0])
                 elif sc.isstring(v):
                     # It could be a function aggregation or it could be a single one
                     _, deps = parse_function(v)
-                    pop_type = self.framework.get_variable(deps[0])[0]['population type']
+                    vars = self.get_variable(deps[0])
             else:
                 raise Exception('Could not determine population type')
-            pops = [x.name for x in self.model.pops if x.type == pop_type]
+            pops = [x.pop.name for x in vars]
 
         d = PlotData(self, outputs=quantities, pops=pops, project=project)
         h = plot_series(d, axis='pops', data=(project.data if project is not None else None))

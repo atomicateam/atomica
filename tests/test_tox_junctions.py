@@ -2,9 +2,11 @@
 
 import numpy as np
 import atomica as at
+import os
 
 def test_junctions():
-    testdir = at.parent_dir()
+
+    testdir = os.path.abspath(os.path.join(os.path.dirname(__file__)))+os.sep # Must be relative to current file to work with tox
 
     F = at.ProjectFramework(testdir + "framework_junction_test.xlsx")
     D = at.ProjectData.new(F,np.arange(2000,2001),pops={'pop1':'Population 1'},transfers=0)
