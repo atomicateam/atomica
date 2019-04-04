@@ -281,6 +281,8 @@ class Result(NamedItem):
                     vars += pop.get_variable(name)
                 except NotFoundError:
                     pass
+            if not vars:
+                raise NotFoundError(f"Variable '{name}' was not found in any populations")
             return vars
 
     def export_raw(self, filename=None) -> pd.DataFrame:
