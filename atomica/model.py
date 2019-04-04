@@ -367,6 +367,7 @@ class Parameter(Variable):
         self._fcn = None  #: Internal cache for parsed parameter function (this will be dropped when pickled)
         self._precompute = False #: If True, the parameter function will be computed in a vector operation prior to integration
         self._is_dynamic = False #: If True, this parameter will be updated during integration. Note that `precompute` and `dynamic` are mutually exclusive
+        self.derivative = False #: If True, the parameter function will be treated as a derivative and the value added on to the end
 
         #: For transition parameters, the ``vals`` stored by the parameter is effectively a rate. The ``timescale``
         #: attribute informs the time period corresponding to the units in which the rate has been provided.
@@ -411,7 +412,9 @@ class Parameter(Variable):
                     self.deps[dep_name] = self.pop.get_variable(dep_name) # nb. this lookup will fail if the user has a function that depends on a quantity outside this population
 
         # If this Parameter has links and a function, it must be updated during computation
-        if self.links and self.fcn_str:
+        # Similarly, if it is a derivative then it should be vector-computed
+        # (for simplicity in implementation)
+        if (self.links and self.fcn_str) or self.derivative:
             self.set_dynamic(progset)
 
     def set_dynamic(self, progset=None) -> None:
@@ -444,7 +447,7 @@ class Parameter(Variable):
             # dependencies have already been checked
             return
 
-        if self.pop_aggregation:
+        if self.pop_aggregation or self.derivative: # Pop aggregations and derivatives are handled in `update_pars()` so must be done incrementally during integration
             self._is_dynamic = True
 
         if self.deps: # If there are no dependencies, then we know that this is precompute-only
@@ -524,7 +527,12 @@ class Parameter(Variable):
             return
 
         if ti is None:
+            if self.derivative:
+                raise Exception('Cannot perform a vector update of a derivate parameter')
             ti = np.arange(0, self.vals.size)  # This corresponds to every time point
+
+        if self.derivative and ti == 0:
+            return
 
         dep_vals = dict.fromkeys(self.deps, 0.0)
         for dep_name, deps in self.deps.items():
@@ -817,6 +825,7 @@ class Population(object):
                 par = Parameter(pop=self, name=par_name)
                 par.units = pars.at[par_name, "format"]
                 par.timescale = pars.at[par_name, "timescale"]
+                par.derivative = pars.at[par_name, "is derivative"] == 'y'
                 self.pars.append(par)
                 if framework.transitions[par_name]:
                     for pair in framework.transitions[par_name]:
@@ -1182,10 +1191,10 @@ class Model(object):
                     par.scale_vactor = cascade_par.meta_y_factor # Set meta scale factor regardless of whether a population-specific y-factor is also provided
                     if par.pop.name in cascade_par.y_factor:
                         par.scale_factor *= cascade_par.y_factor[par.pop.name] # Add in population-specific scale factor
-                    if not par.fcn_str and cascade_par.has_values(par.pop.name): # Note that a parameter might appear in the databook and have a function - in which case, the function takes precedence (the databook values only get used for plotting)
+                    if cascade_par.has_values(par.pop.name): # If the databook contains values, then insert them now
                         par.vals = cascade_par.interpolate(tvec=self.t, pop_name=par.pop.name) * par.scale_factor
                         par.constrain()  # Sampling might result in the parameter value going out of bounds (or user might have entered bad values in the databook) so ensure they are clipped here
-                    elif par.fcn_str and par._precompute:
+                    if par.fcn_str and par._precompute: # If the parameter is marked for precomputation, then insert it now
                         par.update()
                         par.constrain()
 
@@ -1490,6 +1499,11 @@ class Model(object):
 
             # Restrict the parameter's value if a limiting range was defined
             for par in pars:
+                if par.derivative and ti>0:
+                    # If derivative parameter, then perform an Euler forward step
+                    # Handling the derivative here means that it is possible to overwrite the derivative using programs
+                    # The program outcome should be the derivative value
+                    par.vals[ti] = par.vals[ti-1]+par.vals[ti]*self.dt
                 par.constrain(ti)
 
 

@@ -440,3 +440,15 @@ def add_pop_type(proj):
             pop.type = FS.DEFAULT_POP_TYPE
             
     return proj
+
+
+@migration('1.1.3', '1.1.4', 'Parameter can be derivative')
+def add_derivatives(proj):
+    for fw in all_frameworks(proj):
+        fw.pars['is derivative'] = 'n'
+    for result in all_results(proj):
+        for pop in result.model.pops:
+            for par in pop.pars:
+                par.derivative = False
+    return proj
+

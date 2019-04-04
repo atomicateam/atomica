@@ -540,11 +540,13 @@ class ProjectFramework(object):
             'targetable': 'n',
             'guidance': None,
             'timescale': None,
-            'population type': None
+            'population type': None,
+            'is derivative': 'n'
         }
         valid_content = {
             'display name': None,
             'targetable': {'y', 'n'},
+            'is derivative': {'y', 'n'},
         }
 
         self.pars.set_index('code name', inplace=True)
@@ -586,6 +588,9 @@ class ProjectFramework(object):
 
             if par['population type'] not in self.pop_types.keys():
                 raise InvalidFramework('Parameter "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (par.name,par['population type'],self.pop_types.keys()))
+
+            if par['is derivative'] == 'y' and par['function'] is None:
+                raise InvalidFramework('Parameter "%s" is marked "is derivative" but it does not have a parameter function' % (par.name))
 
             if par['function'] is None:
                 # In order to have a value, a transition parameter must either be
@@ -824,32 +829,38 @@ class ProjectFramework(object):
             validate_cascade(self, cascade_name, fallback_used=used_fallback_cascade)
 
         # VALIDATE INITIALIZATION
-        characs = []
-        for _, spec in self.characs.iterrows():
-            if spec['databook page'] is not None and spec['setup weight']:
-                characs.append(spec.name)
+        for pop_type in self.pop_types.keys():
 
-        comps = []
-        for _, spec in self.comps.iterrows():
-            if spec['is source'] == 'n' and spec['is sink'] == 'n':
-                comps.append(spec.name)
-            if spec['databook page'] is not None and spec['setup weight']:
-                characs.append(spec.name)
+            characs = []
+            for _, spec in self.characs.iterrows():
+                if spec['population type'] == pop_type and spec['databook page'] is not None and spec['setup weight']:
+                    characs.append(spec.name)
 
-        if len(characs) == 0:
-            if not self.comps['databook page'].any() and self.comps['databook page'].any():
-                message = 'No compartments or characteristics appear in the databook, which means it is not possible to initialize the simulation. Please assign at least some of the compartments and/or characteristics to a databook page.'
-            else:
-                message = 'No compartments or characteristics have a setup weight (either because they do not appear in the databook, or the setup weight has been explicitly set to zero) - cannot initialize simulation. Please change some of the setup weights to be nonzero'
-            raise Exception(message)
+            comps = []
+            for _, spec in self.comps.iterrows():
+                if spec['population type'] == pop_type and spec['is source'] == 'n' and spec['is sink'] == 'n':
+                    comps.append(spec.name)
+                if spec['population type'] == pop_type and spec['databook page'] is not None and spec['setup weight']:
+                    characs.append(spec.name)
 
-        A = np.zeros((len(characs), len(comps)))
-        for i, charac in enumerate(characs):
-            for include in self.get_charac_includes(charac):
-                A[i, comps.index(include)] = 1.0
+            if not comps:
+                # If this population type has no compartments, then no need to initialize anything
+                continue
 
-        if np.linalg.matrix_rank(A) < len(comps):
-            logger.warning('Initialization characteristics are underdetermined - this may be intentional, but check the initial compartment sizes carefully')
+            if len(characs) == 0:
+                if not self.comps['databook page'].any() and self.comps['databook page'].any():
+                    message = 'No compartments or characteristics appear in the databook, which means it is not possible to initialize the simulation. Please assign at least some of the compartments and/or characteristics to a databook page.'
+                else:
+                    message = 'No compartments or characteristics have a setup weight (either because they do not appear in the databook, or the setup weight has been explicitly set to zero) - cannot initialize simulation. Please change some of the setup weights to be nonzero'
+                raise Exception(message)
+
+            A = np.zeros((len(characs), len(comps)))
+            for i, charac in enumerate(characs):
+                for include in self.get_charac_includes(charac):
+                    A[i, comps.index(include)] = 1.0
+
+            if np.linalg.matrix_rank(A) < len(comps):
+                logger.warning('Initialization characteristics are underdetermined - this may be intentional, but check the initial compartment sizes carefully')
 
     def get_databook_units(self, code_name: str) -> str:
         """
