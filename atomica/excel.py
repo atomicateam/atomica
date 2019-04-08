@@ -149,9 +149,9 @@ def read_tables(worksheet):
     for i, row in enumerate(worksheet.rows):
 
         # Skip any rows starting with '#ignore'
-        if row[0].value and sc.isstring(row[0].value) and row[0].value.startswith('#ignore'):
+        if len(row)==0 or (row[0].value and sc.isstring(row[0].value) and row[0].value.startswith('#ignore')):
             continue  # Move on to the next row if row skipping is marked True
-
+            
         # Find out whether we need to add the row to the buffer
         for cell in row:
             if cell.value:  # If the row has a non-empty cell, add the row to the buffer
