@@ -254,8 +254,14 @@ class ParameterScenario(Scenario):
 
             for pop_label, overwrite in self.scenario_values[par_label].items():
 
+                overwrite = sc.dcp(overwrite)
+                overwrite['t'] = sc.promotetoarray(overwrite['t']).astype('float') # astype('float') converts None to np.nan
+
                 if not par.has_values(pop_label):
                     raise Exception("You cannot specify overwrites for a parameter with a function, instead you should overwrite its dependencies")
+
+                if not np.any(np.isfinite(overwrite['y'])):
+                    continue # Skip parameter if none of the overwrites have values
 
                 original_y_end = par.interpolate(np.array([max(overwrite['t']) + 1e-5]), pop_label)
 
