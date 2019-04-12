@@ -92,10 +92,56 @@ def test_timevarying_progscen():
          'Harm reduction 1':0.25,
          'Harm reduction 2':at.TimeSeries([2018,2020],[0.7,0.2]),
     }
-    scen = at.CoverageScenario('Reduced coverage','default','default',coverage=coverage,start_year=2018)
+    scen = at.CombinedScenario('Reduced coverage',parsetname='default',progsetname='default',instructions=at.ProgramInstructions(coverage=coverage,start_year=2018))
     scen_result = scen.run(project=P)
     d = at.PlotData.programs([res_baseline,scen_result],quantity='coverage_fraction')
     at.plot_series(d)
+
+def test_combined_scenario():
+
+    P = at.demo('tb',do_run=False)
+
+    res_baseline = P.run_sim(P.parsets[0],P.progsets[0],at.ProgramInstructions(2018))
+
+    # Make a parameter overwrite]
+    scenario_values = dict()
+    scenario_values['b_rate'] = dict()
+    scenario_values['b_rate']['0-4'] = dict()
+    scenario_values['b_rate']['0-4']["t"] = [2016., 2020., 2050]
+    scenario_values['b_rate']['0-4']["y"] = [270000,300000,300000]
+
+    # Make instructions for the program scenario
+    alloc = {'BCG':at.TimeSeries([2018,2020],[345000,500000])}
+    coverage = {'PCF':at.TimeSeries([2018,2020],[0.00274411,0.004])}
+    instructions = at.ProgramInstructions(2018,alloc=alloc,coverage=coverage)
+
+    # Instantiate the combined scenario
+    scen = at.CombinedScenario(name='Combined test',parsetname='default',progsetname='default',scenario_values=scenario_values,instructions=instructions)
+
+    # Run the scenario via `Project.run_scenarios()` and check the output
+    for s in P.scens.values():
+        s.active = False
+    P.scens.append(scen)
+    scen_result = P.run_scenarios(store_results=False)[0]
+
+    # Check parameter overwrite
+    d = at.PlotData([res_baseline,scen_result],outputs='b_rate',pops='0-4')
+    at.plot_series(d,axis='results')
+
+    # Check budget overwrite
+    d = at.PlotData.programs([res_baseline,scen_result],quantity='spending',outputs='BCG')
+    at.plot_series(d,axis='results')
+
+    # Check coverage overwrite
+    d = at.PlotData.programs([res_baseline,scen_result],quantity='coverage_fraction',outputs='PCF')
+    at.plot_series(d,axis='results')
+
+    # Check the combined scenario would work for just parameters or just programs
+    pars_only = at.CombinedScenario(name='Parameters only', scenario_values=scenario_values)
+    r2 = pars_only.run(project=P,parset=P.parsets['default'])
+
+    progs_only = at.CombinedScenario(name='Programs only', instructions=instructions)
+    r3 = progs_only.run(project=P,parset=P.parsets['default'],progset=P.progsets['default'])
 
 def test_parameter_scenarios():
 
@@ -104,8 +150,8 @@ def test_parameter_scenarios():
 
     # Check that it runs with an empty scvalues
     scvalues = dict()
-    scen = proj.make_scenario(which='parameter', name="No overwrites", instructions=scvalues)
-    scen_results = scen.run(proj, proj.parsets["default"])
+    scen = proj.make_scenario(which='parameter', scenario_values=scvalues)
+    scen.run(proj, proj.parsets["default"])
 
     # Check that it runs with a single overwrite
     scen_par = "contacts"
@@ -114,7 +160,7 @@ def test_parameter_scenarios():
     scvalues[scen_par][scen_pop] = dict()
     scvalues[scen_par][scen_pop]["y"] = [80., 40]
     scvalues[scen_par][scen_pop]["t"] = [2010., 2020.]
-    scen = proj.make_scenario(which='parameter', name="Increased deaths", instructions=scvalues)
+    scen = proj.make_scenario(which='parameter', scenario_values=scvalues)
     scen_results = scen.run(proj, proj.parsets["default"])
 
     # Check that default is stepped interpolation
@@ -125,7 +171,7 @@ def test_parameter_scenarios():
 
     # Check smooth onset when smooth onset is applied
     scvalues[scen_par][scen_pop]["smooth_onset"] = 2
-    scen = proj.make_scenario(which='parameter', name="Increased deaths", instructions=scvalues)
+    scen = proj.make_scenario(which='parameter', scenario_values=scvalues)
     scen_results = scen.run(proj, proj.parsets["default"])
     var = scen_results.get_variable('adults','contacts')[0]
     assert np.allclose(var.vals[var.t == 2018][0], 80, equal_nan=True)  # Default tolerances are rtol=1e-05, atol=1e-08
@@ -134,7 +180,7 @@ def test_parameter_scenarios():
 
     # Check smooth onset works if larger than the gap in overwrite
     scvalues[scen_par][scen_pop]["smooth_onset"] = 11
-    scen = proj.make_scenario(which='parameter', name="Increased deaths", instructions=scvalues)
+    scen = proj.make_scenario(which='parameter', scenario_values=scvalues)
     scen_results = scen.run(proj, proj.parsets["default"])
     var = scen_results.get_variable('adults','contacts')[0]
     assert np.allclose(var.vals[var.t == 2010][0], 80, equal_nan=True)  # Default tolerances are rtol=1e-05, atol=1e-08
@@ -148,7 +194,7 @@ def test_parameter_scenarios():
     scvalues[scen_par][scen_pop] = dict()
     scvalues[scen_par][scen_pop]["y"] = [0.008, 0.005]
     scvalues[scen_par][scen_pop]["t"] = [2010., 2020.]
-    scen = proj.make_scenario(which='parameter', name="Increased deaths", instructions=scvalues)
+    scen = proj.make_scenario(which='parameter', scenario_values=scvalues)
     scen_results = scen.run(proj, proj.parsets["default"])
     var1 = scen_results.get_variable('adults','contacts')[0]
     var2 = scen_results.get_variable('adults','transpercontact')[0]
@@ -165,3 +211,5 @@ if __name__ == '__main__':
     test_program_scenarios()
     test_timevarying_progscen()
     test_parameter_scenarios()
+    test_combined_scenario()
+
