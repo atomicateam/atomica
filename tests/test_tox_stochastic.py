@@ -1,0 +1,26 @@
+# Test that parameter derivatives work
+# Indirectly test that frameworks with no compartments work
+
+import numpy as np
+import atomica as at
+import os
+
+def test_stochastic():
+
+    testdir = os.path.abspath(os.path.join(os.path.dirname(__file__)))+os.sep # Must be relative to current file to work with tox
+
+
+    F0 = at.ProjectFramework(testdir + "framework_sir_dynamic.xlsx")
+    P0 = at.Project(name="test", framework=F0, do_run=False)
+    P0.load_databook(databook_path=testdir + "databook_sir_dynamic.xlsx", make_default_parset=True, do_run=False)
+    baseline = P0.run_sim(result_name='default')
+
+    F = at.ProjectFramework(testdir + "framework_stochastic_test.xlsx")
+    P = at.Project(name="test", framework=F, do_run=False)
+    P.load_databook(databook_path=testdir + "databook_sir_dynamic.xlsx", make_default_parset=True, do_run=False)
+    ensemble = at.Ensemble(mapping_function=lambda x: at.PlotData(x), baseline_results=baseline)
+    ensemble.run_sims(P,'default',n_samples=100,result_names='default')
+    ensemble.plot_series()
+
+if __name__ == '__main__':
+    test_stochastic()
