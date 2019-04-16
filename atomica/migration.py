@@ -143,9 +143,7 @@ def migrate(proj):
     else:
         logger.info('Migrating Project "%s" from %s->%s', proj.name, proj.version, version)
     for m in migrations:  # Run the migrations in increasing version order
-        if sc.compareversions(proj.version, m.original_version) > 0:
-            continue
-        else:
+        if sc.compareversions(proj.version, m.new_version) < 0:
             proj = m.upgrade(proj)
 
     proj.version = version  # Set project version to the current Atomica version
@@ -371,5 +369,80 @@ def model_tidying(proj):
             for link in pop.links:
                 link.id = link.id[0:3] + (link.parameter.name + ':flow',)
         result.model.set_vars_by_pop()
-        
+    return proj
+
+@migration('1.0.30', '1.1.3', 'Replace scenarios')
+def replace_scenarios(proj):
+    # This migration upgrades existing scenarios to match the latest definitions
+    from .scenarios import ParameterScenario, BudgetScenario, CoverageScenario
+    from .utils import NDict, TimeSeries
+
+    new_scens = NDict()
+
+    for name,scen in proj.scens.items():
+
+        scen_name = scen.name
+        active = scen.active
+
+        try:
+            parsetname = proj.parset(scen.parsetname).name
+        except:
+            parsetname = proj.parsets[-1].name
+
+        if isinstance(scen,ParameterScenario):
+            new_scen = scen # No need to migrate parameter scenarios
+
+        elif isinstance(scen,BudgetScenario):
+            # Convert budget scenario to instructions based on existing logic
+            if scen.alloc_year is not None:
+                # If the alloc_year is prior to the program start year, then just use the spending value directly for all times
+                # For more sophisticated behaviour, the alloc should be passed into the BudgetScenario as a TimeSeries
+                alloc = sc.odict()
+                for prog_name, val in scen.alloc.items():
+                    assert not isinstance(val, TimeSeries)  # Value must not be a TimeSeries
+                    if val is None:
+                        continue  # Use default spending for any program that does not have a spending overwrite
+                    alloc[prog_name] = TimeSeries(scen.alloc_year, val)
+                    if scen.alloc_year > scen.start_year and proj.progsets:
+                        # Add in current spending if a programs instance already exists
+                        progset = proj.progsets[-1]
+                        # If adding spending in a future year, linearly ramp from the start year
+                        spend_data = progset.programs[prog_name].spend_data
+                        alloc[prog_name].insert(scen.start_year, spend_data.interpolate(scen.start_year))  # This will result in a linear ramp
+            else:
+                alloc = sc.odict()
+                for prog_name, val in scen.alloc.items():
+                    if not isinstance(val, TimeSeries):
+                        alloc[prog_name] = TimeSeries(scen.start_year, val)
+                    else:
+                        alloc[prog_name] = sc.dcp(val)
+            for ts in alloc.values():
+                ts.vals = [x * scen.budget_factor for x in ts.vals]
+
+            try:
+                progsetname = proj.progset(scen.progsetname).name
+            except:
+                progsetname = proj.parsets[-1].name
+
+            new_scen = atomica.BudgetScenario(name=scen_name,active=active,parsetname=parsetname,progsetname=progsetname,alloc=alloc,start_year=scen.start_year)
+
+        elif isinstance(scen,CoverageScenario):
+            coverage = sc.odict()
+            for prog_name, val in scen.coverage.items():
+                if not isinstance(val, TimeSeries):
+                    coverage[prog_name] = TimeSeries(scen.start_year, val)
+                else:
+                    coverage[prog_name] = sc.dcp(val)
+
+            try:
+                progsetname = proj.progset(scen.progsetname).name
+            except:
+                progsetname = proj.parsets[-1].name
+
+            new_scen = atomica.CoverageScenario(name=scen_name,active=active,parsetname=parsetname,progsetname=progsetname,coverage=coverage,start_year=scen.start_year)
+
+        new_scens.append(new_scen)
+
+    proj.scens = new_scens
+
     return proj

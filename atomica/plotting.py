@@ -671,7 +671,7 @@ class PlotData:
 
 
     @staticmethod
-    def programs(results, outputs=None, t_bins=None, quantity='spending', accumulate=None):
+    def programs(results, outputs=None, t_bins=None, quantity='spending', accumulate=None, nan_outside=False):
         """
         Constructs a PlotData instance from program values
 
@@ -688,6 +688,7 @@ class PlotData:
         :param quantity: can be 'spending', 'coverage_number', 'coverage_eligible', or 'coverage_fraction'. The 'coverage_eligible' is
                         the sum of compartments reached by a program, such that coverage_fraction = coverage_number/coverage_eligible
         :param accumulate: can be 'sum' or 'integrate'
+        :param nan_outside: If True, then values will be NaN outside the program start/stop year
         :return: A new :class:`PlotData` instance
 
         """
@@ -763,7 +764,9 @@ class PlotData:
                     data_label = output  # Can look up program spending by the program name
                     timescale = timescales[output]
 
-                # Accumulate the Series
+                if nan_outside:
+                    vals[(result.t < result.model.program_instructions.start_year) | (result.t > result.model.program_instructions.stop_year)] = np.nan
+
                 plotdata.series.append(Series(result.t, vals, result=result.name, pop=FS.DEFAULT_SYMBOL_INAPPLICABLE, output=output_name, data_label=data_label, units=units, timescale=timescale))  # The program should specify the units for its unit cost
 
         plotdata.results = sc.odict()
