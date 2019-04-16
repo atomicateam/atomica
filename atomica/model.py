@@ -1097,6 +1097,7 @@ class Model(object):
         self.relink()
         new = Model.__new__(Model)
         new.__dict__.update(d)
+        new.relink()
         return new
 
     def get_pop(self, pop_name):
