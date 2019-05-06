@@ -83,7 +83,7 @@ def test_cascade_scen_tb():
     scvalues[scen_par][scen_pop] = dict()
     scvalues[scen_par][scen_pop]["y"] = [0.5,0.5]
     scvalues[scen_par][scen_pop]["t"] = [1999., 2050.]
-    scen = P.make_scenario(which='parameter',name="Increased deaths", instructions=scvalues)
+    scen = P.make_scenario(which='parameter',name="Increased deaths", scenario_values=scvalues)
     scen_results = scen.run(P,P.parsets["default"])
 
     par_results.name = 'Baseline'
@@ -108,7 +108,7 @@ def test_cascade_scen_udt():
     scvalues[scen_par][scen_pop] = dict()
     scvalues[scen_par][scen_pop]["y"] = [1000., 1500.]
     scvalues[scen_par][scen_pop]["t"] = [2016., 2017.]
-    scen = P.make_scenario(which='parameter', name="Increased diagnosis rate", instructions=scvalues)
+    scen = P.make_scenario(which='parameter', name="Increased diagnosis rate", scenario_values=scvalues)
     scen_results = scen.run(P, P.parsets["default"])
 
     par_results.name = 'Baseline'
@@ -148,7 +148,7 @@ def test_cascade_sir():
     scvalues[scen_par][scen_pop] = dict()
     scvalues[scen_par][scen_pop]["y"] = [0.2, 0.2]
     scvalues[scen_par][scen_pop]["t"] = [2014., 2050.]
-    scen = P.make_scenario(which='parameter', name="Increased mortality", instructions=scvalues)
+    scen = P.make_scenario(which='parameter', name="Increased mortality", scenario_values=scvalues)
     scen_results = scen.run(P, P.parsets["default"])
     par_results.name = 'Baseline'
     scen_results.name = 'Scenario'

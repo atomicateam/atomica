@@ -29,18 +29,17 @@ def default_framework(which=None, show_options=False):
         ('diabetes', 'Diabetes'),
         ('hypertension', 'Hypertension'),
         ('hypertension_dyn', 'Hypertension with demography'),
-        ('service', 'Service delivery'),
+        # ('service', 'Service delivery'),
         ('hiv', 'HIV care cascade'),
         ('hiv_dyn', 'HIV care cascade with demography'),
         ('tb_simple', 'Tuberculosis'),
         ('tb_simple_dyn', 'Tuberculosis with demography'),
         ('environment', 'SIR model with environment'),
+        ('tb', 'Tuberculosis with transmission dynamics'),
     ])
 
     if which is None or which == 'default':
         which = 'udt'
-    elif which == 'tb':
-        label = 'Tuberculosis with transmission dynamics'
     elif which not in options.keys():
         if which in options.values():
             which = options.keys()[options.values().index(which)]
@@ -50,8 +49,7 @@ def default_framework(which=None, show_options=False):
     if show_options:
         return options
     else:
-        if which != 'tb':
-            label = options[which]
+        label = options[which]
         F = ProjectFramework(name=label, inputs=LIBRARY_PATH + which + "_framework.xlsx")
     return F
 
@@ -79,16 +77,15 @@ def default_project(which=None, do_run=True, addprogs=True, verbose=False, show_
         ('tb_simple', 'Tuberculosis (1 population)'),
         ('tb_simple_dyn', 'Tuberculosis with demography (1 population)'),
         ('environment', 'SIR model with environment (2 population)'),
+        ('tb', 'Tuberculosis with transmission dynamics'),
     ])
 
     dtdict = sc.odict.fromkeys(options.keys(), 1.)
     dtdict['tb'] = 0.5
 
-    tool = 'cascade'
+    tool = 'tb' if which=='tb' else 'cascade'
     if which is None or which == 'default':
         which = 'udt'
-    elif which == 'tb':
-        tool = 'tb'  # This is not in the options and is handled as a special case
     elif which not in options.keys():
         if which in options.values():
             which = options.keys()[options.values().index(which)]
