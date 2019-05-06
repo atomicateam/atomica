@@ -8,17 +8,6 @@ from .framework import ProjectFramework
 from .project import Project
 from .system import LIBRARY_PATH, logger
 
-
-def default_programs(project, addcostcovpars=False, addcostcovdata=False, filterprograms=None):
-    """ Make some default programs"""
-    pass
-
-
-def default_progset(project, addcostcovpars=False, addcostcovdata=False, filterprograms=None):
-    """ Make a default programset"""
-    pass
-
-
 def default_framework(which=None, show_options=False):
 
     options = sc.odict([
