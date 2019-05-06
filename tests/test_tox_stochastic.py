@@ -1,9 +1,7 @@
-# Test that parameter derivatives work
-# Indirectly test that frameworks with no compartments work
-
 import numpy as np
 import atomica as at
 import os
+import matplotlib.pyplot as plt
 
 def test_stochastic():
 
@@ -20,7 +18,9 @@ def test_stochastic():
     P.load_databook(databook_path=testdir + "databook_sir_dynamic.xlsx", make_default_parset=True, do_run=False)
     ensemble = at.Ensemble(mapping_function=lambda x: at.PlotData(x), baseline_results=baseline)
     ensemble.run_sims(P,'default',n_samples=100,result_names='default')
-    ensemble.plot_series()
+    fig = ensemble.plot_series()
+    at.relabel_legend(fig,['Susceptible','Infected','Recovered'])
+    plt.ylabel('Number of people')
 
 if __name__ == '__main__':
     test_stochastic()
