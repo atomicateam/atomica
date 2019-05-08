@@ -80,3 +80,32 @@ Thus, Parameter objects themselves always store values in the units specified in
     Because Parameter timescales are only converted when computing flow rates, user-defined parameter functions always operate on parameters in their native units. 
 
 This means that it is up to the modeller to explicitly handle any unit conversions required - for example, if combining a 'Number per day' and a 'Number per week' in a function, it would likely be necessary to explicitly introduce a factor of ``7``. This would be done in the Framework in conjunction with specification of the timescales for the relevant parameters. Users are unable to change the timescale in the databook by design because the conversion is an arbitrary operation and depends on the parameter timescale - the modeller has complete control in the Framework to define the format and units and construct the model accordingly, without having to deal with the possibility of the user entering different formats or units. 
+
+Derivatives
+***********
+
+Sometimes, it is important to track quantities dynamically. For example, you may want to model a change in pollution level depending on the number of people in the model, where the *derivative* of pollution depends on the number of people. This cannot be achieved with normal parameters, because parameter functions explicitly supply the value for the parameter at each timestep. Compartment values are effectively governed by derivatives, but setting the values is nontrivial because of the need to have source and sink compartments. 
+
+Instead, it is possible to mark a parameter function as supplying a derivative rather than the value itself. Suppose we have a parameter function :math:`f(\theta,t)` where :math:`\theta` represents the state of the model (so it encompasses any quantities that could appear in the parameter function), and :math:`t` is the current simulation time. If we want the parameter function to act as a derivative, enter 'Y' in the 'Is derivative' column of the databook, as shown below. This column can be added in if it is not already present.
+
+.. image:: parameters_1.png
+	:width: 650px
+
+When marking the parameter as a derivative, two things happen
+
+1. The parameter value is initialized as normal from values entered in the databook
+2. The parameter function :math:`f(\theta,t)` is evaluated as normal
+3. Normally, the parameter value is updated as  :math:`P(t) = f(\theta,t)` - that is, the function is evaluated and directly overwrites the parameter value. However, if the parameter is marked as a derivative, then the update is  :math:`P(t) = P(t-\Delta t) + \Delta t f(\theta,t)`. That is, a single step of an Euler integration is performed, where :math:`f(\theta,t)` is treated as the first derivative of the quantity.
+
+.. note::
+
+	Don't forget that the databook contains the initialization values for the parameter, and thus needs to be entered in the same units as the parameter itself.
+
+After integration, the parameter value can be inspected and analyzed as normal. Note that this means you cannot directly read out :math:`f(\theta,t)` because the parameter has integrated :math:`f(\theta,t)` over time. Note also that the update step multiplies :math:`f(\theta,t)`  by :math:`\Delta t`. This means that the units of the value returned by the parameter function should be the same as the units of the Parameter, but on a 'per year' basis. This is because :math:`\Delta t` is in units of years. So in the example above, ``m_prev`` is a dimensionless fraction, and the parameter function has the same units as ``dm_prev``, which is in units of ``1/years``, thus when integrated, ``m_prev`` will be dimensionless. It is important that this multiplication by :math:`\Delta t` is taken into account, because this formulation allows consistent results to be obtained even when the step size is changed. 
+
+.. warning::
+
+	Notice that the parameter timescale does not enter here. The parameter timescale affects the conversion from the parameter value into flow rates. The derivative is always with respect to time, in the *simulation* units, which are always years. Thus the function value's units should differ from the parameter's units by a factor of ``1/years`` regardless of the timescale of the parameter. 
+
+
+
