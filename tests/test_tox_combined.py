@@ -6,11 +6,11 @@ def test_combined_creation():
 
     F = at.ProjectFramework(at.LIBRARY_PATH+'combined_framework.xlsx')
     pops = {
-        'SIR1':{'label':'SIR 1','type':'sir'},
-        'SIR2': {'label': 'SIR 2', 'type': 'sir'},
-        'SIR3': {'label': 'SIR 3', 'type': 'sir'},
-        'UDT1': {'label': 'UDT 1', 'type': 'udt'},
-        'UDT2': {'label': 'UDT 2', 'type': 'udt'},
+        'SIR_0-4':{'label':'SIR 0-4','type':'sir'},
+        'SIR_5-14': {'label': 'SIR 5-14', 'type': 'sir'},
+        'SIR_15-64': {'label': 'SIR 15-64', 'type': 'sir'},
+        'UDT_0-14': {'label': 'UDT 0-14', 'type': 'udt'},
+        'UDT_15-64': {'label': 'UDT 15-64', 'type': 'udt'},
         }
 
     transfers = {
@@ -21,7 +21,7 @@ def test_combined_creation():
     D = at.ProjectData.new(framework=F,tvec=[2016,2017,2018],pops=pops,transfers=transfers)
     D.save(tmpdir+'combined_test.xlsx')
     D2 = at.ProjectData.from_spreadsheet(tmpdir+'combined_test.xlsx',framework=F)
-    D2.add_pop('UDT3','UDT 3','udt')
+    D2.add_pop('UDT_65+','UDT 65+','udt')
     D2.add_transfer('incarceration','Incarceration','sir')
     D2.save(tmpdir+'combined_test2.xlsx')
 
@@ -59,12 +59,12 @@ def test_combined_values():
     # Work through the interaction calculation between SIR and UDT
     interactions = P3.parsets[0].interactions[1]
     x = {}
-    for to_pop in ['UDT1','UDT2']:
+    for to_pop in ['UDT_0-14','UDT_15-64']:
         x[to_pop] = np.zeros(R3.t.shape)
-        for from_pop in ['SIR1','SIR2','SIR3']:
+        for from_pop in ['SIR_0-4','SIR_5-14','SIR_15-64']:
             x[to_pop] += R3.get_variable('foi',from_pop)[0].vals * interactions[from_pop].ts[to_pop].interpolate(R3.t)
-    assert np.allclose(R3.get_variable('sum_foi','UDT1')[0].vals, x['UDT1'], equal_nan=True)
-    assert np.allclose(R3.get_variable('sum_foi','UDT2')[0].vals, x['UDT2'], equal_nan=True)
+    assert np.allclose(R3.get_variable('sum_foi','UDT_0-14')[0].vals, x['UDT_0-14'], equal_nan=True)
+    assert np.allclose(R3.get_variable('sum_foi','UDT_15-64')[0].vals, x['UDT_15-64'], equal_nan=True)
 
 def test_combined_cascades():
     P = at.demo('combined')
@@ -72,8 +72,8 @@ def test_combined_cascades():
     udt_cascade = at.get_cascade_vals(P.results[0],'udt_cascade')[0]
 
     # Check aggregation is correctly applied
-    udt_1pop_cascade = at.get_cascade_vals(P.results[0],'udt_cascade',pops='UDT1')[0]
-    udt_explicit_cascade = at.get_cascade_vals(P.results[0],'udt_cascade',pops=['UDT1','UDT2'])[0]
+    udt_1pop_cascade = at.get_cascade_vals(P.results[0],'udt_cascade',pops='UDT_0-14')[0]
+    udt_explicit_cascade = at.get_cascade_vals(P.results[0],'udt_cascade',pops=['UDT_0-14','UDT_15-64'])[0]
 
     assert np.allclose(udt_cascade[0], 2*udt_1pop_cascade[0], equal_nan=True)
     assert np.allclose(udt_cascade[0], udt_explicit_cascade[0], equal_nan=True)

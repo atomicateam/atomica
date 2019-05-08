@@ -10,3 +10,4 @@ General content
     Optimization
     programs/Programs
     Parameters
+    population-types/Population-Types
