@@ -154,50 +154,50 @@ def test_parameter_scenarios():
     scen.run(proj, proj.parsets["default"])
 
     # Check that it runs with a single overwrite
-    scen_par = "contacts"
+    scen_par1 = "contacts"
     scen_pop = "adults"
-    scvalues[scen_par] = dict()
-    scvalues[scen_par][scen_pop] = dict()
-    scvalues[scen_par][scen_pop]["y"] = [80., 40]
-    scvalues[scen_par][scen_pop]["t"] = [2010., 2020.]
+    scvalues[scen_par1] = dict()
+    scvalues[scen_par1][scen_pop] = dict()
+    scvalues[scen_par1][scen_pop]["y"] = [80., 40]
+    scvalues[scen_par1][scen_pop]["t"] = [2010., 2020.]
     scen = proj.make_scenario(which='parameter', scenario_values=scvalues)
     scen_results = scen.run(proj, proj.parsets["default"])
 
     # Check that default is stepped interpolation
-    var = scen_results.get_variable('adults','contacts')[0]
+    var = scen_results.get_variable(scen_par1,scen_pop)[0]
     assert np.allclose(var.vals[var.t==2010][0], 80, equal_nan=True)  # Default tolerances are rtol=1e-05, atol=1e-08
     assert np.allclose(var.vals[var.t==2015][0], 80, equal_nan=True)  # Default tolerances are rtol=1e-05, atol=1e-08
     assert np.allclose(var.vals[var.t==2020][0], 40, equal_nan=True)  # Default tolerances are rtol=1e-05, atol=1e-08
 
     # Check smooth onset when smooth onset is applied
-    scvalues[scen_par][scen_pop]["smooth_onset"] = 2
+    scvalues[scen_par1][scen_pop]["smooth_onset"] = 2
     scen = proj.make_scenario(which='parameter', scenario_values=scvalues)
     scen_results = scen.run(proj, proj.parsets["default"])
-    var = scen_results.get_variable('adults','contacts')[0]
+    var = scen_results.get_variable(scen_par1,scen_pop)[0]
     assert np.allclose(var.vals[var.t == 2018][0], 80, equal_nan=True)  # Default tolerances are rtol=1e-05, atol=1e-08
     assert np.allclose(var.vals[var.t == 2019][0], 60, equal_nan=True)  # Default tolerances are rtol=1e-05, atol=1e-08
     assert np.allclose(var.vals[var.t == 2020][0], 40, equal_nan=True)  # Default tolerances are rtol=1e-05, atol=1e-08
 
     # Check smooth onset works if larger than the gap in overwrite
-    scvalues[scen_par][scen_pop]["smooth_onset"] = 11
+    scvalues[scen_par1][scen_pop]["smooth_onset"] = 11
     scen = proj.make_scenario(which='parameter', scenario_values=scvalues)
     scen_results = scen.run(proj, proj.parsets["default"])
-    var = scen_results.get_variable('adults','contacts')[0]
+    var = scen_results.get_variable(scen_par1,scen_pop)[0]
     assert np.allclose(var.vals[var.t == 2010][0], 80, equal_nan=True)  # Default tolerances are rtol=1e-05, atol=1e-08
     assert np.allclose(var.vals[var.t == 2015][0], 60, equal_nan=True)  # Default tolerances are rtol=1e-05, atol=1e-08
     assert np.allclose(var.vals[var.t == 2020][0], 40, equal_nan=True)  # Default tolerances are rtol=1e-05, atol=1e-08
 
     # Check that multiple overwrites work
-    scen_par = "transpercontact"
+    scen_par2 = "transpercontact"
     scen_pop = "adults"
-    scvalues[scen_par] = dict()
-    scvalues[scen_par][scen_pop] = dict()
-    scvalues[scen_par][scen_pop]["y"] = [0.008, 0.005]
-    scvalues[scen_par][scen_pop]["t"] = [2010., 2020.]
+    scvalues[scen_par2] = dict()
+    scvalues[scen_par2][scen_pop] = dict()
+    scvalues[scen_par2][scen_pop]["y"] = [0.008, 0.005]
+    scvalues[scen_par2][scen_pop]["t"] = [2010., 2020.]
     scen = proj.make_scenario(which='parameter', scenario_values=scvalues)
     scen_results = scen.run(proj, proj.parsets["default"])
-    var1 = scen_results.get_variable('adults','contacts')[0]
-    var2 = scen_results.get_variable('adults','transpercontact')[0]
+    var1 = scen_results.get_variable(scen_par1,scen_pop)[0]
+    var2 = scen_results.get_variable(scen_par2,scen_pop)[0]
 
     assert np.allclose(var1.vals[var1.t == 2010][0], 80, equal_nan=True)  # Default tolerances are rtol=1e-05, atol=1e-08
     assert np.allclose(var1.vals[var1.t == 2015][0], 60, equal_nan=True)  # Default tolerances are rtol=1e-05, atol=1e-08
