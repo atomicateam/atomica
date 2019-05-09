@@ -25,6 +25,8 @@ supported_functions = {
     'sin': np.sin,
     'sqrt': np.sqrt,
     'ln': np.log,
+    'rand': np.random.rand,
+    'randn': np.random.randn,
 }
 
 
