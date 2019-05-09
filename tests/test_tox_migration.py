@@ -1,11 +1,23 @@
 import atomica as at
 import os
+import sys
 
 def test_migration():
+
+    # The migration test tries to load a pickle saved in Python 3.7
+    # This is known not to work in Python 3.6 because SafeUUID in the
+    # UUID module was only introduced in Python 3.7. Therefore, we skip
+    # this test in versions older than Python 3.7
+    if sys.version_info[1] < 7:
+        return
+
     at.logger.setLevel('DEBUG')
 
     testdir = at.parent_dir()
     tmpdir = os.path.join(testdir,'temp','')
+
+    P = at.Project.load(testdir+'migration_test_with_scenarios.prj')
+    results = P.run_scenarios()
 
     P = at.Project.load(testdir+'migration_test_with_result.prj')
     results = P.run_sim()
@@ -17,6 +29,7 @@ def test_migration():
     at.plot_series(at.PlotData(results))
 
     P.databook.save(tmpdir + 'migration_test_databook_save')
+
 
 if __name__ == '__main__':
     test_migration()

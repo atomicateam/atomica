@@ -1,8 +1,8 @@
 # Dependencies for testing/documentation
 pytest
 pytest-xdist
+pytest-env
 nbsmoke
-git+https://github.com/sciris/sciris
 git+https://github.com/sciris/mpld3
 nbsphinx
 ipykernel

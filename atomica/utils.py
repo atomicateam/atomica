@@ -10,6 +10,7 @@ from bisect import bisect
 import numpy as np
 import scipy.interpolate
 import sciris as sc
+import itertools
 
 
 def parent_dir():
@@ -18,7 +19,14 @@ def parent_dir():
 
 
 class NamedItem():
-    def __init__(self, name=None):
+    def __init__(self, name:str=None):
+        """
+        NamedItem constructor
+
+        A name must be a string
+
+        :param name:
+        """
         if name is None:
             name = '<unnamed>'
         self.name = name
@@ -40,6 +48,7 @@ class NDict(sc.odict):
     Store and sync items with a name property
 
     """
+
     def __init__(self, *args, **kwargs):
         sc.odict.__init__(self, *args, **kwargs)
         return None
@@ -50,8 +59,8 @@ class NDict(sc.odict):
         # like a normal odict
         sc.odict.__setitem__(self, key, item)
 
-        # If it is a NamedItem, then synchronize the name of the object with the specified key
-        if isinstance(item, NamedItem):
+        # If it is a NamedItem, then synchronize the name of the object with the specified string key
+        if sc.isstring(key) and isinstance(item, NamedItem):
             item.name = key
             item.modified = sc.now()
         return None
@@ -84,18 +93,35 @@ class NDict(sc.odict):
 
 
 class TimeSeries(object):
-    def __init__(self, t=None, vals=None, units=None, assumption=None):
+    """
+    Class to store time-series data
 
+    Internally values are stored as lists rather than numpy arrays because
+    insert/remove operations on lists tend to be faster (and working with sparse
+    data is a key role of TimeSeries objects). Note that methods like :meth:`interpolate()`
+    return numpy arrays, so the output types from such functions should generally match up
+    with what is required by the calling function.
+
+    :param t: Optionally specify a scalar, list, or array of time values
+    :param vals: Optionally specify a scalar, list, or array of values (must be same size as ``t``)
+    :param units: Optionally specify units (as a string)
+    :param assumption: Optionally specify a scalar assumption
+    :param sigma: Optionally specify a scalar uncertainty
+
+    """
+
+    def __init__(self, t=None, vals=None, units: str = None, assumption: float = None, sigma: float = None):
         t = sc.promotetolist(t) if t is not None else list()
         vals = sc.promotetolist(vals) if vals is not None else list()
 
         assert len(t) == len(vals)
 
-        self.t = []
-        self.vals = []
-        self.units = units
-        self.assumption = assumption
-        self.sigma = None  # Uncertainty value
+        self.t = []  #: Sorted array of time points. Normally interacted with via methods like :meth:`insert()`
+        self.vals = []  #: Time-specific values - indices correspond to ``self.t``
+        self.units = units  #: The units of the quantity
+        self.assumption = assumption  #: The time-independent scalar assumption
+        self.sigma = sigma  #: Uncertainty value, assumed to be a standard deviation
+        self._sampled = False  #: Flag to indicate whether sampling has been performed. Once sampling has been performed, cannot sample again
 
         for tx, vx in zip(t, vals):
             self.insert(tx, vx)
@@ -111,9 +137,141 @@ class TimeSeries(object):
         new.units = self.units
         new.assumption = self.assumption
         new.sigma = self.sigma
+        new._sampled = self._sampled
         return new
 
+    # The operators for + and * below are prototypes but haven't been added
+    # The reason is because they add a lot of complexity to the usage of the class
+    # but it's not clear whether that complexity is worth it for the benefits it brings.
+    # Part of the problem is also that propagation of uncertainty requires the time series
+    # values which means that propagation of uncertainty is time dependent. So it's hard
+    # to come up with intuitive behaviour for them.
+    #
+    # def __add__(self, other):
+    #     """
+    #     Add a constant or TimeSeries
+    #
+    #     If adding a constant, it is simply added onto the assumption and time values.
+    #
+    #     If adding another TimeSeries:
+    #
+    #         - The units must match
+    #         - The assumption will be None if either TimeSeries has no assumption
+    #         - The output times will be the union of times in both TimeSeries and they will
+    #           be interpolated onto those times before adding. This preserves commutativity
+    #           of addition
+    #         - Uncertainties will be formally propagated
+    #
+    #     :param other: A TimeSeries or a scalar (float)
+    #     :return: A new TimeSeries
+    #
+    #     """
+    #
+    #     if type(other) == type(self):
+    #         # If we are operating on another TimeSeries
+    #         if self.units is None:
+    #             assert other.units is None, 'TimeSeries units must match for addition'
+    #         else:
+    #             assert self.units == other.units, 'TimeSeries units must match for addition'
+    #
+    #         new = self.copy()
+    #
+    #         # Add time values
+    #         if self.t == other.t:
+    #             new.t = [x+y for x,y in zip(self.vals, other.vals)]
+    #         else:
+    #             # Interpolate and add the time values
+    #             t_out = sorted(set(self.t).union(set(other.t)))
+    #             new.t = t_out
+    #             new.vals = (self.interpolate(t_out) + other.interpolate(t_out)).tolist()
+    #
+    #         # Add the assumption
+    #         if (self.assumption is None) or (other.assumption is None):
+    #             new.assumption = None
+    #         else:
+    #             new.assumption = self.assumption + other.assumption
+    #
+    #         # Propagate uncertainty
+    #         self_sigma = self.sigma if self.sigma else 0
+    #         other_sigma = other.sigma if other.sigma else 0
+    #
+    #         if self_sigma or other_sigma:
+    #             new.sigma = np.sqrt(self_sigma**2 + other_sigma**2)
+    #     else:
+    #         # Should be a numeric type
+    #         new = self.copy()
+    #         new.vals = [x+other for x in self.vals]
+    #         new.assumption = self.assumption+other if self.assumption is not None else None
+    #
+    #     return new
+    #
+    # def __mul__(self, other):
+    #     """
+    #     Multiply by a constant or TimeSeries
+    #
+    #     If multiplying by a constant, it is simply operated on the assumption,
+    #     values, and uncertainty.
+    #
+    #     If adding another TimeSeries:
+    #
+    #         - The units must match
+    #         - The assumption will be None if either TimeSeries has no assumption
+    #         - The output times will be the union of times in both TimeSeries and they will
+    #           be interpolated onto those times before multiplying. This preserves commutativity
+    #           of multiplication
+    #         - Uncertainties will be formally propagated
+    #
+    #     :param other: A TimeSeries or a scalar (float)
+    #     :return: A new TimeSeries
+    #
+    #     """
+    #
+    #     if type(other) == type(self):
+    #         # If we are operating on another TimeSeries
+    #         if self.units is None:
+    #             assert other.units is None, 'TimeSeries units must match for addition'
+    #         else:
+    #             assert self.units == other.units, 'TimeSeries units must match for addition'
+    #
+    #         new = self.copy()
+    #
+    #         # Add time values
+    #         if self.t == other.t:
+    #             new.t = [x+y for x,y in zip(self.vals, other.vals)]
+    #         else:
+    #             # Interpolate and add the time values
+    #             t_out = sorted(set(self.t).union(set(other.t)))
+    #             new.t = t_out
+    #             new.vals = (self.interpolate(t_out) * other.interpolate(t_out)).tolist()
+    #
+    #         # Add the assumption
+    #         if (self.assumption is None) or (other.assumption is None):
+    #             new.assumption = None
+    #         else:
+    #             new.assumption = self.assumption * other.assumption
+    #
+    #         # Propagate uncertainty
+    #         if (self.sigma is None) or (other.sigma is None):
+    #             new.sigma = None
+    #         else:
+    #             raise NotImplementedError # Proper propagation is time dependent
+    #
+    #     else:
+    #         # Should be a numeric type
+    #         new = self.copy()
+    #         new.vals = [x*other for x in self.vals]
+    #         new.assumption = self.assumption*other if self.assumption is not None else None
+    #         new.assumption = self.sigma*other if self.sigma is not None else None
+    #
+    #     return new
+
     def copy(self):
+        """
+        Return a copy of the ``TimeSeries``
+
+        :return: An independent copy of the ``TimeSeries``
+        """
+
         return self.__deepcopy__(self)
 
     @property
@@ -140,8 +298,16 @@ class TimeSeries(object):
         return len(self.t) > 0
 
     def insert(self, t, v) -> None:
-        # Insert value v at time t maintaining sort order
-        # To set the assumption, set t=None
+        """
+        Insert a value at a particular time
+
+        If the value already exists in the ``TimeSeries``, it will be overwritten/updated.
+        The arrays are internally sorted by time value, and this order will be maintained.
+
+        :param t: Time value to insert or update. If ``None``, the value will be assigned to the assumption
+        :param v: Value to insert. If ``None``, this function will return immediately without doing anything
+
+        """
 
         if v is None:  # Can't cast a None to a float, just skip it
             return
@@ -158,14 +324,32 @@ class TimeSeries(object):
             self.t.insert(idx, t)
             self.vals.insert(idx, v)
 
-    def get(self, t):
-        # To get the assumption, set t=None
+    def get(self, t) -> float:
+        """
+        Retrieve value at a particular time
+
+        This function will automatically retrieve the value of the assumption if
+        no time specific values have been provided, or if any time specific values
+        are provided, will return the value entered at that time. If time specific
+        values have been entered and the requested time is not explicitly present,
+        an error will be raised.
+
+        This function may be deprecated in future because generally it is more useful
+        to either call ``TimeSeries.interpolate()`` if interested in getting values at
+        arbitrary times, or ``TimeSeries.get_arrays()`` if interested in retrieving
+        values that have been entered.
+
+        :param t: A time value. If ``None``, will return assumption regardless of whether
+                  time data has been entered or not
+        :return: The value at the corresponding time. Returns None if the value no value present
+        """
+
         if t is None or len(self.t) == 0:
             return self.assumption
         elif t in self.t:
             return self.vals[self.t.index(t)]
         else:
-            raise Exception('Item not found')
+            return None
 
     def get_arrays(self):
         """
@@ -200,6 +384,28 @@ class TimeSeries(object):
         else:
             raise Exception('Item not found')
 
+    def remove_before(self,t_remove) -> None:
+        """
+        Remove times from start
+
+        :param tval: Remove times up to but not including this time
+        """
+
+        for tval in sc.dcp(self.t):
+            if tval < t_remove:
+                self.remove(tval)
+
+    def remove_after(self, t_remove) -> None:
+        """
+        Remove times from start
+
+        :param tval: Remove times up to but not including this time
+        """
+
+        for tval in sc.dcp(self.t):
+            if tval > t_remove:
+                self.remove(tval)
+
     def remove_between(self, t_remove):
         # t is a two element vector [min,max] such that
         # times > min and < max are removed
@@ -227,21 +433,41 @@ class TimeSeries(object):
         t1, v1 = self.get_arrays()
         return interpolate(t1, v1, t2)
 
-    def sample(self, t2):
+    def sample(self, constant=True):
         """
-        Not yet implemented
+        Return a sampled copy of the TimeSeries
 
-        This method might sample from the TimeSeries for the given years
-        e.g. `ts.interpolate([2011,2012])` would give the values without uncertainty
-        while `ts.sample([2011,2012])` would perturb the values depending on sigma
-        (and perhaps some other distribution information too)
+        This method returns a copy of the TimeSeries in which the values have been
+        perturbed based on the uncertainty value.
 
-        :param t2:
-        :return: None
+        :param constant: If True, time series will be perturbed by a single constant offset. If False,
+                         an different perturbation will be applied to each time specific value independently.
+        :return: A copied ``TimeSeries`` with perturbed values
 
         """
 
-        raise NotImplementedError()
+        if self._sampled:
+            raise Exception('Sampling has already been performed - can only sample once')
+
+        new = self.copy()
+        if self.sigma is not None:
+            delta = self.sigma * np.random.randn(1)[0]
+            if self.assumption is not None:
+                new.assumption += delta
+
+            if constant:
+                # Use the same delta for all data points
+                new.vals = [v+delta for v in new.vals]
+            else:
+                # Sample again for each data point
+                for i, (v, delta) in enumerate(zip(new.vals, self.sigma * np.random.randn(len(new.vals)))):
+                    new.vals[i] = v+delta
+
+        # Sampling flag only needs to be set if the TimeSeries had data to change
+        if new.has_data:
+            new._sampled = True
+
+        return new
 
 
 def evaluate_plot_string(plot_string: str):
@@ -319,32 +545,32 @@ def format_duration(t: float, pluralize=False) -> str:
     if t >= 1.0:
         base_scale = 1
         timescale = 'year'
-    elif t >= 1/12:
-        base_scale = 1/12
+    elif t >= 1 / 12:
+        base_scale = 1 / 12
         timescale = 'month'
-    elif t >= 1/26:
-        base_scale = 1/26
+    elif t >= 1 / 26:
+        base_scale = 1 / 26
         timescale = 'fortnight'
-    elif t >= 1/52:
-        base_scale = 1/52
+    elif t >= 1 / 52:
+        base_scale = 1 / 52
         timescale = 'week'
     else:
-        base_scale = 1/365
+        base_scale = 1 / 365
         timescale = 'day'
 
     # Then, work out how many of the base unit there are
-    converted_t = t/base_scale
+    converted_t = t / base_scale
 
     # If there is only one of the base unit, then return the timescale as the final string
-    if abs(converted_t-1.0) < 1e-5:
+    if abs(converted_t - 1.0) < 1e-5:
         return (timescale + 's') if pluralize else timescale
-    elif converted_t%1 < 1e-3: # If it's sufficiently close to an integer, show it as an integer
+    elif converted_t % 1 < 1e-3:  # If it's sufficiently close to an integer, show it as an integer
         return '%d %ss' % (converted_t, timescale)
     else:
-        return '%s %ss' % (sc.sigfig(converted_t, keepints=True,sigfigs=3), timescale)
+        return '%s %ss' % (sc.sigfig(converted_t, keepints=True, sigfigs=3), timescale)
 
 
-def interpolate(x: np.array,y: np.array,x2: np.array, extrapolate=True) -> np.array:
+def interpolate(x: np.array, y: np.array, x2: np.array, extrapolate=True) -> np.array:
     """
     pchip interpolation with constant extrapolation
 
@@ -380,7 +606,7 @@ def interpolate(x: np.array,y: np.array,x2: np.array, extrapolate=True) -> np.ar
             y2[x2 < x[0]] = y[0]
             y2[x2 > x[-1]] = y[-1]
         else:
-            y2 = f(x2) # PchipInterpolator will return NaNs outside the domain
+            y2 = f(x2)  # PchipInterpolator will return NaNs outside the domain
         return y2
 
 
@@ -438,3 +664,44 @@ def floor_interpolator(x, y):
         return out
 
     return f
+
+
+def nested_loop(inputs, loop_order):
+    """
+    Zip list of lists in order
+
+    This is used in :func:`plot_bars` to control whether 'times' or 'results' are the
+    outer grouping. This function takes in a list of lists to iterate over, and their
+    nesting order. It then yields tuples of items in the given order. Only tested
+    for two levels (which are all that get used in :func:`plot_bars` but in theory
+    supports an arbitrary number of items.
+
+    :param inputs: List of lists. All lists should have the same length
+    :param loop_order: Nesting order for the lists
+    :return: Generator yielding tuples of items, one for each list
+
+    Example usage:
+
+    >>> list(nested_loop([['a','b'],[1,2]],[0,1]))
+    [['a', 1], ['a', 2], ['b', 1], ['b', 2]]
+
+    Notice how the first two items have the same value for the first list
+    while the items from the second list vary. If the `loop_order` is
+    reversed, then:
+
+    >>> list(nested_loop([['a','b'],[1,2]],[1,0]))
+    [['a', 1], ['b', 1], ['a', 2], ['b', 2]]
+
+    Notice now how now the first two items have different values from the
+    first list but the same items from the second list.
+
+    """
+
+    loop_order = list(loop_order) # Convert to list, in case loop order was passed in as a generator e.g. from map()
+    inputs = [inputs[i] for i in loop_order]
+    iterator = itertools.product(*inputs)  # This is in the loop order
+    for item in iterator:
+        out = [None] * len(loop_order)
+        for i in range(len(item)):
+            out[loop_order[i]] = item[i]
+        yield out

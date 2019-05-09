@@ -26,10 +26,19 @@ model_settings['iteration_limit'] = 100
 
 
 class BadInitialization(Exception):
-    # Throw this error if the simulation exited due to a bad initialization, specifically
-    # due to negative initial popsizes or an excessive residual.
-    # This can then be dealt with appropriately - e.g. calibration will catch this
-    # error and instruct ASD to reject the proposed parameters
+    """
+    Error for invalid conditions
+
+    This error gets raised if the simulation exited due to a bad initialization, specifically
+    due to negative initial popsizes or an excessive residual. This commonly happens if the
+    initial conditions are being programatically varied and thus may be an expected error.
+    This error can then be caught and dealt with appropriately. For example:
+
+    - calibration will catch this error and instruct ASD to reject the proposed parameters
+    - ``Ensemble.run_sims`` catches this error and tries another sample
+
+    """
+
     pass
 
 
@@ -41,7 +50,7 @@ class Variable(object):
     functionality that is common to all integration objects, and defines the interface to be implemented
     by derived classes.
 
-        :param pop: A :py:class:`Population` instance. This allows references back to the population containing an object
+        :param pop: A :class:`Population` instance. This allows references back to the population containing an object
                     (which facilitates a number of operations such as those that require the population's size)
         :param id: ID is a tuple that uniquely identifies the Variable within a model.
                     By convention, this is a ``population:code_name`` tuple
@@ -50,7 +59,7 @@ class Variable(object):
 
     def __init__(self, pop, id):
         self.id = id  #: Unique identifier for the integration object
-        self.t = None #: Array of time values. This should be a reference to the base array stored in a :py:class:`model` object
+        self.t = None #: Array of time values. This should be a reference to the base array stored in a :class:`model` object
         self.dt = None #: Time step size
         if 'vals' not in dir(self):
             self.vals = None #: The fundamental values stored by this object. Note that Characteristics implement this as a property method
@@ -60,9 +69,12 @@ class Variable(object):
     @property
     def name(self) -> str:
         """
-        The code name of the ``Variable`` e.g. `sus`
+        Variable code name
 
-        This property facilitates retrieving the name e.g. for plotting
+        This is implemented as a property method because the ``id`` of the ``Variable`` is a
+        tuple containing the population name and the variable code name, so this property
+        method returns just the variable code name portion. That way, storage does not need
+        to be duplicated.
 
         :return: A code name
 
@@ -70,15 +82,22 @@ class Variable(object):
 
         return self.id[-1]
 
-    def preallocate(self, tvec: np.array, dt: float):
+    def preallocate(self, tvec: np.array, dt: float) -> None:
         """
-        Preallocate arrays to improve performance
+        Preallocate data storage
 
         This method gets called just before integration, once the final sizes of the arrays are known.
+        Performance is improved by preallocating the arrays. The ``tvec`` attribute is assigned
+        as-is, so it is typically a reference to the array stored in the parent ``Model`` object. Thus,
+        there is no duplication of storage there, and ``Variable.tvec`` is mainly for convenience when
+        interpolating or plotting.
+
+        This method may be overloaded in derived classes to preallocate other variables specific
+        to those classes.
 
         :param tvec: An array of time values
         :param dt: Time step size
-        :return:
+
         """
         self.t = tvec
         self.dt = dt
@@ -93,6 +112,7 @@ class Variable(object):
         plotting library functions instead
 
         """
+
         plt.figure()
         plt.plot(self.t, self.vals, label=self.name)
         plt.legend()
@@ -108,8 +128,10 @@ class Variable(object):
         their update function to be called, while characteristics need their
         source compartments to be added up.
 
-        :param ti:
-        :return:
+        This method generally must be overloaded in derived classes e.g. :meth:`Parameter.update`
+
+        :param ti: Time index to update
+
         """
 
         return
@@ -120,7 +142,9 @@ class Variable(object):
 
         For Compartments and Links, this does nothing. For Characteristics and
         Parameters, it will set the dynamic flag, but in addition, any validation constraints e.g. a Parameter
-        that depends on Links cannot itself be dynamic, will be enforced
+        that depends on Links cannot itself be dynamic, will be enforced.
+
+        This method generally must be overloaded in derived classes e.g. :meth:`Parameter.set_dynamic`
 
         """
 
@@ -323,7 +347,7 @@ class Parameter(Variable):
     Parameters sheet. A parameter that maps to multiple transitions (e.g. ``doth_rate``) will have one parameter
     and multiple Link instances that depend on the same Parameter instance
 
-    :param pop: A :py:class:`Population` instance corresponding to the population that will contain this parameter
+    :param pop: A :class:`Population` instance corresponding to the population that will contain this parameter
     :param name: The code name for this parameter
 
     """
@@ -387,6 +411,7 @@ class Parameter(Variable):
             if isinstance(v1, Link):
                 raise Exception('Links cannot be aggregated across populations')
             function_args[0] = v1
+            dep_list.append(v1.name)
 
             # Convert weighting variable to object reference
             if len(function_args) == 3:
@@ -394,6 +419,7 @@ class Parameter(Variable):
                 if isinstance(v2, Link):
                     raise Exception('Links cannot be used to weight interactions')
                 function_args[-1] = v2
+                dep_list.append(v2.name)
 
             self.pop_aggregation = [special_function] + function_args
 
@@ -432,10 +458,13 @@ class Parameter(Variable):
 
         """
 
-
         if self.fcn_str is None:
             return # Only parameters with functions need to be made dynamic
-        elif self.deps is not None: # If there are no dependencies, then we know that this is precompute-only
+
+        if self.pop_aggregation:
+            self._is_dynamic = True
+
+        if self.deps: # If there are no dependencies, then we know that this is precompute-only
             for deps in self.deps.values(): # deps is {'dep_name':[dep_objects]}
                 for dep in deps:
                     if isinstance(dep, Link):
@@ -450,10 +479,9 @@ class Parameter(Variable):
                     else:
                         raise Exception('Unexpected dependency type')
 
-        # If not dynamic, then we need to precompute the function
+        # If not dynamic, then we need to precompute the function because the value is required for a transition
         if not self._is_dynamic:
             self._precompute = True
-
 
     def unlink(self):
         Variable.unlink(self)
@@ -501,14 +529,17 @@ class Parameter(Variable):
                 if self.vals[ti] > self.limits[1]:
                     self.vals[ti] = self.limits[1]
 
-    def update(self, ti=None):
-        # Update the value of this Parameter at time indices ti
-        #
-        # INPUTS
-        # - ti : An int, or a numpy array with index values. If None, all time values will be used
-        #
-        # OUTPUTS
-        # - No outputs, the parameter value is updated in-place
+    def update(self, ti=None) -> None:
+        """
+        Update the value of this Parameter
+
+        If the parameter contains a function, this entails evaluating the function.
+        Typically this is done at a single time point during integration, or over all
+        time points for precomputing and postcomputing
+
+        :param ti: An ``int``, or a numpy array with index values. If ``None``, all time values will be used
+
+        """
 
         if not self._fcn or self.pop_aggregation:
             return
@@ -560,7 +591,7 @@ class Link(Variable):
 
     #
     # *** Link values are always dt-based ***
-    def __init__(self, pop, parameter, source, dest, tag):
+    def __init__(self, pop, parameter, source, dest, tag=None):
         # Note that the Link's name is the transition tag
         Variable.__init__(self, pop=pop, id=(pop.name, source.name, dest.name, tag))  # A Link is only uniquely identified by (Pop,Source,Dest,Par)
         self.vals = None
@@ -878,50 +909,74 @@ class Population(object):
         proposed = np.matmul(A, x)
         residual = np.sum((proposed.ravel()-b.ravel())**2)
 
+        # Accumulate any errors here. The errors could occur either at the system level or at the level
+        # of individual comps/characs. To avoid
+        error_msg = ''
+        characteristic_tolerence_failed = False
+
         # Print warning for characteristics that are not well matched by the compartment size solution
         for i in range(0, len(characs)):
-            if abs(proposed[i] - b[i]) > model_settings['tolerance']:  # project_settings.model_settings['tolerance']:
-                logger.warning("Characteristic '{0}' '{1}' - Requested {2}, "
-                               "Calculated {3}".format(self.name, characs[i].name, b[i], proposed[i]))
+            if abs(proposed[i] - b[i]) > model_settings['tolerance']:
+                characteristic_tolerence_failed = True
+                error_msg += "Characteristic '{0}' '{1}' - Requested {2}, Calculated {3}\n".format(self.name, characs[i].name, b[i], proposed[i])
 
-        # Print diagnostic output for compartments that were assigned a negative value
+        # Print expanded diagnostic for negative compartments showing parent characteristics
         def report_characteristic(charac, n_indent=0):
+            """
+            Recursively diagnose characteristic
+
+            If a compartment has been assigned a negative value, it is usually because
+            that negative value is required to match a target characteristic value. This
+            method takes the root characteristic, and prints out all of the compartments
+            relating to it, as well as descending further into any included characteristics.
+            This brings together all of the affected quantities to help diagnose where the
+            negative compartment size originates.
+
+            :param charac: A :class:`Characteristic` instance
+            :param n_indent: Indent level used to prefix the log message
+            :return: A string containing the debug output
+
+            """
+
+            msg = ''
             if charac.name in charac_indices:
-                logger.warning(n_indent * "\t" + "Characteristic '{0}': Target value = "
-                                                 "{1}".format(charac.name, b[charac_indices[charac.name]]))
+                msg += n_indent * "\t" + "Characteristic '{0}': Target value = {1}\n".format(charac.name, b[charac_indices[charac.name]])
             else:
-                logger.warning(n_indent * "\t" + "Characteristic '{0}' not in databook: "
-                                                 "Target value = N/A (0.0)".format(charac.name))
+                msg += n_indent * "\t" + "Characteristic '{0}' not in databook: Target value = N/A (0.0)\n".format(charac.name)
 
             n_indent += 1
             if isinstance(charac, Characteristic):
                 for inc in charac.includes:
                     if isinstance(inc, Characteristic):
-                        report_characteristic(inc, n_indent)
+                        msg += report_characteristic(inc, n_indent)
                     else:
-                        logger.warning(n_indent * '\t' + 'Compartment %s: Computed value = %f', inc.name, x[comp_indices[inc.name]])
+                        msg += n_indent * '\t' + 'Compartment %s: Computed value = %f\n' % (inc.name, x[comp_indices[inc.name]])
+            return msg
 
         for i in range(0, len(comps)):
             if x[i] < -model_settings['tolerance']:
-                logger.warning('Compartment %s %s - Calculated %f', self.name, comps[i].name, x[i])
+                error_msg += 'Compartment %s %s - Calculated %f\n' % (self.name, comps[i].name, x[i])
                 for charac in characs:
                     try:
                         if comps[i] in charac.get_included_comps():
-                            report_characteristic(charac)
+                            error_msg += report_characteristic(charac)
                     except Exception:
                         if comps[i] == charac:
-                            report_characteristic(charac)
+                            error_msg += report_characteristic(charac)
 
-        # Halt for an unsatisfactory overall solution (could relax this check later)
         if residual > model_settings["tolerance"]:
-            print(x)
-            raise BadInitialization("Residual was {0} which is unacceptably large (should be < {1}). "
-                                    "This points to a probable inconsistency in the initial "
-                                    "values.".format(residual, model_settings["tolerance"]))
-
-        # Halt for any negative popsizes
-        if np.any(np.less(x, -model_settings['tolerance'])):
-            raise BadInitialization('Negative initial popsizes')
+            # Halt for an unsatisfactory overall solution
+            raise BadInitialization("Global residual was %g which is unacceptably large (should be < %g)\n%s" % (residual, model_settings['tolerance'],error_msg))
+        elif np.any(np.less(x, -model_settings['tolerance'])):
+            # Halt for any negative popsizes
+            raise BadInitialization('Negative initial popsizes:\n%s' % (error_msg))
+        elif characteristic_tolerence_failed:
+            raise BadInitialization('Characteristics failed to meet tolerances\n%s' % (error_msg))
+        elif error_msg:
+            # Generic error message if any of the warning messages were encountered - not entirely sure when
+            # this would happen so if this *does* occur, it should be written as an explicit branch above
+            # (but it exists as a fallback to ensure that any inconsistencies result in the error being raised)
+            raise BadInitialization('Initialization error\n%s' % (error_msg))
 
         # Otherwise, insert the values
         for i, c in enumerate(comps):
@@ -960,7 +1015,7 @@ class Model(object):
         self._vars_by_pop = None  # Cache to look up lists of variables by name across populations
         self._pop_ids = sc.odict()  # Maps name of a population to its position index within populations list.
         self._program_cache = None
-        self._par_list = list(framework.pars.index)  # This is a list of all parameters code names in the model
+        self._par_list = None  # This is a list of all parameters code names in the model
 
         self.framework = sc.dcp(framework)  # Store a copy of the Framework used to generate this model
         self.framework.spreadsheet = None  # No need to keep the spreadsheet
@@ -1023,10 +1078,14 @@ class Model(object):
 
     def set_vars_by_pop(self):
         self._vars_by_pop = defaultdict(list)
+        par_names = []
         for pop in self.pops:
             for var in pop.comps + pop.characs + pop.pars + pop.links:
                 self._vars_by_pop[var.name].append(var)
+            for par in pop.pars:
+                par_names.append(par.name)
         self._vars_by_pop = dict(self._vars_by_pop)  # Stop new entries from appearing in here by accident
+        self._par_list = list(sc.odict.fromkeys(par_names))
 
     def __getstate__(self):
         self.unlink()
@@ -1093,19 +1152,19 @@ class Model(object):
         # For each population pair, instantiate a Parameter with the values from the databook
         # For each compartment, instantiate a set of Links that all derive from that Parameter
         # NB. If a Program somehow targets the transfer parameter, those values will automatically... what?
-        for trans_type in parset.transfers:
-            if parset.transfers[trans_type]:
-                for pop_source in parset.transfers[trans_type]:
+        for transfer_name in parset.transfers:
+            if parset.transfers[transfer_name]:
+                for pop_source in parset.transfers[transfer_name]:
 
                     # This contains the data for all of the destination pops.
-                    transfer_parameter = parset.transfers[trans_type][pop_source]
+                    transfer_parameter = parset.transfers[transfer_name][pop_source]
 
                     pop = self.get_pop(pop_source)
 
                     for pop_target in transfer_parameter.ts:
 
                         # Create the parameter object for this link (shared across all compartments)
-                        par_name = trans_type + '_' + pop_source + '_to_' + pop_target  # e.g. 'aging_0-4_to_15-64'
+                        par_name = "%s_%s_to_%s" % (transfer_name, pop_source , pop_target)  # e.g. 'aging_0-4_to_15-64'
                         par = Parameter(pop=pop, name=par_name)
                         par.preallocate(self.t, self.dt)
                         par.scale_factor = transfer_parameter.y_factor[pop_target] * transfer_parameter.meta_y_factor
@@ -1120,8 +1179,7 @@ class Model(object):
                             if not (source.tag_birth or source.tag_dead or source.is_junction):
                                 # Instantiate a link between corresponding compartments
                                 dest = target_pop_obj.get_comp(source.name)  # Get the corresponding compartment
-                                link_tag = par_name + '_' + source.name + ':flow'  # e.g. 'aging_0-4_to_15-64_sus:flow'
-                                link = Link(pop, par, source, dest, link_tag)
+                                link = Link(pop, par, source, dest, par.name + ':flow')
                                 link.preallocate(self.t, self.dt)
                                 pop.links.append(link)
                                 if link.name in pop.link_lookup:
@@ -1157,19 +1215,14 @@ class Model(object):
             self.update_junctions()
 
         for pop in self.pops:
-            [par.update() for par in pop.pars if (par.fcn_str and not (par._is_dynamic or par._precompute))]  # Update any remaining parameters
+
+            for par in pop.pars:
+                if par.fcn_str and not (par._is_dynamic or par._precompute):
+                    par.update()
+                    par.constrain()
+
             for charac in pop.characs:
                 charac._vals = None  # Wipe out characteristic vals to save space
-
-                # TODO: Consider whether it is worth reimplementing space-saving measures.
-                # if not full_output:
-                #     for par in pop.pars:
-                #         if (not par.name in framework.linkpar_specs) \
-                #                 or (not 'output' in settings.linkpar_specs[par.name]) \
-                #                 or (settings.linkpar_specs[par.name] != 'y'):
-                #             par.vals = None
-                #             for link in par.links:
-                #                 link.vals = None
 
         self._program_cache = None  # Drop the program cache afterwards to save space
 
@@ -1191,6 +1244,17 @@ class Model(object):
                 if par.links:
 
                     transition = par.vals[ti]
+                    if transition < 0:
+                        # This condition is likely to occur if the parameter has a function but it has been
+                        # incorrectly/poorly defined so that it returns a negative value. If this is expected
+                        # to happen under certain conditions, then the Framework should have a minimum value of 0
+                        # entered for the parameter to make it explicit that the value is constrained to be positive.
+                        # This could be important if the parameter is *also* used as a dependency in other parameters
+                        # because clipping in the Framework is applied before downstream parameters are computed, whereas
+                        # the check here only relates to the links, so an incorrect negative value could still propagate
+                        # to other parameters (but we cannot be *certain* here that this isn't what the user intended)
+                        logger.warning('Negative transition occurred')
+                        transition = 0
 
                     if not transition:
                         for link in par.links:
@@ -1219,10 +1283,6 @@ class Model(object):
 
                     # Linearly convert number down to that appropriate for one timestep.
                     elif quantity_type == FS.QUANTITY_TYPE_NUMBER:
-
-                        if transition < 0:
-                            logger.warning('Negative transition occurred')
-                            transition = 0
 
                         # Disaggregate proportionally across all source compartment sizes related to all links.
                         converted_amt = transition * (self.dt / par.timescale) # Number flow in this timestep, so it includes a timescale factor
@@ -1374,7 +1434,7 @@ class Model(object):
                     n = 0.0
                     for comp in comp_list:
                         n += comp.vals[ti]
-                    prop_coverage[k] = self.progset.programs[k].get_prop_covered(self.t[ti], self._program_cache['capacities'][k][ti], n, sample=False)
+                    prop_coverage[k] = self.progset.programs[k].get_prop_covered(self.t[ti], self._program_cache['capacities'][k][ti], n)
             prog_vals = self.progset.get_outcomes(prop_coverage)
 
         for par_name in self._par_list:

@@ -1,7 +1,7 @@
 """
 Implements various Optimizations in Atomica
 
-This module implements the :py:class:`Optimization` class, which contains the
+This module implements the :class:`Optimization` class, which contains the
 information required to perform an optimization in Atomica. An Optimization
 effectively serves as a mapping from one set of program instructions to another.
 
@@ -81,11 +81,26 @@ class SpendingAdjustment(Adjustment):
         Adjustment.__init__(self, name=prog_name)
         self.prog_name = prog_name
         self.t = sc.promotetoarray(t)  # Time at which to apply the adjustment
-        if isinstance(initial, list):
-            assert len(initial) == len(self.t), "If supplying initial values, you must either specify one, or one for every time point"
+
+        lower = sc.promotetolist(lower,keepnone=True)
+        if len(lower) == 1:
+            lower = lower*len(self.t)
         else:
-            initial = [initial] * len(self.t)
-        self.adjustables = [Adjustable(prog_name, limit_type, lower, upper, initial_value) for initial_value in initial]
+            assert len(lower) == len(self.t), "If supplying lower bounds, you must either specify one, or one for every time point"
+
+        upper = sc.promotetolist(upper,keepnone=True)
+        if len(upper) == 1:
+            upper = upper*len(self.t)
+        else:
+            assert len(upper) == len(self.t), "If supplying upper bounds, you must either specify one, or one for every time point"
+
+        initial = sc.promotetolist(initial,keepnone=True)
+        if len(initial) == 1:
+            initial = initial*len(self.t)
+        else:
+            assert len(initial) == len(self.t), "If supplying initial values, you must either specify one, or one for every time point"
+
+        self.adjustables = [Adjustable(prog_name, limit_type, lower_bound=lb, upper_bound=ub, initial_value=init) for lb,ub,init in zip(lower,upper,initial)]
 
     def update_instructions(self, adjustable_values, instructions):
         # There is one Adjustable for each time point, so the adjustable_values
@@ -317,16 +332,27 @@ class MaximizeCascadeStage(Measurable):
 
 
 class MaximizeCascadeConversionRate(Measurable):
-    # This Measurable will maximize the conversion rate, summed over all cascade stages
-    def __init__(self, cascade_name, t, pop_names='all', weight=1.0):
-        # pop_names can be a single pop name (including all), or a list of pop names
-        # aggregations are supported by setting pop_names to a dict e.g.
-        # pop_names = {'foo':['0-4','5-14']}
+    """
+    Maximize overall conversion rate
+
+    Maximize conversion summed over all cascade stages
+
+    :param cascade_name: The name of one of the cascades in the Framework
+    :param t: A single time value e.g. 2020
+    :param pop_names: A single pop name (including 'all'), a list of populations,
+                  or a dict/list of dicts, each with a single aggregation e.g. ``{'foo':['0-4','5-14']}``
+    :param weight: Weighting factor for this Measurable in the overall objective function
+
+    """
+
+    def __init__(self, cascade_name, t:float, pop_names='all', weight=1.0):
         Measurable.__init__(self, cascade_name, t=t, weight=-weight, pop_names=pop_names)
         if not isinstance(self.pop_names, list):
             self.pop_names = [self.pop_names]
 
     def get_objective_val(self, model):
+        if self.t < model.t[0] or self.t > model.t[-1]:
+            raise Exception('Measurable year for optimization (%d) is outside the simulation range (%d-%d)' % (self.t,model.t[0],model.t[-1]))
         result = Result(model=model)
         val = 0
         for pop_name in self.pop_names:
@@ -519,16 +545,23 @@ class TotalSpendConstraint(Constraint):
 
             x0_array = np.array(x0.values()).ravel()
             x0_array_scaled = x0_array / sum(x0_array) * total_spend  # Multiplicative rescaling to match the total spend
-            res = scipy.optimize.minimize(lambda x: np.sqrt(np.sum((x - x0_array_scaled) ** 2)), x0_array_scaled, bounds=bounds, constraints=LinearConstraint, options={'maxiter': 500})
+
+            def jacfcn(x):
+                dist = np.linalg.norm(x - x0_array_scaled)
+                if dist == 0:
+                    return np.zeros(x.shape)
+                else:
+                    return (x-x0_array_scaled)/dist
+
+            res = scipy.optimize.minimize(lambda x: np.linalg.norm(x - x0_array_scaled), x0_array_scaled, jac=jacfcn, bounds=bounds, constraints=LinearConstraint, options={'maxiter': 500})
 
             if not res['success']:
                 logger.error('TotalSpendConstraint failed - rejecting these proposed parameters with an objective value of np.inf')
                 penalty = np.inf
             else:
-                penalty += np.sqrt(np.sum((res['x'] - x0_array)**2))  # Penalty is the distance between the unconstrained budget and the constrained budget
+                penalty += np.linalg.norm(res['x'] - x0_array)  # Penalty is the distance between the unconstrained budget and the constrained budget
                 for name, val in zip(x0.keys(), res['x']):
                     instructions.alloc[name].insert(t, val)
-
         return penalty
 
 
@@ -768,16 +801,16 @@ def optimize(project, optimization, parset, progset, instructions, x0=None, xmin
     together with the instructions (because relative constraints in the Optimization are
     interpreted as being relative to the allocation in the instructions).
 
-    :param project: A :py:class:`Project` instance
-    :param optimization: An :py:class:`Optimization` instance
-    :param parset: A :py:class:`ParameterSet` instance or name of a parset
-    :param progset: A :py:class:`ProgramSet` instance or name of a progset
-    :param instructions: A :py:class:`ProgramInstructions` instance
+    :param project: A :class:`Project` instance
+    :param optimization: An :class:`Optimization` instance
+    :param parset: A :class:`ParameterSet` instance or name of a parset
+    :param progset: A :class:`ProgramSet` instance or name of a progset
+    :param instructions: A :class:`ProgramInstructions` instance
     :param x0: Not for manual use - override initial values
     :param xmin: Not for manual use - override lower bounds
     :param xmax: Not for manual use - override upper bounds
     :param hard_constraints: Not for manual use - override hard constraints
-    :return: A :py:class:`ProgramInstructions` instance representing optimal instructions
+    :return: A :class:`ProgramInstructions` instance representing optimal instructions
 
     """
     # The ASD initialization, xmin and xmax values can optionally be
@@ -809,7 +842,7 @@ def optimize(project, optimization, parset, progset, instructions, x0=None, xmin
     # Check that the initial conditions are OK
     initial_objective = _objective_fcn(x0, **args)
     if not np.isfinite(initial_objective):
-        raise InvalidInitialConditions()
+        raise InvalidInitialConditions('Optimization cannot begin because the objective function was NaN for the specified initialization')
 
     if optimization.method == 'asd':
         optim_args = {

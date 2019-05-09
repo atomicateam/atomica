@@ -55,12 +55,12 @@ def test_validate_model(model):
     if not os.path.isfile(databook_file) or not os.path.isfile(progbook_file):
         return
 
-    P1 = at.Project(framework=framework_file, databook_path=databook_file, do_run=False)
+    P1 = at.Project(framework=framework_file, databook=databook_file, do_run=False)
     P1.load_progbook(progbook_file)
     P1.update_settings(sim_end=2025) # Make sure we run until 2025
 
-    P1.run_sim(P1.parsets[0],result_name='parset')
-    P1.run_sim(P1.parsets[0],P1.progsets[0],at.ProgramInstructions(start_year=2018),result_name='progset')
+    P1.run_sim(P1.parsets[0],result_name='parset',store_results=True)
+    P1.run_sim(P1.parsets[0],P1.progsets[0],at.ProgramInstructions(start_year=2018),result_name='progset',store_results=True)
 
     fname = tmpdir + 'validation_' + model + '.prj'
     if os.path.isfile(fname):
