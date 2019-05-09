@@ -783,6 +783,9 @@ class Ensemble(NamedItem):
 
             logger.setLevel(original_level) # Reset the logger
 
+        # Finally, set the colours for the first sample
+        self.samples[0].set_colors(pops=self.samples[0].pops, outputs=self.samples[0].outputs)
+
     @property
     def n_samples(self) -> int:
         """

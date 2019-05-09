@@ -11,3 +11,4 @@ General content
     programs/Programs
     Parameters
     population-types/Population-Types
+    stochastic/stochastic

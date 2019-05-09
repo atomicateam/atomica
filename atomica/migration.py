@@ -470,7 +470,7 @@ def replace_scenarios(proj):
     proj.scens = new_scens
     return proj
 
-@migration('1.1.3', '1.2.0', 'Add population type')
+@migration('1.2.0', '1.3.0', 'Add population type')
 def add_pop_type(proj):
 
     for fw in all_frameworks(proj):
@@ -516,7 +516,7 @@ def add_pop_type(proj):
     return proj
 
 
-@migration('1.2.0', '1.3.0', 'Parameter can be derivative')
+@migration('1.3.0', '1.4.0', 'Parameter can be derivative')
 def add_derivatives(proj):
     for fw in all_frameworks(proj):
         fw.pars['is derivative'] = 'n'
