@@ -183,8 +183,5 @@ def test_model(model):
 if __name__ == '__main__':
 
     np.seterr(all='raise')
-
     for m in models:
-        if m == 'malaria' or m == 'environment': # Present for local development but not ready to ship yet
-            continue
         test_model(m)

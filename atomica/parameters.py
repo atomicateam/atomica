@@ -58,7 +58,9 @@ class Parameter(NamedItem):
 
         """
 
-        if self.ts[pop_name].has_data:
+        if pop_name not in self.ts:
+            return False
+        elif self.ts[pop_name].has_data:
             return True
         else:
             return False
@@ -117,13 +119,15 @@ class ParameterSet(NamedItem):
 
         self.pop_names = data.pops.keys() #: List of all population code names contained in the ``ParameterSet``
         self.pop_labels = [pop["label"] for pop in data.pops.values()] #: List of corresponding full names for populations
+        self.pop_types = [pop['type'] for pop in data.pops.values()] #: List of corresponding population types
+
         self.pars = sc.odict() #: Stores the Parameter instances contained by this ParameterSet associated with framework comps, characs, and parameters
         self.transfers = sc.odict() #: Stores the Parameter instances contained by this ParameterSet associated with databook transfers, keyed by source population
         self.interactions = sc.odict() #: Stores the Parameter instances contained by this ParameterSet associated with framework interactions, keyed by source population
 
         # Instantiate all quantities that appear in the databook (compartments, characteristics, parameters)
         for name, tdve in data.tdve.items():
-            for pop_name, ts in tdve.ts.items():
+            for pop_name, ts in tdve.ts.items(): # The TDVE has already been validated to contain any required populations (although it might also contain extra ones)
                 units = framework.get_databook_units(name)
                 if units != ts.units:
                     raise Exception('The units entered in the databook do not match the units entered in the framework')
@@ -135,10 +139,12 @@ class ParameterSet(NamedItem):
                 ts = dict()
                 units = framework.get_databook_units(spec.name)
                 for pop_name in self.pop_names:
-                    ts[pop_name] = TimeSeries(units=units)
+                    if data.pops[pop_name]['type'] == spec['population type']:
+                        ts[pop_name] = TimeSeries(units=units)
                 self.pars[spec.name] = Parameter(spec.name, ts)
 
         # Instantiate parameters for transfers and interactions
+        # As with TDVE quantities, these must be initialized from the databook
         for tdc in data.transfers + data.interpops:
             if tdc.type == 'transfer':
                 item_storage = self.transfers

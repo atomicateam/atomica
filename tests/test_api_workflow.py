@@ -26,7 +26,7 @@ P = at.Project.load(tmpdir+test+".prj")
 if plot_initial:
 
     for var in ["sus", "inf", "rec", "dead", "ch_all", "foi"]:
-        P.results[0].get_variable("adults", var)[0].plot()
+        P.results[0].get_variable(var,"adults")[0].plot()
 
     # Plot decomposition of population
     d = at.PlotData(P.results[0],outputs=['sus','inf','rec','dead'],project=P)

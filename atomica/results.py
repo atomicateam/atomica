@@ -17,8 +17,9 @@ import logging
 import sciris as sc
 from .excel import standard_formats
 from .system import FrameworkSettings as FS
-from .system import logger
+from .system import logger, NotFoundError
 from .utils import NamedItem, evaluate_plot_string, nested_loop, interpolate
+from .function_parser import parse_function
 
 
 class Result(NamedItem):
@@ -162,9 +163,9 @@ class Result(NamedItem):
                 for pop_name in prog.target_pops:
                     for comp_name in prog.target_comps:
                         if prog.name not in num_eligible:
-                            num_eligible[prog.name] = self.get_variable(pop_name, comp_name)[0].vals.copy()
+                            num_eligible[prog.name] = self.get_variable(comp_name, pop_name)[0].vals.copy()
                         else:
-                            num_eligible[prog.name] += self.get_variable(pop_name, comp_name)[0].vals
+                            num_eligible[prog.name] += self.get_variable(comp_name, pop_name)[0].vals
 
             # Note that `ProgramSet.get_prop_coverage()` takes in capacity in units of 'people' which matches
             # the units of 'num_eligible' so we therefore use the returned value from `ProgramSet.get_capacities()`
@@ -257,7 +258,7 @@ class Result(NamedItem):
         output = sc.prepr(self)
         return output
 
-    def get_variable(self, pops: str, name: str) -> list:
+    def get_variable(self, name:str,  pops:str=None) -> list:
         """
         Retrieve integration objects
 
@@ -271,7 +272,18 @@ class Result(NamedItem):
 
         """
 
-        return self.model.get_pop(pops).get_variable(name)
+        if pops is not None:
+            return self.model.get_pop(pops).get_variable(name)
+        else:
+            vars = []
+            for pop in self.model.pops:
+                try:
+                    vars += pop.get_variable(name)
+                except NotFoundError:
+                    pass
+            if not vars:
+                raise NotFoundError(f"Variable '{name}' was not found in any populations")
+            return vars
 
     def export_raw(self, filename=None) -> pd.DataFrame:
         """
@@ -346,6 +358,26 @@ class Result(NamedItem):
         this_plot = df.loc[df['name'] == plot_name, :].iloc[0]  # A Series with the row of the 'Plots' sheet corresponding to the plot we want to render
 
         quantities = evaluate_plot_string(this_plot['quantities'])
+
+        # Work out which populations these are defined in
+        # Going via Result.get_variable() means that it will automatically
+        # work correctly for flow rate syntax as well
+        if not pops:
+            if sc.isstring(quantities):
+                vars = self.get_variable(quantities)
+            elif isinstance(quantities,list):
+                vars = self.get_variable(quantities[0])
+            elif isinstance(quantities,dict):
+                v = list(quantities.values())[0]
+                if isinstance(v, list):
+                    vars = self.get_variable(v[0])
+                elif sc.isstring(v):
+                    # It could be a function aggregation or it could be a single one
+                    _, deps = parse_function(v)
+                    vars = self.get_variable(deps[0])
+            else:
+                raise Exception('Could not determine population type')
+            pops = [x.pop.name for x in vars]
 
         d = PlotData(self, outputs=quantities, pops=pops, project=project)
         h = plot_series(d, axis='pops', data=(project.data if project is not None else None))
