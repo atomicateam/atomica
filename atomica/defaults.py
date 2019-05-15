@@ -8,17 +8,6 @@ from .framework import ProjectFramework
 from .project import Project
 from .system import LIBRARY_PATH, logger
 
-
-def default_programs(project, addcostcovpars=False, addcostcovdata=False, filterprograms=None):
-    """ Make some default programs"""
-    pass
-
-
-def default_progset(project, addcostcovpars=False, addcostcovdata=False, filterprograms=None):
-    """ Make a default programset"""
-    pass
-
-
 def default_framework(which=None, show_options=False):
 
     options = sc.odict([
@@ -29,17 +18,17 @@ def default_framework(which=None, show_options=False):
         ('diabetes', 'Diabetes'),
         ('hypertension', 'Hypertension'),
         ('hypertension_dyn', 'Hypertension with demography'),
-        ('service', 'Service delivery'),
+        # ('service', 'Service delivery'),
         ('hiv', 'HIV care cascade'),
         ('hiv_dyn', 'HIV care cascade with demography'),
         ('tb_simple', 'Tuberculosis'),
         ('tb_simple_dyn', 'Tuberculosis with demography'),
+        ('environment', 'SIR model with environment'),
+        ('tb', 'Tuberculosis with transmission dynamics'),
     ])
 
     if which is None or which == 'default':
         which = 'udt'
-    elif which == 'tb':
-        label = 'Tuberculosis with transmission dynamics'
     elif which not in options.keys():
         if which in options.values():
             which = options.keys()[options.values().index(which)]
@@ -49,8 +38,7 @@ def default_framework(which=None, show_options=False):
     if show_options:
         return options
     else:
-        if which != 'tb':
-            label = options[which]
+        label = options[which]
         F = ProjectFramework(name=label, inputs=LIBRARY_PATH + which + "_framework.xlsx")
     return F
 
@@ -69,23 +57,24 @@ def default_project(which=None, do_run=True, addprogs=True, verbose=False, show_
         ('cervicalcancer', 'Cervical cancer cascade (1 population)'),
         ('sir', 'SIR model (1 population)'),
         ('diabetes', 'Diabetes cascade (1 population)'),
-        #                    ('service',         'Service delivery cascade (1 population)'),
+        ('combined', 'Combined SIR+UDT model (5 populations)'),
+        # ('service', 'Service delivery cascade (1 population)'),
         ('hypertension', 'Hypertension cascade (4 populations)'),
         ('hypertension_dyn', 'Hypertension cascade with demography (4 populations)'),
         ('hiv', 'HIV care cascade (2 populations)'),
         ('hiv_dyn', 'HIV care cascade with demography (2 populations)'),
         ('tb_simple', 'Tuberculosis (1 population)'),
         ('tb_simple_dyn', 'Tuberculosis with demography (1 population)'),
+        ('environment', 'SIR model with environment (2 population)'),
+        ('tb', 'Tuberculosis with transmission dynamics'),
     ])
 
     dtdict = sc.odict.fromkeys(options.keys(), 1.)
     dtdict['tb'] = 0.5
 
-    tool = 'cascade'
+    tool = 'tb' if which=='tb' else 'cascade'
     if which is None or which == 'default':
         which = 'udt'
-    elif which == 'tb':
-        tool = 'tb'  # This is not in the options and is handled as a special case
     elif which not in options.keys():
         if which in options.values():
             which = options.keys()[options.values().index(which)]

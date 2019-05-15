@@ -19,7 +19,14 @@ def parent_dir():
 
 
 class NamedItem():
-    def __init__(self, name=None):
+    def __init__(self, name:str=None):
+        """
+        NamedItem constructor
+
+        A name must be a string
+
+        :param name:
+        """
         if name is None:
             name = '<unnamed>'
         self.name = name
@@ -52,8 +59,8 @@ class NDict(sc.odict):
         # like a normal odict
         sc.odict.__setitem__(self, key, item)
 
-        # If it is a NamedItem, then synchronize the name of the object with the specified key
-        if isinstance(item, NamedItem):
+        # If it is a NamedItem, then synchronize the name of the object with the specified string key
+        if sc.isstring(key) and isinstance(item, NamedItem):
             item.name = key
             item.modified = sc.now()
         return None
@@ -334,7 +341,7 @@ class TimeSeries(object):
 
         :param t: A time value. If ``None``, will return assumption regardless of whether
                   time data has been entered or not
-        :return: The value at the corresponding time
+        :return: The value at the corresponding time. Returns None if the value no value present
         """
 
         if t is None or len(self.t) == 0:
@@ -342,7 +349,7 @@ class TimeSeries(object):
         elif t in self.t:
             return self.vals[self.t.index(t)]
         else:
-            raise Exception('Item not found')
+            return None
 
     def get_arrays(self):
         """
@@ -376,6 +383,28 @@ class TimeSeries(object):
             del self.vals[idx]
         else:
             raise Exception('Item not found')
+
+    def remove_before(self,t_remove) -> None:
+        """
+        Remove times from start
+
+        :param tval: Remove times up to but not including this time
+        """
+
+        for tval in sc.dcp(self.t):
+            if tval < t_remove:
+                self.remove(tval)
+
+    def remove_after(self, t_remove) -> None:
+        """
+        Remove times from start
+
+        :param tval: Remove times up to but not including this time
+        """
+
+        for tval in sc.dcp(self.t):
+            if tval > t_remove:
+                self.remove(tval)
 
     def remove_between(self, t_remove):
         # t is a two element vector [min,max] such that

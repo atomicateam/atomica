@@ -111,3 +111,6 @@ vueapp
 
 # Excel temp files
 ~$*
+
+# VIM
+*.sw*

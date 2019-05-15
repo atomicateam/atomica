@@ -6,6 +6,7 @@ def test_progbooks():
     tmpdir = at.atomica_path(['tests','temp'])
     F = at.ProjectFramework(at.LIBRARY_PATH+'tb_framework.xlsx')
     D = at.ProjectData.from_spreadsheet(at.LIBRARY_PATH+'tb_databook.xlsx',framework=F)
+    D.validate(F) # Need to validate the databook before it can be used for anything other than databook IO
     pset = at.ProgramSet.from_spreadsheet(at.LIBRARY_PATH+'tb_progbook.xlsx',F,D)
     pset.save(tmpdir + 'progbook_test.xlsx')
     pset = at.ProgramSet.from_spreadsheet(tmpdir + 'progbook_test.xlsx',F,D)
