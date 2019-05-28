@@ -189,7 +189,7 @@ class Project(NamedItem):
         if self.progsets:
             data_pops = set((x,y['label']) for x,y in data.pops.items())
             for progset in self.progsets.values():
-                assert data_pops == set((x,y) for x,y in progset.pops.items()), 'Existing progsets exist with populations that do not match the new databook'
+                assert data_pops == set((x,y['label']) for x,y in progset.pops.items()), 'Existing progsets exist with populations that do not match the new databook'
 
         self.data = data
         self.data.validate(self.framework)  # Make sure the data is suitable for use in the Project (as opposed to just manipulating the databook)
