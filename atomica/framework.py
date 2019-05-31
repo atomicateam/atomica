@@ -898,13 +898,19 @@ class ProjectFramework(object):
             else:
                 return FS.QUANTITY_TYPE_NUMBER.title()
         elif item_type == FS.KEY_PARAMETER:
+            units = item_spec['format'].strip() if item_spec['format'] is not None else None
             if item_spec['timescale']:
-                if item_spec['format'] == FS.QUANTITY_TYPE_DURATION:
+                if units is None:
+                    raise InvalidFramework(f'A timescale was provided for Framework quantity {code_name} but no units were provided')
+                elif units.lower() == FS.QUANTITY_TYPE_DURATION:
                     return '%s (%s)' % (FS.QUANTITY_TYPE_DURATION.title(),format_duration(item_spec['timescale'],pluralize=True))
-                elif item_spec['format'] in {FS.QUANTITY_TYPE_NUMBER,FS.QUANTITY_TYPE_PROBABILITY}:
-                    return '%s (per %s)' % (item_spec['format'].title(),format_duration(item_spec['timescale'],pluralize=False))
-            elif item_spec['format']:
-                return item_spec['format']
+                elif units.lower() in {FS.QUANTITY_TYPE_NUMBER,FS.QUANTITY_TYPE_PROBABILITY}:
+                    return '%s (per %s)' % (units.title(),format_duration(item_spec['timescale'],pluralize=False))
+                else:
+                    if units is None:
+                        raise InvalidFramework(f'A timescale was provided for Framework quantity {code_name} but the units were not one of duration, number, or probability. It is therefore not possible to perform any automatic conversions, simply enter the relevant data entry timescale in the units directly instead.')
+            elif units:
+                return units
 
         return FS.DEFAULT_SYMBOL_INAPPLICABLE
 
