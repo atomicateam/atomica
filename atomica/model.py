@@ -759,7 +759,10 @@ class Population(object):
 
     def get_comp(self, comp_name):
         """ Allow compartments to be retrieved by name rather than index. Returns a Compartment. """
-        return self.comp_lookup[comp_name]
+        try:
+            return self.comp_lookup[comp_name]
+        except KeyError:
+            raise NotFoundError(f'Compartment {comp_name} not found')
 
     def get_links(self, name) -> list:
         """ Retrieve Links. """
@@ -775,11 +778,17 @@ class Population(object):
 
     def get_charac(self, charac_name):
         """ Allow dependencies to be retrieved by name rather than index. Returns a Variable. """
-        return self.charac_lookup[charac_name]
+        try:
+            return self.charac_lookup[charac_name]
+        except KeyError:
+            raise NotFoundError(f'Characteristic {charac_name} not found')
 
     def get_par(self, par_name):
         """ Allow dependencies to be retrieved by name rather than index. Returns a Variable. """
-        return self.par_lookup[par_name]
+        try:
+            return self.par_lookup[par_name]
+        except KeyError:
+            raise NotFoundError(f'Parameter {par_name} not found')
 
     def gen_cascade(self, framework, progset):
         """
