@@ -129,7 +129,7 @@ class ParameterSet(NamedItem):
         for name, tdve in data.tdve.items():
             for pop_name, ts in tdve.ts.items(): # The TDVE has already been validated to contain any required populations (although it might also contain extra ones)
                 units = framework.get_databook_units(name)
-                if units != ts.units:
+                if units.strip().lower() != ts.units.strip().lower():
                     raise Exception('The units entered in the databook do not match the units entered in the framework')
             self.pars[name] = Parameter(name,sc.dcp(tdve.ts))
 

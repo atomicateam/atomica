@@ -1278,7 +1278,14 @@ class Ensemble(NamedItem):
 
 
         locations = offset + np.arange(len(x))
-        plt.boxplot(np.vstack(x).T, positions=locations, manage_xticks=False)
+
+        # TODO - force matplotlib>=3.1 to address this
+        import matplotlib
+        if sc.compareversions(matplotlib.__version__,'3.1') < 0:
+            plt.boxplot(np.vstack(x).T, positions=locations, manage_xticks=False)
+        else:
+            plt.boxplot(np.vstack(x).T, positions=locations, manage_ticks=False)
+
         ax.set_xlim(-0.5, locations[-1] + 0.5)
         if offset == 0:
             ax.set_xticks(np.arange(locations[-1] + 1))
