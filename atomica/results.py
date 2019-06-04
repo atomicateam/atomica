@@ -363,21 +363,7 @@ class Result(NamedItem):
         # Going via Result.get_variable() means that it will automatically
         # work correctly for flow rate syntax as well
         if not pops:
-            if sc.isstring(quantities):
-                vars = self.get_variable(quantities)
-            elif isinstance(quantities,list):
-                vars = self.get_variable(quantities[0])
-            elif isinstance(quantities,dict):
-                v = list(quantities.values())[0]
-                if isinstance(v, list):
-                    vars = self.get_variable(v[0])
-                elif sc.isstring(v):
-                    # It could be a function aggregation or it could be a single one
-                    _, deps = parse_function(v)
-                    vars = self.get_variable(deps[0])
-            else:
-                raise Exception('Could not determine population type')
-            pops = [x.pop.name for x in vars]
+            pops = _filter_pops_by_output(self,quantities)
 
         d = PlotData(self, outputs=quantities, pops=pops, project=project)
         h = plot_series(d, axis='pops', data=(project.data if project is not None else None))
@@ -402,6 +388,37 @@ class Result(NamedItem):
             if year is None:
                 year = self.t
             return self.model.progset.get_alloc(year, self.model.program_instructions)
+
+def _filter_pops_by_output(result,output) -> list:
+    """
+    Helper function for plotting quantities
+
+    With population types, a given output/output aggregation may only be defined
+    in a subset of populations. To deal with this when plotting Result objects,
+    it's necessary to work out which population the requested output aggregation can be
+    plotted in. This function takes in an output definition and returns a list of populations
+    matching this.
+
+    :param output: An output aggregation string e.g. 'alive' or ':ddis' or {['lt_inf','lteu']} (supported by PlotData/get_variable)
+    :return: A list of population code names
+
+    """
+
+    if sc.isstring(output):
+        vars = result.get_variable(output)
+    elif isinstance(output, list):
+        vars = result.get_variable(output[0])
+    elif isinstance(output, dict):
+        v = list(output.values())[0]
+        if isinstance(v, list):
+            vars = result.get_variable(v[0])
+        elif sc.isstring(v):
+            # It could be a function aggregation or it could be a single one
+            _, deps = parse_function(v)
+            vars = result.get_variable(deps[0])
+    else:
+        raise Exception('Could not determine population type')
+    return [x.pop.name for x in vars]
 
 
 def export_results(results, filename=None, output_ordering=('output', 'result', 'pop'),
@@ -567,13 +584,17 @@ def _cascade_to_df(results, cascade_name, tvals):
 
     """
 
-    from .cascade import get_cascade_vals
+    from .cascade import get_cascade_vals, sanitize_cascade
+
+    # Find the cascade pop type
+    _, cascade_dict, pop_type = sanitize_cascade(results[0].framework, cascade_name)
 
     # Prepare the population names and time values
     pop_names = dict()
     pop_names['all'] = 'Entire population'
-    for pop_name, pop_label in zip(results[0].pop_names, results[0].pop_labels):
-        pop_names[pop_name] = pop_label
+    for pop in results[0].model.pops:
+        if pop.type == pop_type:
+            pop_names[pop.name] = pop.label
 
     cascade_df = []
     for pop, label in pop_names.items():
@@ -599,7 +620,7 @@ def _output_to_df(results, output_name: str, output, tvals) -> pd.DataFrame:
     returned. The index levels are the name of the output, the name of the results, and the populations.
 
     In addition, this function attempts to aggregate the outputs, if the units of the outputs matches
-    known units. If the units lead to an obvious use of summation or weighted averating, it will be used.
+    known units. If the units lead to anver obvious use of summation or weighted averating, it will be used.
     Otherwise, the output will contain NaNs for the population-aggregated results, which will appear as empty
     cells in the Excel spreadsheet so the user is able to fill them in themselves.
 
@@ -613,28 +634,27 @@ def _output_to_df(results, output_name: str, output, tvals) -> pd.DataFrame:
 
     from .plotting import PlotData
 
-    pop_labels = {x: y for x, y in zip(results[0].pop_names, results[0].pop_labels)}
+    pops = _filter_pops_by_output(results[0],output)
+    pop_labels = {x: y for x, y in zip(results[0].pop_names, results[0].pop_labels) if x in pops}
     data = dict()
-    popdata = PlotData(results, outputs=output)
-    assert len(
-        popdata.outputs) == 1, 'Framework plot specification should evaluate to exactly one output series - there were %d' % (
-        len(popdata.outputs))
+
+    popdata = PlotData(results, pops=pops, outputs=output)
+    assert len(popdata.outputs) == 1, 'Framework plot specification should evaluate to exactly one output series - there were %d' % (len(popdata.outputs))
     popdata.interpolate(tvals)
     for result in popdata.results:
         for pop_name in popdata.pops:
-            data[(output_name, popdata.results[result], pop_labels[pop_name])] = popdata[
-                result, pop_name, popdata.outputs[0]].vals
+            data[(output_name, popdata.results[result], pop_labels[pop_name])] = popdata[result, pop_name, popdata.outputs[0]].vals
 
     # Now do a population total. Need to check the units after any aggregations
     # Check results[0].model.pops[0].comps[0].units just in case someone changes it later on
     if popdata.series[0].units in {FS.QUANTITY_TYPE_NUMBER, results[0].model.pops[0].comps[0].units}:
         # Number units, can use summation
-        popdata = PlotData(results, outputs=output, pops='total', pop_aggregation='sum')
+        popdata = PlotData(results, outputs=output, pops={'total':pops}, pop_aggregation='sum')
         popdata.interpolate(tvals)
         for result in popdata.results:
             data[(output_name, popdata.results[result], 'Total (sum)')] = popdata[result, popdata.pops[0], popdata.outputs[0]].vals
     elif popdata.series[0].units in {FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION,FS.QUANTITY_TYPE_PROBABILITY}:
-        popdata = PlotData(results, outputs=output, pops='total', pop_aggregation='weighted')
+        popdata = PlotData(results, outputs=output, pops={'total':pops}, pop_aggregation='weighted')
         popdata.interpolate(tvals)
         for result in popdata.results:
             data[(output_name, popdata.results[result], 'Total (weighted average)')] = popdata[result, popdata.pops[0], popdata.outputs[0]].vals
