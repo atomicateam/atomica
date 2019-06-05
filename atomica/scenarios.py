@@ -251,6 +251,7 @@ class ParameterScenario(Scenario):
 
         for par_label in self.scenario_values.keys():
             par = new_parset.pars[par_label]  # This is the parameter we are updating
+            has_function = project.framework.pars.at[par.name, 'function'] # Flag whether this is a function parameter in the framework
 
             for pop_label, overwrite in self.scenario_values[par_label].items():
 
@@ -270,7 +271,12 @@ class ParameterScenario(Scenario):
                 if not par.ts[pop_label].has_time_data:
                     par.ts[pop_label].insert(project.settings.sim_start, par.ts[pop_label].assumption)
 
+                if has_function and 'smooth_onset' in overwrite:
+                    raise Exception('Parameter function overwrites cannot have smooth onsets (because the value at the onset time is not yet known)')
+
                 if 'smooth_onset' not in overwrite:
+                    # Note parameter functions still get smooth onset set here - this ensures
+                    # correct non-smooth-onset behaviour _during_ the overwrite
                     overwrite['smooth_onset'] = 1e-5
 
                 if np.isscalar(overwrite['smooth_onset']):
@@ -315,7 +321,7 @@ class ParameterScenario(Scenario):
                 # Add an extra point to return the parset back to it's original value after the final overwrite
                 par.ts[pop_label].insert(max(overwrite['t']) + 1e-5, original_y_end)
 
-                if project.framework.pars.at[par.name, 'function']:
+                if has_function:
                     par.skip_function[pop_label] = (min(overwrite['t']), max(overwrite['t']))
 
         return new_parset
