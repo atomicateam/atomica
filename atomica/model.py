@@ -1198,7 +1198,7 @@ class Model(object):
             if cascade_par.name in self._vars_by_pop: # The parameter could be missing if it is defined in a population type that is not present in the simulation
                 pars = self._vars_by_pop[cascade_par.name]
                 for par in pars:
-                    par.scale_vactor = cascade_par.meta_y_factor # Set meta scale factor regardless of whether a population-specific y-factor is also provided
+                    par.scale_factor = cascade_par.meta_y_factor # Set meta scale factor regardless of whether a population-specific y-factor is also provided
                     if par.pop.name in cascade_par.y_factor:
                         par.scale_factor *= cascade_par.y_factor[par.pop.name] # Add in population-specific scale factor
                     if cascade_par.has_values(par.pop.name): # If the databook contains values, then insert them now
