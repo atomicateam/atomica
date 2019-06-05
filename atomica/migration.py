@@ -529,5 +529,14 @@ def add_derivatives(proj):
 @migration('1.4.3', '1.5.0', 'Parameters with functions can be overwritten')
 def add_parset_disable_function(proj):
 
+    # Add skip_function flag to parset Parameter instances
+    for parset in proj.parsets.values():
+        for par in parset.all_pars():
+            par.skip_function = sc.odict.fromkeys(par.ts, None)
+
+    for result in all_results(proj):
+        for pop in result.model.pops:
+            for par in pop.pars:
+                par.skip_function = None
     return proj
 
