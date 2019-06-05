@@ -264,9 +264,6 @@ class ParameterScenario(Scenario):
                 overwrite['t'] = overwrite['t'][idx]
                 overwrite['y'] = overwrite['y'][idx]
 
-                if not par.has_values(pop_label):
-                    raise Exception("You cannot specify overwrites for a parameter with a function, instead you should overwrite its dependencies")
-
                 original_y_end = par.interpolate(np.array([max(overwrite['t']) + 1e-5]), pop_label)
 
                 # If the Parameter had an assumption, then insert the assumption value in the start year
@@ -317,6 +314,9 @@ class ParameterScenario(Scenario):
 
                 # Add an extra point to return the parset back to it's original value after the final overwrite
                 par.ts[pop_label].insert(max(overwrite['t']) + 1e-5, original_y_end)
+
+                if project.framework.pars.at[par.name, 'function']:
+                    par.skip_function[pop_label] = (min(overwrite['t']), max(overwrite['t']))
 
         return new_parset
 

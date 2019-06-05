@@ -544,7 +544,7 @@ class Parameter(Variable):
                     return
             else:
                 # Dealing with a scalar ti
-                if self.t[ti] >= self.skip_function[0] | self.t[ti] <= self.skip_function[1]:
+                if (self.t[ti] >= self.skip_function[0]) and (self.t[ti] <= self.skip_function[1]):
                     return
 
         dep_vals = dict.fromkeys(self.deps, 0.0)
