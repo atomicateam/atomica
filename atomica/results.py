@@ -300,17 +300,30 @@ class Result(NamedItem):
         # Assemble the outputs into a dict
         d = dict()
 
+        def gl(name):
+            # Local helper to get name and gracefully deal with transfer parameters that don't appear in the framework
+            try:
+                return self.framework.get_label(name)
+            except NotFoundError:
+                return '-'
+
         for pop in self.model.pops:
             for comp in pop.comps:
-                d[('Compartments', pop.name, comp.name)] = comp.vals
+                d[('Compartments', pop.name, comp.name,gl(comp.name))] = comp.vals
             for charac in pop.characs:
-                d[('Characteristics', pop.name, charac.name)] = charac.vals
+                d[('Characteristics', pop.name, charac.name, gl(charac.name))] = charac.vals
             for par in pop.pars:
                 if par.vals is not None:
-                    d[('Parameters', pop.name, par.name)] = par.vals
+                    d[('Parameters', pop.name, par.name, gl(par.name))] = par.vals
             for link in pop.links:
                 # Sum over duplicate links and annualize flow rate
-                key = ('Flow rates', pop.name, link.name)
+                par_label = gl(link.parameter.name)
+                if par_label == '-':
+                    link_label = par_label
+                else:
+                    link_label = '%s (flow)' % (par_label)
+
+                key = ('Flow rates', pop.name, link.name,  link_label)
                 if key not in d:
                     d[key] = np.zeros(self.t.shape)
                 d[key] += link.vals / self.dt
