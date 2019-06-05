@@ -6,6 +6,9 @@ import atomica as at
 import os
 import pytest
 import numpy as np
+import sciris as sc
+
+tmpdir = at.atomica_path(['tests', 'temp'])
 
 # List available models based on which framework files exist
 models = list()
@@ -127,6 +130,22 @@ def run_optimization(proj):
 
     return
 
+def run_export(result,model):
+    """
+    Test exporting a results
+
+    :param result:
+    :param model:
+    :return:
+    """
+
+    at.export_results(result,tmpdir+model+'_single_export_test') # Export single
+    result.export_raw(tmpdir+model+'_raw_export_test')
+    r2 = sc.dcp(result)
+    r2.name = 'Copied'
+    at.export_results([result, r2],tmpdir+model+'_multiple_export_test') # Export single
+
+
 # Testing optimizations and calibrations could be expensive
 # Using the parametrize decorator means Pytest will treat
 # each function call as a separate test, which can be run in parallel
@@ -164,7 +183,9 @@ def test_model(model):
 
     # Test loading the progbook and doing a basic run
     P.load_progbook(progbook_file)
-    P.run_sim(P.parsets[0],P.progsets[0],at.ProgramInstructions(start_year=2018))
+    res = P.run_sim(P.parsets[0],P.progsets[0],at.ProgramInstructions(start_year=2018))
+
+    run_export(res,model)
 
     # Test a reconciliation
     run_reconciliation(P)
