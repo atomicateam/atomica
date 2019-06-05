@@ -2,6 +2,7 @@
 pytest
 pytest-xdist
 pytest-env
+pytest-cov
 nbsmoke
 git+https://github.com/sciris/mpld3
 nbsphinx
