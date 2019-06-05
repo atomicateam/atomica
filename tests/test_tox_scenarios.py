@@ -225,6 +225,12 @@ def test_overwrite_function_scenario():
     scen_results = scen.run(proj, proj.parsets["default"])
     scen_results.get_variable('foi')[0].plot()
 
+    var1 = baseline.get_variable(scen_par1,scen_pop)[0]
+    var2 = scen_results.get_variable(scen_par1,scen_pop)[0]
+
+    assert np.allclose(var1.vals[var1.t == 2010][0], var2.vals[var2.t == 2010][0], equal_nan=True)  # Default tolerances are rtol=1e-05, atol=1e-08
+    assert np.allclose(var2.vals[var2.t == 2015][0], 0.1, equal_nan=True)  # Default tolerances are rtol=1e-05, atol=1e-08
+    assert np.allclose(var2.vals[var2.t == 2018][0], 0.15, equal_nan=True)  # Default tolerances are rtol=1e-05, atol=1e-08
 
 if __name__ == '__main__':
     # test_program_scenarios()

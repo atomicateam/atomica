@@ -284,7 +284,7 @@ class ParameterScenario(Scenario):
                     raise Exception('Number of time points in overwrite does not match number of values')
 
                 if len(overwrite['t']) == 1:
-                    logger.warning('Only one time point was specified in the overwrite, which means that the overwrite will not have any effect')
+                    raise Exception('Only one time point was specified in the overwrite, which means that the overwrite will not have any effect')
 
                 for i in range(0, len(overwrite['t'])):
 
