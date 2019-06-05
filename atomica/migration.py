@@ -526,3 +526,8 @@ def add_derivatives(proj):
                 par.derivative = False
     return proj
 
+@migration('1.4.3', '1.5.0', 'Parameters with functions can be overwritten')
+def add_parset_disable_function(proj):
+
+    return proj
+
