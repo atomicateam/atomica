@@ -112,7 +112,7 @@ class Scenario(NamedItem):
             parset = project.parset(parset)
 
         if progset is None and self.progsetname is not None:
-            progset = project.progsets[self.parsetname]
+            progset = project.progsets[self.progsetname]
         elif progset is not None:
             progset = project.progset(progset)
 
