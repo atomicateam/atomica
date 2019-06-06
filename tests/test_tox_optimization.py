@@ -365,39 +365,39 @@ def test_parametric_paired():
 # spend only ~$50 on Treatment 2. So to do this optimization, we start by spending $100 on both
 # Treatment 1 and Treatment 2 and demonstrate that money optimization where we minimize total
 # spend subject to the constraint of the total people alive being at least 728.01
-def test_minmoney():
-
-    P = at.demo(which=test,do_plot=0,do_run=False)
-    P.update_settings(sim_end=2030.0)
-
-    alloc = sc.odict([('Risk avoidance',0.),
-                     ('Harm reduction 1',0.),
-                     ('Harm reduction 2',0.),
-                     ('Treatment 1',50.),
-                     ('Treatment 2', 60.)])
-
-    instructions = at.ProgramInstructions(alloc=alloc,start_year=2020) # Instructions for default spending
-
-    adjustments = []
-    adjustments.append(at.SpendingAdjustment('Treatment 1', 2020, 'abs', 0., 100.)) # We can adjust Treatment 1
-    adjustments.append(at.SpendingAdjustment('Treatment 2', 2020, 'abs', 0., 100.)) # We can adjust Treatment 2
-
-    measurables = []
-    measurables.append(at.AtLeastMeasurable('ch_all',2030,723.89)) # Need at least 728.01 people in 2030
-    measurables.append(at.MinimizeMeasurable('Treatment 1',2020)) # Minimize 2020 spending on Treatment 1
-    measurables.append(at.MinimizeMeasurable('Treatment 2',2020)) # Minimize 2020 spending on Treatment 2
-
-    constraints = None  # No extra constraints aside from individual bounds
-
-    optimization = at.Optimization(name='default', adjustments=adjustments, measurables=measurables,constraints=constraints,method='hyperopt') # Evaluate from 2020 to end of simulation
-
-    (unoptimized_result,optimized_result) = run_optimization(P, optimization, instructions)
-
-    for adjustable in adjustments:
-        print("%s - before=%.2f, after=%.2f" % (adjustable.name,unoptimized_result.model.program_instructions.alloc[adjustable.name].get(2020),optimized_result.model.program_instructions.alloc[adjustable.name].get(2020))) # TODO - add time to alloc
-
-    d = at.PlotData([unoptimized_result, optimized_result], outputs=['ch_all'],project=P)
-    at.plot_series(d, axis="results")
+# def test_minmoney():
+#
+#     P = at.demo(which=test,do_plot=0,do_run=False)
+#     P.update_settings(sim_end=2030.0)
+#
+#     alloc = sc.odict([('Risk avoidance',0.),
+#                      ('Harm reduction 1',0.),
+#                      ('Harm reduction 2',0.),
+#                      ('Treatment 1',50.),
+#                      ('Treatment 2', 60.)])
+#
+#     instructions = at.ProgramInstructions(alloc=alloc,start_year=2020) # Instructions for default spending
+#
+#     adjustments = []
+#     adjustments.append(at.SpendingAdjustment('Treatment 1', 2020, 'abs', 0., 100.)) # We can adjust Treatment 1
+#     adjustments.append(at.SpendingAdjustment('Treatment 2', 2020, 'abs', 0., 100.)) # We can adjust Treatment 2
+#
+#     measurables = []
+#     measurables.append(at.AtLeastMeasurable('ch_all',2030,723.89)) # Need at least 728.01 people in 2030
+#     measurables.append(at.MinimizeMeasurable('Treatment 1',2020)) # Minimize 2020 spending on Treatment 1
+#     measurables.append(at.MinimizeMeasurable('Treatment 2',2020)) # Minimize 2020 spending on Treatment 2
+#
+#     constraints = None  # No extra constraints aside from individual bounds
+#
+#     optimization = at.Optimization(name='default', adjustments=adjustments, measurables=measurables,constraints=constraints,method='hyperopt') # Evaluate from 2020 to end of simulation
+#
+#     (unoptimized_result,optimized_result) = run_optimization(P, optimization, instructions)
+#
+#     for adjustable in adjustments:
+#         print("%s - before=%.2f, after=%.2f" % (adjustable.name,unoptimized_result.model.program_instructions.alloc[adjustable.name].get(2020),optimized_result.model.program_instructions.alloc[adjustable.name].get(2020))) # TODO - add time to alloc
+#
+#     d = at.PlotData([unoptimized_result, optimized_result], outputs=['ch_all'],project=P)
+#     at.plot_series(d, axis="results")
 
 
 def test_cascade_final_stage():
