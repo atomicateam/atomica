@@ -368,6 +368,7 @@ class Parameter(Variable):
         self._precompute = False #: If True, the parameter function will be computed in a vector operation prior to integration
         self._is_dynamic = False #: If True, this parameter will be updated during integration. Note that `precompute` and `dynamic` are mutually exclusive
         self.derivative = False #: If True, the parameter function will be treated as a derivative and the value added on to the end
+        self.skip_function = None #: Can optionally be set to a (start,stop) tuple of times. Between these times, the parameter will not be updated so the parset value will be left unchanged
 
         #: For transition parameters, the ``vals`` stored by the parameter is effectively a rate. The ``timescale``
         #: attribute informs the time period corresponding to the units in which the rate has been provided.
@@ -528,11 +529,23 @@ class Parameter(Variable):
 
         if ti is None:
             if self.derivative:
-                raise Exception('Cannot perform a vector update of a derivate parameter')
+                raise Exception('Cannot perform a vector update of a derivative parameter (these parameters intrinsically require integration to be computed)')
             ti = np.arange(0, self.vals.size)  # This corresponds to every time point
 
         if self.derivative and ti == 0:
             return
+
+        if self.skip_function:
+            # If we don't want to overwrite the parameter in certain years, those years need to be excluded
+            if hasattr(ti, '__len__'):
+                # Filter out years outside the excluded range
+                ti = ti[np.where((self.t[ti] < self.skip_function[0]) | (self.t[ti] > self.skip_function[1]))]
+                if ti.size == 0: # If all times were removed
+                    return
+            else:
+                # Dealing with a scalar ti
+                if (self.t[ti] >= self.skip_function[0]) and (self.t[ti] <= self.skip_function[1]):
+                    return
 
         dep_vals = dict.fromkeys(self.deps, 0.0)
         for dep_name, deps in self.deps.items():
@@ -1193,20 +1206,28 @@ class Model(object):
                         var.set_dynamic(progset=self.progset)
 
         # Insert parameter initial values and do any required precomputation
-        for par_name in self.framework.pars.index:
+        for par_name in self.framework.pars.index: # Iterate only over framework pars (parset.pars also includes characteristics)
             cascade_par = parset.pars[par_name]
             if cascade_par.name in self._vars_by_pop: # The parameter could be missing if it is defined in a population type that is not present in the simulation
                 pars = self._vars_by_pop[cascade_par.name]
                 for par in pars:
-                    par.scale_vactor = cascade_par.meta_y_factor # Set meta scale factor regardless of whether a population-specific y-factor is also provided
+                    par.scale_factor = cascade_par.meta_y_factor # Set meta scale factor regardless of whether a population-specific y-factor is also provided
+
                     if par.pop.name in cascade_par.y_factor:
                         par.scale_factor *= cascade_par.y_factor[par.pop.name] # Add in population-specific scale factor
+
+                    if par.pop.name in cascade_par.skip_function:
+                        par.skip_function = cascade_par.skip_function[par.pop.name] # Copy in any skipped evaluations
+                        if par.skip_function:
+                            assert cascade_par.has_values(par.pop.name), 'Parameter function was marked as being skipped for some of the simulation, but the ParameterSet has no values to use instead. If skipping, the ParameterSet must contain some values'
+
                     if cascade_par.has_values(par.pop.name): # If the databook contains values, then insert them now
                         par.vals = cascade_par.interpolate(tvec=self.t, pop_name=par.pop.name) * par.scale_factor
-                        par.constrain()  # Sampling might result in the parameter value going out of bounds (or user might have entered bad values in the databook) so ensure they are clipped here
+
                     if par.fcn_str and par._precompute: # If the parameter is marked for precomputation, then insert it now
                         par.update()
-                        par.constrain()
+
+                    par.constrain()  # Sampling might result in the parameter value going out of bounds (or user might have entered bad values in the databook) so ensure they are clipped here
 
     def process(self):
         """ Run the full model. """
