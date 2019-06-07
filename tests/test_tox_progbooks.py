@@ -55,6 +55,9 @@ def test_progbooks():
         covout.cov_interaction = 'additive'
     P.run_sim(parset='default',progset='default',progset_instructions=instructions)
 
+    # Test that reloading the a databook works (checking consistency with progbook populations)
+    P.load_databook(at.LIBRARY_PATH+'tb_databook.xlsx')
+
     # THIS DOES VERSIONING
     # which = ['tb','tb_simple','tb_simple_dyn','malaria' ,'hypertension','hypertension_dyn','hiv','hiv_dyn','diabetes','cervicalcancer','udt','udt_dyn','usdt','sir']
     # for a in which:

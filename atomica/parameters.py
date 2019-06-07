@@ -28,7 +28,7 @@ class Parameter(NamedItem):
         self.ts = ts #: Population-specific data is stored in TimeSeries within this dict, keyed by population name
         self.y_factor = sc.odict.fromkeys(self.ts,1.0) #: Calibration scale factors for the parameter in each population
         self.meta_y_factor = 1.0 #: Calibration scale factor for all populations
-
+        self.skip_function = sc.odict.fromkeys(self.ts,None) #: This can be a range of years [start,stop] between which the parameter function will not be evaluated
 
     @property
     def pops(self):
@@ -129,7 +129,7 @@ class ParameterSet(NamedItem):
         for name, tdve in data.tdve.items():
             for pop_name, ts in tdve.ts.items(): # The TDVE has already been validated to contain any required populations (although it might also contain extra ones)
                 units = framework.get_databook_units(name)
-                if units != ts.units:
+                if units.strip().lower() != ts.units.strip().lower():
                     raise Exception('The units entered in the databook do not match the units entered in the framework')
             self.pars[name] = Parameter(name,sc.dcp(tdve.ts))
 

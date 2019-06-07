@@ -8,7 +8,7 @@ effectively serves as a mapping from one set of program instructions to another.
 """
 
 import sciris as sc
-from .system import logger
+from .system import logger, NotFoundError
 from .utils import NamedItem
 import numpy as np
 from .model import Model, Link
@@ -235,14 +235,33 @@ class Measurable(object):
             val = np.sum(alloc[self.measurable_name][t_filter])
         else:  # If the measurable is a model output...
             val = 0.0
+            matched = False # Flag whether any variables were found
             for pop in model.pops:
-                if not self.pop_names or pop in self.pop_names:
-                    vars = pop.get_variable(self.measurable_name)
-                    for var in vars:
-                        if isinstance(var, Link):
-                            val += np.sum(var.vals[t_filter] / var.dt)  # Annualize link values - usually this won't make a difference, but it matters if the user mixes Links with something else in the objective
-                        else:
-                            val += np.sum(var.vals[t_filter])
+                if not self.pop_names:
+                    # If no pops were provided, then iterate over all pops but skip those where the measureable is not defined
+                    # Use this approach rather than checking the pop type in the framework because user could be optimizating
+                    # flow rates or transitions that don't appear in the framework
+                    try:
+                        vars = pop.get_variable(self.measurable_name)
+                        matched = True
+                    except NotFoundError:
+                        continue
+                elif pop not in self.pop_names:
+                    continue
+                else:
+                    vars = pop.get_variable(self.measurable_name) # If variable is missing and the pop was explicitly defined, raise the error
+                    matched = True
+
+                for var in vars:
+                    if isinstance(var, Link):
+                        val += np.sum(var.vals[t_filter] / var.dt)  # Annualize link values - usually this won't make a difference, but it matters if the user mixes Links with something else in the objective
+                    else:
+                        val += np.sum(var.vals[t_filter])
+
+            if not matched:
+                # Raise an error if the measureable was not found in any populations
+                raise Exception('"%s" not found in any populations' % (self.measurable_name))
+
         return val
 
     def _transform_val(self, val):
@@ -599,7 +618,7 @@ class OptimInstructions(NamedItem):
         adjustments = []
         default_spend = progset.get_alloc(tvec=adjustment_year, instructions=progset_instructions)  # Record the default spend for scale-up in money minimization
         for prog_name in progset.programs:
-            limits = sc.dcp(prog_spending[prog_name])
+            limits = list(sc.dcp(prog_spending[prog_name]))
             if limits[0] is None:
                 limits[0] = 0.0
             if limits[1] is None and optim_type == 'money':
