@@ -269,12 +269,13 @@ def test_overwrite_function_scenario():
     assert np.allclose(var1.vals[var1.t == 2010][0], var2.vals[var2.t == 2010][0], equal_nan=True)
     assert np.allclose(var2.vals[var2.t == 2015][0], 0.1, equal_nan=True)
     assert np.allclose(var2.vals[var2.t == 2018][0], 0.15, equal_nan=True)
+    assert np.allclose(var2.vals[var2.t == 2019][0], 0.15, equal_nan=True) # Check that the function didn't turn back on
 
 
     
 if __name__ == '__main__':
     # test_program_scenarios()
     # test_timevarying_progscen()
-    test_parameter_scenarios()
+    # test_parameter_scenarios()
     # test_combined_scenario()
-    # test_overwrite_function_scenario()
+    test_overwrite_function_scenario()
