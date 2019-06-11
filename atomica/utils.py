@@ -599,16 +599,11 @@ def interpolate(x: np.array, y: np.array, x2: np.array, extrapolate=True) -> np.
     elif x.size == 1:
         return np.full(x2.shape, y[0])
     else:
-        f = scipy.interpolate.PchipInterpolator(x, y, axis=0, extrapolate=False)
         if extrapolate:
-            y2 = np.zeros(x2.shape)
-            y2[(x2 >= x[0]) & (x2 <= x[-1])] = f(x2[(x2 >= x[0]) & (x2 <= x[-1])])
-            y2[x2 < x[0]] = y[0]
-            y2[x2 > x[-1]] = y[-1]
+            f = scipy.interpolate.interp1d(x, y, kind='linear',copy=False, assume_sorted=True,bounds_error=False,fill_value=(y[0],y[-1]))
         else:
-            y2 = f(x2)  # PchipInterpolator will return NaNs outside the domain
-        return y2
-
+            f = scipy.interpolate.interp1d(x, y, kind='linear',copy=False, assume_sorted=True,bounds_error=False,fill_value=np.nan)
+        return f(x2)
 
 def floor_interpolator(x, y):
     """
