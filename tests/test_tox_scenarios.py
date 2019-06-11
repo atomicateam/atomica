@@ -206,6 +206,28 @@ def test_parameter_scenarios():
     assert np.allclose(var2.vals[var2.t == 2015][0], 0.008, equal_nan=True)  # Default tolerances are rtol=1e-05, atol=1e-08
     assert np.allclose(var2.vals[var2.t == 2020][0], 0.005, equal_nan=True)  # Default tolerances are rtol=1e-05, atol=1e-08
 
+    # Check that scenarios don't end by default
+    scen_par1 = "contacts"
+    scen_pop = "adults"
+    scvalues[scen_par1] = dict()
+    scvalues[scen_par1][scen_pop] = dict()
+    scvalues[scen_par1][scen_pop]["y"] = [80., 40]
+    scvalues[scen_par1][scen_pop]["t"] = [2010., 2020.]
+    scen = proj.make_scenario(which='parameter', scenario_values=scvalues)
+    scen_results = scen.run(proj, proj.parsets["default"])
+    var = scen_results.get_variable(scen_par1,scen_pop)[0]
+    assert np.allclose(var.vals[var.t==2020][0], 40, equal_nan=True)  # Default tolerances are rtol=1e-05, atol=1e-08
+    assert np.allclose(var.vals[var.t==2021][0], 40, equal_nan=True)  # Default tolerances are rtol=1e-05, atol=1e-08
+
+    # Check that scenarios can be ended with the flag
+    scvalues[scen_par1][scen_pop]["end_overwrite"] = True
+    scen = proj.make_scenario(which='parameter', scenario_values=scvalues)
+    scen_results = scen.run(proj, proj.parsets["default"])
+    var = scen_results.get_variable(scen_par1,scen_pop)[0]
+    assert np.allclose(var.vals[var.t == 2020][0], 40, equal_nan=True)  # Default tolerances are rtol=1e-05, atol=1e-08
+    assert np.allclose(var.vals[var.t == 2021][0], 80, equal_nan=True)  # Default tolerances are rtol=1e-05, atol=1e-08
+
+
 def test_overwrite_function_scenario():
     proj = at.demo('sir',do_run=False)
     proj.settings.update_time_vector(start=2000,end=2023)
