@@ -491,7 +491,7 @@ class PlotData:
             else:
                 scale = 1.0
 
-            f = scipy.interpolate.PchipInterpolator(s.tvec/scale, s.vals, axis=0, extrapolate=False)
+            f = scipy.interpolate.interp1d(s.tvec/scale, s.vals, axis=0, kind='linear',copy=False, assume_sorted=True,bounds_error=False,fill_value=np.nan)
             vals = np.array([scipy.integrate.quadrature(f, l, u,maxiter=5*s.vals.size)[0] for l, u in zip(lower/scale, upper/scale)])
 
             if method == 'integrate':
@@ -1006,7 +1006,7 @@ class Series:
 
         """
 
-        f = scipy.interpolate.PchipInterpolator(self.tvec, self.vals, axis=0, extrapolate=False)
+        f = scipy.interpolate.interp1d(self.tvec, self.vals, axis=0, kind='linear', copy=False, assume_sorted=True, bounds_error=False, fill_value=np.nan)
         out_of_bounds = (new_tvec < self.tvec[0]) | (new_tvec > self.tvec[-1])
         if np.any(out_of_bounds):
             logger.warning('Series has values from %.2f to %.2f so requested time points %s are out of bounds', self.tvec[0], self.tvec[-1], new_tvec[out_of_bounds])

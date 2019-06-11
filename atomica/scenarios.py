@@ -201,6 +201,7 @@ class ParameterScenario(Scenario):
              - ``t`` : np.array or list with year values
              - ``y`` : np.array or list with corresponding parameter values
              - ``smooth_onset`` (optional): Smoothly ramp parameter value rather than having a stepped change
+             - ``end_overwrite`` (optional): If True, then after the last overwrite year, the parameter will revert to the original parset values. Default is False (so the scenario never ends)
         :param active: If running via ``Project.run_scenarios`` this flags whether to run the scenario
         :param parsetname: If running via ``Project.run_scenarios`` this identifies which parset to use from the project
 
@@ -265,7 +266,11 @@ class ParameterScenario(Scenario):
                 overwrite['t'] = overwrite['t'][idx]
                 overwrite['y'] = overwrite['y'][idx]
 
-                original_y_end = par.interpolate(np.array([max(overwrite['t']) + 1e-5]), pop_label)
+                if 'end_overwrite' not in overwrite:
+                    overwrite['end_overwrite'] = False # By default, don't end the scenario
+
+                if overwrite['end_overwrite']:
+                    original_y_end = par.interpolate(np.array([max(overwrite['t']) + 1e-5]), pop_label)
 
                 # If the Parameter had an assumption, then insert the assumption value in the start year
                 if not par.ts[pop_label].has_time_data:
@@ -289,8 +294,8 @@ class ParameterScenario(Scenario):
                 if len(overwrite['t']) != len(overwrite['y']):
                     raise Exception('Number of time points in overwrite does not match number of values')
 
-                if len(overwrite['t']) == 1:
-                    raise Exception('Only one time point was specified in the overwrite, which means that the overwrite will not have any effect')
+                if len(overwrite['t']) == 1 and overwrite['end_overwrite']:
+                    raise Exception('Only one time point was specified in the overwrite and end overwrite is set to true, which means that the overwrite will not have any effect')
 
                 for i in range(0, len(overwrite['t'])):
 
@@ -318,11 +323,15 @@ class ParameterScenario(Scenario):
                     # Insert the overwrite value - assume scenario value is AFTER y-factor rescaling
                     par.ts[pop_label].insert(overwrite['t'][i], overwrite['y'][i] / par.y_factor[pop_label] / par.meta_y_factor)
 
-                # Add an extra point to return the parset back to it's original value after the final overwrite
-                par.ts[pop_label].insert(max(overwrite['t']) + 1e-5, original_y_end)
-
-                if has_function:
-                    par.skip_function[pop_label] = (min(overwrite['t']), max(overwrite['t']))
+                # Add an extra point to return the parset back to its original value after the final overwrite
+                if overwrite['end_overwrite']:
+                    par.ts[pop_label].insert(max(overwrite['t']) + 1e-5, original_y_end)
+                    if has_function:
+                        par.skip_function[pop_label] = (min(overwrite['t']), max(overwrite['t']))
+                else:
+                    par.ts[pop_label].remove_after(max(overwrite['t']))
+                    if has_function:
+                        par.skip_function[pop_label] = (min(overwrite['t']), np.inf)
 
         return new_parset
 
