@@ -201,6 +201,7 @@ class ParameterScenario(Scenario):
              - ``t`` : np.array or list with year values
              - ``y`` : np.array or list with corresponding parameter values
              - ``smooth_onset`` (optional): Smoothly ramp parameter value rather than having a stepped change
+             - ``end_overwrite`` (optional): If True, then after the last overwrite year, the parameter will revert to the original parset values. Default is False (so the scenario never ends)
         :param active: If running via ``Project.run_scenarios`` this flags whether to run the scenario
         :param parsetname: If running via ``Project.run_scenarios`` this identifies which parset to use from the project
 
@@ -265,7 +266,11 @@ class ParameterScenario(Scenario):
                 overwrite['t'] = overwrite['t'][idx]
                 overwrite['y'] = overwrite['y'][idx]
 
-                original_y_end = par.interpolate(np.array([max(overwrite['t']) + 1e-5]), pop_label)
+                if 'end_overwrite' not in overwrite:
+                    overwrite['end_overwrite'] = False # By default, don't end the scenario
+
+                if overwrite['end_overwrite']:
+                    original_y_end = par.interpolate(np.array([max(overwrite['t']) + 1e-5]), pop_label)
 
                 # If the Parameter had an assumption, then insert the assumption value in the start year
                 if not par.ts[pop_label].has_time_data:
@@ -319,7 +324,8 @@ class ParameterScenario(Scenario):
                     par.ts[pop_label].insert(overwrite['t'][i], overwrite['y'][i] / par.y_factor[pop_label] / par.meta_y_factor)
 
                 # Add an extra point to return the parset back to it's original value after the final overwrite
-                par.ts[pop_label].insert(max(overwrite['t']) + 1e-5, original_y_end)
+                if overwrite['end_overwrite']:
+                    par.ts[pop_label].insert(max(overwrite['t']) + 1e-5, original_y_end)
 
                 if has_function:
                     par.skip_function[pop_label] = (min(overwrite['t']), max(overwrite['t']))

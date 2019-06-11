@@ -232,6 +232,36 @@ def test_overwrite_function_scenario():
     assert np.allclose(var2.vals[var2.t == 2015][0], 0.1, equal_nan=True)  # Default tolerances are rtol=1e-05, atol=1e-08
     assert np.allclose(var2.vals[var2.t == 2018][0], 0.15, equal_nan=True)  # Default tolerances are rtol=1e-05, atol=1e-08
 
+def test_parset_inf_time():
+    """
+    Check time values of `np.inf` work correctly
+    
+    The intended behaviour is that if `np.inf` is provided then the 
+    parameter scenario should never end
+    
+    :return: 
+    """
+
+    proj = at.demo('sir', do_run=False)
+    proj.settings.update_time_vector(start=2000, end=2023)
+
+    # Check that it runs with an empty scvalues
+    scvalues = dict()
+
+    # Check that it runs with a single overwrite
+    scen_par1 = "contacts"
+    scen_pop = "adults"
+    scvalues[scen_par1] = dict()
+    scvalues[scen_par1][scen_pop] = dict()
+    scvalues[scen_par1][scen_pop]["y"] = [80., 40, 40]
+    scvalues[scen_par1][scen_pop]["t"] = [2010., 2020., np.inf]
+    scen = proj.make_scenario(which='parameter', scenario_values=scvalues)
+    ps = scen.get_parset(parset=proj.parsets[0], project=proj)
+    
+    # The correct behaviour is that the parameter scenario 
+    
+    
+    
 if __name__ == '__main__':
     # test_program_scenarios()
     # test_timevarying_progscen()
