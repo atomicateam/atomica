@@ -326,6 +326,8 @@ class ParameterScenario(Scenario):
                 # Add an extra point to return the parset back to it's original value after the final overwrite
                 if overwrite['end_overwrite']:
                     par.ts[pop_label].insert(max(overwrite['t']) + 1e-5, original_y_end)
+                else:
+                    par.ts[pop_label].remove_after(max(overwrite['t']))
 
                 if has_function:
                     par.skip_function[pop_label] = (min(overwrite['t']), max(overwrite['t']))
