@@ -294,8 +294,8 @@ class ParameterScenario(Scenario):
                 if len(overwrite['t']) != len(overwrite['y']):
                     raise Exception('Number of time points in overwrite does not match number of values')
 
-                if len(overwrite['t']) == 1:
-                    raise Exception('Only one time point was specified in the overwrite, which means that the overwrite will not have any effect')
+                if len(overwrite['t']) == 1 and overwrite['end_overwrite']:
+                    raise Exception('Only one time point was specified in the overwrite and end overwrite is set to true, which means that the overwrite will not have any effect')
 
                 for i in range(0, len(overwrite['t'])):
 
@@ -323,7 +323,7 @@ class ParameterScenario(Scenario):
                     # Insert the overwrite value - assume scenario value is AFTER y-factor rescaling
                     par.ts[pop_label].insert(overwrite['t'][i], overwrite['y'][i] / par.y_factor[pop_label] / par.meta_y_factor)
 
-                # Add an extra point to return the parset back to it's original value after the final overwrite
+                # Add an extra point to return the parset back to its original value after the final overwrite
                 if overwrite['end_overwrite']:
                     par.ts[pop_label].insert(max(overwrite['t']) + 1e-5, original_y_end)
                 else:
