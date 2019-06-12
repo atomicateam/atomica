@@ -719,6 +719,7 @@ class Project(NamedItem):
         json['parset_name'] = -1
         json['progset_name'] = -1
         json['start_year'] = self.data.end_year
+        json['adjustment_year'] = self.data.end_year
         json['end_year'] = self.settings.sim_end
         json['budget_factor'] = 1.0
         json['optim_type'] = optim_type

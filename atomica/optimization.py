@@ -594,8 +594,6 @@ class OptimInstructions(NamedItem):
         name = self.json['name']
         parset_name = self.json['parset_name']  # WARNING, shouldn't be unused
         progset_name = self.json['progset_name']
-        adjustment_year = self.json['start_year']  # The year when adjustments get made
-        end_year = self.json['end_year']  # For cascades, this is the evaluation year. For other measurables, it is optimized from the adjustment year to the end year
         budget_factor = self.json['budget_factor']
         objective_weights = self.json['objective_weights']
         prog_spending = self.json['prog_spending']
@@ -603,7 +601,10 @@ class OptimInstructions(NamedItem):
         optim_type = self.json['optim_type']
         tool = self.json['tool']
         method = self.json.get('method', None)
-        start_year = project.data.end_year  # The year when programs turn on
+
+        start_year = self.json['start_year']  # The year when programs turn on
+        adjustment_year = self.json['adjustment_year']  # The year when adjustments get made
+        end_year = self.json['end_year']  # For cascades, this is the evaluation year. For other measurables, it is optimized from the adjustment year to the end year
 
         if tool == 'cascade' and optim_type == 'money':
             raise NotImplementedError('Money minimization not yet implemented for Cascades tool')
