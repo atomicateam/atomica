@@ -540,3 +540,11 @@ def add_parset_disable_function(proj):
                 par.skip_function = None
     return proj
 
+@migration('1.5.1', '1.5.2', 'OptimInstruction has separate adjustment and start years')
+def add_parset_disable_function(proj):
+    if hasattr(proj,'optims'):
+        for optim in proj.optims.values():
+            if 'adjustment_year' not in optim.json:
+                optim.json['adjustment_year'] = optim.json['start_year']
+    return proj
+
