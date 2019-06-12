@@ -569,16 +569,13 @@ def format_duration(t: float, pluralize=False) -> str:
     else:
         return '%s %ss' % (sc.sigfig(converted_t, keepints=True, sigfigs=3), timescale)
 
-
 def interpolate(x: np.array, y: np.array, x2: np.array, extrapolate=True) -> np.array:
     """
     pchip interpolation with constant extrapolation
-
     Atomica's standard interpolation routine is based on the pchip method. However, when
     extrapolation is desired (such as when interpolating parameters), it is most useful to
     assume the derivative is zero outside the original range of the function, rather than
     the default pchip behaviour of extrapolating with constant gradient.
-
     :param x: Original x values
     :param y: Original function values
     :param x2: New desired x values
@@ -586,7 +583,6 @@ def interpolate(x: np.array, y: np.array, x2: np.array, extrapolate=True) -> np.
                         the function value will be NaN. Note that in general, model outputs
                         should not be extrapolated
     :return: Array the same size as ``x2`` with interpolated values
-
     """
 
     # Remove NaNs - note that advanced indexing means that the variable is copied
@@ -599,11 +595,33 @@ def interpolate(x: np.array, y: np.array, x2: np.array, extrapolate=True) -> np.
     elif x.size == 1:
         return np.full(x2.shape, y[0])
     else:
+        f = scipy.interpolate.PchipInterpolator(x, y, axis=0, extrapolate=False)
         if extrapolate:
-            f = scipy.interpolate.interp1d(x, y, kind='linear',copy=False, assume_sorted=True,bounds_error=False,fill_value=(y[0],y[-1]))
+            y2 = np.zeros(x2.shape)
+            y2[(x2 >= x[0]) & (x2 <= x[-1])] = f(x2[(x2 >= x[0]) & (x2 <= x[-1])])
+            y2[x2 < x[0]] = y[0]
+            y2[x2 > x[-1]] = y[-1]
         else:
-            f = scipy.interpolate.interp1d(x, y, kind='linear',copy=False, assume_sorted=True,bounds_error=False,fill_value=np.nan)
-        return f(x2)
+            y2 = f(x2)  # PchipInterpolator will return NaNs outside the domain
+        return y2
+
+    # TODO - Implementation below uses linear interpolation
+    # idx = ~np.isnan(x) & ~np.isnan(y)
+    # x = x[idx]
+    # y = y[idx]
+    #
+    # if x.size == 0:
+    #     raise Exception('No time points remained after removing NaNs from the TimeSeries')
+    # elif x.size == 1:
+    #     return np.full(x2.shape, y[0])
+    # else:
+    #     if extrapolate:
+    #         f = scipy.interpolate.interp1d(x, y, kind='linear',copy=False, assume_sorted=True,bounds_error=False,fill_value=(y[0],y[-1]))
+    #     else:
+    #         f = scipy.interpolate.interp1d(x, y, kind='linear',copy=False, assume_sorted=True,bounds_error=False,fill_value=np.nan)
+    #     return f(x2)
+
+
 
 def floor_interpolator(x, y):
     """
