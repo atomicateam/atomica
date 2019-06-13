@@ -624,7 +624,7 @@ class OptimInstructions(NamedItem):
                 limits[0] = 0.0
             if limits[1] is None and optim_type == 'money':
                 # Money minimization requires an absolute upper bound. Limit it to 5x default spend by default
-                limits[1] = 5 * default_spend[prog_name]
+                limits[1] = 10 * default_spend[prog_name]
             adjustments.append(SpendingAdjustment(prog_name, t=adjustment_year, limit_type='abs', lower=limits[0], upper=limits[1]))
 
             if optim_type == 'money':
@@ -666,7 +666,7 @@ class OptimInstructions(NamedItem):
 
         if optim_type == 'money':
             # Do a prerun to convert the optimization targets into absolute units
-            result = proj.run_sim(proj.parsets[parset_name], progset=progset, progset_instructions=progset_instructions, store_results=False)
+            result = proj.run_sim(proj.parsets[parset_name], progset=progset, progset_instructions=ProgramInstructions(alloc=progset, start_year=start_year), store_results=False)
             for measurable in measurables:
                 val = measurable.get_objective_val(result.model)  # This is the baseline value for the quantity being thresholded
                 assert measurable.threshold <= 100 and measurable.threshold >= 0
