@@ -614,6 +614,10 @@ class ProjectFramework(object):
                         continue
                     elif '___' in dep: # Note that the parser replaces ':' with '___'
 
+                        if is_aggregation:
+                            message = 'The function for parameter "%s" depends on a flow rate ("%s") but the function contains a population aggregation. Population aggregations can only operate on a single variable and cannot operate on flow rate' % (par.name, dep.replace('___',':'))
+                            raise InvalidFramework(message)
+
                         if self.transitions[par.name]:
                             message = 'The function for parameter "%s" depends on a flow rate ("%s"). However, "%s" also governs a flow rate, because it appears in the transition matrix. Transition parameters cannot depend on flow rates, so no flow rates can appear in the function for "%s"' % (par.name, dep.replace('___',':'), par.name, par.name)
                             raise InvalidFramework(message)
@@ -699,6 +703,14 @@ class ProjectFramework(object):
                     else:
                         message = 'The function for parameter "%s" depends on a quantity "%s", but no Compartment, Characteristic, or Parameter with this name was found' % (par.name, dep)
                         raise InvalidFramework(message)
+
+                    # Check that aggregations do not use functions in the first argument
+                    if is_aggregation:
+                        temp_list = par['function'].split("(")[1]
+                        quantity = temp_list.rstrip(")").split(',')[0].strip()
+                        if quantity not in set(self.pars.index).union(self.comps.index).union(self.characs.index):
+                            message = 'The function for parameter "%s" aggregates the quantity "%s". However, this quantity does not directly correspond to a Compartment, Characteristic, or Parameter. This can occur if you are attempting to aggregate a function of several variables. Population aggregation only supports aggregating a single quantity. As an alternative, you can make a separate parameter with your function prior to performing the aggregation.' % (par.name, quantity)
+                            raise InvalidFramework(message)
 
             if self.transitions[par.name]:  # If this parameter is associated with transitions
 
