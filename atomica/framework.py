@@ -696,7 +696,7 @@ class ProjectFramework(object):
                     elif dep in self.pars.index:
                         if dep == par.name and not par['is derivative'] == 'y':
                             raise InvalidFramework(f"Parameter '{par.name}' has a parameter function that refers to itself, but it is not marked as a derivative parameter. Circular references are only permitted if the parameter function is providing a derivative")
-                        if dep != par.name and dep not in defined:
+                        if dep != par.name and dep not in defined and not par['is derivative'] == 'y':
                             message = 'The function for parameter "%s" depends on the parameter "%s", which needs to be defined in the Framework before "%s". Please move "%s" up on the "Parameters" sheet of the Framework file, so that it appears before "%s"' % (par.name, dep, par.name, dep, par.name)
                             raise InvalidFramework(message)
                         elif not is_aggregation and self.pars.at[dep, 'population type'] != par['population type']:
