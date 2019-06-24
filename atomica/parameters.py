@@ -29,7 +29,7 @@ class Parameter(NamedItem):
         self.y_factor = sc.odict.fromkeys(self.ts,1.0) #: Calibration scale factors for the parameter in each population
         self.meta_y_factor = 1.0 #: Calibration scale factor for all populations
         self.skip_function = sc.odict.fromkeys(self.ts,None) #: This can be a range of years [start,stop] between which the parameter function will not be evaluated
-        self._interpolation_method = 'linear' #: Fallback interpolation method. It is _strongly_ recommended not to change this, but to call ``Parameter.smooth()` instead
+        self._interpolation_method = 'linear'  #: Fallback interpolation method. It is _strongly_ recommended not to change this, but to call ``Parameter.smooth()` instead
 
     @property
     def pops(self):
@@ -100,17 +100,64 @@ class Parameter(NamedItem):
         for k,ts in self.ts.items():
             self.ts[k] = ts.sample(constant)
 
-    def smooth(self,tvec):
+    def smooth(self,tvec,method='smoothinterp', pop_names=None,**kwargs):
         """
         Smooth the parameter's time values
 
         Normally, Parameter instances contain temporally-sparse values from the databook.
         These are then interpolated to get the input parameter values at all model time points.
-        The fallback interpolation in `model.py` is linear. However, in some cases it may be
-        desirable to smooth the para
-        :param tvec:
+        The default interpolation is linear. However, sometimes it may be desired to make specific
+        assumptions about the parameter value at intermediate times. These could be added directly
+        to the Parameter's underlying `TimeSeries`.
+
+        This method applies a smoothing method to the Parameter, modifying the underlying TimeSeries
+        in-place. The operation is
+
+        - Interpolated or smoothed values are generated for the requested times
+        - All existing time points between and including the minimum and maximum values of `tvec` are removed
+        - The time values generated in this function are inserted
+
+        For example, to apply pchip interpolation to generate intermediate values
+
+        >>> Parameter.smooth(P.settings.tvec, method='pchip',**kwargs)
+
+        As this goes through `TimeSeries.interpolate` the same rules apply for the conditions under which
+        the interpolation function gets used - specifically, interpolation is used if there are at least two
+        finite time values present, otherwise, the assumption or single value will be used.
+
+        :param tvec: New time points to add to the TimeSeries
+        :param method: Method for generation of smoothed/interpolated values, default uses sciris smoothinterp
+        :param pop_names: Optionally specify a list of populations to modify
+        :param kwargs: Optionally pass arguments to the generating function/class constructor
         :return:
+
         """
+
+        pop_names = sc.promotetolist(pop_names)
+        if not pop_names:
+            pop_names = self.ts.keys()
+
+        if sc.isstring(method):
+            if method == 'smoothinterp':
+                # Generating function for smooth-interp interpolator
+                def smoothinterp(x1,y1,**kwargs):
+                    def fcn(x2):
+                        return sc.smoothinterp(x2,x1,y1,**kwargs)
+                    return fcn
+                method = smoothinterp
+
+            elif method in ['pchip','linear','previous']:
+                pass
+            else:
+                raise Exception('Unknown smoothing method')
+
+        for pop in pop_names:
+            ts = self.ts[pop]
+            v2 = ts.interpolate(tvec,method=method,**kwargs)
+            ts.remove_between((min(tvec),max(tvec)))
+            for t,v in zip(tvec,v2):
+                ts.insert(t,v)
+
 
 class ParameterSet(NamedItem):
     """

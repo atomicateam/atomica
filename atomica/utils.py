@@ -373,7 +373,13 @@ class TimeSeries(object):
             v = np.array(self.vals)
         return t, v
 
-    def remove(self, t):
+    def remove(self, t) -> None:
+        """
+        Remove single time point
+
+        :param t: Time value to remove. Set to ``None`` to remove the assumption
+
+        """
         # To remove the assumption, set t=None
         if t is None:
             self.assumption = None
@@ -389,6 +395,7 @@ class TimeSeries(object):
         Remove times from start
 
         :param tval: Remove times up to but not including this time
+
         """
 
         for tval in sc.dcp(self.t):
@@ -400,16 +407,23 @@ class TimeSeries(object):
         Remove times from start
 
         :param tval: Remove times up to but not including this time
+
         """
 
         for tval in sc.dcp(self.t):
             if tval > t_remove:
                 self.remove(tval)
 
-    def remove_between(self, t_remove):
-        # t is a two element vector [min,max] such that
-        # times > min and < max are removed
-        # Note that the endpoints are not included!
+    def remove_between(self, t_remove) -> None:
+        """
+        Remove a range of times
+
+        Note that the endpoints are not included
+
+        :param t_remove: two element iterable e.g. array, with [min,max] times
+
+        """
+
         for tval in sc.dcp(self.t):
             if t_remove[0] < tval < t_remove[1]:
                 self.remove(tval)
@@ -476,7 +490,7 @@ class TimeSeries(object):
                 # Legacy pchip interpolation
                 f = scipy.interpolate.PchipInterpolator(t1, v1, axis=0, extrapolate=False)
                 y2 = np.zeros(t2.shape)
-                y2[(t2 >= x[0]) & (t2 <= x[-1])] = f(t2[(t2 >= x[0]) & (t2 <= x[-1])])
+                y2[(t2 >= t1[0]) & (t2 <= t1[-1])] = f(t2[(t2 >= t1[0]) & (t2 <= t1[-1])])
                 y2[t2 < t1[0]] = v1[0]
                 y2[t2 > t1[-1]] = v1[-1]
                 return y2
@@ -525,7 +539,6 @@ class TimeSeries(object):
             new._sampled = True
 
         return new
-
 
 def evaluate_plot_string(plot_string: str):
     """

@@ -515,7 +515,6 @@ def add_pop_type(proj):
             
     return proj
 
-
 @migration('1.3.0', '1.4.0', 'Parameter can be derivative')
 def add_derivatives(proj):
     for fw in all_frameworks(proj):
@@ -546,5 +545,12 @@ def add_parset_disable_function(proj):
         for optim in proj.optims.values():
             if 'adjustment_year' not in optim.json:
                 optim.json['adjustment_year'] = optim.json['start_year']
+    return proj
+
+@migration('1.5.2', '1.6.0', 'Parameters store an interpolation method')
+def add_parameter_interpolation_method(proj):
+    for parset in proj.parsets.values():
+        for par in parset.all_pars():
+            par._interpolation_method = 'pchip' # New projects will default to linear, but migrations use pchip to ensure results don't change
     return proj
 
