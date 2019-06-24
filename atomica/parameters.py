@@ -29,6 +29,7 @@ class Parameter(NamedItem):
         self.y_factor = sc.odict.fromkeys(self.ts,1.0) #: Calibration scale factors for the parameter in each population
         self.meta_y_factor = 1.0 #: Calibration scale factor for all populations
         self.skip_function = sc.odict.fromkeys(self.ts,None) #: This can be a range of years [start,stop] between which the parameter function will not be evaluated
+        self._interpolation_method = 'linear' #: Fallback interpolation method. It is _strongly_ recommended not to change this, but to call ``Parameter.smooth()` instead
 
     @property
     def pops(self):
@@ -69,13 +70,20 @@ class Parameter(NamedItem):
         """
         Return interpolated parameter values for a given population
 
+        The Parameter internally stores the interpolation method. The default is linear.
+        It is possible to set it to 'pchip' or 'previous' or some other method. However,
+        this would also also be applied to any parameter scenarios that have modified the
+        parameter and require interpolation. Therefore, it is STRONGLY recommended not to
+        modify the fallback interpolation method, but to instead call `Parameter.smooth()`
+        in advance with the appropriate options, if the interpolation matters.
+
         :param tvec: A scalar, list, or array or time values
         :param pop_name: The population to interpolate data for
         :return: An array with the interpolated values
 
         """
 
-        return self.ts[pop_name].interpolate(tvec)
+        return self.ts[pop_name].interpolate(tvec, method=self._interpolation_method)
 
     def sample(self,constant:bool) -> None:
         """
@@ -91,6 +99,18 @@ class Parameter(NamedItem):
 
         for k,ts in self.ts.items():
             self.ts[k] = ts.sample(constant)
+
+    def smooth(self,tvec):
+        """
+        Smooth the parameter's time values
+
+        Normally, Parameter instances contain temporally-sparse values from the databook.
+        These are then interpolated to get the input parameter values at all model time points.
+        The fallback interpolation in `model.py` is linear. However, in some cases it may be
+        desirable to smooth the para
+        :param tvec:
+        :return:
+        """
 
 class ParameterSet(NamedItem):
     """
