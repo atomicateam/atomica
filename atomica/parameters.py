@@ -131,7 +131,7 @@ class ParameterSet(NamedItem):
             for pop_name, ts in tdve.ts.items(): # The TDVE has already been validated to contain any required populations (although it might also contain extra ones)
                 if units != ts.units.strip().lower():
                     raise Exception('The units entered in the databook do not match the units entered in the framework')
-            self.pars[name] = Parameter(name,{k: v.copy() for k, v in tdve.ts.items() if k in self.pop_names}) # Keep only valid populations (discard any extra ones here)
+            self.pars[name] = Parameter(name,sc.odict({k: v.copy() for k, v in tdve.ts.items() if k in self.pop_names})) # Keep only valid populations (discard any extra ones here)
 
         # Instantiate parameters not in the databook
         for _, spec in framework.pars.iterrows():
