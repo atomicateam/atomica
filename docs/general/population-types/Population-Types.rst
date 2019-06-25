@@ -84,7 +84,11 @@ Note that characteristics cannot span population types - the included compartmen
 
 Parameters are where population types become somewhat more complicated. Transfers cannot take place between different population types. Therefore, all interactions between population types take place via parameter functions. As a general rule, when you write a parameter function, all of the quantities you refer to inside the function (other parameters, compartments, characteristics) should be defined within the same population type. This is because standard parameter functions are always evaluated within a single population, so variables from other population types are simply not defined within the population when the parameter function is being evaluated. 
 
-The exception is for cross-population interactions, which are computed via population aggregation functions. You can refer to quantities in other population types within the ``SRC_POP_SUM`` or ``SRC_POP_AVG`` special functions. Note that this does not apply to ``TGT_POP_SUM`` and ``TGT_POP_AVG`` (because this affects the orientation of the interaction matrix - described below). 
+The exception is for cross-population interactions, which are computed via population aggregation functions. You can refer to quantities in other population types within the ``SRC_POP_SUM`` or ``SRC_POP_AVG`` special functions.
+
+.. warning::
+
+    Cross-population aggregations cannot use ``TGT_POP_SUM`` or ``TGT_POP_AVG`` (because this affects the orientation of the interaction matrix). The simple rule to remember is that if your parameter refers to a variable in a different population type, you must use either ``SRC_POP_SUM`` or ``SRC_POP_AVG``.
 
 The aggregation functions ``SRC_POP_SUM`` and ``SRC_POP_AVG`` support weighting the interaction in two ways
 
