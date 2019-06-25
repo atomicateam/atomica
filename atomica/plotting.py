@@ -1557,7 +1557,7 @@ def _render_data(ax, data, series, baseline=None, filled=False) -> None:
     t, y = ts.get_arrays()
 
     if baseline is not None:
-        y_data = interpolate(series.tvec, baseline, t, extrapolate=False)
+        y_data = np.interp(sc.promotetoarray(t), series.tvec, baseline, left=np.nan, right=np.nan)
         y = y + y_data
 
     if filled:
