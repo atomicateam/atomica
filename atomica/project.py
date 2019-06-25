@@ -68,17 +68,34 @@ class ProjectSettings(object):
 
 
 class Project(NamedItem):
-    def __init__(self, name="default", framework=None, databook=None, do_run=True, **kwargs):
-        """ Initialize the project. Keywords are passed to ProjectSettings. """
-        # INPUTS
-        # - framework : a Framework to use. This could be
-        #               - A filename to an Excel file on disk
-        #               - An sc.Spreadsheet instance
-        #               - A ProjectFramework instance
-        #               - None (this should generally not be used though!)
-        # - databook : The path to a databook file. The databook will be loaded into Project.data and the spreadsheet saved to Project.databook
-        # - do_run : If True, a simulation will be run upon project construction
+    """
+    Main simulation container
 
+    A Project provides a centralized point of storage when working with Atomica. It contains
+
+    - A framework
+    - Data
+    - Parameters
+    - Programs
+    - Scenarios and optimizations
+    - Results
+
+    Importantly, it is generally assumed that saving and loading work is done by saving and
+    loading projects.
+
+    :param name:
+    :param framework: a Framework to use. This could be
+                      - A filename to an Excel file on disk
+                      - An sc.Spreadsheet instance
+                      - A ProjectFramework instance
+                      - None (this should generally not be used though!)
+    :param databook: The path to a databook file. The databook will be loaded into Project.data and the spreadsheet saved to Project.databook
+    :param do_run: If True, a simulation will be run upon project construction
+    :param kwargs: These are passed to the :class`ProjectSettings` constructor
+
+    """
+
+    def __init__(self, name="default", framework=None, databook=None, do_run=True, **kwargs):
         NamedItem.__init__(self, name)
 
         if sc.isstring(framework) or isinstance(framework, sc.Spreadsheet):
@@ -140,19 +157,19 @@ class Project(NamedItem):
         output += '============================================================\n'
         return output
 
-    @property
-    def pop_names(self):
-        if self.data is None:
-            return []
-        else:
-            return list(self.data.pops.keys())
-
-    @property
-    def pop_labels(self):
-        if self.data is None:
-            return []
-        else:
-            return list([x['label'] for x in self.data.pops.values()])
+    # @property
+    # def pop_names(self):
+    #     if self.data is None:
+    #         return []
+    #     else:
+    #         return list(self.data.pops.keys())
+    #
+    # @property
+    # def pop_labels(self):
+    #     if self.data is None:
+    #         return []
+    #     else:
+    #         return list([x['label'] for x in self.data.pops.values()])
 
     #######################################################################################################
     # Methods for I/O and spreadsheet loading
@@ -253,7 +270,7 @@ class Project(NamedItem):
         self.progsets.append(progset)
         return progset
 
-    def make_scenario(self, which:str ='combined', **kwargs):
+    def make_scenario(self, which:str ='combined', **kwargs) -> Scenario:
         """
         Make new scenario and store in Project
 
@@ -505,7 +522,7 @@ class Project(NamedItem):
         return results
 
     def calibrate(self, parset=None, adjustables=None, measurables=None, max_time=60, save_to_project=True, new_name=None,
-                  default_min_scale=0.0, default_max_scale=2.0, default_weight=1.0, default_metric="fractional"):
+                  default_min_scale=0.0, default_max_scale=2.0, default_weight=1.0, default_metric="fractional") -> ParameterSet:
         """
         Method to perform automatic calibration.
 
@@ -559,7 +576,15 @@ class Project(NamedItem):
 
         return new_parset
 
-    def run_scenarios(self, store_results=True):
+    def run_scenarios(self, store_results:bool = True) -> list:
+        """
+        Run all active scenarios
+
+        :param store_results: If True, results will be appended to the project
+        :return: List of results (one for each active scenario)
+
+        """
+
         results = []
         for scenario in self.scens.values():
             if scenario.active:
