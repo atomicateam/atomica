@@ -17,6 +17,7 @@ for f in os.listdir(at.LIBRARY_PATH):
         models.append(f.replace('_framework.xlsx', ''))
 
 
+
 def run_auto_calibration(proj):
     """ Run an automatic calibration
 
