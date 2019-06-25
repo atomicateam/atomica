@@ -171,6 +171,7 @@ def test_parameter_scenarios():
 
     # Check smooth onset when smooth onset is applied
     scvalues[scen_par1][scen_pop]["smooth_onset"] = 2
+    scvalues[scen_par1][scen_pop]["end_overwrite"] = True # Needed for interpolation to be linear as expected
     scen = proj.make_scenario(which='parameter', scenario_values=scvalues)
     scen_results = scen.run(proj, proj.parsets["default"])
     var = scen_results.get_variable(scen_par1,scen_pop)[0]
@@ -276,6 +277,6 @@ def test_overwrite_function_scenario():
 if __name__ == '__main__':
     # test_program_scenarios()
     # test_timevarying_progscen()
-    # test_parameter_scenarios()
+    test_parameter_scenarios()
     # test_combined_scenario()
     test_overwrite_function_scenario()
