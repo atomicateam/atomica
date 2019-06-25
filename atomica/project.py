@@ -253,7 +253,7 @@ class Project(NamedItem):
         self.progsets.append(progset)
         return progset
 
-    def make_scenario(self, which:str ='combined', **kwargs):
+    def make_scenario(self, which: str = 'combined', **kwargs):
         """
         Make new scenario and store in Project
 
@@ -263,16 +263,8 @@ class Project(NamedItem):
 
         """
 
-        if which == 'parameter':
-            scenario = ParameterScenario(**kwargs)
-        elif which == 'budget':
-            scenario = BudgetScenario(**kwargs)
-        elif which == 'coverage':
-            scenario = CoverageScenario(**kwargs)
-        elif which == 'combined':
-            scenario = CombinedScenario(**kwargs)
-        else:
-            raise Exception('Unknown scenario type')
+        types = {'parameter': ParameterScenario,'budget': BudgetScenario,'coverage': CoverageScenario,'combined': CombinedScenario}
+        scenario = types[which](**kwargs)
         self.scens.append(scenario)
         return scenario
 
