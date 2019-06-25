@@ -574,7 +574,7 @@ class ProjectFramework(object):
 
         def cross_pop_message(par, quantity_type, quantity_name):
             spec = self.get_variable(quantity_name)[0]
-            message = f"The function for parameter '{par.name}' in the '{par['population type']}' population type refers to {quantity_type} '{quantity_name}' in the '{spec['population type']}' population type. All cross-population interactions must take place within a population aggregation e.g. SRC_POP_SUM"
+            message = f"The function for parameter '{par.name}' in the '{par['population type']}' population type refers to {quantity_type} '{quantity_name}' in the '{spec['population type']}' population type. All cross-population interactions must take place within either the SRC_POP_SUM or SRC_POP_AVG population aggregations"
             return message
 
         for i, par in self.pars.iterrows():
@@ -610,12 +610,17 @@ class ProjectFramework(object):
 
                 _, deps = parse_function(par['function'])  # Parse the function to get dependencies
                 is_aggregation =  (par['function'].startswith("SRC_POP_AVG") or par['function'].startswith("TGT_POP_AVG") or par['function'].startswith("SRC_POP_SUM") or par['function'].startswith("TGT_POP_SUM"))
+                is_cross_aggregation =  (par['function'].startswith("SRC_POP_AVG") or par['function'].startswith("SRC_POP_SUM"))
 
                 for dep in deps:
                     if dep in ['t', 'dt']:
                         # These are special variables passed in by model.py
                         continue
                     elif '___' in dep: # Note that the parser replaces ':' with '___'
+
+                        if is_aggregation:
+                            message = 'The function for parameter "%s" depends on a flow rate ("%s") but the function contains a population aggregation. Population aggregations can only operate on a single variable and cannot operate on flow rate' % (par.name, dep.replace('___',':'))
+                            raise InvalidFramework(message)
 
                         if self.transitions[par.name]:
                             message = 'The function for parameter "%s" depends on a flow rate ("%s"). However, "%s" also governs a flow rate, because it appears in the transition matrix. Transition parameters cannot depend on flow rates, so no flow rates can appear in the function for "%s"' % (par.name, dep.replace('___',':'), par.name, par.name)
@@ -628,7 +633,7 @@ class ProjectFramework(object):
                             if dep_name not in self.pars.index:
                                 message = 'The function for parameter "%s" depends on the flow rate "%s:flow". This requires a parameter called "%s" to be defined in the Framework, but no parameter with that name was found' % (par.name, dep_name, dep_name)
                                 raise InvalidFramework(message)
-                            elif not is_aggregation and self.pars.at[dep_name, 'population type'] != par['population type']:
+                            elif not is_cross_aggregation and self.pars.at[dep_name, 'population type'] != par['population type']:
                                 raise InvalidFramework(cross_pop_message(par, 'compartment', dep_name))
 
                             if not self.transitions[dep_name]:
@@ -642,20 +647,20 @@ class ProjectFramework(object):
                                 if deps[0] not in self.comps.index:
                                     message = 'The function for parameter "%s" depends on the flow rate "%s". This requires a source compartment called "%s" to be defined in the Framework, but no compartment with that name was found' % (par.name, dep.replace('___',':'), deps[0])
                                     raise InvalidFramework(message)
-                                elif not is_aggregation and  self.comps.at[deps[0],'population type'] != par['population type']:
+                                elif not is_cross_aggregation and self.comps.at[deps[0],'population type'] != par['population type']:
                                     raise InvalidFramework(cross_pop_message(par, 'compartment', deps[0]))
                             if deps[1]:
                                 if deps[1] not in self.comps.index:
                                     message = 'The function for parameter "%s" depends on the flow rate "%s". This requires a destination compartment called "%s" to be defined in the Framework, but no compartment with that name was found' % (par.name, dep.replace('___',':'), deps[1])
                                     raise InvalidFramework(message)
-                                elif not is_aggregation and  self.comps.at[deps[1], 'population type'] != par['population type']:
+                                elif not is_cross_aggregation and self.comps.at[deps[1], 'population type'] != par['population type']:
                                     raise InvalidFramework(cross_pop_message(par, 'compartment', deps[1]))
 
                     elif dep in self.comps.index:
-                        if not is_aggregation and self.comps.at[dep, 'population type'] != par['population type']:
+                        if not is_cross_aggregation and self.comps.at[dep, 'population type'] != par['population type']:
                             raise InvalidFramework(cross_pop_message(par, 'compartment', dep))
                     elif dep in self.characs.index:
-                        if not is_aggregation and self.characs.at[dep, 'population type'] != par['population type']:
+                        if not is_cross_aggregation and self.characs.at[dep, 'population type'] != par['population type']:
                             raise InvalidFramework(cross_pop_message(par, 'characteristic', dep))
                     elif dep in self.interactions.index:
                         if not is_aggregation:
@@ -707,6 +712,14 @@ class ProjectFramework(object):
                     else:
                         message = 'The function for parameter "%s" depends on a quantity "%s", but no Compartment, Characteristic, or Parameter with this name was found' % (par.name, dep)
                         raise InvalidFramework(message)
+
+                    # Check that aggregations do not use functions in the first argument
+                    if is_aggregation:
+                        temp_list = par['function'].split("(")[1]
+                        quantity = temp_list.rstrip(")").split(',')[0].strip()
+                        if quantity not in set(self.pars.index).union(self.comps.index).union(self.characs.index):
+                            message = 'The function for parameter "%s" aggregates the quantity "%s". However, this quantity does not directly correspond to a Compartment, Characteristic, or Parameter. This can occur if you are attempting to aggregate a function of several variables. Population aggregation only supports aggregating a single quantity. As an alternative, you can make a separate parameter with your function prior to performing the aggregation.' % (par.name, quantity)
+                            raise InvalidFramework(message)
 
             if self.transitions[par.name]:  # If this parameter is associated with transitions
 
