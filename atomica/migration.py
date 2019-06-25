@@ -547,7 +547,7 @@ def add_parset_disable_function(proj):
                 optim.json['adjustment_year'] = optim.json['start_year']
     return proj
 
-@migration('1.5.2', '1.6.0', 'Parameters store an interpolation method')
+@migration('1.5.2', '1.7.0', 'Parameters store an interpolation method')
 def add_parameter_interpolation_method(proj):
     for parset in proj.parsets.values():
         for par in parset.all_pars():

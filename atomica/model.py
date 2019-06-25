@@ -368,6 +368,7 @@ class Parameter(Variable):
         self._precompute = False #: If True, the parameter function will be computed in a vector operation prior to integration
         self._is_dynamic = False #: If True, this parameter will be updated during integration. Note that `precompute` and `dynamic` are mutually exclusive
         self.derivative = False #: If True, the parameter function will be treated as a derivative and the value added on to the end
+        self._dx = None #: Internal cache for the value of the derivative at the current timestep
         self.skip_function = None #: Can optionally be set to a (start,stop) tuple of times. Between these times, the parameter will not be updated so the parset value will be left unchanged
 
         #: For transition parameters, the ``vals`` stored by the parameter is effectively a rate. The ``timescale``
@@ -532,9 +533,6 @@ class Parameter(Variable):
                 raise Exception('Cannot perform a vector update of a derivative parameter (these parameters intrinsically require integration to be computed)')
             ti = np.arange(0, self.vals.size)  # This corresponds to every time point
 
-        if self.derivative and ti == 0:
-            return
-
         if self.skip_function:
             # If we don't want to overwrite the parameter in certain years, those years need to be excluded
             if hasattr(ti, '__len__'):
@@ -557,7 +555,12 @@ class Parameter(Variable):
 
         dep_vals['t'] = self.t[ti]
         dep_vals['dt'] = self.dt
-        self.vals[ti] = self.scale_factor * self._fcn(**dep_vals)
+        v = self.scale_factor * self._fcn(**dep_vals)
+
+        if self.derivative:
+            self._dx = v
+        else:
+            self.vals[ti] = v
 
     def source_popsize(self, ti):
         # Get the total number of people covered by this program
@@ -1490,7 +1493,10 @@ class Model(object):
             if do_program_overwrite:
                 for par in pars:
                     if (par.name, par.pop.name) in prog_vals:
-                        par.vals[ti] = prog_vals[(par.name, par.pop.name)]
+                        if par.derivative:
+                            par._dx = prog_vals[(par.name, par.pop.name)] # For derivative parameters, overwrite the derivative rather than the value
+                        else:
+                            par.vals[ti] = prog_vals[(par.name, par.pop.name)]
                         if par.units == FS.QUANTITY_TYPE_NUMBER:
                             par.vals[ti] *= par.source_popsize(ti) / self.dt  # The outcome in the progbook is per person reached, which is a timestep specific value. Thus, need to annualize here
 
@@ -1530,12 +1536,12 @@ class Model(object):
 
             # Restrict the parameter's value if a limiting range was defined
             for par in pars:
-                if par.derivative and ti>0:
-                    # If derivative parameter, then perform an Euler forward step
-                    # Handling the derivative here means that it is possible to overwrite the derivative using programs
-                    # The program outcome should be the derivative value
-                    par.vals[ti] = par.vals[ti-1]+par.vals[ti]*self.dt
-                par.constrain(ti)
+                if par.derivative and ti<len(self.t)-1:
+                    # If derivative parameter, then perform an Euler forward step before constraining
+                    par.vals[ti+1] = par.vals[ti]+par._dx*self.dt
+                    par.constrain(ti+1)
+                else:
+                    par.constrain(ti)
 
 
 def run_model(settings, framework, parset, progset=None, program_instructions=None, name=None):
