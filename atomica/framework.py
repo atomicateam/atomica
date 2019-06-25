@@ -60,7 +60,7 @@ class ProjectFramework(object):
         # For some pages, we only ever want to read in one DataFrame, and we want empty lines to be ignored. For example, on the
         # 'compartments' sheet, we want to ignore blank lines, while on the 'cascades' sheet we want the blank line to delimit the
         # start of a new cascade. So, for the sheet names below, multiple tables will be compressed to one table
-        merge_tables = {'databook pages', 'compartments', 'parameters', 'characteristics', 'transitions', 'interactions', 'plots'}
+        merge_tables = {'databook pages', 'compartments', 'parameters', 'characteristics', 'interactions', 'plots', 'population types'}
 
         for worksheet in workbook.worksheets:
             sheet_title = worksheet.title.lower()
@@ -203,6 +203,11 @@ class ProjectFramework(object):
         else:
             return sc.odict()
 
+    @property
+    def pop_types(self):
+        # Return odict with available population types
+        return self.sheets['population types'][0].set_index('code name').to_dict(orient='index',into=sc.odict)
+
     def get_interaction(self, interaction_name):
         return self.interactions.loc[interaction_name]
 
@@ -231,36 +236,70 @@ class ProjectFramework(object):
         return False
 
     def _process_transitions(self):
+        """
+        Parse the dataframes associated with the transition sheet into an edge-list representation
+        
+        
+        :return: 
+        """
         # Parse the dataframe associated with the transition sheet into an edge-list representation
         # with a dict where the key is a parameter name and the value is a list of (from,to) tuples
         #
         # Expects a sheet called 'Transitions' to be present and correctly filled out
-        t = self.sheets['transitions'][0].copy()  # Copy the dataframe on this sheet
-        assert isinstance(t, pd.DataFrame)  # This could be a list if there was more than one item present, but this should have been dealt with earlier
 
-        self.transitions = {x: list() for x in list(self.pars.index)}
-        comp_names = set(self.comps.index)
+        # First, assign the transition matrices to population types
+        self.transitions = {x: list() for x in self.pars.index}
+        comps = self.comps['population type'].to_dict() # Look up which pop type is associated with each compartment
+        pars = self.pars['population type'].to_dict() # Look up which pop type is associated with each parameter
 
-        for _, from_row in t.iterrows():  # For each row in the transition matrix
-            from_row.dropna(inplace=True)
-            from_comp = from_row[0]
-            if from_comp not in comp_names:
-                raise InvalidFramework('A compartment "%s" appears in the first column of the matrix on the Transitions sheet, but it was not defined on the Compartments sheet' % (from_comp))
-            from_row = from_row[1:]
-            for to_comp, par_names in from_row.iteritems():
-                for par_name in par_names.split(','):
-                    par_name = par_name.strip()
-                    if par_name not in self.transitions:
-                        raise InvalidFramework('Parameter %s appears in the transition matrix but not on the Parameters page' % (par_name))
-                    if to_comp not in comp_names:
-                        raise InvalidFramework('A compartment "%s" appears in the first row of the matrix on the Transitions sheet, but it was not defined on the Compartments sheet' % (to_comp))
-                    self.transitions[par_name].append((from_comp, to_comp))
+        pop_types = set()
+        for i,df in enumerate(self.sheets['transitions']):
+            cols = list(df.columns)
+            if cols[0] is None or cols[0].lower().strip() == 'transition matrix': # The template for single population type frameworks has 'Transition matrix' where the population type would normally go
+                cols[0] = self.pop_types.keys()[0]
+            if cols[0] in pop_types:
+                raise InvalidFramework('More than one transition matrix is assigned to the same population type. This can happen if multiple transition matrices are being assigned to the default population type')
+            else:
+                pop_types.add(cols[0])
+                df.columns = cols
+            df = df.set_index(df.columns[0])
+
+            if df.index.name not in self.pop_types:
+                raise InvalidFramework('Transition matrix has population type "%s" but this is not a recognized population type (available population types are %s)' % (df.index.name, list(self.pop_types.keys())))
+
+            # Check all compartments are within the specified population type
+            for comp in set(list(df.index) + list(df.columns)):
+                if comp not in comps:
+                    raise InvalidFramework('A compartment "%s" appears in the first column of the matrix on the Transitions sheet, but it was not defined on the Compartments sheet' % (comp))
+                elif comps[comp] != df.index.name:
+                    raise InvalidFramework('Compartment "%s" belongs to pop type "%s" but it appears in the transition matrix for "%s"' % (comp, comps[comp], df.index.name))
+
+            self.sheets['transitions'][i] = df
+
+        # Next, import each dataframe
+        for df in self.sheets['transitions']:
+            for _, from_row in df.iterrows():  # For each row in the transition matrix
+                from_row.dropna(inplace=True)
+                from_comp = from_row.name
+                for to_comp, par_names in from_row.iteritems():
+                    for par_name in par_names.split(','):
+                        par_name = par_name.strip()
+
+                        if par_name not in self.transitions:
+                            raise InvalidFramework('Parameter "%s" appears in the transition matrix but not on the Parameters page' % (par_name))
+
+                        if pars[par_name] != df.index.name:
+                            raise InvalidFramework('Compartment "%s" belongs to pop type "%s" but it appears in the transition matrix for "%s"' % (par, pars[par_name], df.index.name))
+
+                        self.transitions[par_name].append((from_comp, to_comp))
 
     def _validate(self):
         # This function validates the content of Framework. There are two aspects to this
         # - Adding in any missing values using appropriate defaults
         # - Checking that the provided information is internally consistent
-
+        # This is called automatically during construction, therefore any changes
+        # made during validation will occur prior to users interacting with the ProjectFramework
+        
         # Check for required sheets
         for page in ['databook pages', 'compartments', 'parameters', 'characteristics', 'transitions']:
             if page not in self.sheets:
@@ -295,6 +334,11 @@ class ProjectFramework(object):
         if 'plot' in self.sheets and 'plots' not in self.sheets:
             logger.warning('A sheet called "Plot" was found, but it probably should be called "Plots"')
 
+        # VALIDATE POPULATION TYPES
+        # Default to having 'Default'
+        if 'population types' not in self.sheets:
+            self.sheets['population types'] = [pd.DataFrame.from_records([(FS.DEFAULT_POP_TYPE, 'Default')], columns=['code name', 'description'])]
+
         # VALIDATE COMPARTMENTS
         required_columns = ['display name']
         defaults = {
@@ -304,7 +348,8 @@ class ProjectFramework(object):
             'databook page': None,
             'default value': None,
             'databook order': None,  # Default is for it to be randomly ordered if the databook page is not None
-            'guidance': None
+            'guidance': None,
+            'population type': None
         }
         valid_content = {
             'display name': None,  # Valid content being `None` means that it just cannot be empty
@@ -319,6 +364,11 @@ class ProjectFramework(object):
         except Exception as e:
             message = 'An error was detected on the "Compartments" sheet in the Framework file -> '
             raise Exception('%s -> %s' % (message, e)) from e
+
+        # Assign first population type to any empty population types
+        # In general, if the user has specified any pop types, then the first population type will be
+        # selected as the default in downstream functions e.g. `ProjectData.add_pop`
+        self.comps['population type'] = self.comps['population type'].fillna(self.pop_types.keys()[0])
 
         # Default setup weight is 1 if in databook or 0 otherwise
         # This is a separate check because the default value depends on other columns
@@ -336,7 +386,6 @@ class ProjectFramework(object):
             self.comps['calibrate'][default_calibrate] = 'y'
 
         # VALIDATE COMPARTMENTS
-
         for index, row in self.comps.iterrows():
             n_types = (row[['is sink', 'is source', 'is junction']] == 'y').astype(int).sum()  # This sums the number of Y's for each compartment
 
@@ -363,6 +412,9 @@ class ProjectFramework(object):
             if (row['databook page'] is not None) and not (row['databook page'] in self.sheets['databook pages'][0]['datasheet code name'].values):
                 raise InvalidFramework('Compartment "%s" has databook page "%s" but that page does not appear on the "databook pages" sheet' % (row.name,row['databook page']))
 
+            if row['population type'] not in self.pop_types.keys():
+                raise InvalidFramework('Compartment "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (row.name,row['population type'],self.pop_types.keys()))
+
         # VALIDATE CHARACTERISTICS
 
         required_columns = ['display name']
@@ -372,7 +424,8 @@ class ProjectFramework(object):
             'default value': None,
             'databook page': None,
             'databook order': None,
-            'guidance': None
+            'guidance': None,
+            'population type': None
         }
         valid_content = {
             'display name': None,
@@ -385,6 +438,9 @@ class ProjectFramework(object):
         except Exception as e:
             message = 'An error was detected on the "Characteristics" sheet in the Framework file -> '
             raise Exception('%s -> %s' % (message, e)) from e
+
+        # Assign first population type to any empty population types
+        self.characs['population type'] = self.characs['population type'].fillna(self.pop_types.keys()[0])
 
         if 'setup weight' not in self.characs:
             self.characs['setup weight'] = (~self.characs['databook page'].isnull()).astype(int)
@@ -407,11 +463,17 @@ class ProjectFramework(object):
                 raise InvalidFramework('Characteristic "%s" has a nonzero setup weight, but does not appear in the databook' % row.name)
 
             if row['denominator'] is not None:
-                if not (row['denominator'] in self.comps.index or row['denominator'] in self.characs.index):
-                    raise InvalidFramework('In Characteristic "%s", denominator "%s" was not recognized as a Compartment or Characteristic' % (row.name, row['denominator']))
-                if row['denominator'] in self.characs.index:
+
+                if row['denominator'] in self.comps.index:
+                    if row['population type'] != self.comps.at[row['denominator'], 'population type']:
+                        raise InvalidFramework('In Characteristic "%s", included compartment "%s" does not have a matching population type' % (row.name, row['denominator']))
+                elif row['denominator'] in self.characs.index:
+                    if row['population type'] != self.characs.at[row['denominator'], 'population type']:
+                        raise InvalidFramework('In Characteristic "%s", included characteristic "%s" does not have a matching population type' % (row.name, row['denominator']))
                     if not (self.characs.loc[row['denominator']]['denominator'] is None):
                         raise InvalidFramework('Characteristic "%s" uses the characteristic "%s" as a denominator. However, "%s" also has a denominator, which means that it cannot be used as a denominator for "%s"' % (row.name, row['denominator'], row['denominator'], row.name))
+                else:
+                    raise InvalidFramework('In Characteristic "%s", denominator "%s" was not recognized as a Compartment or Characteristic' % (row.name, row['denominator']))
 
             if (row['databook page'] is None) and (row['calibrate'] is not None):
                 raise InvalidFramework('Compartment "%s" is marked as being eligible for calibration, but it does not appear in the databook' % row.name)
@@ -419,18 +481,30 @@ class ProjectFramework(object):
             if (row['databook page'] is not None) and not (row['databook page'] in self.sheets['databook pages'][0]['datasheet code name'].values):
                 raise InvalidFramework('Characteristic "%s" has databook page "%s" but that page does not appear on the "databook pages" sheet' % (row.name,row['databook page']))
 
+            if row['population type'] not in self.pop_types.keys():
+                raise InvalidFramework('Characteristic "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (row.name,row['population type'],self.pop_types.keys()))
+
             for component in row['components'].split(','):
-                if not (component.strip() in self.comps.index or component.strip() in self.characs.index):
+                component = component.strip()
+                if component in self.comps.index:
+                    if row['population type'] != self.comps.at[component,'population type']:
+                        raise InvalidFramework('In Characteristic "%s", included compartment "%s" does not have a matching population type' % (row.name, component))
+                elif component in self.characs.index:
+                    if row['population type'] != self.characs.at[component,'population type']:
+                        raise InvalidFramework('In Characteristic "%s", included characteristic "%s" does not have a matching population type' % (row.name, component))
+                else:
                     raise InvalidFramework('In Characteristic "%s", included component "%s" was not recognized as a Compartment or Characteristic' % (row.name, component))
 
         # VALIDATE INTERACTIONS
 
         if 'interactions' not in self.sheets:
-            self.sheets['interactions'] = [pd.DataFrame(columns=['code name', 'display name'])]
+            self.sheets['interactions'] = [pd.DataFrame(columns=['code name', 'display name', 'to population type', 'from population type'])]
 
         required_columns = ['display name']
         defaults = {
             'default value': None,
+            'from population type': None,
+            'to population type': None
         }
         valid_content = {
             'display name': None,
@@ -442,6 +516,16 @@ class ProjectFramework(object):
         except Exception as e:
             message = 'An error was detected on the "Interactions" sheet in the Framework file -> '
             raise Exception('%s -> %s' % (message, e)) from e
+
+        # Assign first population type to any empty population types
+        self.interactions['from population type'] = self.interactions['from population type'].fillna(self.pop_types.keys()[0])
+        self.interactions['to population type'] = self.interactions['to population type'].fillna(self.pop_types.keys()[0])
+
+        for _, row in self.interactions.iterrows():
+            if row['from population type'] not in self.pop_types.keys():
+                raise InvalidFramework('Interaction "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (row.name, row['from population type'], self.pop_types.keys()))
+            if row['to population type'] not in self.pop_types.keys():
+                raise InvalidFramework('Interaction "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (row.name, row['to population type'], self.pop_types.keys()))
 
         # VALIDATE PARAMETERS
         # This is done last, because validating parameter dependencies requires checking compartments and characteristics
@@ -455,11 +539,14 @@ class ProjectFramework(object):
             'databook order': None,
             'targetable': 'n',
             'guidance': None,
-            'timescale': None
+            'timescale': None,
+            'population type': None,
+            'is derivative': 'n'
         }
         valid_content = {
             'display name': None,
             'targetable': {'y', 'n'},
+            'is derivative': {'y', 'n'},
         }
 
         self.pars.set_index('code name', inplace=True)
@@ -468,6 +555,9 @@ class ProjectFramework(object):
         except Exception as e:
             message = 'An error was detected on the "Parameters" sheet in the Framework file -> '
             raise Exception('%s -> %s' % (message, e)) from e
+
+        # Assign first population type to any empty population types
+        self.pars['population type'] = self.pars['population type'].fillna(self.pop_types.keys()[0])
 
         self.pars['format'] = self.pars['format'].map(lambda x: x.strip() if sc.isstring(x) else x)
 
@@ -481,6 +571,12 @@ class ProjectFramework(object):
 
         # Now validate each parameter
         defined = set()  # Track which parameters have already been defined
+
+        def cross_pop_message(par, quantity_type, quantity_name):
+            spec = self.get_variable(quantity_name)[0]
+            message = f"The function for parameter '{par.name}' in the '{par['population type']}' population type refers to {quantity_type} '{quantity_name}' in the '{spec['population type']}' population type. All cross-population interactions must take place within a population aggregation e.g. SRC_POP_SUM"
+            return message
+
         for i, par in self.pars.iterrows():
 
             # Convert case for standard units - this is required for validation
@@ -488,7 +584,16 @@ class ProjectFramework(object):
                 par['format'] = par['format'].lower()
 
             if (par['databook page'] is not None) and not (par['databook page'] in self.sheets['databook pages'][0]['datasheet code name'].values):
-                raise InvalidFramework('Compartment "%s" has databook page "%s" but that page does not appear on the "databook pages" sheet' % (par.name,par['databook page']))
+                raise InvalidFramework('Parameter "%s" has databook page "%s" but that page does not appear on the "databook pages" sheet' % (par.name,par['databook page']))
+
+            if par['population type'] not in self.pop_types.keys():
+                raise InvalidFramework('Parameter "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (par.name,par['population type'],self.pop_types.keys()))
+
+            if par['is derivative'] == 'y' and par['function'] is None:
+                raise InvalidFramework('Parameter "%s" is marked "is derivative" but it does not have a parameter function' % (par.name))
+
+            if par['is derivative'] == 'y' and par['databook page'] is None:
+                raise InvalidFramework('Parameter "%s" is marked "is derivative" but it does not have a databook page - it needs to appear in the databook so that an initial value can be provided.' % (par.name))
 
             if par['function'] is None:
                 # In order to have a value, a transition parameter must either be
@@ -504,6 +609,8 @@ class ProjectFramework(object):
                     raise InvalidFramework(message)
 
                 _, deps = parse_function(par['function'])  # Parse the function to get dependencies
+                is_aggregation =  (par['function'].startswith("SRC_POP_AVG") or par['function'].startswith("TGT_POP_AVG") or par['function'].startswith("SRC_POP_SUM") or par['function'].startswith("TGT_POP_SUM"))
+
                 for dep in deps:
                     if dep in ['t', 'dt']:
                         # These are special variables passed in by model.py
@@ -521,6 +628,8 @@ class ProjectFramework(object):
                             if dep_name not in self.pars.index:
                                 message = 'The function for parameter "%s" depends on the flow rate "%s:flow". This requires a parameter called "%s" to be defined in the Framework, but no parameter with that name was found' % (par.name, dep_name, dep_name)
                                 raise InvalidFramework(message)
+                            elif not is_aggregation and self.pars.at[dep_name, 'population type'] != par['population type']:
+                                raise InvalidFramework(cross_pop_message(par, 'compartment', dep_name))
 
                             if not self.transitions[dep_name]:
                                 # If the user is trying to get the flow rate for a non-transition parameter
@@ -529,26 +638,72 @@ class ProjectFramework(object):
                         else:
                             # If the user requested the flow between compartments
                             deps = dep.split('___')
-                            if deps[0] and deps[0] not in self.comps.index:
-                                message = 'The function for parameter "%s" depends on the flow rate "%s". This requires a source compartment called "%s" to be defined in the Framework, but no compartment with that name was found' % (par.name, dep.replace('___',':'), deps[0])
-                                raise InvalidFramework(message)
-                            if deps[1] and deps[1] not in self.comps.index:
-                                message = 'The function for parameter "%s" depends on the flow rate "%s". This requires a destination compartment called "%s" to be defined in the Framework, but no compartment with that name was found' % (par.name, dep.replace('___',':'), deps[1])
-                                raise InvalidFramework(message)
+                            if deps[0]:
+                                if deps[0] not in self.comps.index:
+                                    message = 'The function for parameter "%s" depends on the flow rate "%s". This requires a source compartment called "%s" to be defined in the Framework, but no compartment with that name was found' % (par.name, dep.replace('___',':'), deps[0])
+                                    raise InvalidFramework(message)
+                                elif not is_aggregation and  self.comps.at[deps[0],'population type'] != par['population type']:
+                                    raise InvalidFramework(cross_pop_message(par, 'compartment', deps[0]))
+                            if deps[1]:
+                                if deps[1] not in self.comps.index:
+                                    message = 'The function for parameter "%s" depends on the flow rate "%s". This requires a destination compartment called "%s" to be defined in the Framework, but no compartment with that name was found' % (par.name, dep.replace('___',':'), deps[1])
+                                    raise InvalidFramework(message)
+                                elif not is_aggregation and  self.comps.at[deps[1], 'population type'] != par['population type']:
+                                    raise InvalidFramework(cross_pop_message(par, 'compartment', deps[1]))
 
                     elif dep in self.comps.index:
-                        continue
+                        if not is_aggregation and self.comps.at[dep, 'population type'] != par['population type']:
+                            raise InvalidFramework(cross_pop_message(par, 'compartment', dep))
                     elif dep in self.characs.index:
-                        continue
+                        if not is_aggregation and self.characs.at[dep, 'population type'] != par['population type']:
+                            raise InvalidFramework(cross_pop_message(par, 'characteristic', dep))
                     elif dep in self.interactions.index:
-                        if not (par['function'].startswith("SRC_POP_AVG") or par['function'].startswith("TGT_POP_AVG") or
-                                par['function'].startswith("SRC_POP_SUM") or par['function'].startswith("TGT_POP_SUM")):
+                        if not is_aggregation:
                             message = 'The function for parameter "%s" includes the Interaction "%s", which means that the parameter function can only be one of: "SRC_POP_AVG", "TGT_POP_AVG", "SRC_POP_SUM" or "TGT_POP_SUM"' % (par.name, dep)
                             raise InvalidFramework(message)
+
+                        if (len(dep) > 2) and (par['function'].startswith("SRC_POP_SUM") or par['function'].startswith("TGT_POP_SUM")):
+                            logger.warning(f"Parameter '{par.name}' has a weighting variable but uses a summation aggregation. It should very likely use SRC_POP_AVG or TGT_POP_AVG instead")
+
+                        # If a population aggregation includes a weighting interaction, then the 'to' population must match this parameter
+                        if self.interactions.at[dep,'to population type'] != par['population type']:
+                            message = f'''
+                                The parameter '{par.name}' has population type '{par['population type']}' and 
+                                weights the interaction using '{dep}', which is defined as applying from 
+                                type '{self.interactions.at[dep,'from population type']}' to type '{self.interactions.at[dep,'to population type']}'.
+                                If weighting a cross-type interaction, the 'to' population type in the interaction must match the parameter
+                                '''
+                            raise InvalidFramework(' '.join(message.split()))
+
+                        # If population aggregation includes a weighting interaction, then the 'from' population must match all other variables in the aggregation
+                        for dep2 in deps:
+                            if dep2 != dep:
+                                var = self.get_variable(dep2)[0]
+                                if var['population type'] != self.interactions.at[dep, 'from population type']:
+                                    message = f'''
+                                        The parameter '{par.name}' has uses interaction weighting '{dep}', which is defined as applying from 
+                                        type '{self.interactions.at[dep,'from population type']}' to type '{self.interactions.at[dep,'to population type']}'.
+                                        If weighting a cross-type interaction, the quantity being averaged and the optional weighting quantity must 
+                                        belong to the 'from' population type. However, the parameter contains the quantity '{dep2}' which has
+                                        population type '{var['population type']}'
+                                        '''
+                                    raise InvalidFramework(' '.join(message.split()))
+
+                        if (self.interactions.at[dep,'to population type'] != self.interactions.at[dep,'from population type']):
+                            if par['function'].startswith('TGT_'):
+                                raise InvalidFramework(f"Parameter '{par.name}' uses interaction {dep} which crosses population types. Because this interaction is directed, only SRC_POP_SUM and SRC_POP_AVG can be used")
+
                     elif dep in self.pars.index:
-                        if dep not in defined:
-                            message = 'The function for parameter "%s" depends on the parameter "%s", which needs to be defined in the Framework before "%s". Please move "%s" up on the "Parameters" sheet of the Framework file, so that it appears before "%s"' % (par.name, dep, par.name, dep, par.name)
-                            raise InvalidFramework(message)
+                        if dep not in defined: # If it's a forward reference to a parameter not already defined
+                            if self.pars.at[dep, 'is derivative'] != 'y':
+                                if dep == par.name:
+                                    raise InvalidFramework(f"Parameter '{par.name}' has a parameter function that refers to itself, but it is not marked as a derivative parameter. Circular references are only permitted if the parameter function is providing a derivative")
+                                else:
+                                    message = 'The function for parameter "%s" depends on the parameter "%s", which needs to be defined in the Framework before "%s" (or be defined as a derivative parameter). Please move "%s" up on the "Parameters" sheet of the Framework file, so that it appears before "%s"' % (par.name, dep, par.name, dep, par.name)
+                                    raise InvalidFramework(message)
+
+                        if self.pars.at[dep, 'population type'] != par['population type'] and not is_aggregation: # Population types for the dependency and the parameter can only differ if it's an aggregation
+                            raise InvalidFramework(cross_pop_message(par, 'parameter', dep))
                     else:
                         message = 'The function for parameter "%s" depends on a quantity "%s", but no Compartment, Characteristic, or Parameter with this name was found' % (par.name, dep)
                         raise InvalidFramework(message)
@@ -614,7 +769,7 @@ class ProjectFramework(object):
 
         # VALIDATE NAMES - No collisions, no keywords
 
-        code_names = list(self.comps.index) + list(self.characs.index) + list(self.pars.index) + list(self.interactions.index)
+        code_names = list(self.comps.index) + list(self.characs.index) + list(self.pars.index) + list(self.interactions.index) + list(self.pop_types.keys())
         tmp = set()
         for name in code_names:
 
@@ -679,35 +834,41 @@ class ProjectFramework(object):
         # Check that the cascades are validly nested
         # This will also check the fallback cascade
         for cascade_name in self.cascades.keys():
-            validate_cascade(self, cascade_name, used_fallback_cascade)
+            validate_cascade(self, cascade_name, fallback_used=used_fallback_cascade)
 
         # VALIDATE INITIALIZATION
-        characs = []
-        for _, spec in self.characs.iterrows():
-            if spec['databook page'] is not None and spec['setup weight']:
-                characs.append(spec.name)
+        for pop_type in self.pop_types.keys():
 
-        comps = []
-        for _, spec in self.comps.iterrows():
-            if spec['is source'] == 'n' and spec['is sink'] == 'n':
-                comps.append(spec.name)
-            if spec['databook page'] is not None and spec['setup weight']:
-                characs.append(spec.name)
+            characs = []
+            for _, spec in self.characs.iterrows():
+                if spec['population type'] == pop_type and spec['databook page'] is not None and spec['setup weight']:
+                    characs.append(spec.name)
 
-        if len(characs) == 0:
-            if not self.comps['databook page'].any() and self.comps['databook page'].any():
-                message = 'No compartments or characteristics appear in the databook, which means it is not possible to initialize the simulation. Please assign at least some of the compartments and/or characteristics to a databook page.'
-            else:
-                message = 'No compartments or characteristics have a setup weight (either because they do not appear in the databook, or the setup weight has been explicitly set to zero) - cannot initialize simulation. Please change some of the setup weights to be nonzero'
-            raise Exception(message)
+            comps = []
+            for _, spec in self.comps.iterrows():
+                if spec['population type'] == pop_type and spec['is source'] == 'n' and spec['is sink'] == 'n':
+                    comps.append(spec.name)
+                if spec['population type'] == pop_type and spec['databook page'] is not None and spec['setup weight']:
+                    characs.append(spec.name)
 
-        A = np.zeros((len(characs), len(comps)))
-        for i, charac in enumerate(characs):
-            for include in self.get_charac_includes(charac):
-                A[i, comps.index(include)] = 1.0
+            if not comps:
+                # If this population type has no compartments, then no need to initialize anything
+                continue
 
-        if np.linalg.matrix_rank(A) < len(comps):
-            logger.warning('Initialization characteristics are underdetermined - this may be intentional, but check the initial compartment sizes carefully')
+            if len(characs) == 0:
+                if not self.comps['databook page'].any() and self.comps['databook page'].any():
+                    message = 'No compartments or characteristics appear in the databook, which means it is not possible to initialize the simulation. Please assign at least some of the compartments and/or characteristics to a databook page.'
+                else:
+                    message = 'No compartments or characteristics have a setup weight (either because they do not appear in the databook, or the setup weight has been explicitly set to zero) - cannot initialize simulation. Please change some of the setup weights to be nonzero'
+                raise Exception(message)
+
+            A = np.zeros((len(characs), len(comps)))
+            for i, charac in enumerate(characs):
+                for include in self.get_charac_includes(charac):
+                    A[i, comps.index(include)] = 1.0
+
+            if np.linalg.matrix_rank(A) < len(comps):
+                logger.warning('Initialization characteristics are underdetermined - this may be intentional, but check the initial compartment sizes carefully')
 
     def get_databook_units(self, code_name: str) -> str:
         """
@@ -745,13 +906,19 @@ class ProjectFramework(object):
             else:
                 return FS.QUANTITY_TYPE_NUMBER.title()
         elif item_type == FS.KEY_PARAMETER:
+            units = item_spec['format'].strip() if item_spec['format'] is not None else None
             if item_spec['timescale']:
-                if item_spec['format'] == FS.QUANTITY_TYPE_DURATION:
+                if units is None:
+                    raise InvalidFramework(f'A timescale was provided for Framework quantity {code_name} but no units were provided')
+                elif units.lower() == FS.QUANTITY_TYPE_DURATION:
                     return '%s (%s)' % (FS.QUANTITY_TYPE_DURATION.title(),format_duration(item_spec['timescale'],pluralize=True))
-                elif item_spec['format'] in {FS.QUANTITY_TYPE_NUMBER,FS.QUANTITY_TYPE_PROBABILITY}:
-                    return '%s (per %s)' % (item_spec['format'].title(),format_duration(item_spec['timescale'],pluralize=False))
-            elif item_spec['format']:
-                return item_spec['format']
+                elif units.lower() in {FS.QUANTITY_TYPE_NUMBER,FS.QUANTITY_TYPE_PROBABILITY}:
+                    return '%s (per %s)' % (units.title(),format_duration(item_spec['timescale'],pluralize=False))
+                else:
+                    if units is None:
+                        raise InvalidFramework(f'A timescale was provided for Framework quantity {code_name} but the units were not one of duration, number, or probability. It is therefore not possible to perform any automatic conversions, simply enter the relevant data entry timescale in the units directly instead.')
+            elif units:
+                return units
 
         return FS.DEFAULT_SYMBOL_INAPPLICABLE
 
@@ -911,6 +1078,10 @@ def generate_framework_doc(framework,fname, databook_only=False):
                         if to_comp:
                             label += ' to %s' % (framework.get_label(to_comp))
                         fcn_deps[spec.name].add(label)
+                    elif dep == 't':
+                        fcn_deps[spec.name].add('Time')
+                    elif dep == 'dt':
+                        fcn_deps[spec.name].add('Step size')
                     else:
                         fcn_deps[spec.name].add(framework.get_label(dep))
 

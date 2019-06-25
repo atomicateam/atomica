@@ -25,12 +25,12 @@ from .framework import ProjectFramework
 from .model import run_model
 from .parameters import ParameterSet
 
-from .programs import ProgramSet
-from .scenarios import Scenario, ParameterScenario, BudgetScenario, CoverageScenario
+from .programs import ProgramSet, ProgramInstructions
+from .scenarios import Scenario, ParameterScenario, CombinedScenario, BudgetScenario, CoverageScenario
 from .optimization import Optimization, optimize, OptimInstructions, InvalidInitialConditions
 from .system import logger
 from .cascade import sanitize_cascade
-from .utils import NDict, evaluate_plot_string
+from .utils import NDict, evaluate_plot_string, NamedItem, TimeSeries
 from .plotting import PlotData, plot_series
 from .results import Result
 from .migration import migrate
@@ -67,7 +67,7 @@ class ProjectSettings(object):
         return None
 
 
-class Project(object):
+class Project(NamedItem):
     def __init__(self, name="default", framework=None, databook=None, do_run=True, **kwargs):
         """ Initialize the project. Keywords are passed to ProjectSettings. """
         # INPUTS
@@ -79,7 +79,7 @@ class Project(object):
         # - databook : The path to a databook file. The databook will be loaded into Project.data and the spreadsheet saved to Project.databook
         # - do_run : If True, a simulation will be run upon project construction
 
-        self.name = name
+        NamedItem.__init__(self, name)
 
         if sc.isstring(framework) or isinstance(framework, sc.Spreadsheet):
             self.framework = ProjectFramework(inputs=framework)
@@ -100,8 +100,6 @@ class Project(object):
         self.uid = sc.uuid()
         self.version = version
         self.gitinfo = sc.dcp(gitinfo)
-        self.created = sc.now()
-        self.modified = sc.now()
         self.filename = None
 
         self.progbook = None  # This will contain an sc.Spreadsheet when the user loads one
@@ -191,7 +189,7 @@ class Project(object):
         if self.progsets:
             data_pops = set((x,y['label']) for x,y in data.pops.items())
             for progset in self.progsets.values():
-                assert data_pops == set((x,y) for x,y in progset.pops.items()), 'Existing progsets exist with populations that do not match the new databook'
+                assert data_pops == set((x,y['label']) for x,y in progset.pops.items()), 'Existing progsets exist with populations that do not match the new databook'
 
         self.data = data
         self.data.validate(self.framework)  # Make sure the data is suitable for use in the Project (as opposed to just manipulating the databook)
@@ -255,20 +253,26 @@ class Project(object):
         self.progsets.append(progset)
         return progset
 
-    def make_scenario(self, name="default", which=None, instructions=None, json=None):
-        if json is not None:
-            if which == 'budget':
-                scenario = BudgetScenario(**json)
-            elif which == 'coverage':
-                scenario = CoverageScenario(**json)
-            else:
-                raise Exception('Parameter scenarios from JSON not implemented')
-        else:
-            if which == 'parameter':
-                scenario = ParameterScenario(name=name, scenario_values=instructions)
-            else:
-                raise Exception('Budget scenarios not from JSON not implemented')
+    def make_scenario(self, which:str ='combined', **kwargs):
+        """
+        Make new scenario and store in Project
 
+        :param which: String identifying type - one of ``['parameter','budget','coverage','combined']``
+        :param kwargs: Arguments to pass to appropriate :class:`Scenario` constructor
+        :return: New scenario instance
+
+        """
+
+        if which == 'parameter':
+            scenario = ParameterScenario(**kwargs)
+        elif which == 'budget':
+            scenario = BudgetScenario(**kwargs)
+        elif which == 'coverage':
+            scenario = CoverageScenario(**kwargs)
+        elif which == 'combined':
+            scenario = CombinedScenario(**kwargs)
+        else:
+            raise Exception('Unknown scenario type')
         self.scens.append(scenario)
         return scenario
 
@@ -622,10 +626,14 @@ class Project(object):
 
         P = sc.loadobj(filepath)
         assert isinstance(P, Project)
-        P = migrate(P)
         return P
 
-    def demo_scenarios(self, dorun=False, doadd=True):
+    def __setstate__(self, d):
+        self.__dict__ = d
+        P = migrate(self)
+        self.__dict__ = P.__dict__
+
+    def demo_scenarios(self, dorun=False):
         """
         Create demo scenarios
 
@@ -635,41 +643,53 @@ class Project(object):
         - Doubled budget
         - Zero budget
 
+        The scenarios will be created and added to the project's list of scenarios
+
         :param dorun: If True, and if doadd=True, simulations will be run
-        :param doadd: If True, scenario objects will be created and added to the project
-        :return: If ``doadd=False``, returns JSON scenarios. If ``doadd=True`` and ``dorun=False``, return ``None``. If ``doadd=True`` and ``dorun=True``, return list of Result objects
 
         """
 
-        json1 = sc.odict()
-        json1['name'] = 'Default budget'
-        json1['parsetname'] = -1
-        json1['progsetname'] = -1
-        json1['start_year'] = self.data.end_year  # This allows the tests to run on the BE where this default never gets modified e.g. by set_scen_info()
-        json1['alloc_year'] = self.data.end_year
-        json1['alloc'] = self.progset(json1['progsetname']).get_alloc(tvec=json1['alloc_year'])
-        json1['active'] = True
+        parsetname = self.parsets[-1].name
+        progset = self.progsets[-1]
+        start_year = self.data.end_year
 
-        json2 = sc.dcp(json1)
-        json2['name'] = 'Doubled budget'
-        json2['alloc'][:] *= 2.0
-        json2['active'] = True
-
-        json3 = sc.dcp(json1)
-        json3['name'] = 'Zero budget'
-        json3['alloc'][:] *= 0.0
-        json3['active'] = True
-
-        if doadd:
-            for json in [json1, json2, json3]:
-                self.make_scenario(which='budget', json=json)
-            if dorun:
-                results = self.run_scenarios()
-                return results
+        # Come up with the current allocation by truncating after the start year
+        current_budget = {}
+        for prog in progset.programs.values():
+            if prog.spend_data.has_time_data:
+                current_budget[prog.name] = sc.dcp(prog.spend_data)
             else:
-                return None
+                current_budget[prog.name] = TimeSeries(start_year,prog.spend_data.assumption)
+
+        # Add default budget scenario
+        # self.scens.append(CombinedScenario(name='Default budget',parsetname=parsetname,progsetname=progset.name,active=True,instructions=ProgramInstructions(start_year,alloc=current_budget)))
+        self.scens.append(BudgetScenario(name='Default budget', parsetname=parsetname, progsetname=progset.name,
+            active=True, alloc=current_budget, start_year=start_year))
+
+        # Add doubled budget
+        doubled_budget = sc.dcp(current_budget)
+        for ts in doubled_budget.values():
+            ts.insert(start_year,ts.interpolate(start_year))
+            ts.remove_after(start_year)
+            ts.insert(start_year+1,ts.get(start_year)*2)
+        # self.scens.append(CombinedScenario(name='Doubled budget',parsetname=parsetname,progsetname=progset.name,active=True,instructions=ProgramInstructions(start_year,alloc=doubled_budget)))
+        self.scens.append(BudgetScenario(name='Doubled budget', parsetname=parsetname, progsetname=progset.name,
+            active=True, alloc=doubled_budget, start_year=start_year))
+
+        # Add zero budget
+        zero_budget = sc.dcp(doubled_budget)
+        for ts in zero_budget.values():
+            ts.insert(start_year+1,0.0)
+        # self.scens.append(CombinedScenario(name='Zero budget',parsetname=parsetname,progsetname=progset.name,active=True,instructions=ProgramInstructions(start_year,alloc=zero_budget)))
+        self.scens.append(BudgetScenario(name='Zero budget', parsetname=parsetname, progsetname=progset.name,
+            active=True, alloc=zero_budget, start_year=start_year))
+
+        if dorun:
+            results = self.run_scenarios()
+            return results
         else:
-            return json1
+            return None
+
 
     def demo_optimization(self, dorun=False, tool=None, optim_type=None):
         """
@@ -699,6 +719,7 @@ class Project(object):
         json['parset_name'] = -1
         json['progset_name'] = -1
         json['start_year'] = self.data.end_year
+        json['adjustment_year'] = self.data.end_year
         json['end_year'] = self.settings.sim_end
         json['budget_factor'] = 1.0
         json['optim_type'] = optim_type
@@ -710,7 +731,7 @@ class Project(object):
             json['objective_labels'] = sc.odict()
 
             for cascade_name in self.framework.cascades:
-                _, cascade = sanitize_cascade(self.framework, cascade_name)
+                cascade = sanitize_cascade(self.framework, cascade_name)[1]
 
                 if optim_type == 'outcome':
                     json['objective_weights']['conversion:%s' % (cascade_name)] = 1.
@@ -744,9 +765,10 @@ class Project(object):
 
         elif tool == 'tb':
             if optim_type == 'outcome':
-                json['objective_weights'] = {'ddis': 1, 'acj': 1, 'ds_inf': 0, 'mdr_inf': 0, 'xdr_inf': 0}  # These are TB-specific: maximize people alive, minimize people dead due to TB
-                json['objective_labels'] = {'ddis': 'Minimize TB-related deaths',
-                                            'acj': 'Minimize total new active TB infections',
+                json['objective_weights'] = {'daly_rate': 0, ':ddis': 1, ':acj': 1, 'ds_inf': 0, 'mdr_inf': 0, 'xdr_inf': 0}  # These are TB-specific: maximize people alive, minimize people dead due to TB
+                json['objective_labels'] = {'daly_rate': 'Minimize DALYs',
+                                            ':ddis': 'Minimize TB-related deaths',
+                                            ':acj': 'Minimize total new active TB infections',
                                             'ds_inf': 'Minimize prevalence of active DS-TB',
                                             'mdr_inf': 'Minimize prevalence of active MDR-TB',
                                             'xdr_inf': 'Minimize prevalence of active XDR-TB'}
@@ -754,9 +776,10 @@ class Project(object):
                 # The weights here default to 0 because it's possible, depending on what programs are selected, that improvement
                 # in one or more of them might be impossible even with infinite money. Also, can't increase money too much because otherwise
                 # run the risk of a local minimum stopping optimization early with the current algorithm (this will change in the future)
-                json['objective_weights'] = {'ddis': 0, 'acj': 5, 'ds_inf': 0, 'mdr_inf': 0, 'xdr_inf': 0}  # These are TB-specific: maximize people alive, minimize people dead due to TB
-                json['objective_labels'] = {'ddis': 'Minimize TB-related deaths',
-                                            'acj': 'Total new active TB infections',
+                json['objective_weights'] = {'daly_rate': 0, ':ddis': 0, ':acj': 5, 'ds_inf': 0, 'mdr_inf': 0, 'xdr_inf': 0}  # These are TB-specific: maximize people alive, minimize people dead due to TB
+                json['objective_labels'] = {'daly_rate': 'Minimize DALYs',
+                                            ':ddis': 'Minimize TB-related deaths',
+                                            ':acj': 'Total new active TB infections',
                                             'ds_inf': 'Prevalence of active DS-TB',
                                             'mdr_inf': 'Prevalence of active MDR-TB',
                                             'xdr_inf': 'Prevalence of active XDR-TB'}

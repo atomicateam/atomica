@@ -146,7 +146,10 @@ class ProgramSet(NamedItem):
 
     """
 
-    def __init__(self, name="default", tvec=None):
+    def __init__(self, name="default", framework=None, data=None, tvec=None):
+
+        assert framework is not None, 'Must specify framework and data when instantiating a ProgramSet'
+        assert data is not None, 'Must specify framework and data when instantiating a ProgramSet'
 
         NamedItem.__init__(self, name)
 
@@ -157,9 +160,24 @@ class ProgramSet(NamedItem):
         self.covouts = sc.odict()  # Stores the information on the 'program effects' sheet
 
         # Populations, parameters, and compartments - these are all the available ones printed when writing a progbook
-        self.pops = sc.odict()
+        # They are all of the form {code_name:{'label':full_name, 'type':pop_type}}
+        self.pops = sc.dcp(data.pops) # ProjectData already stores dicts with 'label' and 'type' keys
+
+        # Get comps from framework
         self.comps = sc.odict()
+        for _, spec in framework.comps.iterrows():
+            if spec['is source'] == 'y' or spec['is sink'] == 'y' or spec['is junction'] == 'y':
+                continue
+            else:
+                self.comps[spec.name] = {'label':spec['display name'],'type':spec['population type']}
+
+        # Get pars from framework
         self.pars = sc.odict()
+        for _, spec in framework.pars.iterrows():
+            if spec['targetable'] == 'y':
+                self.pars[spec.name] = {'label':spec['display name'],'type':spec['population type']}
+
+        self._pop_types = list(framework.pop_types.keys())
 
         # Metadata
         self.created = sc.now()
@@ -170,6 +188,7 @@ class ProgramSet(NamedItem):
         self._book = None
         self._formats = None
         self._references = None
+
 
     def __repr__(self):
         output = sc.prepr(self)
@@ -200,16 +219,16 @@ class ProgramSet(NamedItem):
         if name in self.pars or name in self.comps or name in self.pops or name in self.programs:
             return name
 
-        for code_name, full_name in self.pops.items():
-            if name == full_name:
+        for code_name, spec in self.pops.items():
+            if name == spec['label']:
                 return code_name
 
-        for code_name, full_name in self.comps.items():
-            if name == full_name:
+        for code_name, spec in self.comps.items():
+            if name == spec['label']:
                 return code_name
 
-        for code_name, full_name in self.pars.items():
-            if name == full_name:
+        for code_name, spec in self.pars.items():
+            if name == spec['label']:
                 return code_name
 
         for prog in self.programs.values():
@@ -251,7 +270,7 @@ class ProgramSet(NamedItem):
                 if (par, pop) in self.covouts and code_name in self.covouts.progs:
                     del self.covouts[(par, pop)].progs[code_name]
 
-    def add_pop(self, code_name: str, full_name: str) -> None:
+    def add_pop(self, code_name: str, full_name: str, pop_type: str=None) -> None:
         """
         Add a population to the ``ProgramSet``
 
@@ -264,7 +283,10 @@ class ProgramSet(NamedItem):
 
         """
 
-        self.pops[code_name] = full_name
+        if pop_type is None:
+            pop_type = self._pop_types[0]
+
+        self.pops[code_name] = {'label':full_name, 'type':pop_type}
 
     def remove_pop(self, name: str) -> None:
         """
@@ -288,7 +310,7 @@ class ProgramSet(NamedItem):
 
         del self.pops[code_name]
 
-    def add_comp(self, code_name: str, full_name: str) -> None:
+    def add_comp(self, code_name: str, full_name: str, pop_type: str=None) -> None:
         """
         Add a compartment
 
@@ -299,7 +321,10 @@ class ProgramSet(NamedItem):
         :param full_name: Full name of the compartment to add
 
         """
-        self.comps[code_name] = full_name
+        if pop_type is None:
+            pop_type = self._pop_types[0]
+
+        self.comps[code_name] = {'label':full_name, 'type':pop_type}
 
     def remove_comp(self, name: str) -> None:
         """
@@ -322,7 +347,7 @@ class ProgramSet(NamedItem):
                 prog.target_comps.remove(code_name)
         del self.comps[code_name]
 
-    def add_par(self, code_name: str, full_name: str) -> None:
+    def add_par(self, code_name: str, full_name: str, pop_type: str=None) -> None:
         """
         Add a parameter
 
@@ -331,13 +356,17 @@ class ProgramSet(NamedItem):
 
         :param code_name: Code name of the parameter to add
         :param full_name: Full name of the parameter to add
+        :param pop_type: Code name of the population type
 
         """
+
+        if pop_type is None:
+            pop_type = self._pop_types[0]
 
         # add an impact parameter
         # a new impact parameter won't have any covouts associated with it, and no programs will be bound to it
         # So all we have to do is add it to the list
-        self.pars[code_name] = full_name
+        self.pars[code_name] = {'label':full_name, 'type':pop_type}
 
     def remove_par(self, name: str) -> None:
         """
@@ -362,40 +391,6 @@ class ProgramSet(NamedItem):
     #######################################################################################################
     # Methods for data I/O
     #######################################################################################################
-
-    def _set_available(self, framework, data) -> None:
-        """
-        Update pops, comps and pars
-
-        The :class:`ProgramSet` maintains a listing of populations, compartments,
-        and parameters for the purpose of writing the progbook. At runtime, these
-        need to agree with whichever :class:`ProjectFramework` and :class:`ProjectData`
-        that are loaded into a :class:`Project`. Typically the :class:`ProgramSet` is
-        created within the context of an existing project. This function takes in
-        the framework and data that the :class:`ProgramSet` instance is intended to be
-        used in conjunction with, and sets the available pops, comps, and pars appropriately.
-
-
-        :param framework: A :class:`ProjectFramework` instance
-        :param data: A :class:`ProjectData` instance
-
-        """
-
-        self.pops = sc.odict()
-        for x, v in data.pops.items():
-            self.pops[x] = v['label']
-
-        self.comps = sc.odict()
-        for _, spec in framework.comps.iterrows():
-            if spec['is source'] == 'y' or spec['is sink'] == 'y' or spec['is junction'] == 'y':
-                continue
-            else:
-                self.comps[spec.name] = spec['display name']
-
-        self.pars = sc.odict()
-        for name, label, is_impact in zip(framework.pars.index, framework.pars['display name'], framework.pars['targetable']):
-            if is_impact == 'y':
-                self.pars[name] = label
 
     @staticmethod
     def _normalize_inputs(framework, data, project) -> tuple:
@@ -466,8 +461,7 @@ class ProgramSet(NamedItem):
         framework, data = ProgramSet._normalize_inputs(framework, data, project)
 
         # Populate the available pops, comps, and pars based on the framework and data provided at this step
-        self = ProgramSet(name=name)
-        self._set_available(framework, data)
+        self = ProgramSet(name=name, framework=framework, data=data)
 
         # Create and load spreadsheet
         if sc.isstring(spreadsheet):
@@ -479,7 +473,7 @@ class ProgramSet(NamedItem):
         # Load individual sheets
         self._read_targeting(workbook['Program targeting'])
         self._read_spending(workbook['Spending data'], _allow_missing_data=_allow_missing_data)
-        self._read_effects(workbook['Program effects'])
+        self._read_effects(workbook['Program effects'], framework=framework, data=data)
 
         return self
 
@@ -547,8 +541,8 @@ class ProgramSet(NamedItem):
             if headers[i]:
                 comp_idx[i] = headers[i]
 
-        pop_codenames = {v.lower().strip(): x for x, v in self.pops.items()}
-        comp_codenames = {v.lower().strip(): x for x, v in self.comps.items()}
+        pop_codenames = {v['label'].lower().strip(): x for x, v in self.pops.items()}
+        comp_codenames = {v['label'].lower().strip(): x for x, v in self.comps.items()}
 
         for row in tables[0][2:]:  # For each program to instantiate
             target_pops = []
@@ -597,16 +591,16 @@ class ProgramSet(NamedItem):
         update_widths(widths, 0, 'Abbreviation')
         sheet.write(1, 1, 'Display name', self._formats["center_bold"])
         update_widths(widths, 1, 'Abbreviation')
-        for pop, full_name in self.pops.items():
+        for pop, spec in self.pops.items():
             col = pop_col[pop]
-            sheet.write(1, col, full_name, self._formats['rc_title']['left']['T'])
-            self._references[full_name] = "='%s'!%s" % (sheet.name, xlrc(1, col, True, True))
+            sheet.write(1, col, spec['label'], self._formats['rc_title']['left']['T'])
+            self._references[spec['label']] = "='%s'!%s" % (sheet.name, xlrc(1, col, True, True))
             widths[col] = 12  # Wrap population names
 
-        for comp, full_name in self.comps.items():
+        for comp, spec in self.comps.items():
             col = comp_col[comp]
-            sheet.write(1, col, full_name, self._formats['rc_title']['left']['T'])
-            self._references[full_name] = "='%s'!%s" % (sheet.name, xlrc(1, col, True, True))
+            sheet.write(1, col, spec['label'], self._formats['rc_title']['left']['T'])
+            self._references[spec['label']] = "='%s'!%s" % (sheet.name, xlrc(1, col, True, True))
             widths[col] = 12  # Wrap compartment names
 
         row = 2
@@ -619,7 +613,7 @@ class ProgramSet(NamedItem):
             self._references[prog.label] = "='%s'!%s" % (sheet.name, xlrc(row, 1, True, True))
             update_widths(widths, 1, prog.label)
 
-            for pop in self.pops:
+            for pop in self.pops.keys():
                 col = pop_col[pop]
                 if pop in prog.target_pops:
                     sheet.write(row, col, 'Y', self._formats["center"])
@@ -630,7 +624,7 @@ class ProgramSet(NamedItem):
                 sheet.conditional_format(xlrc(row, col), {'type': 'cell', 'criteria': 'equal to', 'value': '"Y"', 'format': self._formats['unlocked_boolean_true']})
                 # sheet.conditional_format(xlrc(row, col), {'type': 'cell', 'criteria': 'equal to', 'value': '"N"', 'format': self._formats['unlocked_boolean_false']})
 
-            for comp in self.comps:
+            for comp in self.comps.keys():
                 col = comp_col[comp]
                 if comp in prog.target_comps:
                     sheet.write(row, col, 'Y', self._formats["center"])
@@ -694,7 +688,16 @@ class ProgramSet(NamedItem):
                 logger.warning('Program %s: Typically if the unit cost is `/year` then the coverage would not be `/year`', prog.label)
             times.update(set(tdve.tvec))
 
-        self.tvec = array(sorted(list(times)))  # NB. This means that the ProgramSet's tvec (used when writing new programs) is based on the last Program to be read in
+        # Work out the currency
+        units = set([x.spend_data.units.split('/')[0].strip() for x in self.programs.values()])
+        units.update([x.unit_cost.units.split('/')[0].strip() for x in self.programs.values()])
+
+        if len(units) == 1:
+            self.currency = list(units)[0]
+        else:
+            raise Exception('The progbook contains multiple currencies: (%s). All spending must be specified in the same currency' % (units))
+
+        self.tvec = array(sorted(list(times)))  # NB. This means that  the ProgramSet's tvec (used when writing new programs) is based on the last Program to be read in
 
     def _write_spending(self):
         sheet = self._book.add_worksheet("Spending data")
@@ -723,23 +726,41 @@ class ProgramSet(NamedItem):
 
         apply_widths(sheet, widths)
 
-    def _read_effects(self, sheet):
+    def _read_effects(self, sheet, framework, data):
         # Read the program effects sheet. Here we instantiate a costcov object for every non-empty row
 
         tables, start_rows = read_tables(sheet)
-        pop_codenames = {v.lower().strip(): x for x, v in self.pops.items()}
-        par_codenames = {v.lower().strip(): x for x, v in self.pars.items()}
+        pop_codenames = {v['label'].lower().strip(): x for x, v in self.pops.items()}
+        par_codenames = {v['label'].lower().strip(): x for x, v in self.pars.items()}
+        transfer_names = set()
+        for transfer in data.transfers:
+            for pops in transfer.ts.keys():
+                transfer_names.add(('%s_%s_to_%s' % (transfer.code_name,pops[0],pops[1])).lower())
 
         self.covouts = sc.odict()
 
         for table in tables:
-            par_name = par_codenames[table[0][0].value.strip().lower()]  # Code name of the parameter we are working with
+            par_label = table[0][0].value.strip()
+            if par_label.lower() in par_codenames:
+                par_name = par_codenames[par_label.lower()]  # Code name of the parameter we are working with
+            elif par_label.lower() in transfer_names:
+                par_name = table[0][0].value.strip() # Preserve case
+            else:
+                raise Exception('Program name "%s" was not found in the framework parameters or in the databook transfers' % (table[0][0].value.strip()))
             headers = [x.value.strip() if sc.isstring(x.value) else x.value for x in table[0]]
             idx_to_header = {i: h for i, h in enumerate(headers)}  # Map index to header
 
             for row in table[1:]:
                 # For each covout row, we will initialize
-                pop_name = pop_codenames[row[0].value.lower().strip()]  # Code name of the population we are working on
+                pop_label = row[0].value.strip()
+                if pop_label.lower() not in pop_codenames:
+                    raise Exception(f'Population "{pop_label}" was not found in the databook')
+                pop_name = pop_codenames[pop_label.lower()]
+
+                # Code name of the population we are working on
+                if self.pars[par_name]['type'] != self.pops[pop_name]['type']:
+                    raise Exception(f'On the Effects sheet, Parameter "{par_label}" belongs to population type "{self.pars[par_name]["type"]}" but Population "{pop_label}" (Cell {row[0].coordinate}) has population type "{self.pops[pop_name]["type"]}"')
+
                 progs = sc.odict()
 
                 baseline = None
@@ -769,19 +790,20 @@ class ProgramSet(NamedItem):
                             raise Exception('The heading "%s" was not recognized as a program name or a special token - spelling error?' % (idx_to_header[i]))
                         progs[idx_to_header[i]] = float(x.value)
 
+                if baseline is None and progs:
+                    raise Exception(f'On the "Effects" sheet for Parameter "{table[0][0].value.strip()}" in population "{row[0].value.strip()}", program outcomes are defined but the baseline value is missing')
                 if baseline is not None or progs:  # Only instantiate covout objects if they have programs associated with them
                     self.covouts[(par_name, pop_name)] = Covout(par=par_name, pop=pop_name, cov_interaction=cov_interaction, imp_interaction=imp_interaction, uncertainty=uncertainty, baseline=baseline, progs=progs)
 
     def _write_effects(self):
-        # TODO - Use the framework to exclude irrelevant programs and populations
         sheet = self._book.add_worksheet("Program effects")
         widths = dict()
 
         current_row = 0
 
-        for par_name, par_label in self.pars.items():
-            sheet.write(current_row, 0, par_label, self._formats['rc_title']['left']['F'])
-            update_widths(widths, 0, par_label)
+        for par_name, par_spec in self.pars.items():
+            sheet.write(current_row, 0, par_spec['label'], self._formats['rc_title']['left']['F'])
+            update_widths(widths, 0, par_spec['label'])
 
             for i, s in enumerate(['Baseline value', 'Coverage interaction', 'Impact interaction', 'Uncertainty']):
                 sheet.write(current_row, 1 + i, s, self._formats['rc_title']['left']['T'])
@@ -797,7 +819,7 @@ class ProgramSet(NamedItem):
             current_row += 1
 
             applicable_covouts = {x.pop: x for x in self.covouts.values() if x.par == par_name}
-            applicable_pops = self.pops.keys()  # All pops - could filter these (by both program coverage and covouts)
+            applicable_pops = [x for x,v in self.pops.items() if v['type'] == par_spec['type']] # All populations with matching type
 
             for pop_name in applicable_pops:
 
@@ -806,7 +828,7 @@ class ProgramSet(NamedItem):
                 else:
                     covout = applicable_covouts[pop_name]
 
-                sheet.write_formula(current_row, 0, self._references[self.pops[pop_name]], value=self.pops[pop_name])
+                sheet.write_formula(current_row, 0, self._references[self.pops[pop_name]['label']], value=self.pops[pop_name]['label'])
                 update_widths(widths, 0, self.pops[pop_name])
 
                 if covout and covout.baseline is not None:
@@ -852,7 +874,7 @@ class ProgramSet(NamedItem):
         apply_widths(sheet, widths)
 
     @staticmethod
-    def new(name=None, tvec=None, progs=None, project=None, framework=None, data=None, pops=None, comps=None, pars=None):
+    def new(name=None, tvec=None, progs=None, project=None, framework=None, data=None):
         """
         Generate a new progset with blank data
 
@@ -864,15 +886,6 @@ class ProgramSet(NamedItem):
         :param project: specify a project to use the project's framework and data to initialize the comps, pars, and pops
         :param framework: specify a framework to use the framework's comps and pars
         :param data: specify a data to use the data's pops
-        :param pops: manually specify the populations. Can be
-              - A number of pops
-              - A dict of pop {code name:full name} (these will need to match a databook when the progset is read in)
-        :param comps: manually specify the compartments. Can be
-              - A number of comps
-              - A dict of comp {code name:full name} (needs to match framework when the progset is read in)
-        :param pars: manually specify the impact parameters. Can be
-              - A number of pars
-              - A dict of parameter {code name:full name} (needs to match framework when the progset is read in)
         :return: A new :class:`ProgramSet` instances
 
         """
@@ -890,68 +903,25 @@ class ProgramSet(NamedItem):
             errormsg = 'Please just supply a number of programs, not "%s"' % (type(progs))
             raise Exception(errormsg)
 
-        framework, data = ProgramSet._normalize_inputs(framework, data, project)
+        framework, data = ProgramSet._normalize_inputs(framework, data, project) # This step will fail if the framework and data cannot be resolved
 
-        # Assign the pops
-        if pops is None:
-            # Get populations from data
-            pops = sc.odict([(k, v['label']) for k, v in data.pops.iteritems()])
-        elif sc.isnumber(pops):
-            npops = pops
-            pops = sc.odict()  # Create real pops dict
-            for p in range(npops):
-                pops['Pop %i' % (p + 1)] = 'Population %i' % (p + 1)
-        else:
-            assert isinstance(pops, dict)  # Needs dict input
+        newps = ProgramSet(name=name, tvec=tvec, framework=framework, data=data)
+        if not newps.pars:
+            logger.warning('No parameters were marked as "Targetable" in the Framework, so no program effects were added')
 
-        # Assign the comps
-        if comps is None:
-            # Get comps from framework
-            comps = sc.odict()
-            for _, spec in framework.comps.iterrows():
-                if spec['is source'] == 'y' or spec['is sink'] == 'y' or spec['is junction'] == 'y':
-                    continue
-                else:
-                    comps[spec.name] = spec['display name']
-        elif sc.isnumber(comps):
-            ncomps = comps
-            comps = sc.odict()  # Create real compartments list
-            for p in range(ncomps):
-                comps['Comp %i' % (p + 1)] = 'Compartment %i' % (p + 1)
-        else:
-            assert isinstance(comps, dict)  # Needs dict input
+        for k, v in progs.items():
+            newps.add_program(code_name=k, full_name=v)
 
-        # Assign the comps
-        if pars is None:
-            # Get pars from framework
-            pars = sc.odict()
-            for _, spec in framework.pars.iterrows():
-                if spec['targetable'] == 'y':
-                    pars[spec.name] = spec['display name']
-            if not pars:
-                logger.warning('No parameters were marked as "Targetable" in the Framework, so there are no program effects')
-        elif sc.isnumber(pars):
-            npars = pars
-            pars = sc.odict()  # Create real compartments list
-            for p in range(npars):
-                pars['Par %i' % (p + 1)] = 'Parameter %i' % (p + 1)
-        else:
-            assert isinstance(pars, dict)  # Needs dict input
-
-        newps = ProgramSet(name, tvec)
-        [newps.add_comp(k, v) for k, v in comps.items()]
-        [newps.add_par(k, v) for k, v in pars.items()]
-        [newps.add_pop(k, v) for k, v in pops.items()]
-        [newps.add_program(k, v) for k, v in progs.items()]
         return newps
 
     def validate(self) -> None:
         """
         Perform basic validation checks
 
-        :raises: Exception is anything is invalid
+        :raises: Exception if anything is invalid
 
         """
+
         for prog in self.programs.values():
             if not prog.target_comps:
                 raise Exception('Program "%s" does not target any compartments' % (prog.name))

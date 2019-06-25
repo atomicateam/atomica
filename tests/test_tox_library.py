@@ -6,6 +6,9 @@ import atomica as at
 import os
 import pytest
 import numpy as np
+import sciris as sc
+
+tmpdir = at.atomica_path(['tests', 'temp'])
 
 # List available models based on which framework files exist
 models = list()
@@ -52,7 +55,7 @@ def run_parameter_scenario(proj):
     scvalues[spec.name][pop_name] = dict()
     scvalues[spec.name][pop_name]["t"] = [2015., 2020.]
     scvalues[spec.name][pop_name]["y"] = par.interpolate(scvalues[spec.name][pop_name]["t"],pop_name) * np.array([1,1.5]).ravel()
-    scen = proj.make_scenario(which='parameter', name="Test", instructions=scvalues)
+    scen = proj.make_scenario(which='parameter', name="Test", scenario_values=scvalues)
     scen.run(proj, proj.parsets["default"])
 
     return
@@ -83,7 +86,8 @@ def run_budget_scenario(proj):
 
     alloc = proj.progsets[0].get_alloc(2018)
     doubled_budget = {x:v*2 for x,v in alloc.items()}
-    scen = at.BudgetScenario(name='Doubled budget',alloc=doubled_budget,start_year=2018)
+    instructions = at.ProgramInstructions(start_year=2018,alloc=doubled_budget)
+    scen = at.CombinedScenario(name='Doubled budget',instructions=instructions)
     scen.run(proj,parset='default',progset='default')
 
     return
@@ -100,7 +104,8 @@ def run_coverage_scenario(proj):
     print('Testing coverage scenario')
 
     half_coverage = {x:0.5 for x in proj.progsets[0].programs.keys()}
-    scen = at.CoverageScenario(name='Reduced coverage',coverage=half_coverage,start_year=2018)
+    instructions = at.ProgramInstructions(start_year=2018,coverage=half_coverage)
+    scen = at.CombinedScenario(name='Doubled budget',instructions=instructions)
     scen.run(proj,parset='default',progset='default')
 
     return
@@ -124,6 +129,22 @@ def run_optimization(proj):
     optimized_instructions = at.optimize(proj, optimization, parset=proj.parsets["default"], progset=proj.progsets['default'], instructions=instructions)
 
     return
+
+def run_export(result,model):
+    """
+    Test exporting a results
+
+    :param result:
+    :param model:
+    :return:
+    """
+
+    at.export_results(result,tmpdir+model+'_single_export_test') # Export single
+    result.export_raw(tmpdir+model+'_raw_export_test')
+    r2 = sc.dcp(result)
+    r2.name = 'Copied'
+    at.export_results([result, r2],tmpdir+model+'_multiple_export_test') # Export single
+
 
 # Testing optimizations and calibrations could be expensive
 # Using the parametrize decorator means Pytest will treat
@@ -162,7 +183,9 @@ def test_model(model):
 
     # Test loading the progbook and doing a basic run
     P.load_progbook(progbook_file)
-    P.run_sim(P.parsets[0],P.progsets[0],at.ProgramInstructions(start_year=2018))
+    res = P.run_sim(P.parsets[0],P.progsets[0],at.ProgramInstructions(start_year=2018))
+
+    run_export(res,model)
 
     # Test a reconciliation
     run_reconciliation(P)
@@ -181,8 +204,5 @@ def test_model(model):
 if __name__ == '__main__':
 
     np.seterr(all='raise')
-
     for m in models:
-        if m == 'malaria':
-            continue
         test_model(m)

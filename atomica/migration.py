@@ -22,6 +22,7 @@ from .system import FrameworkSettings as FS
 import atomica
 import types
 import numpy as np
+import pandas as pd
 
 # MODULE MIGRATIONS
 #
@@ -143,9 +144,7 @@ def migrate(proj):
     else:
         logger.info('Migrating Project "%s" from %s->%s', proj.name, proj.version, version)
     for m in migrations:  # Run the migrations in increasing version order
-        if sc.compareversions(proj.version, m.original_version) > 0:
-            continue
-        else:
+        if sc.compareversions(proj.version, m.new_version) < 0:
             proj = m.upgrade(proj)
 
     proj.version = version  # Set project version to the current Atomica version
@@ -213,6 +212,29 @@ def all_progsets(proj):
         elif isinstance(result, Result) and result.model.progset is not None:
             yield result.model.progset
 
+def all_frameworks(proj):
+    """ Helper generator to iterate over all frameworks in a project
+
+    Project frameworks may be
+        - Standalone frameworks
+        - Contained in a Result
+
+    This function is a generator that allows iteration over all frameworks in a project
+
+    :param proj: A Project object
+    :return: A framework (via yield)
+
+    """
+
+    if proj.framework:
+        yield proj.framework
+
+    for result in proj.results.values():
+        if isinstance(result, list):
+            for r in result:
+                yield r.framework
+        elif isinstance(result, Result):
+            yield result.framework
 
 @migration('1.0.5', '1.0.6', 'Simplify ParameterSet storage')
 def simplify_parset_storage(proj):
@@ -361,3 +383,168 @@ def model_tidying(proj):
             prog.capacity_constraint = prog.capacity
             del prog.capacity
     return proj
+
+@migration('1.0.27', '1.0.28', 'Rename link labels')
+def model_tidying(proj):
+
+    # Normalize link labels - they should now always derive from their associated parameter
+    for result in all_results(proj):
+        for pop in result.model.pops:
+            for link in pop.links:
+                link.id = link.id[0:3] + (link.parameter.name + ':flow',)
+        result.model.set_vars_by_pop()
+    return proj
+
+@migration('1.0.30', '1.1.3', 'Replace scenarios')
+def replace_scenarios(proj):
+    # This migration upgrades existing scenarios to match the latest definitions
+    from .scenarios import ParameterScenario, BudgetScenario, CoverageScenario
+    from .utils import NDict, TimeSeries
+
+    new_scens = NDict()
+
+    for name,scen in proj.scens.items():
+
+        scen_name = scen.name
+        active = scen.active
+
+        try:
+            parsetname = proj.parset(scen.parsetname).name
+        except:
+            parsetname = proj.parsets[-1].name
+
+        if isinstance(scen,ParameterScenario):
+            new_scen = scen # No need to migrate parameter scenarios
+
+        elif isinstance(scen,BudgetScenario):
+            # Convert budget scenario to instructions based on existing logic
+            if scen.alloc_year is not None:
+                # If the alloc_year is prior to the program start year, then just use the spending value directly for all times
+                # For more sophisticated behaviour, the alloc should be passed into the BudgetScenario as a TimeSeries
+                alloc = sc.odict()
+                for prog_name, val in scen.alloc.items():
+                    assert not isinstance(val, TimeSeries)  # Value must not be a TimeSeries
+                    if val is None:
+                        continue  # Use default spending for any program that does not have a spending overwrite
+                    alloc[prog_name] = TimeSeries(scen.alloc_year, val)
+                    if scen.alloc_year > scen.start_year and proj.progsets:
+                        # Add in current spending if a programs instance already exists
+                        progset = proj.progsets[-1]
+                        # If adding spending in a future year, linearly ramp from the start year
+                        spend_data = progset.programs[prog_name].spend_data
+                        alloc[prog_name].insert(scen.start_year, spend_data.interpolate(scen.start_year))  # This will result in a linear ramp
+            else:
+                alloc = sc.odict()
+                for prog_name, val in scen.alloc.items():
+                    if not isinstance(val, TimeSeries):
+                        alloc[prog_name] = TimeSeries(scen.start_year, val)
+                    else:
+                        alloc[prog_name] = sc.dcp(val)
+            for ts in alloc.values():
+                ts.vals = [x * scen.budget_factor for x in ts.vals]
+
+            try:
+                progsetname = proj.progset(scen.progsetname).name
+            except:
+                progsetname = proj.parsets[-1].name
+
+            new_scen = atomica.BudgetScenario(name=scen_name,active=active,parsetname=parsetname,progsetname=progsetname,alloc=alloc,start_year=scen.start_year)
+
+        elif isinstance(scen,CoverageScenario):
+            coverage = sc.odict()
+            for prog_name, val in scen.coverage.items():
+                if not isinstance(val, TimeSeries):
+                    coverage[prog_name] = TimeSeries(scen.start_year, val)
+                else:
+                    coverage[prog_name] = sc.dcp(val)
+
+            try:
+                progsetname = proj.progset(scen.progsetname).name
+            except:
+                progsetname = proj.parsets[-1].name
+
+            new_scen = atomica.CoverageScenario(name=scen_name,active=active,parsetname=parsetname,progsetname=progsetname,coverage=coverage,start_year=scen.start_year)
+
+        new_scens.append(new_scen)
+
+    proj.scens = new_scens
+    return proj
+
+@migration('1.2.0', '1.3.0', 'Add population type')
+def add_pop_type(proj):
+
+    for fw in all_frameworks(proj):
+
+        # Add default population type sheet
+        fw.sheets['population types'] = [pd.DataFrame.from_records([(FS.DEFAULT_POP_TYPE, 'Default')], columns=['code name', 'description'])]
+        fw.comps['population type'] = FS.DEFAULT_POP_TYPE
+        fw.characs['population type'] = FS.DEFAULT_POP_TYPE
+        fw.pars['population type'] = FS.DEFAULT_POP_TYPE
+        fw.interactions['to population type'] = FS.DEFAULT_POP_TYPE
+        fw.interactions['from population type'] = FS.DEFAULT_POP_TYPE
+
+    if proj.data:
+        for pop_spec in proj.data.pops.values():
+                pop_spec['type'] = FS.DEFAULT_POP_TYPE
+
+        # Fix up TDVE types
+        # Fix up transfers and interactions
+        for tdve in proj.data.tdve.values():
+            tdve.type = FS.DEFAULT_POP_TYPE
+
+        for interaction in proj.data.transfers + proj.data.interpops:
+            interaction.from_pop_type = FS.DEFAULT_POP_TYPE
+            interaction.to_pop_type = FS.DEFAULT_POP_TYPE
+
+    for parset in proj.parsets.values():
+        parset.pop_types = [pop['type'] for pop in proj.data.pops.values()] # If there are parsets without data, then we don't know what pop types to add. Project is essentially incomplete and considered unusable
+
+    for progset in all_progsets(proj):
+        for pop in progset.pops.keys():
+            progset.pops[pop] = {'label':progset.pops[pop], 'type':FS.DEFAULT_POP_TYPE}
+
+        for comp in progset.comps.keys():
+            progset.comps[comp] = {'label':progset.comps[comp], 'type':FS.DEFAULT_POP_TYPE}
+
+        for par in progset.pars.keys():
+            progset.pars[par] = {'label':progset.pars[par], 'type':FS.DEFAULT_POP_TYPE}
+
+    for result in all_results(proj):
+        for pop in result.model.pops:
+            pop.type = FS.DEFAULT_POP_TYPE
+            
+    return proj
+
+
+@migration('1.3.0', '1.4.0', 'Parameter can be derivative')
+def add_derivatives(proj):
+    for fw in all_frameworks(proj):
+        fw.pars['is derivative'] = 'n'
+    for result in all_results(proj):
+        for pop in result.model.pops:
+            for par in pop.pars:
+                par.derivative = False
+    return proj
+
+@migration('1.4.3', '1.5.0', 'Parameters with functions can be overwritten')
+def add_parset_disable_function(proj):
+
+    # Add skip_function flag to parset Parameter instances
+    for parset in proj.parsets.values():
+        for par in parset.all_pars():
+            par.skip_function = sc.odict.fromkeys(par.ts, None)
+
+    for result in all_results(proj):
+        for pop in result.model.pops:
+            for par in pop.pars:
+                par.skip_function = None
+    return proj
+
+@migration('1.5.1', '1.5.2', 'OptimInstruction has separate adjustment and start years')
+def add_parset_disable_function(proj):
+    if hasattr(proj,'optims'):
+        for optim in proj.optims.values():
+            if 'adjustment_year' not in optim.json:
+                optim.json['adjustment_year'] = optim.json['start_year']
+    return proj
+

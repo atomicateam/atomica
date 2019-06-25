@@ -17,8 +17,9 @@ import logging
 import sciris as sc
 from .excel import standard_formats
 from .system import FrameworkSettings as FS
-from .system import logger
+from .system import logger, NotFoundError
 from .utils import NamedItem, evaluate_plot_string, nested_loop, interpolate
+from .function_parser import parse_function
 
 
 class Result(NamedItem):
@@ -162,9 +163,9 @@ class Result(NamedItem):
                 for pop_name in prog.target_pops:
                     for comp_name in prog.target_comps:
                         if prog.name not in num_eligible:
-                            num_eligible[prog.name] = self.get_variable(pop_name, comp_name)[0].vals.copy()
+                            num_eligible[prog.name] = self.get_variable(comp_name, pop_name)[0].vals.copy()
                         else:
-                            num_eligible[prog.name] += self.get_variable(pop_name, comp_name)[0].vals
+                            num_eligible[prog.name] += self.get_variable(comp_name, pop_name)[0].vals
 
             # Note that `ProgramSet.get_prop_coverage()` takes in capacity in units of 'people' which matches
             # the units of 'num_eligible' so we therefore use the returned value from `ProgramSet.get_capacities()`
@@ -257,7 +258,7 @@ class Result(NamedItem):
         output = sc.prepr(self)
         return output
 
-    def get_variable(self, pops: str, name: str) -> list:
+    def get_variable(self, name:str,  pops:str=None) -> list:
         """
         Retrieve integration objects
 
@@ -271,7 +272,18 @@ class Result(NamedItem):
 
         """
 
-        return self.model.get_pop(pops).get_variable(name)
+        if pops is not None:
+            return self.model.get_pop(pops).get_variable(name)
+        else:
+            vars = []
+            for pop in self.model.pops:
+                try:
+                    vars += pop.get_variable(name)
+                except NotFoundError:
+                    pass
+            if not vars:
+                raise NotFoundError(f"Variable '{name}' was not found in any populations")
+            return vars
 
     def export_raw(self, filename=None) -> pd.DataFrame:
         """
@@ -288,17 +300,30 @@ class Result(NamedItem):
         # Assemble the outputs into a dict
         d = dict()
 
+        def gl(name):
+            # Local helper to get name and gracefully deal with transfer parameters that don't appear in the framework
+            try:
+                return self.framework.get_label(name)
+            except NotFoundError:
+                return '-'
+
         for pop in self.model.pops:
             for comp in pop.comps:
-                d[('Compartments', pop.name, comp.name)] = comp.vals
+                d[('Compartments', pop.name, comp.name,gl(comp.name))] = comp.vals
             for charac in pop.characs:
-                d[('Characteristics', pop.name, charac.name)] = charac.vals
+                d[('Characteristics', pop.name, charac.name, gl(charac.name))] = charac.vals
             for par in pop.pars:
                 if par.vals is not None:
-                    d[('Parameters', pop.name, par.name)] = par.vals
+                    d[('Parameters', pop.name, par.name, gl(par.name))] = par.vals
             for link in pop.links:
                 # Sum over duplicate links and annualize flow rate
-                key = ('Flow rates', pop.name, link.name)
+                par_label = gl(link.parameter.name)
+                if par_label == '-':
+                    link_label = par_label
+                else:
+                    link_label = '%s (flow)' % (par_label)
+
+                key = ('Flow rates', pop.name, link.name,  link_label)
                 if key not in d:
                     d[key] = np.zeros(self.t.shape)
                 d[key] += link.vals / self.dt
@@ -347,6 +372,12 @@ class Result(NamedItem):
 
         quantities = evaluate_plot_string(this_plot['quantities'])
 
+        # Work out which populations these are defined in
+        # Going via Result.get_variable() means that it will automatically
+        # work correctly for flow rate syntax as well
+        if not pops:
+            pops = _filter_pops_by_output(self,quantities)
+
         d = PlotData(self, outputs=quantities, pops=pops, project=project)
         h = plot_series(d, axis='pops', data=(project.data if project is not None else None))
         plt.title(this_plot['name'])
@@ -370,6 +401,37 @@ class Result(NamedItem):
             if year is None:
                 year = self.t
             return self.model.progset.get_alloc(year, self.model.program_instructions)
+
+def _filter_pops_by_output(result,output) -> list:
+    """
+    Helper function for plotting quantities
+
+    With population types, a given output/output aggregation may only be defined
+    in a subset of populations. To deal with this when plotting Result objects,
+    it's necessary to work out which population the requested output aggregation can be
+    plotted in. This function takes in an output definition and returns a list of populations
+    matching this.
+
+    :param output: An output aggregation string e.g. 'alive' or ':ddis' or {['lt_inf','lteu']} (supported by PlotData/get_variable)
+    :return: A list of population code names
+
+    """
+
+    if sc.isstring(output):
+        vars = result.get_variable(output)
+    elif isinstance(output, list):
+        vars = result.get_variable(output[0])
+    elif isinstance(output, dict):
+        v = list(output.values())[0]
+        if isinstance(v, list):
+            vars = result.get_variable(v[0])
+        elif sc.isstring(v):
+            # It could be a function aggregation or it could be a single one
+            _, deps = parse_function(v)
+            vars = result.get_variable(deps[0])
+    else:
+        raise Exception('Could not determine population type')
+    return [x.pop.name for x in vars]
 
 
 def export_results(results, filename=None, output_ordering=('output', 'result', 'pop'),
@@ -535,13 +597,17 @@ def _cascade_to_df(results, cascade_name, tvals):
 
     """
 
-    from .cascade import get_cascade_vals
+    from .cascade import get_cascade_vals, sanitize_cascade
+
+    # Find the cascade pop type
+    _, cascade_dict, pop_type = sanitize_cascade(results[0].framework, cascade_name)
 
     # Prepare the population names and time values
     pop_names = dict()
     pop_names['all'] = 'Entire population'
-    for pop_name, pop_label in zip(results[0].pop_names, results[0].pop_labels):
-        pop_names[pop_name] = pop_label
+    for pop in results[0].model.pops:
+        if pop.type == pop_type:
+            pop_names[pop.name] = pop.label
 
     cascade_df = []
     for pop, label in pop_names.items():
@@ -567,7 +633,7 @@ def _output_to_df(results, output_name: str, output, tvals) -> pd.DataFrame:
     returned. The index levels are the name of the output, the name of the results, and the populations.
 
     In addition, this function attempts to aggregate the outputs, if the units of the outputs matches
-    known units. If the units lead to an obvious use of summation or weighted averating, it will be used.
+    known units. If the units lead to anver obvious use of summation or weighted averating, it will be used.
     Otherwise, the output will contain NaNs for the population-aggregated results, which will appear as empty
     cells in the Excel spreadsheet so the user is able to fill them in themselves.
 
@@ -581,28 +647,27 @@ def _output_to_df(results, output_name: str, output, tvals) -> pd.DataFrame:
 
     from .plotting import PlotData
 
-    pop_labels = {x: y for x, y in zip(results[0].pop_names, results[0].pop_labels)}
+    pops = _filter_pops_by_output(results[0],output)
+    pop_labels = {x: y for x, y in zip(results[0].pop_names, results[0].pop_labels) if x in pops}
     data = dict()
-    popdata = PlotData(results, outputs=output)
-    assert len(
-        popdata.outputs) == 1, 'Framework plot specification should evaluate to exactly one output series - there were %d' % (
-        len(popdata.outputs))
+
+    popdata = PlotData(results, pops=pops, outputs=output)
+    assert len(popdata.outputs) == 1, 'Framework plot specification should evaluate to exactly one output series - there were %d' % (len(popdata.outputs))
     popdata.interpolate(tvals)
     for result in popdata.results:
         for pop_name in popdata.pops:
-            data[(output_name, popdata.results[result], pop_labels[pop_name])] = popdata[
-                result, pop_name, popdata.outputs[0]].vals
+            data[(output_name, popdata.results[result], pop_labels[pop_name])] = popdata[result, pop_name, popdata.outputs[0]].vals
 
     # Now do a population total. Need to check the units after any aggregations
     # Check results[0].model.pops[0].comps[0].units just in case someone changes it later on
     if popdata.series[0].units in {FS.QUANTITY_TYPE_NUMBER, results[0].model.pops[0].comps[0].units}:
         # Number units, can use summation
-        popdata = PlotData(results, outputs=output, pops='total', pop_aggregation='sum')
+        popdata = PlotData(results, outputs=output, pops={'total':pops}, pop_aggregation='sum')
         popdata.interpolate(tvals)
         for result in popdata.results:
             data[(output_name, popdata.results[result], 'Total (sum)')] = popdata[result, popdata.pops[0], popdata.outputs[0]].vals
     elif popdata.series[0].units in {FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION,FS.QUANTITY_TYPE_PROBABILITY}:
-        popdata = PlotData(results, outputs=output, pops='total', pop_aggregation='weighted')
+        popdata = PlotData(results, outputs=output, pops={'total':pops}, pop_aggregation='weighted')
         popdata.interpolate(tvals)
         for result in popdata.results:
             data[(output_name, popdata.results[result], 'Total (weighted average)')] = popdata[result, popdata.pops[0], popdata.outputs[0]].vals
@@ -750,6 +815,9 @@ class Ensemble(NamedItem):
                 self.samples.append(sample)
 
             logger.setLevel(original_level) # Reset the logger
+
+        # Finally, set the colours for the first sample
+        self.samples[0].set_colors(pops=self.samples[0].pops, outputs=self.samples[0].outputs)
 
     @property
     def n_samples(self) -> int:
@@ -1243,7 +1311,14 @@ class Ensemble(NamedItem):
 
 
         locations = offset + np.arange(len(x))
-        plt.boxplot(np.vstack(x).T, positions=locations, manage_xticks=False)
+
+        # TODO - force matplotlib>=3.1 to address this
+        import matplotlib
+        if sc.compareversions(matplotlib.__version__,'3.1') < 0:
+            plt.boxplot(np.vstack(x).T, positions=locations, manage_xticks=False)
+        else:
+            plt.boxplot(np.vstack(x).T, positions=locations, manage_ticks=False)
+
         ax.set_xlim(-0.5, locations[-1] + 0.5)
         if offset == 0:
             ax.set_xticks(np.arange(locations[-1] + 1))

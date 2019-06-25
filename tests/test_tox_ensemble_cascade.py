@@ -87,7 +87,7 @@ def test_ensemble_cascade():
     ensemble = at.CascadeEnsemble(P.framework,0,[2020,2023]) # Just put '0' to use the first cascade - doesn't matter which one since it gets overwritten below
 
     def cascade_difference(results):
-        _, cascade_dict = at.sanitize_cascade(results[0].framework,'main') # Use `sanitize_cascade` to retrieve the cascade dictionary
+        cascade_dict = at.sanitize_cascade(results[0].framework,'main')[1] # Use `sanitize_cascade` to retrieve the cascade dictionary
         d1 = at.PlotData(results[0],outputs=cascade_dict)
         d2 = at.PlotData(results[1],outputs=cascade_dict)
         return d2-d1

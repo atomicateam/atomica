@@ -8,7 +8,7 @@ effectively serves as a mapping from one set of program instructions to another.
 """
 
 import sciris as sc
-from .system import logger
+from .system import logger, NotFoundError
 from .utils import NamedItem
 import numpy as np
 from .model import Model, Link
@@ -235,14 +235,33 @@ class Measurable(object):
             val = np.sum(alloc[self.measurable_name][t_filter])
         else:  # If the measurable is a model output...
             val = 0.0
+            matched = False # Flag whether any variables were found
             for pop in model.pops:
-                if not self.pop_names or pop in self.pop_names:
-                    vars = pop.get_variable(self.measurable_name)
-                    for var in vars:
-                        if isinstance(var, Link):
-                            val += np.sum(var.vals[t_filter] / var.dt)  # Annualize link values - usually this won't make a difference, but it matters if the user mixes Links with something else in the objective
-                        else:
-                            val += np.sum(var.vals[t_filter])
+                if not self.pop_names:
+                    # If no pops were provided, then iterate over all pops but skip those where the measureable is not defined
+                    # Use this approach rather than checking the pop type in the framework because user could be optimizating
+                    # flow rates or transitions that don't appear in the framework
+                    try:
+                        vars = pop.get_variable(self.measurable_name)
+                        matched = True
+                    except NotFoundError:
+                        continue
+                elif pop not in self.pop_names:
+                    continue
+                else:
+                    vars = pop.get_variable(self.measurable_name) # If variable is missing and the pop was explicitly defined, raise the error
+                    matched = True
+
+                for var in vars:
+                    if isinstance(var, Link):
+                        val += np.sum(var.vals[t_filter] / var.dt)  # Annualize link values - usually this won't make a difference, but it matters if the user mixes Links with something else in the objective
+                    else:
+                        val += np.sum(var.vals[t_filter])
+
+            if not matched:
+                # Raise an error if the measureable was not found in any populations
+                raise Exception('"%s" not found in any populations' % (self.measurable_name))
+
         return val
 
     def _transform_val(self, val):
@@ -332,16 +351,27 @@ class MaximizeCascadeStage(Measurable):
 
 
 class MaximizeCascadeConversionRate(Measurable):
-    # This Measurable will maximize the conversion rate, summed over all cascade stages
-    def __init__(self, cascade_name, t, pop_names='all', weight=1.0):
-        # pop_names can be a single pop name (including all), or a list of pop names
-        # aggregations are supported by setting pop_names to a dict e.g.
-        # pop_names = {'foo':['0-4','5-14']}
+    """
+    Maximize overall conversion rate
+
+    Maximize conversion summed over all cascade stages
+
+    :param cascade_name: The name of one of the cascades in the Framework
+    :param t: A single time value e.g. 2020
+    :param pop_names: A single pop name (including 'all'), a list of populations,
+                  or a dict/list of dicts, each with a single aggregation e.g. ``{'foo':['0-4','5-14']}``
+    :param weight: Weighting factor for this Measurable in the overall objective function
+
+    """
+
+    def __init__(self, cascade_name, t:float, pop_names='all', weight=1.0):
         Measurable.__init__(self, cascade_name, t=t, weight=-weight, pop_names=pop_names)
         if not isinstance(self.pop_names, list):
             self.pop_names = [self.pop_names]
 
     def get_objective_val(self, model):
+        if self.t < model.t[0] or self.t > model.t[-1]:
+            raise Exception('Measurable year for optimization (%d) is outside the simulation range (%d-%d)' % (self.t,model.t[0],model.t[-1]))
         result = Result(model=model)
         val = 0
         for pop_name in self.pop_names:
@@ -564,8 +594,6 @@ class OptimInstructions(NamedItem):
         name = self.json['name']
         parset_name = self.json['parset_name']  # WARNING, shouldn't be unused
         progset_name = self.json['progset_name']
-        adjustment_year = self.json['start_year']  # The year when adjustments get made
-        end_year = self.json['end_year']  # For cascades, this is the evaluation year. For other measurables, it is optimized from the adjustment year to the end year
         budget_factor = self.json['budget_factor']
         objective_weights = self.json['objective_weights']
         prog_spending = self.json['prog_spending']
@@ -573,7 +601,10 @@ class OptimInstructions(NamedItem):
         optim_type = self.json['optim_type']
         tool = self.json['tool']
         method = self.json.get('method', None)
-        start_year = project.data.end_year  # The year when programs turn on
+
+        start_year = self.json['start_year']  # The year when programs turn on
+        adjustment_year = self.json['adjustment_year']  # The year when adjustments get made
+        end_year = self.json['end_year']  # For cascades, this is the evaluation year. For other measurables, it is optimized from the adjustment year to the end year
 
         if tool == 'cascade' and optim_type == 'money':
             raise NotImplementedError('Money minimization not yet implemented for Cascades tool')
@@ -588,12 +619,12 @@ class OptimInstructions(NamedItem):
         adjustments = []
         default_spend = progset.get_alloc(tvec=adjustment_year, instructions=progset_instructions)  # Record the default spend for scale-up in money minimization
         for prog_name in progset.programs:
-            limits = sc.dcp(prog_spending[prog_name])
+            limits = list(sc.dcp(prog_spending[prog_name]))
             if limits[0] is None:
                 limits[0] = 0.0
             if limits[1] is None and optim_type == 'money':
                 # Money minimization requires an absolute upper bound. Limit it to 5x default spend by default
-                limits[1] = 5 * default_spend[prog_name]
+                limits[1] = 10 * default_spend[prog_name]
             adjustments.append(SpendingAdjustment(prog_name, t=adjustment_year, limit_type='abs', lower=limits[0], upper=limits[1]))
 
             if optim_type == 'money':
@@ -635,7 +666,7 @@ class OptimInstructions(NamedItem):
 
         if optim_type == 'money':
             # Do a prerun to convert the optimization targets into absolute units
-            result = proj.run_sim(proj.parsets[parset_name], progset=progset, progset_instructions=progset_instructions, store_results=False)
+            result = proj.run_sim(proj.parsets[parset_name], progset=progset, progset_instructions=ProgramInstructions(alloc=progset, start_year=start_year), store_results=False)
             for measurable in measurables:
                 val = measurable.get_objective_val(result.model)  # This is the baseline value for the quantity being thresholded
                 assert measurable.threshold <= 100 and measurable.threshold >= 0
@@ -831,7 +862,7 @@ def optimize(project, optimization, parset, progset, instructions, x0=None, xmin
     # Check that the initial conditions are OK
     initial_objective = _objective_fcn(x0, **args)
     if not np.isfinite(initial_objective):
-        raise InvalidInitialConditions()
+        raise InvalidInitialConditions('Optimization cannot begin because the objective function was NaN for the specified initialization')
 
     if optimization.method == 'asd':
         optim_args = {

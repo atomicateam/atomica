@@ -19,7 +19,14 @@ def parent_dir():
 
 
 class NamedItem():
-    def __init__(self, name=None):
+    def __init__(self, name:str=None):
+        """
+        NamedItem constructor
+
+        A name must be a string
+
+        :param name:
+        """
         if name is None:
             name = '<unnamed>'
         self.name = name
@@ -52,8 +59,8 @@ class NDict(sc.odict):
         # like a normal odict
         sc.odict.__setitem__(self, key, item)
 
-        # If it is a NamedItem, then synchronize the name of the object with the specified key
-        if isinstance(item, NamedItem):
+        # If it is a NamedItem, then synchronize the name of the object with the specified string key
+        if sc.isstring(key) and isinstance(item, NamedItem):
             item.name = key
             item.modified = sc.now()
         return None
@@ -334,7 +341,7 @@ class TimeSeries(object):
 
         :param t: A time value. If ``None``, will return assumption regardless of whether
                   time data has been entered or not
-        :return: The value at the corresponding time
+        :return: The value at the corresponding time. Returns None if the value no value present
         """
 
         if t is None or len(self.t) == 0:
@@ -342,7 +349,7 @@ class TimeSeries(object):
         elif t in self.t:
             return self.vals[self.t.index(t)]
         else:
-            raise Exception('Item not found')
+            return None
 
     def get_arrays(self):
         """
@@ -376,6 +383,28 @@ class TimeSeries(object):
             del self.vals[idx]
         else:
             raise Exception('Item not found')
+
+    def remove_before(self,t_remove) -> None:
+        """
+        Remove times from start
+
+        :param tval: Remove times up to but not including this time
+        """
+
+        for tval in sc.dcp(self.t):
+            if tval < t_remove:
+                self.remove(tval)
+
+    def remove_after(self, t_remove) -> None:
+        """
+        Remove times from start
+
+        :param tval: Remove times up to but not including this time
+        """
+
+        for tval in sc.dcp(self.t):
+            if tval > t_remove:
+                self.remove(tval)
 
     def remove_between(self, t_remove):
         # t is a two element vector [min,max] such that
@@ -540,16 +569,13 @@ def format_duration(t: float, pluralize=False) -> str:
     else:
         return '%s %ss' % (sc.sigfig(converted_t, keepints=True, sigfigs=3), timescale)
 
-
 def interpolate(x: np.array, y: np.array, x2: np.array, extrapolate=True) -> np.array:
     """
     pchip interpolation with constant extrapolation
-
     Atomica's standard interpolation routine is based on the pchip method. However, when
     extrapolation is desired (such as when interpolating parameters), it is most useful to
     assume the derivative is zero outside the original range of the function, rather than
     the default pchip behaviour of extrapolating with constant gradient.
-
     :param x: Original x values
     :param y: Original function values
     :param x2: New desired x values
@@ -557,7 +583,6 @@ def interpolate(x: np.array, y: np.array, x2: np.array, extrapolate=True) -> np.
                         the function value will be NaN. Note that in general, model outputs
                         should not be extrapolated
     :return: Array the same size as ``x2`` with interpolated values
-
     """
 
     # Remove NaNs - note that advanced indexing means that the variable is copied
@@ -579,6 +604,23 @@ def interpolate(x: np.array, y: np.array, x2: np.array, extrapolate=True) -> np.
         else:
             y2 = f(x2)  # PchipInterpolator will return NaNs outside the domain
         return y2
+
+    # TODO - Implementation below uses linear interpolation
+    # idx = ~np.isnan(x) & ~np.isnan(y)
+    # x = x[idx]
+    # y = y[idx]
+    #
+    # if x.size == 0:
+    #     raise Exception('No time points remained after removing NaNs from the TimeSeries')
+    # elif x.size == 1:
+    #     return np.full(x2.shape, y[0])
+    # else:
+    #     if extrapolate:
+    #         f = scipy.interpolate.interp1d(x, y, kind='linear',copy=False, assume_sorted=True,bounds_error=False,fill_value=(y[0],y[-1]))
+    #     else:
+    #         f = scipy.interpolate.interp1d(x, y, kind='linear',copy=False, assume_sorted=True,bounds_error=False,fill_value=np.nan)
+    #     return f(x2)
+
 
 
 def floor_interpolator(x, y):
