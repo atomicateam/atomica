@@ -557,8 +557,17 @@ def refactor_optiminstructions(proj):
             if isinstance(v,_Placeholder) and hasattr(v,'json'): # If it was previously an OptimInstructions
                 # This was a project from the FE, which stores the optimization JSON dicts in
                 if not hasattr(proj,'optim_jsons'):
-                    proj.optim_jsons = sc.odict()
-                proj.optim_jsons[k] = v.json
+                    proj.optim_jsons = []
+
+                json = v.json
+                for prog_name in json['prog_spending'].keys():
+                    spend = json['prog_spending'][prog_name]
+                    try:
+                        prog_label = proj.progsets().programs[prog_name].label
+                    except:
+                        prog_label = prog_name
+                    json['prog_spending'][prog_name] = {'min': spend[0], 'max': spend[1], 'label': prog_label}
+                proj.optim_jsons.append(json)
                 delkeys.append(k)
         for k in delkeys:
             del proj.optims[k]

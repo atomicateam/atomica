@@ -103,14 +103,14 @@ def default_project(which=None, do_run=True, addprogs=True, verbose=False, show_
         P.load_progbook(progbook_path=LIBRARY_PATH + which + "_progbook.xlsx")
         if verbose:
             print('Creating scenarios')
-        demo_scenarios(P)  # Add example scenarios
+        make_demo_scenarios(P)  # Add example scenarios
         if verbose:
             print('Done!')
 
     return P
 
 
-def demo_scenarios(proj, dorun=False):
+def make_demo_scenarios(proj, dorun=False):
     """
     Create demo scenarios
 
