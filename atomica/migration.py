@@ -43,6 +43,7 @@ atomica.structure.TimeSeries = atomica.utils.TimeSeries  # Moved 'TimeSeries' in
 # The migration function can then replace Placeholder instances with actual
 # instances - see the AtomicaSpreadsheet -> sciris.Spreadsheet migration function
 atomica.excel.AtomicaSpreadsheet = _Placeholder
+atomica.optimization.OptimInstructions = _Placeholder
 
 # PROJECT MIGRATIONS
 #
@@ -546,5 +547,23 @@ def add_parset_disable_function(proj):
         for optim in proj.optims.values():
             if 'adjustment_year' not in optim.json:
                 optim.json['adjustment_year'] = optim.json['start_year']
+    return proj
+
+@migration('1.6.1', '1.7.0', 'OptimInstructions functionality moved to apps')
+def refactor_optiminstructions(proj):
+    if hasattr(proj,'optims'):
+        delkeys = []
+        for k,v in proj.optims.items():
+            if isinstance(v,_Placeholder) and hasattr(v,'json'): # If it was previously an OptimInstructions
+                # This was a project from the FE, which stores the optimization JSON dicts in
+                if not hasattr(proj,'optim_jsons'):
+                    proj.optim_jsons = sc.odict()
+                proj.optim_jsons[k] = v.json
+                delkeys.append(k)
+        for k in delkeys:
+            del proj.optims[k]
+    else:
+        proj.optims = atomica.NDict() # Make sure it's defined, even if it's empty
+
     return proj
 
