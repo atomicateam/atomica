@@ -110,7 +110,7 @@ def default_project(which=None, do_run=True, addprogs=True, verbose=False, show_
     return P
 
 
-def make_demo_scenarios(proj, dorun=False):
+def make_demo_scenarios(proj: Project) -> None:
     """
     Create demo scenarios
 
@@ -160,12 +160,6 @@ def make_demo_scenarios(proj, dorun=False):
     # proj.scens.append(CombinedScenario(name='Zero budget',parsetname=parsetname,progsetname=progset.name,active=True,instructions=ProgramInstructions(start_year,alloc=zero_budget)))
     proj.scens.append(BudgetScenario(name='Zero budget', parsetname=parsetname, progsetname=progset.name,
         active=True, alloc=zero_budget, start_year=start_year))
-
-    if dorun:
-        results = proj.run_scenarios()
-        return results
-    else:
-        return None
 
 
 def demo(which=None, kind=None, do_plot=False, **kwargs):
