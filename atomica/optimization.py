@@ -63,11 +63,11 @@ class Adjustment(object):
         self.name = name
         self.adjustables = None
 
-    def get_initialization(self, progset, instructions):
+    def get_initialization(self, progset, instructions: ProgramInstructions):
         # Return initial values for ASD
         return [x.initial_value for x in self.adjustables]
 
-    def update_instructions(self, adjustable_values, instructions):
+    def update_instructions(self, adjustable_values, instructions: ProgramInstructions):
         # adjustable_values contains the values for each adjustable in self.adjustables
         # at the current ASD iteration. This function updates the provided instructions in place
         return
@@ -102,7 +102,7 @@ class SpendingAdjustment(Adjustment):
 
         self.adjustables = [Adjustable(prog_name, limit_type, lower_bound=lb, upper_bound=ub, initial_value=init) for lb,ub,init in zip(lower,upper,initial)]
 
-    def update_instructions(self, adjustable_values, instructions):
+    def update_instructions(self, adjustable_values, instructions: ProgramInstructions):
         # There is one Adjustable for each time point, so the adjustable_values
         # are a list of this same length, one value for each time point
         for i, t in enumerate(self.t):
@@ -111,7 +111,7 @@ class SpendingAdjustment(Adjustment):
             else:
                 instructions.alloc[self.prog_name].insert(t, adjustable_values[i])
 
-    def get_initialization(self, progset, instructions):
+    def get_initialization(self, progset, instructions: ProgramInstructions):
         initialization = []
         for adjustable, t in zip(self.adjustables, self.t):
             if adjustable.initial_value:
@@ -129,10 +129,10 @@ class StartTimeAdjustment(Adjustment):
         Adjustment.__init__(self, name=name)
         self.adjustables = [Adjustable('start_year', limit_type='abs', lower=lower, upper=upper, initial=initial)]
 
-    def update_instructions(self, adjustable_values, instructions):
+    def update_instructions(self, adjustable_values, instructions: ProgramInstructions):
         instructions.start_year = adjustable_values[0]
 
-    def get_initialization(self, progset, instructions):
+    def get_initialization(self, progset, instructions: ProgramInstructions):
         if self.initial_value:
             return self.initial_value
         else:
@@ -157,7 +157,7 @@ class ExponentialSpendingAdjustment(Adjustment):
     # it would be possible to write a `get_initialization` function that fits the Adjustables
     # to the initial spending...
 
-    def update_instructions(self, adjustable_values, instructions):
+    def update_instructions(self, adjustable_values, instructions: ProgramInstructions):
         # p1*exp(a1*(t-t_0))*exp(b1*(t-t_end))
         instructions.alloc[self.prog_name][self.t] = adjustable_values[0] * np.exp(adjustable_values[1] * (self.t - self.t_0)) * np.exp(adjustable_values[2] * (self.t - self.t_end))
 
@@ -174,7 +174,7 @@ class PairedLinearSpendingAdjustment(Adjustment):
         self.t = t  # [t_start,t_stop] for when to start/stop ramping
         self.adjustables = [Adjustable('ramp', initial_value=0.0)]
 
-    def update_instructions(self, adjustable_values, instructions):
+    def update_instructions(self, adjustable_values, instructions: ProgramInstructions):
 
         gradient = adjustable_values[0]
         tspan = (self.t[1] - self.t[0])
@@ -388,10 +388,10 @@ class Constraint(object):
     # satisfy the constraint directly (rather than changing the value of the Adjustables)
     # although this distinction really only matters in the context of parametric spending
 
-    def get_hard_constraint(self, optimization, instructions):
+    def get_hard_constraint(self, optimization, instructions: ProgramInstructions):
         return
 
-    def constrain_instructions(self, instructions, hard_constraints):
+    def constrain_instructions(self, instructions: ProgramInstructions, hard_constraints):
         # Constrains the instructions, returns a metric penalizing the constraint
         # If there is no penalty associated with adjusting (perhaps if all of the Adjustments are
         # parametric?) then this would be 0.0
@@ -441,7 +441,7 @@ class TotalSpendConstraint(Constraint):
         if len(self.budget_factor) > 1:
             assert len(self.budget_factor) == len(self.t), 'If specifying multiple budget factors, you must also specify the years in which they are used'
 
-    def get_hard_constraint(self, optimization, instructions):
+    def get_hard_constraint(self, optimization, instructions: ProgramInstructions):
         # First, at each time point where a program overwrite exists, we need to store
         # the names of all of the programs being overwritten
         # e.g.
@@ -547,7 +547,7 @@ class TotalSpendConstraint(Constraint):
 
         return hard_constraints
 
-    def constrain_instructions(self, instructions, hard_constraints):
+    def constrain_instructions(self, instructions: ProgramInstructions, hard_constraints):
 
         penalty = 0.0
 
@@ -629,7 +629,7 @@ class Optimization(NamedItem):
     def __repr__(self):
         return sc.prepr(self)
 
-    def get_initialization(self, progset, instructions):
+    def get_initialization(self, progset, instructions: ProgramInstructions):
         # Return arrays of lower and upper bounds for each adjustable
         x0 = []
         for adjustment in self.adjustments:
@@ -648,13 +648,13 @@ class Optimization(NamedItem):
 
         return x0, xmin, xmax
 
-    def update_instructions(self, asd_values, instructions):
+    def update_instructions(self, asd_values, instructions: ProgramInstructions):
         idx = 0
         for adjustment in self.adjustments:
             adjustment.update_instructions(asd_values[idx:idx + len(adjustment.adjustables)], instructions)
             idx += len(adjustment.adjustables)
 
-    def get_hard_constraints(self, x0, instructions):
+    def get_hard_constraints(self, x0, instructions: ProgramInstructions):
         # Return hard constraints based on the starting initialization
         instructions = sc.dcp(instructions)
         self.update_instructions(x0, instructions)
@@ -663,7 +663,7 @@ class Optimization(NamedItem):
         else:
             return [x.get_hard_constraint(self, instructions) for x in self.constraints]
 
-    def constrain_instructions(self, instructions, hard_constraints):
+    def constrain_instructions(self, instructions: ProgramInstructions, hard_constraints):
         constraint_penalty = 0.0
         if self.constraints:
             for constraint, hard_constraint in zip(self.constraints, hard_constraints):
@@ -706,7 +706,7 @@ def _objective_fcn(asd_values, pickled_model=None, optimization=None, hard_const
     return obj_val
 
 
-def optimize(project, optimization, parset, progset, instructions, x0=None, xmin=None, xmax=None, hard_constraints=None):
+def optimize(project, optimization, parset, progset, instructions: ProgramInstructions, x0=None, xmin=None, xmax=None, hard_constraints=None):
     """
     Main user entry point for optimization
 
