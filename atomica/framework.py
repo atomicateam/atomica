@@ -339,6 +339,8 @@ class ProjectFramework(object):
         if 'population types' not in self.sheets:
             self.sheets['population types'] = [pd.DataFrame.from_records([(FS.DEFAULT_POP_TYPE, 'Default')], columns=['code name', 'description'])]
 
+        available_pop_types = list(self.pop_types.keys()) # Get available pop types
+
         # VALIDATE COMPARTMENTS
         required_columns = ['display name']
         defaults = {
@@ -368,7 +370,7 @@ class ProjectFramework(object):
         # Assign first population type to any empty population types
         # In general, if the user has specified any pop types, then the first population type will be
         # selected as the default in downstream functions e.g. `ProjectData.add_pop`
-        self.comps['population type'] = self.comps['population type'].fillna(self.pop_types.keys()[0])
+        self.comps['population type'] = self.comps['population type'].fillna(available_pop_types[0])
 
         # Default setup weight is 1 if in databook or 0 otherwise
         # This is a separate check because the default value depends on other columns
@@ -412,8 +414,8 @@ class ProjectFramework(object):
             if (row['databook page'] is not None) and not (row['databook page'] in self.sheets['databook pages'][0]['datasheet code name'].values):
                 raise InvalidFramework('Compartment "%s" has databook page "%s" but that page does not appear on the "databook pages" sheet' % (row.name,row['databook page']))
 
-            if row['population type'] not in self.pop_types.keys():
-                raise InvalidFramework('Compartment "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (row.name,row['population type'],self.pop_types.keys()))
+            if row['population type'] not in available_pop_types:
+                raise InvalidFramework('Compartment "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (row.name,row['population type'],available_pop_types))
 
         # VALIDATE CHARACTERISTICS
 
@@ -440,7 +442,7 @@ class ProjectFramework(object):
             raise Exception('%s -> %s' % (message, e)) from e
 
         # Assign first population type to any empty population types
-        self.characs['population type'] = self.characs['population type'].fillna(self.pop_types.keys()[0])
+        self.characs['population type'] = self.characs['population type'].fillna(available_pop_types[0])
 
         if 'setup weight' not in self.characs:
             self.characs['setup weight'] = (~self.characs['databook page'].isnull()).astype(int)
@@ -481,8 +483,8 @@ class ProjectFramework(object):
             if (row['databook page'] is not None) and not (row['databook page'] in self.sheets['databook pages'][0]['datasheet code name'].values):
                 raise InvalidFramework('Characteristic "%s" has databook page "%s" but that page does not appear on the "databook pages" sheet' % (row.name,row['databook page']))
 
-            if row['population type'] not in self.pop_types.keys():
-                raise InvalidFramework('Characteristic "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (row.name,row['population type'],self.pop_types.keys()))
+            if row['population type'] not in available_pop_types:
+                raise InvalidFramework('Characteristic "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (row.name,row['population type'],available_pop_types))
 
             for component in row['components'].split(','):
                 component = component.strip()
@@ -518,14 +520,14 @@ class ProjectFramework(object):
             raise Exception('%s -> %s' % (message, e)) from e
 
         # Assign first population type to any empty population types
-        self.interactions['from population type'] = self.interactions['from population type'].fillna(self.pop_types.keys()[0])
-        self.interactions['to population type'] = self.interactions['to population type'].fillna(self.pop_types.keys()[0])
+        self.interactions['from population type'] = self.interactions['from population type'].fillna(available_pop_types[0])
+        self.interactions['to population type'] = self.interactions['to population type'].fillna(available_pop_types[0])
 
         for _, row in self.interactions.iterrows():
-            if row['from population type'] not in self.pop_types.keys():
-                raise InvalidFramework('Interaction "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (row.name, row['from population type'], self.pop_types.keys()))
-            if row['to population type'] not in self.pop_types.keys():
-                raise InvalidFramework('Interaction "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (row.name, row['to population type'], self.pop_types.keys()))
+            if row['from population type'] not in available_pop_types:
+                raise InvalidFramework('Interaction "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (row.name, row['from population type'], available_pop_types))
+            if row['to population type'] not in available_pop_types:
+                raise InvalidFramework('Interaction "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (row.name, row['to population type'], available_pop_types))
 
         # VALIDATE PARAMETERS
         # This is done last, because validating parameter dependencies requires checking compartments and characteristics
@@ -557,7 +559,7 @@ class ProjectFramework(object):
             raise Exception('%s -> %s' % (message, e)) from e
 
         # Assign first population type to any empty population types
-        self.pars['population type'] = self.pars['population type'].fillna(self.pop_types.keys()[0])
+        self.pars['population type'] = self.pars['population type'].fillna(available_pop_types[0])
 
         self.pars['format'] = self.pars['format'].map(lambda x: x.strip() if sc.isstring(x) else x)
 
@@ -586,8 +588,8 @@ class ProjectFramework(object):
             if (par['databook page'] is not None) and not (par['databook page'] in self.sheets['databook pages'][0]['datasheet code name'].values):
                 raise InvalidFramework('Parameter "%s" has databook page "%s" but that page does not appear on the "databook pages" sheet' % (par.name,par['databook page']))
 
-            if par['population type'] not in self.pop_types.keys():
-                raise InvalidFramework('Parameter "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (par.name,par['population type'],self.pop_types.keys()))
+            if par['population type'] not in available_pop_types:
+                raise InvalidFramework('Parameter "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (par.name,par['population type'],available_pop_types))
 
             if par['is derivative'] == 'y' and par['function'] is None:
                 raise InvalidFramework('Parameter "%s" is marked "is derivative" but it does not have a parameter function' % (par.name))
@@ -782,7 +784,7 @@ class ProjectFramework(object):
 
         # VALIDATE NAMES - No collisions, no keywords
 
-        code_names = list(self.comps.index) + list(self.characs.index) + list(self.pars.index) + list(self.interactions.index) + list(self.pop_types.keys())
+        code_names = list(self.comps.index) + list(self.characs.index) + list(self.pars.index) + list(self.interactions.index) + list(available_pop_types)
         tmp = set()
         for name in code_names:
 
@@ -850,7 +852,7 @@ class ProjectFramework(object):
             validate_cascade(self, cascade_name, fallback_used=used_fallback_cascade)
 
         # VALIDATE INITIALIZATION
-        for pop_type in self.pop_types.keys():
+        for pop_type in available_pop_types:
 
             characs = []
             for _, spec in self.characs.iterrows():
