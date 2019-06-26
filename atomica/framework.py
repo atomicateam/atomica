@@ -388,9 +388,7 @@ class ProjectFramework(object):
             self.comps['calibrate'][default_calibrate] = 'y'
 
         # VALIDATE COMPARTMENTS
-        for index, row in self.comps.iterrows():
-            comp_name = row.name
-            row = row.to_dict() # Convert to dict for much better performance
+        for comp_name, row in zip(self.comps.index, self.comps.to_dict(orient='records')):
 
             if [row['is sink'], row['is source'], row['is junction']].count('y') > 1:
                 raise InvalidFramework('Compartment "%s" can only be one of Sink, Source, or Junction' % comp_name)
@@ -458,10 +456,7 @@ class ProjectFramework(object):
             self.characs['calibrate'] = None
             self.characs['calibrate'][default_calibrate] = 'y'
 
-        for i, row in self.characs.iterrows():
-            charac_name = row.name
-            row = row.to_dict() # Convert to dict for much better performance
-
+        for charac_name, row in zip(self.characs.index, self.characs.to_dict(orient='records')):
             # Block this out because that way, can validate that there are some nonzero setup weights. Otherwise, user could set setup weights but
             # not put them in the databook, causing an error when actually trying to run the simulation
             if (row['setup weight'] > 0) and (row['databook page'] is None):
@@ -526,10 +521,7 @@ class ProjectFramework(object):
         self.interactions['from population type'] = self.interactions['from population type'].fillna(available_pop_types[0])
         self.interactions['to population type'] = self.interactions['to population type'].fillna(available_pop_types[0])
 
-        for _, row in self.interactions.iterrows():
-            interaction_name = row.name
-            row = row.to_dict()
-
+        for interaction_name, row in zip(self.interactions.index, self.interactions.to_dict(orient='records')):
             if row['from population type'] not in available_pop_types:
                 raise InvalidFramework('Interaction "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (interaction_name, row['from population type'], available_pop_types))
             if row['to population type'] not in available_pop_types:
@@ -589,9 +581,7 @@ class ProjectFramework(object):
         lower_idx = self.pars['format'].str.lower().isin(FS.STANDARD_UNITS)
         self.pars['format'][lower_idx] = self.pars['format'][lower_idx].str.lower()
 
-        for i, par in self.pars.iterrows():
-            par_name = par.name
-            par = par.to_dict()
+        for par_name, par in zip(self.pars.index, self.pars.to_dict(orient='records')):
 
             if (par['databook page'] is not None) and not (par['databook page'] in self.sheets['databook pages'][0]['datasheet code name'].values):
                 raise InvalidFramework('Parameter "%s" has databook page "%s" but that page does not appear on the "databook pages" sheet' % (par_name,par['databook page']))
@@ -846,12 +836,12 @@ class ProjectFramework(object):
 
         # Check that all cascade constituents match a characteristic or compartment
         for cascade_name, df in self.cascades.items():
-            for _, spec in df.iterrows():
+            for spec in df.to_dict(orient='records'):
                 if not spec['constituents']:
-                    raise InvalidFramework('In cascade "%s", stage "%s" - no constituents were provided in the spreadsheet' % (cascade_name, spec.iloc[0]))
+                    raise InvalidFramework('In cascade "%s", stage "%s" - no constituents were provided in the spreadsheet' % (cascade_name, spec[cascade_name]))
                 for component in spec['constituents'].split(','):
                     if not (component.strip() in self.comps.index or component.strip() in self.characs.index):
-                        raise InvalidFramework('In cascade "%s", stage "%s" - the included component "%s" was not recognized as a Compartment or Characteristic' % (cascade_name, spec.iloc[0], component))
+                        raise InvalidFramework('In cascade "%s", stage "%s" - the included component "%s" was not recognized as a Compartment or Characteristic' % (cascade_name, spec[cascade_name], component))
 
         # Check that the cascades are validly nested
         # This will also check the fallback cascade
@@ -862,16 +852,18 @@ class ProjectFramework(object):
         for pop_type in available_pop_types:
 
             characs = []
-            for _, spec in self.characs.iterrows():
-                if spec['population type'] == pop_type and spec['databook page'] is not None and spec['setup weight']:
-                    characs.append(spec.name)
+            df = self.characs
+            for charac_name in df.index:
+                if df.at[charac_name,'population type'] == pop_type and df.at[charac_name,'databook page'] is not None and df.at[charac_name,'setup weight']:
+                    characs.append(charac_name)
 
             comps = []
-            for _, spec in self.comps.iterrows():
-                if spec['population type'] == pop_type and spec['is source'] == 'n' and spec['is sink'] == 'n':
-                    comps.append(spec.name)
-                if spec['population type'] == pop_type and spec['databook page'] is not None and spec['setup weight']:
-                    characs.append(spec.name)
+            df = self.comps
+            for comp_name in df.index:
+                if df.at[comp_name,'population type'] == pop_type and df.at[comp_name,'is source'] == 'n' and df.at[comp_name,'is sink'] == 'n':
+                    comps.append(comp_name)
+                if df.at[comp_name,'population type'] == pop_type and df.at[comp_name,'databook page'] is not None and df.at[comp_name,'setup weight']:
+                    characs.append(comp_name)
 
             if not comps:
                 # If this population type has no compartments, then no need to initialize anything
