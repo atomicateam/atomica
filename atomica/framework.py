@@ -758,25 +758,24 @@ class ProjectFramework(object):
 
                 n_source_outflow = 0
                 for comp in from_comps:
-                    comp_spec = self.get_comp(comp)
-                    if comp_spec['is sink'] == 'y':
+                    if self.comps.at[comp,'is sink'] == 'y':
                         raise InvalidFramework('Parameter "%s" has an outflow from Compartment "%s" which is a sink' % par_name, comp)
-                    elif comp_spec['is source'] == 'y':
+                    elif self.comps.at[comp,'is source'] == 'y':
                         n_source_outflow += 1
                         if par['format'] != FS.QUANTITY_TYPE_NUMBER:
                             raise InvalidFramework('Parameter "%s" has an outflow from a source compartment, so it needs to be in "number" units' % par_name)
-                    elif comp_spec['is junction'] == 'y':
+                    elif self.comps.at[comp,'is junction'] == 'y':
                         if par['format'] != FS.QUANTITY_TYPE_PROPORTION:
                             raise InvalidFramework('Parameter "%s" has an outflow from a junction, so it must be in "proportion" units' % par_name)
 
-                    if (par['format'] == FS.QUANTITY_TYPE_PROPORTION) and (comp_spec['is junction'] != 'y'):
+                    if (par['format'] == FS.QUANTITY_TYPE_PROPORTION) and (self.comps.at[comp,'is junction'] != 'y'):
                         raise InvalidFramework('"Parameter "%s" has units of "proportion" which means all of its outflows must be from junction compartments, which Compartment "%s" is not', par_name, comp)
 
                 if n_source_outflow > 1:
                     raise InvalidFramework('Parameter "%s" has an outflow from more than one source compartment, which prevents disaggregation from working correctly' % par_name)
 
                 for comp in to_comps:
-                    if self.get_comp(comp)['is source'] == 'y':
+                    if self.comps.at[comp,'is source'] == 'y':
                         raise InvalidFramework('Parameter "%s" has an inflow to Compartment "%s" which is a source' % par_name, comp)
             else:
                 # If this is not a transition parameter
