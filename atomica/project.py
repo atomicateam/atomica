@@ -27,7 +27,7 @@ from .parameters import ParameterSet
 
 from .programs import ProgramSet, ProgramInstructions
 from .scenarios import Scenario, ParameterScenario, CombinedScenario, BudgetScenario, CoverageScenario
-from .optimization import Optimization, optimize, OptimInstructions, InvalidInitialConditions
+from .optimization import Optimization, optimize, InvalidInitialConditions
 from .system import logger
 from .cascade import sanitize_cascade
 from .utils import NDict, evaluate_plot_string, NamedItem, TimeSeries
@@ -292,12 +292,6 @@ class Project(NamedItem):
             raise Exception('Unknown scenario type')
         self.scens.append(scenario)
         return scenario
-
-    def make_optimization(self, json=None):
-        optim_ins = OptimInstructions(json=json)
-        self.optims[optim_ins.json['name']] = optim_ins
-        return optim_ins
-
 
 #    #######################################################################################################
 #    ### Utilities
