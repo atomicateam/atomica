@@ -82,8 +82,17 @@ def test_combined_plots():
     P = at.demo('combined')
     P.results[0].plot()
 
+def test_combined_order():
+    testdir = at.atomica_path(['tests'])
+    P = at.Project(framework=testdir + 'test_order_framework.xlsx',databook=testdir + 'test_order_databook.xlsx')
+    res = P.results[0]
+
+    # This framework has interdependencies that mean the parameters must be resolved in exact framework order
+    assert np.all(np.isfinite(res.get_variable('testpar')[0].vals))
+
 if __name__ == "__main__":
-    test_combined_creation()
-    test_combined_values()
-    test_combined_cascades()
-    test_combined_plots()
+    # test_combined_creation()
+    # test_combined_values()
+    # test_combined_cascades()
+    # test_combined_plots()
+    test_combined_order()
