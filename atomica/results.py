@@ -358,7 +358,10 @@ class Result(NamedItem):
 
         from .plotting import PlotData, plot_series
 
+        assert not (plot_name and plot_group), 'When plotting a Result, you can specify the plot name or plot group, but not both'
+
         df = self.framework.sheets['plots'][0]
+        df = df.dropna(subset=['name','quantities']) # Remove any plots that are missing names or quantities
 
         if plot_group is None and plot_name is None:
             for plot_name in df['name']:

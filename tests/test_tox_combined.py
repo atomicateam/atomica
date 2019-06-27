@@ -1,5 +1,6 @@
-import atomica as at
+import os
 import numpy as np
+import atomica as at
 
 def test_combined_creation():
     tmpdir = at.atomica_path(['tests', 'temp'])
@@ -82,8 +83,17 @@ def test_combined_plots():
     P = at.demo('combined')
     P.results[0].plot()
 
+def test_combined_order():
+    testdir = os.path.abspath(os.path.join(os.path.dirname(__file__)))+os.sep # Must be relative to current file to work with tox
+    P = at.Project(framework=testdir + 'test_order_framework.xlsx',databook=testdir + 'test_order_databook.xlsx')
+    res = P.results[0]
+
+    # This framework has interdependencies that mean the parameters must be resolved in exact framework order
+    assert np.all(np.isfinite(res.get_variable('testpar')[0].vals))
+
 if __name__ == "__main__":
     test_combined_creation()
-    test_combined_values()
-    test_combined_cascades()
-    test_combined_plots()
+    # test_combined_values()
+    # test_combined_cascades()
+    # test_combined_plots()
+    # test_combined_order()

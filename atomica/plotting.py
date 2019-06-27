@@ -362,10 +362,10 @@ class PlotData:
                             vals /= sum([popsize[x] for x in pop_labels])
                         else:
                             raise Exception('Unknown pop aggregation method')
-                        self.series.append(Series(tvecs[result_label], vals, result_label, pop_name, output_name, data_label[output_name], units=aggregated_units[output_name], timescale=aggregated_timescales[output_name]))
+                        self.series.append(Series(tvecs[result_label], vals, result_label, pop_name, output_name, data_label[output_name], units=aggregated_units[output_name], timescale=aggregated_timescales[output_name],data_pop=pop_name))
                     else:
                         vals = aggregated_outputs[pop][output_name]
-                        self.series.append(Series(tvecs[result_label], vals, result_label, pop, output_name, data_label[output_name], units=aggregated_units[output_name], timescale=aggregated_timescales[output_name]))
+                        self.series.append(Series(tvecs[result_label], vals, result_label, pop, output_name, data_label[output_name], units=aggregated_units[output_name], timescale=aggregated_timescales[output_name],data_pop=pop))
 
         self.results = sc.odict()
         for result in results:
@@ -941,7 +941,7 @@ class Series:
 
     """
 
-    def __init__(self, tvec, vals, result='default', pop='default', output='default', data_label='', color=None, units='', timescale=None):
+    def __init__(self, tvec, vals, result='default', pop='default', output='default', data_label='', color=None, units='', timescale=None, data_pop=''):
         self.tvec = np.copy(tvec) #: array of time values
         self.t_labels = np.copy(self.tvec) #: Iterable array of time labels - could be set to strings like [2010-2014]
         self.vals = np.copy(vals) #: array of values
@@ -949,8 +949,9 @@ class Series:
         self.pop = pop #: name of the pop associated with the data
         self.output = output #: name of the output associated with the data
         self.color = color #: the color to render the `Series` with
-        self.data_label = data_label  #: Used to identify data for plotting
-        self.units = units #: The units for the quantity to display on the plot
+        self.data_label = data_label  #: Used to identify data for plotting - should match the name of a data TDVE
+        self.data_pop = data_pop  #: Used to identify which population in the TDVE (specified by ``data_label``) to look up
+        self.units = units  #: The units for the quantity to display on the plot
 
         #: If the quantity has a time-like denominator (e.g. number/year, probability/day) then the denominator is stored here (in units of years)
         #: This enables quantities to be time-aggregated correctly (e.g. number/day must be converted to number/timestep prior to summation or integration)
@@ -1547,7 +1548,7 @@ def _render_data(ax, data, series, baseline=None, filled=False) -> None:
 
     """
 
-    ts = data.get_ts(series.data_label, series.pop)
+    ts = data.get_ts(series.data_label, series.data_pop)
     if ts is None:
         return
 

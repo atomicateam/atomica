@@ -392,7 +392,7 @@ def model_tidying(proj):
         for pop in result.model.pops:
             for link in pop.links:
                 link.id = link.id[0:3] + (link.parameter.name + ':flow',)
-        result.model.set_vars_by_pop()
+        result.model._set_vars_by_pop()
     return proj
 
 @migration('1.0.30', '1.1.3', 'Replace scenarios')
@@ -547,7 +547,7 @@ def add_parset_disable_function(proj):
                 optim.json['adjustment_year'] = optim.json['start_year']
     return proj
 
-@migration('1.5.2', '1.7.0', 'Parameters store an interpolation method')
+@migration('1.7.0', '1.8.0', 'Parameters store interpolation method, deprecate scenario smooth onset')
 def add_parameter_interpolation_method(proj):
     for parset in proj.parsets.values():
         for par in parset.all_pars():
