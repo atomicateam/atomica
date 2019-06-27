@@ -552,5 +552,11 @@ def add_parameter_interpolation_method(proj):
     for parset in proj.parsets.values():
         for par in parset.all_pars():
             par._interpolation_method = 'pchip' # New projects will default to linear, but migrations use pchip to ensure results don't change
-    return proj
+    for scen in proj.scens.values():
+        if isinstance(scen,atomica.ParameterScenario):
+            for par_name in scen.scenario_values.keys():
+                for pop_name in scen.scenario_values[par_name].keys():
+                    if 'smooth_onset' in scen.scenario_values[par_name][pop_name]:
+                        logger.warning('Parameter scenario smooth onset is deprecated and will not be used')
 
+    return proj
