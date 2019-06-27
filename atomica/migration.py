@@ -392,7 +392,7 @@ def model_tidying(proj):
         for pop in result.model.pops:
             for link in pop.links:
                 link.id = link.id[0:3] + (link.parameter.name + ':flow',)
-        result.model.set_vars_by_pop()
+        result.model._set_vars_by_pop()
     return proj
 
 @migration('1.0.30', '1.1.3', 'Replace scenarios')
