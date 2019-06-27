@@ -467,9 +467,8 @@ class ProjectData(sc.prettyobj):
                         missing_pops = set(required_pops).difference(tdve.ts.keys())
                         if missing_pops:
                             raise Exception("%s. The following populations were not supplied but are required: %s" % (location,missing_pops))
-                        
+
                         for name, ts in self.tdve[spec.name].ts.items():
-                            assert name in self.pops, '%s. Population "%s" not recognized. Should be one of: %s' % (location, name, self.pops.keys())
                             assert ts.has_data, '%s. Data values missing for %s (%s)' % (location, tdve.name, name)
                             assert ts.units is not None, '%s. Units missing for %s (%s)' % (location, tdve.name, name)
                             if ts.units.strip().lower() != framework_units.strip().lower():
