@@ -1102,7 +1102,6 @@ class Model(object):
         Parameter objects. We also construct a cache list of the parameter names from the framework so we
         can quickly iterate over it.
 
-        :return:
         """
 
         self._vars_by_pop = defaultdict(list)
@@ -1111,7 +1110,11 @@ class Model(object):
                 self._vars_by_pop[var.name].append(var)
         self._vars_by_pop = dict(self._vars_by_pop)  # Stop new entries from appearing in here by accident
 
-        self._par_list = self.framework.pars.index.to_list() # Faster to not use the `.` operator and to use a list in the inner loops
+        # Finally, it's possible that some parameters may be missing if population types were defined
+        # but no populations with that type were instantiated. So we can safely remove any parameter
+        # names from consideration if they aren't actually present
+        in_use = set(self._vars_by_pop.keys())
+        self._par_list = [x for x in self.framework.pars.index if x in in_use]
 
     def __getstate__(self):
         self.unlink()
