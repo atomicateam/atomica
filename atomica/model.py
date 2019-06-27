@@ -1067,7 +1067,7 @@ class Model(object):
                 pop.relink(objs)
 
         if self._vars_by_pop is None:
-            self.set_vars_by_pop()
+            self._set_vars_by_pop()
 
     def update_program_cache(self):
 
@@ -1093,16 +1093,25 @@ class Model(object):
         else:
             self.programs_active = False
 
-    def set_vars_by_pop(self):
+    def _set_vars_by_pop(self) -> None:
+        """
+        Update cache dicts and lists
+
+        During integration, the model needs to iterate over parameters with the same name across populations.
+        Therefore, we build a cache dict where we map code names to a list of references to the required
+        Parameter objects. We also construct a cache list of the parameter names from the framework so we
+        can quickly iterate over it.
+
+        :return:
+        """
+
         self._vars_by_pop = defaultdict(list)
-        par_names = []
         for pop in self.pops:
             for var in pop.comps + pop.characs + pop.pars + pop.links:
                 self._vars_by_pop[var.name].append(var)
-            for par in pop.pars:
-                par_names.append(par.name)
         self._vars_by_pop = dict(self._vars_by_pop)  # Stop new entries from appearing in here by accident
-        self._par_list = list(sc.odict.fromkeys(par_names))
+
+        self._par_list = self.framework.pars.index.to_list() # Faster to not use the `.` operator and to use a list in the inner loops
 
     def __getstate__(self):
         self.unlink()
@@ -1196,7 +1205,7 @@ class Model(object):
                                     pop.link_lookup[link.name] = [link]
 
         # Now that all object have been created, update _vars_by_pop() accordingly
-        self.set_vars_by_pop()
+        self._set_vars_by_pop()
 
         # Flag dependencies for aggregated parameters prior to precomputing
         for par in self._par_list:
