@@ -1544,7 +1544,8 @@ class Model(object):
                 par_vals = np.matmul(weights, par_vals)
 
                 for par, val in zip(pars, par_vals):
-                    par.vals[ti] = par.scale_factor * val
+                    if par.skip_function is None or (self.t[ti] < par.skip_function[0]) or (self.t[ti] > par.skip_function[1]): # Careful - note how the < here matches >= in Parameter.update()
+                        par.vals[ti] = par.scale_factor * val
 
             # Restrict the parameter's value if a limiting range was defined
             for par in pars:

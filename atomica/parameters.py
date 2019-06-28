@@ -12,7 +12,7 @@ from collections import defaultdict
 import numpy as np
 import sciris as sc
 from .utils import NamedItem, TimeSeries
-
+import scipy.interpolate
 
 class Parameter(NamedItem):
     """
@@ -145,7 +145,6 @@ class Parameter(NamedItem):
                         return sc.smoothinterp(x2,x1,y1,**kwargs)
                     return fcn
                 method = smoothinterp
-
             elif method in ['pchip','linear','previous']:
                 pass
             else:

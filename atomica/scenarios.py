@@ -253,8 +253,8 @@ class ParameterScenario(Scenario):
         if par_name not in self.scenario_values:
             self.scenario_values[par_name] = dict()
         if pop_name not in self.scenario_values[par_name]:
-            self.scenario_values[pop_name] = dict()
-        self.scenario_values[pop_name] = {'t':t,'y':y}
+            self.scenario_values[par_name][pop_name] = dict()
+        self.scenario_values[par_name][pop_name] = {'t':t,'y':y}
 
     def get_parset(self, parset:ParameterSet, project) -> ParameterSet:
         """
