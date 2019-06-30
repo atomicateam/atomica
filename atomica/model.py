@@ -1067,7 +1067,7 @@ class Model(object):
                 pop.relink(objs)
 
         if self._vars_by_pop is None:
-            self.set_vars_by_pop()
+            self._set_vars_by_pop()
 
     def update_program_cache(self):
 
@@ -1093,16 +1093,28 @@ class Model(object):
         else:
             self.programs_active = False
 
-    def set_vars_by_pop(self):
+    def _set_vars_by_pop(self) -> None:
+        """
+        Update cache dicts and lists
+
+        During integration, the model needs to iterate over parameters with the same name across populations.
+        Therefore, we build a cache dict where we map code names to a list of references to the required
+        Parameter objects. We also construct a cache list of the parameter names from the framework so we
+        can quickly iterate over it.
+
+        """
+
         self._vars_by_pop = defaultdict(list)
-        par_names = []
         for pop in self.pops:
             for var in pop.comps + pop.characs + pop.pars + pop.links:
                 self._vars_by_pop[var.name].append(var)
-            for par in pop.pars:
-                par_names.append(par.name)
         self._vars_by_pop = dict(self._vars_by_pop)  # Stop new entries from appearing in here by accident
-        self._par_list = list(sc.odict.fromkeys(par_names))
+
+        # Finally, it's possible that some parameters may be missing if population types were defined
+        # but no populations with that type were instantiated. So we can safely remove any parameter
+        # names from consideration if they aren't actually present
+        in_use = set(self._vars_by_pop.keys())
+        self._par_list = [x for x in self.framework.pars.index if x in in_use]
 
     def __getstate__(self):
         self.unlink()
@@ -1196,7 +1208,7 @@ class Model(object):
                                     pop.link_lookup[link.name] = [link]
 
         # Now that all object have been created, update _vars_by_pop() accordingly
-        self.set_vars_by_pop()
+        self._set_vars_by_pop()
 
         # Flag dependencies for aggregated parameters prior to precomputing
         for par in self._par_list:
@@ -1532,7 +1544,8 @@ class Model(object):
                 par_vals = np.matmul(weights, par_vals)
 
                 for par, val in zip(pars, par_vals):
-                    par.vals[ti] = par.scale_factor * val
+                    if par.skip_function is None or (self.t[ti] < par.skip_function[0]) or (self.t[ti] > par.skip_function[1]): # Careful - note how the < here matches >= in Parameter.update()
+                        par.vals[ti] = par.scale_factor * val
 
             # Restrict the parameter's value if a limiting range was defined
             for par in pars:

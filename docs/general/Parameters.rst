@@ -111,5 +111,12 @@ After integration, the parameter value can be inspected and analyzed as normal. 
 
 	Notice that the parameter timescale does not enter here. The parameter timescale affects the conversion from the parameter value into flow rates. The derivative is always with respect to time, in the *simulation* units, which are always years. Thus the function value's units should differ from the parameter's units by a factor of ``1/years`` regardless of the timescale of the parameter. If you have set different timescales for quantities appearing in the derivative parameter's function, you may need to include conversion factors in the parameter function to ensure that the timescale of the derivative comes out correctly.
 
+Interpolation and smoothing
+***************************
 
+Parameters generally contain sparse time-dependent values matching those entered in the databook. As part of running the model, these automatically get interpolated onto the simulation time points. This interpolation is linear by default (although legacy projects use spline interpolation). Generally, this means that you can look at the values in the databook and they will be linearly interpolated when running the simulation.
+
+However, in some cases, it is desirable to incorporate additional assumptions into the input parameters - for example, that they are smoothly changing. To support this, ``Parameter`` objects contain a smoothing method, ``Parameter.smooth``. This applies smoothing in-place, onto a set of specified time points, replacing the parameter's value. The most common usage would be to simply use ``Parameter.smooth(proj.settings.tvec)`` which will smooth the parameter onto the simulation times (assuming the step size is not subsequently modified).
+
+By specifying a different set of times, you can apply different smoothing methods to different parts of the parameter. For example, you could smooth parameter scenario values differently to the databook values. Don't forget that you can always modify the ``TimeSeries`` object contained in the ``Parameter`` as well, to perform arbitrarily specific modifications.
 
