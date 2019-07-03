@@ -681,18 +681,28 @@ class Optimization(NamedItem):
 
     """
 
-    def __init__(self, name=None, parsetname=None, progsetname=None, adjustments=None, measurables=None, constraints=None, maxtime=None, maxiters=None, method='asd'):
+    def __init__(self, name=None, adjustments=None, measurables=None, constraints=None, maxtime=None, maxiters=None, method='asd'):
+        """
 
+        :param name:
+        :param adjustments:
+        :param measurables:
+        :param constraints:
+        :param maxtime: Optionally specify maximum ASD time
+        :param maxiters: Optionally specify maximum number of ASD iterations or hyperopt evaluations
+        :param method: One of ['asd','pso','hyperopt'] to use
+                            - asd (to use normal ASD)
+                            - pso (to use particle swarm optimization from pyswarm)
+                            - hyperopt (to use hyperopt's Bayesian optimization function)
+        """
         # Get the name
         if name is None:
             name = 'default'
         NamedItem.__init__(self, name)
 
-        self.parsetname = parsetname
-        self.progsetname = progsetname
-        self.maxiters = maxiters  # Not snake_case to match ASD
-        self.maxtime = maxtime  # Not snake_case to match ASD
-        self.method = method  # This gets passed to optimize() to select the algorithm
+        self.maxiters = maxiters  #: Maximum number of ASD iterations or hyperopt evaluations
+        self.maxtime = maxtime  #: Maximum ASD time
+        self.method = method  #: Optimization method name
 
         assert adjustments is not None, 'Must specify some adjustments to carry out an optimization'
         assert measurables is not None, 'Must specify some measurables to carry out an optimization'
@@ -774,7 +784,7 @@ class Optimization(NamedItem):
         :return: The total penalty value (if not finite, model integration will be skipped and the parameters will be rejected)
 
         """
-        
+
         constraint_penalty = 0.0
         if self.constraints:
             for constraint, hard_constraint in zip(self.constraints, hard_constraints):
@@ -840,11 +850,7 @@ def optimize(project, optimization, parset, progset, instructions: ProgramInstru
     :return: A :class:`ProgramInstructions` instance representing optimal instructions
 
     """
-    # The ASD initialization, xmin and xmax values can optionally be
-    # method can be one of
-    # - asd (to use normal ASD)
-    # - pso (to use particle swarm optimization from pyswarm)
-    # - hyperopt (to use hyperopt's Bayesian optimization function)
+
 
     assert optimization.method in ['asd', 'pso', 'hyperopt']
 
