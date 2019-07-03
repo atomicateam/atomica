@@ -202,6 +202,20 @@ class PairedLinearSpendingAdjustment(Adjustment):
 
 
 class Measurable(object):
+    """
+    Optimization objective
+
+    A ``Measurable`` is a class that returns an objective value based on a simulated
+    ``Model`` object. It takes in a ``Model`` and returns a scalar value. Often, an optimization
+    may contain multiple ``Measurable`` objects, and the objective value returned by each of them
+    is summed together.
+
+    :param measurable_name:
+    :param t:
+    :param pop_names:
+    :param weight:
+    :param fcn:
+    """
 
     def __init__(self, measurable_name, t, pop_names=None, weight=1.0, fcn=None):
         self.measurable_name = measurable_name
@@ -383,51 +397,103 @@ class MaximizeCascadeConversionRate(Measurable):
 
 
 class Constraint(object):
-    # A Constraint represents a condition that must be satisfied by the Instructions
-    # after the cumulative effect of all adjustments. The Instructions are rescaled to
-    # satisfy the constraint directly (rather than changing the value of the Adjustables)
-    # although this distinction really only matters in the context of parametric spending
+    """
+    Store conditions to satisfy during optimization
+
+    A Constraint represents a condition that must be satisfied by the Instructions
+    after the cumulative effect of all adjustments. The Instructions are rescaled to
+    satisfy the constraint directly (rather than changing the value of the Adjustables)
+    although this distinction really only matters in the context of parametric spending.
+
+    """
 
     def get_hard_constraint(self, optimization, instructions: ProgramInstructions):
+        """
+        Return hard constraint from initial instructions
+
+        Often constraints can be specified relative to the initial conditions. For example,
+        fixing total spend regardless of what the total spend is in the initial instructions.
+        Therefore, during ``constrain_instructions``, it is necessary to examine properties
+        from the initial instructions in order to perform the constraining.
+
+        This method is called at the very start of optimization, passing in the initial instructions.
+        It then returns an arbitrary value that is passed back to the instance's ``constrain_instructions``
+        during optimization. For example, consider the total spending constraint
+
+        - ``get_hard_constraint`` would extract the total spend from the initial instructions
+        - This value is passed to ``constrain_instructions`` where it is used to rescale spending
+
+        Because subclasses implement both ``get_hard_constraint`` and ``constrain_instructions``
+        no assumptions need to be made about the value returned by this method - it simply needs
+        to be paired to ``constrain_instructions``.
+
+        :param optimization: An ``Optimization``
+        :param instructions: A set of initial instructions to extract absolute constraints from
+        :return: Arbitrary variable that will be passed back during ``constrain_instructions``
+        """
+
         return
 
-    def constrain_instructions(self, instructions: ProgramInstructions, hard_constraints):
-        # Constrains the instructions, returns a metric penalizing the constraint
-        # If there is no penalty associated with adjusting (perhaps if all of the Adjustments are
-        # parametric?) then this would be 0.0
+    def constrain_instructions(self, instructions: ProgramInstructions, hard_constraints) -> float:
+        """
+        Apply constraint to instructions
+
+        Constrains the instructions, returns a metric penalizing the constraint
+        If there is no penalty associated with adjusting (perhaps if all of the Adjustments are
+        parametric?) then this would be 0.0. The penalty represents in some sense the quality
+        of the constraint. For example, the default ``TotalSpendConstraint`` rescales spending
+        such that the total spend matches a target value. The penalty reflects the distance between
+        the requested spend and the constrained spend, so it is desirable to minimize it.
+
+        Presently, the numeric value of the penalty is not used to guide optimization. However,
+        the optimization routine _does_ check whether the penalty is finite. If the penalty is
+        `np.inf` then the proposed instructions will be rejected without running the model. Thus,
+        derived classes can return `np.inf` as the penalty value to indicate that it was not possible
+        to constraint the instructions. This provides equivalent functionality to the objective value
+        being `np.inf` (i.e. the optimization algorithm will try a different set of parameters) but
+        is faster because the model does not get simulated.
+
+        :param instructions: The ``ProgramInstructions`` instance to constrain (in place)
+        :param hard_constraints: The hard constraint returned by ``get_hard_constraint``
+        :return: A numeric penalty value. Return `np.inf` if constraint could not be satisfied
+
+        """
+
         return 0.0
 
 
 class TotalSpendConstraint(Constraint):
-    # This class implements a constraint on the total spend at every time point when a program
-    # is optimizable. A program is considered optimizable if an Adjustment reaches that program
-    # at the specified time. Spending is constrained independently at all times when any program
-    # is adjustable.
-    #
-    # Important - this constraint only acts on program spending that is reached by an Adjustment.
+    """
+    Fix total spending
+
+    This class implements a constraint on the total spend at every time point when a program
+    is optimizable. A program is considered optimizable if an Adjustment reaches that program
+    at the specified time. Spending is constrained independently at all times when any program
+    is adjustable.
+
+    The ``total_spend`` argument allows the total spending in a particular year to be explicitly specified
+    rather than drawn from the initial allocation. This can be useful when using parametric programs where
+    the adjustables do not directly correspond to spending value.
+
+    This constraint can also be set to only apply in certain years.
+    The ``budget_factor`` multiplies the total spend at the time the ``hard_constraint`` is assigned
+    Typically this is to scale up the available spending when that spending is being drawn from
+    the instructions/progset (otherwise the budget_factor could already be part of the specified total spend)
+
+    Note that if no times are specified, the budget factor should be a scalar but no explicit
+    spending values can be specified. This is because in the case where different programs are
+    optimized in different years, an explicit total spending constraint applying to all
+    times is unlikely to be a sensible choice (so we just ask the user to specify the time as well)
+
+    :param total_spend: A list of spending amounts the same size as t (can contain Nones), or None.
+                        For times in which the total spend is None, it will be automatically set to the sum of
+                        spending on optimizable programs in the corresponding year
+    :param t: A time, or list of times, at which to apply the total spending constraint. If None, it will automatically be set to all years in which spending adjustments are being made
+    :param budget_factor: The budget factor multiplies whatever the total_spend is. This can either be a single value, or a year specific value
+
+    """
 
     def __init__(self, total_spend=None, t=None, budget_factor=1.0):
-        # total_spend allows the total spending in a particular year to be explicitly specified
-        # rather than drawn from the initial allocation. This could be useful when using parametric
-        # programs.
-        # This constraint can be set to only apply in certain years.
-        # The budget_factor multiplies the total spend at the time the hard_constraint is assigned
-        # Typically this is to scale up the available spending when that spending is being drawn from
-        # the instructions/progset (otherwise the budget_factor could already be part of the specified total spend)
-        #
-        # INPUTS
-        # - t : A time, or list of times, at which to apply the total spending constraint. If None, it will
-        #       automatically be set to all years in which spending adjustments are being made
-        # - total_spend: A list of spending amounts the same size as t (can contain Nones), or None.
-        #                For times in which the total spend is None, it will be automatically set to the sum of
-        #                spending on optimizable programs in the corresponding year
-        # - budget_factor: The budget factor multiplies whatever the total_spend is. This can either be a single value, or
-        #                  a year specific value
-        #
-        # Note that if no times are specified, the budget factor should be a scalar but no explicit
-        # spending values can be specified. This is because in the case where different programs are
-        # optimized in different years, an explicit total spending constraint applying to all
-        # times is unlikely to be a sensible choice (so we just ask the user to specify the time as well)
         self.total_spend = sc.promotetoarray(total_spend) if total_spend is not None else ()
         self.t = sc.promotetoarray(t) if t is not None else ()
         self.budget_factor = sc.promotetoarray(budget_factor)
@@ -441,7 +507,15 @@ class TotalSpendConstraint(Constraint):
         if len(self.budget_factor) > 1:
             assert len(self.budget_factor) == len(self.t), 'If specifying multiple budget factors, you must also specify the years in which they are used'
 
-    def get_hard_constraint(self, optimization, instructions: ProgramInstructions):
+    def get_hard_constraint(self, optimization, instructions: ProgramInstructions) -> dict:
+        """
+        Return hard constraint dictionary
+
+        :param optimization: ``Optimization`` instance
+        :param instructions: Initial ``ProgramInstructions``
+        :return:
+        """
+
         # First, at each time point where a program overwrite exists, we need to store
         # the names of all of the programs being overwritten
         # e.g.
@@ -547,7 +621,15 @@ class TotalSpendConstraint(Constraint):
 
         return hard_constraints
 
-    def constrain_instructions(self, instructions: ProgramInstructions, hard_constraints):
+    def constrain_instructions(self, instructions: ProgramInstructions, hard_constraints: dict) -> float:
+        """
+        Apply total spend constraint
+
+        :param instructions: The ``ProgramInstructions`` instance to constrain
+        :param hard_constraints: Dictionary of hard constraints
+        :return: Distance-like difference between initial spending and constrained spending, `np.inf` if constraint failed
+
+        """
 
         penalty = 0.0
 
@@ -654,7 +736,23 @@ class Optimization(NamedItem):
             adjustment.update_instructions(asd_values[idx:idx + len(adjustment.adjustables)], instructions)
             idx += len(adjustment.adjustables)
 
-    def get_hard_constraints(self, x0, instructions: ProgramInstructions):
+    def get_hard_constraints(self, x0, instructions: ProgramInstructions) -> list:
+        """
+        Get hard constraints
+
+        This method calls ``get_hard_constraint`` on each ``Constraint`` in the ``Optimization``
+        iteratively, and returns them as a list.
+
+        Note that the initial optimization values ``x0`` are applied _before_ the hard constraint is computed.
+        This ensures that the hard constraints are relative to the initial conditions in the optimization, not
+        the initial instructions. For example, if a parametric overwrite is present, the hard constraint will
+        be relative to whatever spending is produced by the initial values of the parametric overwrite.
+
+        :param x0: The initial values for optimization - these are applied to the instructions prior to extracting hard constraints
+        :param instructions: The initial instructions
+        :return: A list of hard constraints, as many items as there are constraints
+
+        """
         # Return hard constraints based on the starting initialization
         instructions = sc.dcp(instructions)
         self.update_instructions(x0, instructions)
@@ -663,7 +761,20 @@ class Optimization(NamedItem):
         else:
             return [x.get_hard_constraint(self, instructions) for x in self.constraints]
 
-    def constrain_instructions(self, instructions: ProgramInstructions, hard_constraints):
+    def constrain_instructions(self, instructions: ProgramInstructions, hard_constraints: list) -> float:
+        """
+        Apply all constraints in-place, return penalty
+
+        This method takes in the proposed instructions, and a list of hard constraints. Each constraint is
+        applied to the instructions iteratively, passing in that constraint's own hard constraint, and the
+        penalty is accumulated and returned.
+
+        :param instructions: The current proposed ``ProgramInstructions``
+        :param hard_constraints: A list of hard constraints the same length as the number of constraints
+        :return: The total penalty value (if not finite, model integration will be skipped and the parameters will be rejected)
+
+        """
+        
         constraint_penalty = 0.0
         if self.constraints:
             for constraint, hard_constraint in zip(self.constraints, hard_constraints):
@@ -692,7 +803,7 @@ def _objective_fcn(asd_values, pickled_model=None, optimization=None, hard_const
     # Constrain the alloc - a penalty of `np.inf` signifies that the constraint could not be satisfied
     # In which case we can reject the proposed parameters _before_ processing the model
     constraint_penalty = optimization.constrain_instructions(model.program_instructions, hard_constraints)
-    if np.isinf(constraint_penalty):
+    if not np.isfinite(constraint_penalty):
         return constraint_penalty
 
     # Use the updated instructions to run the model
