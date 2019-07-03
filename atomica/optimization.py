@@ -18,27 +18,50 @@ from collections import defaultdict
 from .utils import TimeSeries
 from .results import Result
 from .cascade import get_cascade_vals
-from .programs import ProgramInstructions
-
+from .programs import ProgramSet, ProgramInstructions
+from .parameters import ParameterSet
 
 class InvalidInitialConditions(Exception):
-    # This error gets thrown if the initial conditions yield an objective value
-    # that is not finite
+    """
+    Invalid initial parameter values
+
+    This error gets thrown if the initial conditions yield an objective value
+    that is not finite
+
+    """
+
     pass
 
 
 class UnresolvableConstraint(Exception):
-    # This error gets thrown if it is _impossible_ to satisfy the constraints. There are
-    # two modes of constraint failure
-    # - The constraint might not be satisfied on this iteration, but could be satisfied by other
-    #   parameter values
-    # - The constraint is impossible to satisfy because it is inconsistent (for example, if the
-    #   total spend is greater than the sum of the upper bounds on all the individual programs)
-    #   in which case the algorithm cannot continue
-    # This error gets raised in the latter case, while the former should result in the iteration
-    # being skipped
+    """
+    Unresolvable (ill-posed) constraint
+
+    This error gets thrown if it is _impossible_ to satisfy the constraints. There are
+    two modes of constraint failure
+    - The constraint might not be satisfied on this iteration, but could be satisfied by other
+      parameter values
+    - The constraint is impossible to satisfy because it is inconsistent (for example, if the
+      total spend is greater than the sum of the upper bounds on all the individual programs)
+      in which case the algorithm cannot continue
+    This error gets raised in the latter case, while the former should result in the iteration
+    being skipped
+
+    """
+
     pass
 
+class FailedConstraint(Exception):
+    """
+    Not possible to apply constraint
+
+    This error gets raised if a ``Constraint`` is unable to transform the instructions
+    given the supplied parameter values (but other values may be acceptable). It signals
+    that the algorithm should proceed immediately to the next iteration.
+
+    """
+
+    pass
 
 class Adjustable(object):
 
@@ -74,9 +97,22 @@ class Adjustment(object):
 
 
 class SpendingAdjustment(Adjustment):
-    # This adjustment class represents making a spending quantity adjustable. By default, the
-    # base class simply overwrites the spending value at a particular point in time
-    # A SpendingAdjustment has a separate Adjustable for each time reached (independently)
+    """
+    Adjust program spending
+
+    This adjustment class represents making a spending quantity adjustable. By default, the
+    base class simply overwrites the spending value at a particular point in time
+    A SpendingAdjustment has a separate Adjustable for each time reached (independently)
+
+    :param prog_name: The code name of a program
+    :param t: A single time, or list/array of times at which to make adjustments
+    :param limit_type: Interpret ``lower`` and ``upper`` as absolute or relative limits (should be ``'abs'`` or ``'rel'``)
+    :param lower: Lower bound (0 by default). A single value (used for all times) or a list/array the same length as ``t``
+    :param upper: Upper bound (``np.inf`` by default). A single value (used for all times) or a list/array the same length as ``t``
+    :param initial: Optionally specify the initial value, either as a scalar or list/array the same length as ``t``. If not specified,
+                    the initial spend will be drawn from the program instructions, or the progset.
+    """
+
     def __init__(self, prog_name, t, limit_type='abs', lower=0.0, upper=np.inf, initial=None):
         Adjustment.__init__(self, name=prog_name)
         self.prog_name = prog_name
@@ -123,7 +159,12 @@ class SpendingAdjustment(Adjustment):
 
 
 class StartTimeAdjustment(Adjustment):
-    # Example of an Adjustment that does not target a spending value
+    """
+    Optimize program start year
+
+    This is an example of an Adjustment that does not target a spending value
+
+    """
 
     def __init__(self, name, lower, upper, initial):
         Adjustment.__init__(self, name=name)
@@ -140,6 +181,14 @@ class StartTimeAdjustment(Adjustment):
 
 
 class ExponentialSpendingAdjustment(Adjustment):
+    """
+    Parametric overwrite example
+
+    This is an example of an Adjustment that uses a function of several variables to
+    compute time-dependent spending.
+
+    """
+
     # Example of a parametric time-varying budget where multiple parameters
     # are mapped to spending via a function
 
@@ -163,9 +212,14 @@ class ExponentialSpendingAdjustment(Adjustment):
 
 
 class PairedLinearSpendingAdjustment(Adjustment):
-    # This example shows a parametric time-varying budget reaching more than one program.
-    # A single adjustable corresponding to the rate of change simultaneously acts on
-    # two programs in opposite directions
+    """
+    Parametric overwrite with multiple programs
+
+    This example Adjustment demonstrates a parametric time-varying budget reaching more than one
+    program. A single adjustable corresponding to the rate of change simultaneously acts on
+    two programs in opposite directions
+
+    """
 
     def __init__(self, prog_names, t):
         Adjustment.__init__(self, name=None)
@@ -210,28 +264,51 @@ class Measurable(object):
     may contain multiple ``Measurable`` objects, and the objective value returned by each of them
     is summed together.
 
-    :param measurable_name:
-    :param t:
-    :param pop_names:
-    :param weight:
-    :param fcn:
+    :param measurable_name: The base measurable class accepts the name of a program (for spending) or a quantity supported by ``Population.get_variable()``
+    :param t: Single year, or multiple years
+    :param pop_names: The base `Measurable` class takes in the names of the populations to use. If multiple populations are provided, the objective will be added across the named populations
+    :param weight: The weight factor multiplies the quantity
+    :param fcn: If provided, the quantity is passed through this function of one variable mapping the objective to a new value. Can be used for nonlinear scaling or thresholding
+
     """
 
-    def __init__(self, measurable_name, t, pop_names=None, weight=1.0, fcn=None):
+    def __init__(self, measurable_name, t, pop_names=None, weight=1.0):
         self.measurable_name = measurable_name
-        self.t = sc.promotetoarray(t)  # Single year, or multiple years
+        self.t = sc.promotetoarray(t)
         self.weight = weight
         self.pop_names = pop_names
-        self.fcn = fcn  # transformation function to apply
 
-    def eval(self, model):
+    def eval(self, model, baseline):
         # This is the main interface with the optimization code - this function gets called
         # to return the transformed, weighted objective value from this Measurable for use in ASD
         # Only overload this if you want to customize the transformation and weighting
-        val = self.get_objective_val(model)
-        return self._transform_val(val)
+        return self.weight * self.get_objective_val(model, baseline)
 
-    def get_objective_val(self, model):
+    def get_baseline(self,model):
+        """
+        Return cached baseline values
+
+        Similar to ``get_hard_constraint``, sometimes a relative ``Measurable`` might be desired e.g. 'Reduce deaths by at least 50%'.
+        In that case, we need to perform a procedure similar to getting a hard constraint, where the ``Measurable`` receives an initial
+        ``Model`` object and extracts baseline data for subsequent use in ``get_objective_val``.
+
+        Thus, the output of this function is paired to its usage in ``get_objective_val``.
+
+        :param model:
+        :return:
+        """
+
+    def get_objective_val(self, model, baseline):
+        """
+        Return objective value
+
+        This method should return the _unweighted_ objective value. Note that further transformation may occur
+        using the `_transform_val()` method if a transformation function is set.
+
+        :param model:
+        :param baseline:
+        :return:
+        """
         # This returns the base objective value, prior to any function transformation
         # or weighting. The function transformation and weighting are handled by this base
         # class - derived classes may wish to not expose things like the function mapping
@@ -278,14 +355,6 @@ class Measurable(object):
 
         return val
 
-    def _transform_val(self, val):
-        # Apply function transformation and weight to the value
-        if self.fcn:
-            val = self.fcn(val)
-        val *= self.weight
-        return val
-
-
 class MinimizeMeasurable(Measurable):
     # Syntactic sugar for a measurable that minimizes its quantity
     def __init__(self, measurable_name, t, pop_names=None):
@@ -306,7 +375,10 @@ class AtMostMeasurable(Measurable):
         Measurable.__init__(self, measurable_name, t=t, weight=np.inf, pop_names=pop_names)
         self.weight = 1.0
         self.threshold = threshold
-        self.fcn = lambda x: np.inf if x > self.threshold else 0.0
+
+    def get_objective_val(self, model, baseline):
+        val = Measurable.get_objective_val(self,model,baseline)
+        return np.inf if val > self.threshold else 0.0
 
     def __repr__(self):
         return 'AtMostMeasurable(%s < %f)' % (self.measurable_name, self.threshold)
@@ -320,7 +392,10 @@ class AtLeastMeasurable(Measurable):
         Measurable.__init__(self, measurable_name, t=t, weight=np.inf, pop_names=pop_names)
         self.weight = 1.0
         self.threshold = threshold
-        self.fcn = lambda x: np.inf if x < self.threshold else 0.0
+
+    def get_objective_val(self, model, baseline):
+        val = Measurable.get_objective_val(self,model,baseline)
+        return np.inf if val < self.threshold else 0.0
 
     def __repr__(self):
         return 'AtLeastMeasurable(%s > %f)' % (self.measurable_name, self.threshold)
@@ -445,13 +520,7 @@ class Constraint(object):
         such that the total spend matches a target value. The penalty reflects the distance between
         the requested spend and the constrained spend, so it is desirable to minimize it.
 
-        Presently, the numeric value of the penalty is not used to guide optimization. However,
-        the optimization routine _does_ check whether the penalty is finite. If the penalty is
-        `np.inf` then the proposed instructions will be rejected without running the model. Thus,
-        derived classes can return `np.inf` as the penalty value to indicate that it was not possible
-        to constraint the instructions. This provides equivalent functionality to the objective value
-        being `np.inf` (i.e. the optimization algorithm will try a different set of parameters) but
-        is faster because the model does not get simulated.
+        If it is not possible to constrain the instructions, raise ``FailedConstraint``.
 
         :param instructions: The ``ProgramInstructions`` instance to constrain (in place)
         :param hard_constraints: The hard constraint returned by ``get_hard_constraint``
@@ -657,8 +726,8 @@ class TotalSpendConstraint(Constraint):
             res = scipy.optimize.minimize(lambda x: np.linalg.norm(x - x0_array_scaled), x0_array_scaled, jac=jacfcn, bounds=bounds, constraints=LinearConstraint, options={'maxiter': 500})
 
             if not res['success']:
-                logger.error('TotalSpendConstraint failed - rejecting these proposed parameters with an objective value of np.inf')
-                penalty = np.inf
+                logger.warning('TotalSpendConstraint failed - rejecting proposed parameters')
+                raise FailedConstraint()
             else:
                 penalty += np.linalg.norm(res['x'] - x0_array)  # Penalty is the distance between the unconstrained budget and the constrained budget
                 for name, val in zip(x0.keys(), res['x']):
@@ -679,22 +748,20 @@ class Optimization(NamedItem):
     - A specification of allowed changes to the program instructions
     - Any additional information required by a particular optimization algorithm e.g. ASD
 
+    :param name:
+    :param adjustments: An `Adjustment` or list of `Adjustment` objects
+    :param measurables: A `Measurable` or list of `Measurable` objects
+    :param constraints: Optionally provide a `Constraint` or list of `Constraint` objects
+    :param maxtime: Optionally specify maximum ASD time
+    :param maxiters: Optionally specify maximum number of ASD iterations or hyperopt evaluations
+    :param method: One of ['asd','pso','hyperopt'] to use
+                        - asd (to use normal ASD)
+                        - pso (to use particle swarm optimization from pyswarm)
+                        - hyperopt (to use hyperopt's Bayesian optimization function)
+
     """
 
     def __init__(self, name=None, adjustments=None, measurables=None, constraints=None, maxtime=None, maxiters=None, method='asd'):
-        """
-
-        :param name:
-        :param adjustments:
-        :param measurables:
-        :param constraints:
-        :param maxtime: Optionally specify maximum ASD time
-        :param maxiters: Optionally specify maximum number of ASD iterations or hyperopt evaluations
-        :param method: One of ['asd','pso','hyperopt'] to use
-                            - asd (to use normal ASD)
-                            - pso (to use particle swarm optimization from pyswarm)
-                            - hyperopt (to use hyperopt's Bayesian optimization function)
-        """
         # Get the name
         if name is None:
             name = 'default'
@@ -721,7 +788,26 @@ class Optimization(NamedItem):
     def __repr__(self):
         return sc.prepr(self)
 
-    def get_initialization(self, progset, instructions: ProgramInstructions):
+    def get_initialization(self, progset: ProgramSet, instructions: ProgramInstructions) -> tuple:
+        """
+        Get initial values for each adjustment
+
+        The initial conditions depend nontrivially on both the progset and the instructions. Spending is
+        present in the progset and optionally overwritten in the instructions. Therefore, it is necessary
+        to check both when determining initial spending. Extraction of the initial values for each
+        ``Adjustment`` is delegated to the ``Adjustment`` itself.
+
+        Note also that the return arrays have length equal to the number of ``Adjustables``
+        (since an ``Adjustment`` may contain several ``Adjustables``).
+
+        :param progset: The program set to extract initial conditions from
+        :param instructions: Instructions to extract initial conditions from
+        :return: Tuple containing ``(initial,low,high)`` with arrays for
+            - The initial value of each adjustable
+            - The lower limit for each adjustable
+            - The upper limit for each adjustable
+        """
+
         # Return arrays of lower and upper bounds for each adjustable
         x0 = []
         for adjustment in self.adjustments:
@@ -740,7 +826,18 @@ class Optimization(NamedItem):
 
         return x0, xmin, xmax
 
-    def update_instructions(self, asd_values, instructions: ProgramInstructions):
+    def update_instructions(self, asd_values, instructions: ProgramInstructions) -> None:
+        """
+        Apply all Adjustments
+
+        This method takes in a list of values (same length as number of adjustables) and iteratively
+        calls each ``Adjustment`` in the optimization to update the instructions (in place)
+
+        :param asd_values: A list of values
+        :param instructions: The ``ProgramInstructions`` instance to update
+
+        """
+
         idx = 0
         for adjustment in self.adjustments:
             adjustment.update_instructions(asd_values[idx:idx + len(adjustment.adjustables)], instructions)
@@ -767,9 +864,58 @@ class Optimization(NamedItem):
         instructions = sc.dcp(instructions)
         self.update_instructions(x0, instructions)
         if not self.constraints:
-            return None
+            return list()
         else:
             return [x.get_hard_constraint(self, instructions) for x in self.constraints]
+
+    def run_model(self, pickled_model, x: list, hard_constraints: list) -> tuple:
+        """
+        Run a pickled model using proposed parameters
+
+        This method runs a pickled model given a set of parameter values, instructions, and
+        constraints. This method uses the Adjustments and Constraints stored in the Optimization.
+
+        :param pickled_model: A pickled model object
+        :param x: List of parameter values (should match number of adjustables) - can generally obtain an initial list using ``get_initialization()``
+        :param hard_constraints: List of hard constraints produced by ``get_hard_constraints()``
+        :return: A tuple containing a ``Model`` object after being integrated, and the constraint penalty
+        :raises: :class:`FailedConstraint` if the constraint could not be applied
+
+        """
+
+        model = pickle.loads(pickled_model)
+        self.update_instructions(x, model.program_instructions)
+        constraint_penalty = self.constrain_instructions(model.program_instructions, hard_constraints)
+        model.process()
+        return model, constraint_penalty
+
+    def get_baselines(self, pickled_model, x0: list, hard_constraints: list) -> list:
+        """
+        Return Measurable baseline values
+
+        This method is run at the start of the `optimize` script, and is used to
+        retrieve the baseline values for the Measurable. As it involves running the model,
+        also check for bad initial conditions.
+
+        :param pickled_model:
+        :param x0: The initial parameter values
+        :param hard_constraints: List of hard constraint values
+        :return: A list of Measurable baseline values
+
+        """
+
+        try:
+            model = self.run_model(pickled_model, x0, hard_constraints)[0]
+        except FailedConstraint:
+            raise InvalidInitialConditions('Optimization cannot begin because it was not possible to constrain the instructions using the specified initialization')
+
+        baselines = [m.get_baseline(model) for m in self.measurables]
+
+        # Check the initial objective is OK
+        if not np.isfinite(self.compute_objective(model, baselines)):
+            raise InvalidInitialConditions('Optimization cannot begin because the objective function was NaN for the specified initialization')
+
+        return baselines
 
     def constrain_instructions(self, instructions: ProgramInstructions, hard_constraints: list) -> float:
         """
@@ -791,43 +937,66 @@ class Optimization(NamedItem):
                 constraint_penalty += constraint.constrain_instructions(instructions, hard_constraint)
         return constraint_penalty
 
-    def compute_objective(self, model):
-        # Take in a completed model run
-        # Compute the objective based on the measurables
-        # Program name will map to spending array for that program
+    def compute_objective(self, model, baselines: list) -> float:
+        """
+        Return total objective function
+
+        This method accumulates the objective values returned by each ``Measurable``, passing in
+        the corresponding baseline values where required.
+
+        :param model: A simulated ``Model`` object
+        :param baselines: List of baseline values the same length as the number of ``Measurables``
+        :return: The total/net objective value
+
+        """
+
+        # TODO - This method just adds the objective from each Measurable
+        # It might be desirable in future to have more complex functions of the Measurable e.g.
+        # sum of squares. It's not clear yet whether this would be better as a transformation
+        # applied here, or as a kind of meta-measurable. The former is probably simpler
+        # to implement. But since there is no immediate need, this can be implemented later
+
         objective = 0.0
-        for measurable in self.measurables:
-            objective += measurable.eval(model)
+        for measurable, baseline in zip(self.measurables, baselines):
+            objective += measurable.eval(model, baseline)
         return objective
 
 
-def _objective_fcn(asd_values, pickled_model=None, optimization=None, hard_constraints=None):
-    # Compute the objective in ASD
+def _objective_fcn(x, pickled_model, optimization, hard_constraints: list, baselines: list):
+    """
+    Return objective value
 
-    # Unpickle model
-    model = pickle.loads(pickled_model)
+    This wrapper function takes in a vector of proposed parameters and returns the objective value.
+    It is typically not called directly - instead, it is partialled to bind all arguments except ``x``
+    and then passed to whichever optimization algorithm is used to optimize ``x``
 
-    # Inject the ASD vector into the instructions
-    optimization.update_instructions(asd_values, model.program_instructions)
+    :param x: Vector of proposed parameter values
+    :param pickled_model: A pickled ``Model`` - should contain a set of instructions
+    :param optimization: An ``Optimization``
+    :param hard_constraints: A list of hard constraints (should be the same length as ``optimization.constraints``)
+    :param baselines: A list of measurable baselines (should be the same length as ``optimization.measurables``)
+    :return:
 
-    # Constrain the alloc - a penalty of `np.inf` signifies that the constraint could not be satisfied
-    # In which case we can reject the proposed parameters _before_ processing the model
-    constraint_penalty = optimization.constrain_instructions(model.program_instructions, hard_constraints)
-    if not np.isfinite(constraint_penalty):
-        return constraint_penalty
 
-    # Use the updated instructions to run the model
-    model.process()
+    """
 
-    # Compute the objective function based on the model calculated values and return it
-    # TODO - constraint_penalty is an interesting idea but need to make sure it doesn't dominate the actual objective
-    # Using it directly seems to prioritize meeting the constraint and with ASD's single-parameter stepping this prevents convergence
-    obj_val = 0.0 * constraint_penalty + optimization.compute_objective(model)
+    try:
+        model, constraint_penalty = optimization.run_model(pickled_model, x, hard_constraints)
+    except FailedConstraint:
+        return np.inf # Return an objective of `np.inf` if the constraints could not be satisfied by ``x``
+
+    obj_val = optimization.compute_objective(model, baselines)
+
+    # TODO - use constraint penalty somehow
+    # The idea is to keep the optimization in a parameter regime where large corrections to the instructions
+    # are not required. However, using ths constraint penalty directly can lead to it dominating the objective,
+    # and with ASD's single-parameter stepping this prevents convergence. So needs some further work
+    #obj_val += 0.0 * constraint_penalty
 
     return obj_val
 
 
-def optimize(project, optimization, parset, progset, instructions: ProgramInstructions, x0=None, xmin=None, xmax=None, hard_constraints=None):
+def optimize(project, optimization, parset: ParameterSet, progset: ProgramSet, instructions: ProgramInstructions, x0=None, xmin=None, xmax=None, hard_constraints=None, baselines=None):
     """
     Main user entry point for optimization
 
@@ -840,22 +1009,22 @@ def optimize(project, optimization, parset, progset, instructions: ProgramInstru
 
     :param project: A :class:`Project` instance
     :param optimization: An :class:`Optimization` instance
-    :param parset: A :class:`ParameterSet` instance or name of a parset
-    :param progset: A :class:`ProgramSet` instance or name of a progset
+    :param parset: A :class:`ParameterSet` instance
+    :param progset: A :class:`ProgramSet` instance
     :param instructions: A :class:`ProgramInstructions` instance
     :param x0: Not for manual use - override initial values
     :param xmin: Not for manual use - override lower bounds
     :param xmax: Not for manual use - override upper bounds
     :param hard_constraints: Not for manual use - override hard constraints
+    :param baselines: Not for manual use - override Measurable baseline values (for relative Measurables)
     :return: A :class:`ProgramInstructions` instance representing optimal instructions
 
     """
 
-
     assert optimization.method in ['asd', 'pso', 'hyperopt']
 
     model = Model(project.settings, project.framework, parset, progset, instructions)
-    pickled_model = pickle.dumps(model)
+    pickled_model = pickle.dumps(model) # Unpickling effectively makes a deep copy, so this _should_ be faster
 
     initialization = optimization.get_initialization(progset, model.program_instructions)
     x0 = x0 if x0 is not None else initialization[0]
@@ -865,17 +1034,19 @@ def optimize(project, optimization, parset, progset, instructions: ProgramInstru
     if not hard_constraints:
         hard_constraints = optimization.get_hard_constraints(x0, model.program_instructions)  # The optimization passed in here knows how to calculate the hard constraints based on the program instructions
 
+    if not baselines:
+        # ``Optimization.get_baselines`` also checks the initial conditions. So, if we pass in the baselines, we assume
+        # the initial conditions have already been checked. This would generally be the case e.g. if calling via ``parallel_optimize``
+        # since presumably ``Optimization.get_baselines()`` was called in order to originally generate the baselines
+        baselines = optimization.get_baselines(pickled_model, x0, hard_constraints)  # The optimization passed in here knows how to calculate the hard constraints based on the program instructions
+
     # Prepare additional arguments for the objective function
     args = {
         'pickled_model': pickled_model,
         'optimization': optimization,
         'hard_constraints': hard_constraints,
+        'baselines': baselines,
     }
-
-    # Check that the initial conditions are OK
-    initial_objective = _objective_fcn(x0, **args)
-    if not np.isfinite(initial_objective):
-        raise InvalidInitialConditions('Optimization cannot begin because the objective function was NaN for the specified initialization')
 
     if optimization.method == 'asd':
         optim_args = {
@@ -927,6 +1098,7 @@ def optimize(project, optimization, parset, progset, instructions: ProgramInstru
         x_opt = hyperopt.fmin(fcn, space, **optim_args)
         x_opt = np.array([x_opt[str(n)] for n in range(len(x_opt.keys()))])
 
+    # Use the optimal parameter values to generate new instructions
     optimization.update_instructions(x_opt, model.program_instructions)
     optimization.constrain_instructions(model.program_instructions, hard_constraints)
     return model.program_instructions  # Return the modified instructions
