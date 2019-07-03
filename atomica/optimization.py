@@ -444,26 +444,34 @@ class IncreaseByMeasurable(Measurable):
 
     The measurable returns ``np.inf`` if the condition is violated, and ``0.0`` otherwise.
 
-    :param measurable_name:
-    :param t:
-    :param increase:
-    :param pop_names:
+    :param measurable_name: The base measurable class accepts the name of a program (for spending) or a quantity supported by ``Population.get_variable()``
+    :param t: Single year, or a list of two start/stop years. If specifying a single year, that year must appear in the simulation output.
+              The quantity will be summed over all simulation time points
+    :param increase: The amount by which to increase the measurable (e.g. 0.05 for a 5% increase). Use ``target_type='abs'`` to specify an absolute increase
+    :param pop_names: The base `Measurable` class takes in the names of the populations to use. If multiple populations are provided, the objective will be added across the named populations
+    :param target_type: Specify fractional 'frac' or absolute 'abs' increase (default is fractional)
 
     """
 
-    def __init__(self, measurable_name, t, increase, pop_names=None):
+    def __init__(self, measurable_name, t, increase, pop_names=None, target_type='frac'):
 
         Measurable.__init__(self, measurable_name, t=t, weight=np.inf, pop_names=pop_names)
-        assert increase >= 0, 'Cannot set negative fractional increase'
+        assert increase >= 0, 'Cannot set negative increase'
         self.weight = 1.0
-        self.threshold = 1+increase # Required increase
+        self.increase = increase # Required increase
+        self.target_type = target_type
 
     def get_baseline(self,model) -> float:
         return Measurable.get_objective_val(self,model,None) # Get the baseline value using the underlying Measurable
 
-    def get_objective_val(self, model: Model, baseline:float) -> float:
+    def get_objective_val(self, model: Model, baseline: float) -> float:
         val = Measurable.get_objective_val(self,model,None)
-        return np.inf if (val/baseline) < self.threshold else 0.0
+        if self.target_type == 'frac':
+            return np.inf if (val / baseline) < (1 + self.increase) else 0.0
+        elif self.target_type == 'abs':
+            return np.inf if val < (baseline+self.increase) else 0.0
+        else:
+            raise Exception('Unknown target type')
 
 
 class DecreaseByMeasurable(Measurable):
@@ -480,27 +488,35 @@ class DecreaseByMeasurable(Measurable):
 
     The measurable returns ``np.inf`` if the condition is violated, and ``0.0`` otherwise.
 
-    :param measurable_name:
-    :param t:
-    :param increase:
-    :param pop_names:
+    :param measurable_name: The base measurable class accepts the name of a program (for spending) or a quantity supported by ``Population.get_variable()``
+    :param t: Single year, or a list of two start/stop years. If specifying a single year, that year must appear in the simulation output.
+              The quantity will be summed over all simulation time points
+    :param decrease: The amount by which to decrease the measurable (e.g. 0.05 for a 5% decrease). Use ``target_type='abs'`` to specify an absolute decrease
+    :param pop_names: The base `Measurable` class takes in the names of the populations to use. If multiple populations are provided, the objective will be added across the named populations
+    :param target_type: Specify fractional 'frac' or absolute 'abs' decrease (default is fractional)
 
     """
 
-    def __init__(self, measurable_name, t, decrease, pop_names=None):
+    def __init__(self, measurable_name, t, decrease, pop_names=None, target_type='frac'):
 
         Measurable.__init__(self, measurable_name, t=t, weight=np.inf, pop_names=pop_names)
         self.weight = 1.0
         assert decrease >= 0, 'Set positive value for magnitude of decrease e.g. 0.05 for a 5%% decrease'
-        assert decrease <= 1, 'Cannot decrease by more than 100%% - decrease should be a value between 0 and 1'
-        self.threshold = 1-decrease
+        assert (target_type == 'abs' or decrease <= 1), 'Cannot decrease by more than 100%% - fractional decrease should be a value between 0 and 1'
+        self.threshold = 1 - decrease
+        self.target_type = target_type
 
     def get_baseline(self,model) -> float:
         return Measurable.get_objective_val(self, model, None)  # Get the baseline value using the underlying Measurable
 
     def get_objective_val(self, model: Model, baseline:float) -> float:
-        val = Measurable.get_objective_val(self,model,None)
-        return np.inf if (val/baseline) > self.threshold else 0.0
+        val = Measurable.get_objective_val(self, model, None)
+        if self.target_type == 'frac':
+            return np.inf if (val / baseline) > (1-self.decrease) else 0.0
+        elif self.target_type == 'abs':
+            return np.inf if val > (baseline-self.decrease) else 0.0
+        else:
+            raise Exception('Unknown target type')
 
 
 class MaximizeCascadeStage(Measurable):

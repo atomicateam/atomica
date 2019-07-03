@@ -407,7 +407,7 @@ def test_minmoney():
     at.plot_series(d, axis="results")
 
 
-### MONEY MINIMIZATION
+### MONEY MINIMIZATION 2
 # Essentially the same example as ``test_minmoney``. However, in this example, we want to both minimize spending
 # and increase the number of people alive by some percentage. If we spend about $1000 on Treatment 2, then we can
 # achieve 731.5 people alive in 2030, compared to 729.95 if we spend $50 on each program. Thus, we set our initial
@@ -447,6 +447,45 @@ def test_minmoney_relative():
 
     d = at.PlotData([unoptimized_result, optimized_result], outputs=['ch_all'],project=P)
     at.plot_series(d, axis="results")
+    print('Change: %.4f' % (d.series[1].vals[-1]/d.series[0].vals[-1]))
+
+### MONEY MINIMIZATION 3
+# Essentially the same example as ``test_minmoney_relative`` but now we want an absolute increase
+# of 1 person alive
+def test_minmoney_absolute():
+
+    P = at.demo(which=test,do_plot=0,do_run=False)
+    P.update_settings(sim_end=2030.0)
+
+    alloc = sc.odict([('Risk avoidance',0.),
+                     ('Harm reduction 1',0.),
+                     ('Harm reduction 2',0.),
+                     ('Treatment 1',50.),
+                     ('Treatment 2', 50.)])
+
+    instructions = at.ProgramInstructions(alloc=alloc,start_year=2020) # Instructions for default spending. Note that this does NOT have the scaled up initial spends for money minimization
+
+    adjustments = []
+    adjustments.append(at.SpendingAdjustment('Treatment 1', 2020, 'abs', 0., 2000., initial=2000.)) # We can adjust Treatment 1
+    adjustments.append(at.SpendingAdjustment('Treatment 2', 2020, 'abs', 0., 2000., initial=2000.)) # We can adjust Treatment 2
+
+    measurables = []
+    measurables.append(at.IncreaseByMeasurable('ch_all',2030,1,target_type='abs')) # Get a 0.02% increase in ch_all in 2030
+    measurables.append(at.MinimizeMeasurable('Treatment 1',2020)) # Minimize 2020 spending on Treatment 1
+    measurables.append(at.MinimizeMeasurable('Treatment 2',2020)) # Minimize 2020 spending on Treatment 2
+
+    constraints = None  # No extra constraints aside from individual bounds
+
+    optimization = at.Optimization(name='default', adjustments=adjustments, measurables=measurables,constraints=constraints,method='pso') # Evaluate from 2020 to end of simulation
+
+    (unoptimized_result,optimized_result) = run_optimization(P, optimization, instructions)
+
+    for adjustable in adjustments:
+        print("%s - before=%.2f, after=%.2f" % (adjustable.name,unoptimized_result.model.program_instructions.alloc[adjustable.name].get(2020),optimized_result.model.program_instructions.alloc[adjustable.name].get(2020))) # TODO - add time to alloc
+
+    d = at.PlotData([unoptimized_result, optimized_result], outputs=['ch_all'],project=P)
+    at.plot_series(d, axis="results")
+    print('Before: %.2f, After: %.2f' % (d.series[0].vals[-1],d.series[1].vals[-1]))
 
 
 def test_cascade_final_stage():
@@ -547,17 +586,18 @@ def test_cascade_conversions():
     plt.title('Optimized')
 
 if __name__ == '__main__':
-    # test_standard()
-    # test_unresolvable()
-    # test_standard_mindeaths()
-    # test_delayed()
-    # test_multiyear_fixed()
+    test_standard()
+    test_unresolvable()
+    test_standard_mindeaths()
+    test_delayed()
+    test_multiyear_fixed()
     test_multiyear_relative()
-    # test_gradual()
-    # test_mixed_timing()
-    # test_parametric_paired()
-    # test_minmoney()
-    # test_minmoney_relative()
-    # test_cascade_final_stage()
-    # test_cascade_multi_stage()
-    # test_cascade_conversions()
+    test_gradual()
+    test_mixed_timing()
+    test_parametric_paired()
+    test_minmoney()
+    test_minmoney_relative()
+    test_minmoney_absolute()
+    test_cascade_final_stage()
+    test_cascade_multi_stage()
+    test_cascade_conversions()
