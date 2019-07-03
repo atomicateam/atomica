@@ -70,7 +70,7 @@ class Adjustable(object):
         self.limit_type = limit_type  # 'abs' or 'rel'
         self.lower_bound = lower_bound
         self.upper_bound = upper_bound
-        self.initial_value = initial_value  # This could be None, but if it is None, then `extract_from_instructions` cannot be None
+        self.initial_value = initial_value  # This could be None, but if it is None
 
     def get_hard_bounds(self, x0=None):
         # Return hard bounds based the limit type and specified bounds
@@ -265,16 +265,17 @@ class Measurable(object):
     is summed together.
 
     :param measurable_name: The base measurable class accepts the name of a program (for spending) or a quantity supported by ``Population.get_variable()``
-    :param t: Single year, or multiple years
+    :param t: Single year, or a list of two start/stop years. If specifying a single year, that year must appear in the simulation output.
+              The quantity will be summed over all simulation time points
     :param pop_names: The base `Measurable` class takes in the names of the populations to use. If multiple populations are provided, the objective will be added across the named populations
     :param weight: The weight factor multiplies the quantity
-    :param fcn: If provided, the quantity is passed through this function of one variable mapping the objective to a new value. Can be used for nonlinear scaling or thresholding
 
     """
 
     def __init__(self, measurable_name, t, pop_names=None, weight=1.0):
         self.measurable_name = measurable_name
         self.t = sc.promotetoarray(t)
+        assert len(self.t)<=2, 'Measurable time must either be a year, or the `[low,high)` values defining a period of time'
         self.weight = weight
         self.pop_names = pop_names
 
@@ -295,20 +296,23 @@ class Measurable(object):
         Thus, the output of this function is paired to its usage in ``get_objective_val``.
 
         :param model:
-        :return:
+        :return: The value to pass back to the ``Measurable`` during optimization
         """
 
-    def get_objective_val(self, model, baseline):
+        return None
+
+    def get_objective_val(self, model: Model, baseline) -> float:
         """
         Return objective value
 
         This method should return the _unweighted_ objective value. Note that further transformation may occur
-        using the `_transform_val()` method if a transformation function is set.
 
-        :param model:
-        :param baseline:
-        :return:
+        :param model: A ``Model`` object after integration
+        :param baseline: The baseline variable returned by this ``Measurable`` at the start of optimization
+        :return: A scalar objective value
+
         """
+
         # This returns the base objective value, prior to any function transformation
         # or weighting. The function transformation and weighting are handled by this base
         # class - derived classes may wish to not expose things like the function mapping
@@ -317,7 +321,7 @@ class Measurable(object):
         #
         # The base class has the default behaviour that the 'measurable name' is a model variable
         if len(self.t) == 1:
-            t_filter = model.t == self.t  # boolean vector for whether to use the time point or not
+            t_filter = model.t == self.t  # boolean vector for whether to use the time point or not. This could be relaxed using interpolation if needed, but safer not to unless essential
         else:
             t_filter = (model.t >= self.t[0]) & (model.t < self.t[1])  # Don't include upper bound, so [2018,2019] will include exactly one year
 
@@ -368,9 +372,22 @@ class MaximizeMeasurable(Measurable):
 
 
 class AtMostMeasurable(Measurable):
-    # A Measurable that impose a penalty if the quantity is larger than some threshold
-    # The initial points should be 'valid' in the sense that the quantity starts out
-    # below the threshold (and during ASD it will never be allowed to cross the threshold)
+    """
+    Enforce quantity is below a value
+
+    This Measurable imposes a penalty if the quantity is larger than some threshold
+    The initial points should be 'valid' in the sense that the quantity starts out
+    below the threshold (and during optimization it will never be allowed to cross
+    the threshold).
+
+    Typically, this Measurable would be used in conjunction with other measurables -
+    for example, optimizing one quantity while ensuring another quantity does not
+    cross a threshold.
+
+    The measurable returns ``np.inf`` if the condition is violated, and ``0.0`` otherwise.
+
+    """
+
     def __init__(self, measurable_name, t, threshold, pop_names=None):
         Measurable.__init__(self, measurable_name, t=t, weight=np.inf, pop_names=pop_names)
         self.weight = 1.0
@@ -385,9 +402,21 @@ class AtMostMeasurable(Measurable):
 
 
 class AtLeastMeasurable(Measurable):
-    # A Measurable that impose a penalty if the quantity is smaller than some threshold
-    # The initial points should be 'valid' in the sense that the quantity starts out
-    # above the threshold (and during ASD it will never be allowed to cross the threshold)
+    """
+    Enforce quantity exceeds a value
+
+    This Measurable imposes a penalty if the quantity is smaller than some threshold
+    The initial points should be 'valid' in the sense that the quantity starts out
+    above the threshold (and during optimization it will never be allowed to cross
+    the threshold)
+
+    Typically, this Measurable would be used in money minimization in conjunction
+    with measurables that aim to minimize spending.
+
+    The measurable returns ``np.inf`` if the condition is violated, and ``0.0`` otherwise.
+
+    """
+
     def __init__(self, measurable_name, t, threshold, pop_names=None):
         Measurable.__init__(self, measurable_name, t=t, weight=np.inf, pop_names=pop_names)
         self.weight = 1.0
@@ -399,6 +428,79 @@ class AtLeastMeasurable(Measurable):
 
     def __repr__(self):
         return 'AtLeastMeasurable(%s > %f)' % (self.measurable_name, self.threshold)
+
+class IncreaseByMeasurable(Measurable):
+    """
+    Increase quantity by percentage
+
+    This Measurable stores the value of a quantity using the original instructions.
+    It then requires that there is a minimum increase in the value of the quantity
+    during optimization. For example
+
+    >>> IncreaseByMeasurable('alive',2030,0.05)
+
+    This Measurable would correspond to an increase of 5% in the number of people
+    alive in 2030.
+
+    The measurable returns ``np.inf`` if the condition is violated, and ``0.0`` otherwise.
+
+    :param measurable_name:
+    :param t:
+    :param increase:
+    :param pop_names:
+
+    """
+
+    def __init__(self, measurable_name, t, increase, pop_names=None):
+
+        Measurable.__init__(self, measurable_name, t=t, weight=np.inf, pop_names=pop_names)
+        assert increase >= 0, 'Cannot set negative fractional increase'
+        self.weight = 1.0
+        self.threshold = 1+increase # Required increase
+
+    def get_baseline(self,model) -> float:
+        return Measurable.get_objective_val(self,model,None) # Get the baseline value using the underlying Measurable
+
+    def get_objective_val(self, model: Model, baseline:float) -> float:
+        val = Measurable.get_objective_val(self,model,None)
+        return np.inf if (val/baseline) < self.threshold else 0.0
+
+
+class DecreaseByMeasurable(Measurable):
+    """
+    Decrease quantity by percentage
+
+    This Measurable stores the value of a quantity using the original instructions.
+    It then requires that there is a minimum increase in the value of the quantity
+    during optimization. For example
+
+    >>> DecreaseByMeasurable('deaths',2030,0.05)
+
+    This Measurable would correspond to an decrease of 5% in the number of deaths in 2030.
+
+    The measurable returns ``np.inf`` if the condition is violated, and ``0.0`` otherwise.
+
+    :param measurable_name:
+    :param t:
+    :param increase:
+    :param pop_names:
+
+    """
+
+    def __init__(self, measurable_name, t, decrease, pop_names=None):
+
+        Measurable.__init__(self, measurable_name, t=t, weight=np.inf, pop_names=pop_names)
+        self.weight = 1.0
+        assert decrease >= 0, 'Set positive value for magnitude of decrease e.g. 0.05 for a 5%% decrease'
+        assert decrease <= 1, 'Cannot decrease by more than 100%% - decrease should be a value between 0 and 1'
+        self.threshold = 1-decrease
+
+    def get_baseline(self,model) -> float:
+        return Measurable.get_objective_val(self, model, None)  # Get the baseline value using the underlying Measurable
+
+    def get_objective_val(self, model: Model, baseline:float) -> float:
+        val = Measurable.get_objective_val(self,model,None)
+        return np.inf if (val/baseline) > self.threshold else 0.0
 
 
 class MaximizeCascadeStage(Measurable):
@@ -429,7 +531,7 @@ class MaximizeCascadeStage(Measurable):
         if not isinstance(self.pop_names, list):
             self.pop_names = [self.pop_names]
 
-    def get_objective_val(self, model):
+    def get_objective_val(self, model, baseline):
         result = Result(model=model)
         val = 0
         for pop_name in self.pop_names:
@@ -458,7 +560,7 @@ class MaximizeCascadeConversionRate(Measurable):
         if not isinstance(self.pop_names, list):
             self.pop_names = [self.pop_names]
 
-    def get_objective_val(self, model):
+    def get_objective_val(self, model, baseline):
         if self.t < model.t[0] or self.t > model.t[-1]:
             raise Exception('Measurable year for optimization (%d) is outside the simulation range (%d-%d)' % (self.t,model.t[0],model.t[-1]))
         result = Result(model=model)
@@ -822,6 +924,10 @@ class Optimization(NamedItem):
                 bounds = adjustable.get_hard_bounds(x0[ptr])
                 xmin[ptr] = bounds[0]
                 xmax[ptr] = bounds[1]
+                if x0[ptr] > xmax[ptr]:
+                    raise InvalidInitialConditions('Adjustment "%s" has an adjustable with initial value of %.2f but an upper bound of %.2f' % (adjustment.name,x0[ptr],xmax[ptr]))
+                elif x0[ptr] < xmin[ptr]:
+                    raise InvalidInitialConditions('Adjustment "%s" has an adjustable with initial value of %.2f but a lower bound of %.2f' % (adjustment.name, x0[ptr], xmax[ptr]))
                 ptr += 1
 
         return x0, xmin, xmax
@@ -868,34 +974,17 @@ class Optimization(NamedItem):
         else:
             return [x.get_hard_constraint(self, instructions) for x in self.constraints]
 
-    def run_model(self, pickled_model, x: list, hard_constraints: list) -> tuple:
-        """
-        Run a pickled model using proposed parameters
-
-        This method runs a pickled model given a set of parameter values, instructions, and
-        constraints. This method uses the Adjustments and Constraints stored in the Optimization.
-
-        :param pickled_model: A pickled model object
-        :param x: List of parameter values (should match number of adjustables) - can generally obtain an initial list using ``get_initialization()``
-        :param hard_constraints: List of hard constraints produced by ``get_hard_constraints()``
-        :return: A tuple containing a ``Model`` object after being integrated, and the constraint penalty
-        :raises: :class:`FailedConstraint` if the constraint could not be applied
-
-        """
-
-        model = pickle.loads(pickled_model)
-        self.update_instructions(x, model.program_instructions)
-        constraint_penalty = self.constrain_instructions(model.program_instructions, hard_constraints)
-        model.process()
-        return model, constraint_penalty
-
-    def get_baselines(self, pickled_model, x0: list, hard_constraints: list) -> list:
+    def get_baselines(self, pickled_model) -> list:
         """
         Return Measurable baseline values
 
         This method is run at the start of the `optimize` script, and is used to
-        retrieve the baseline values for the Measurable. As it involves running the model,
-        also check for bad initial conditions.
+        retrieve the baseline values for the Measurable. Note that the baseline values are obtained
+        based on the original instructions (stored in the pickled model), independent of the initial
+        parameters used for optimization. The logic is that the initial parameters for the optimization
+        are a choice dictated by the numerics of optimization (e.g. needing to start from a particular
+        part of the parameter space) rather than anything intrinsic to the problem, whereas the
+        initial instructions reflect the actual baseline conditions.
 
         :param pickled_model:
         :param x0: The initial parameter values
@@ -904,17 +993,9 @@ class Optimization(NamedItem):
 
         """
 
-        try:
-            model = self.run_model(pickled_model, x0, hard_constraints)[0]
-        except FailedConstraint:
-            raise InvalidInitialConditions('Optimization cannot begin because it was not possible to constrain the instructions using the specified initialization')
-
+        model = pickle.loads(pickled_model)
+        model.process()
         baselines = [m.get_baseline(model) for m in self.measurables]
-
-        # Check the initial objective is OK
-        if not np.isfinite(self.compute_objective(model, baselines)):
-            raise InvalidInitialConditions('Optimization cannot begin because the objective function was NaN for the specified initialization')
-
         return baselines
 
     def constrain_instructions(self, instructions: ProgramInstructions, hard_constraints: list) -> float:
@@ -952,7 +1033,7 @@ class Optimization(NamedItem):
 
         # TODO - This method just adds the objective from each Measurable
         # It might be desirable in future to have more complex functions of the Measurable e.g.
-        # sum of squares. It's not clear yet whether this would be better as a transformation
+        # sqrt of sum of squares. It's not clear yet whether this would be better as a transformation
         # applied here, or as a kind of meta-measurable. The former is probably simpler
         # to implement. But since there is no immediate need, this can be implemented later
 
@@ -981,7 +1062,10 @@ def _objective_fcn(x, pickled_model, optimization, hard_constraints: list, basel
     """
 
     try:
-        model, constraint_penalty = optimization.run_model(pickled_model, x, hard_constraints)
+        model = pickle.loads(pickled_model)
+        optimization.update_instructions(x, model.program_instructions)
+        constraint_penalty = optimization.constrain_instructions(model.program_instructions, hard_constraints)
+        model.process()
     except FailedConstraint:
         return np.inf # Return an objective of `np.inf` if the constraints could not be satisfied by ``x``
 
@@ -1035,10 +1119,7 @@ def optimize(project, optimization, parset: ParameterSet, progset: ProgramSet, i
         hard_constraints = optimization.get_hard_constraints(x0, model.program_instructions)  # The optimization passed in here knows how to calculate the hard constraints based on the program instructions
 
     if not baselines:
-        # ``Optimization.get_baselines`` also checks the initial conditions. So, if we pass in the baselines, we assume
-        # the initial conditions have already been checked. This would generally be the case e.g. if calling via ``parallel_optimize``
-        # since presumably ``Optimization.get_baselines()`` was called in order to originally generate the baselines
-        baselines = optimization.get_baselines(pickled_model, x0, hard_constraints)  # The optimization passed in here knows how to calculate the hard constraints based on the program instructions
+        baselines = optimization.get_baselines(pickled_model)  # The optimization passed in here knows how to calculate the hard constraints based on the program instructions
 
     # Prepare additional arguments for the objective function
     args = {
@@ -1047,6 +1128,14 @@ def optimize(project, optimization, parset: ParameterSet, progset: ProgramSet, i
         'hard_constraints': hard_constraints,
         'baselines': baselines,
     }
+
+    # Check that the initial conditions are OK
+    # Note that this cannot be done by `optimization.get_baselines` because the baselines need to be computed against the
+    # initial instructions which might be different to the initial conditions (e.g. baseline spending vs the scaled-up
+    # initialization used when minimizing spending)
+    initial_objective = _objective_fcn(x0, **args)
+    if not np.isfinite(initial_objective):
+        raise InvalidInitialConditions('Optimization cannot begin because the objective function was NaN/Inf for the specified initialization')
 
     if optimization.method == 'asd':
         optim_args = {
