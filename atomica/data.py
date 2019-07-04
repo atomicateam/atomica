@@ -76,7 +76,8 @@ class ProjectData(sc.prettyobj):
 
         start_year = np.inf
         for td_table in list(self.tdve.values()) + self.transfers + self.interpops:
-            start_year = min(start_year, np.amin(td_table.tvec))
+            if len(td_table.tvec) and np.amin(td_table.tvec) < start_year:
+                start_year = np.amin(td_table.tvec)
         return start_year
 
     @property
@@ -95,7 +96,8 @@ class ProjectData(sc.prettyobj):
 
         end_year = -np.inf
         for td_table in list(self.tdve.values()) + self.transfers + self.interpops:
-            end_year = max(end_year, np.amax(td_table.tvec))
+            if len(td_table.tvec) and np.amax(td_table.tvec) > end_year:
+                end_year = np.amax(td_table.tvec)
         return end_year
 
     def change_tvec(self, tvec: np.array) -> None:

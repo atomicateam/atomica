@@ -756,7 +756,7 @@ class TimeDependentValuesEntry(object):
             else:
                 ts.assumption = None
 
-            if constant_index is not None:
+            if constant_index is not None and tvec.size:
                 assert sc.isstring(vals[offset - 1]) and vals[offset - 1].strip().lower() == 'or', 'Error with validating row in TDVE table "%s" (did not find the text "OR" in the expected place)' % (name)  # Check row is as expected
 
             data_cells = row[offset:t_end]
@@ -772,6 +772,9 @@ class TimeDependentValuesEntry(object):
     def write(self, worksheet, start_row, formats, references: dict=None, widths:dict=None, assumption_heading='Constant', write_units:bool=None, write_uncertainty:bool=None, write_assumption:bool=None) -> int:
         """
         Write to cells in a worksheet
+
+        Note that the year columns are drawn from the ``tvec`` attribute. To suppress the year columns (e.g. for the user to enter only an assumption)
+        then set ``tvec`` to an empty array/list.
 
         :param worksheet: An xlsxwriter worksheet instance
         :param start_row: The first row in which to write values
@@ -881,32 +884,34 @@ class TimeDependentValuesEntry(object):
 
             if write_assumption:
                 worksheet.write(current_row, constant_index, row_ts.assumption, format)
-                worksheet.write(current_row, constant_index+1, 'OR', formats['center'])
-                update_widths(widths, constant_index+1, 'OR')
+                if len(self.tvec):
+                    worksheet.write(current_row, constant_index+1, 'OR', formats['center'])
+                    update_widths(widths, constant_index+1, 'OR')
 
-            # Write the time values
-            content = [None] * len(self.tvec)  # Initialize an empty entry for every time in the TDVE's tvec
+            # Write the time values if they are present
+            if len(self.tvec):
+                content = [None] * len(self.tvec)  # Initialize an empty entry for every time in the TDVE's tvec
 
-            for t, v in zip(row_ts.t, row_ts.vals):
-                # If the TimeSeries contains data for that time point, then insert it now
-                idx = np.where(self.tvec == t)[0]
-                if len(idx):
-                    content[idx[0]] = v
+                for t, v in zip(row_ts.t, row_ts.vals):
+                    # If the TimeSeries contains data for that time point, then insert it now
+                    idx = np.where(self.tvec == t)[0]
+                    if len(idx):
+                        content[idx[0]] = v
 
-            for idx, v in enumerate(content):
-                if v is None:
-                    worksheet.write_blank(current_row, offset+idx, v, format)
-                else:
-                    worksheet.write(current_row, offset+idx, v, format)
-                widths[offset+idx] = max(widths[offset+idx],7) if offset+idx in widths else 7
+                for idx, v in enumerate(content):
+                    if v is None:
+                        worksheet.write_blank(current_row, offset+idx, v, format)
+                    else:
+                        worksheet.write(current_row, offset+idx, v, format)
+                    widths[offset+idx] = max(widths[offset+idx],7) if offset+idx in widths else 7
 
-            if write_assumption:
-                # Conditional formatting for the assumption
-                # Do this here, because after the loop above, we have easy and clear access to the range of cells to include in the formula
-                fcn_empty_times = 'COUNTIF(%s:%s,"<>" & "")>0' % (xlrc(current_row, offset), xlrc(current_row, offset + idx))
-                # Hatched out if the cell will be ignored
-                worksheet.conditional_format(xlrc(current_row, constant_index), {'type': 'formula', 'criteria': '=' + fcn_empty_times, 'format': formats['ignored']})
-                worksheet.conditional_format(xlrc(current_row, constant_index), {'type': 'formula', 'criteria': '=AND(%s,NOT(ISBLANK(%s)))' % (fcn_empty_times, xlrc(current_row, constant_index)), 'format': formats['ignored_warning']})
+                if write_assumption:
+                    # Conditional formatting for the assumption
+                    # Do this here, because after the loop above, we have easy and clear access to the range of cells to include in the formula
+                    fcn_empty_times = 'COUNTIF(%s:%s,"<>" & "")>0' % (xlrc(current_row, offset), xlrc(current_row, offset + len(content)-1))
+                    # Hatched out if the cell will be ignored
+                    worksheet.conditional_format(xlrc(current_row, constant_index), {'type': 'formula', 'criteria': '=' + fcn_empty_times, 'format': formats['ignored']})
+                    worksheet.conditional_format(xlrc(current_row, constant_index), {'type': 'formula', 'criteria': '=AND(%s,NOT(ISBLANK(%s)))' % (fcn_empty_times, xlrc(current_row, constant_index)), 'format': formats['ignored_warning']})
 
         return current_row + 2  # Add two so there is a blank line after this table
 
