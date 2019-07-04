@@ -558,9 +558,6 @@ class ProjectData(sc.prettyobj):
         This function provides a shortcut to generate a spreadsheet and immediately save it to disk.
 
         :param fname: File name to write on disk
-        :param write_uncertainty: If True, uncertainty cells will always be printed.
-                                  If None, cells will be printed only for TDVEs with uncertainty values.
-                                  IF False, cells will not be shown at all even if data existed
 
         """
 

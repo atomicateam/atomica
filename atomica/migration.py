@@ -592,8 +592,26 @@ def refactor_optiminstructions(proj):
 
 @migration('1.10.0', '1.11.0', 'TDVE stores headings to write internally')
 def add_internal_flags_to_tdve(proj):
+    # This migration adds missing attributes to TDVE and TDC objects
     if proj.data:
         for tdve in proj.data.tdve.values():
-            raise NotImplementedError
+            tdve.assumption_heading = 'Constant'
+            tdve.write_assumption = True
+            tdve.write_units = True
+            tdve.write_uncertainty = True
+            tdve.comment = None
+
+        for tdc in proj.data.transfers + proj.data.interpops:
+            tdc.assumption_heading = 'Constant'
+            tdc.write_assumption = True
+            tdc.write_units = True
+            tdc.write_uncertainty = True
+            if not hasattr(tdc,'from_pops'): # This was missed in the previous migration `add_pop_type` so add it in here
+                # If the pop type is missing, then we must be using a legacy framework with only one pop type
+                tdc.from_pop_type = list(proj.framework.pop_types.keys())[0]
+                tdc.from_pops = list(proj.data.pops.keys())
+                tdc.to_pop_type = list(proj.framework.pop_types.keys())[0]
+                tdc.to_pops = list(proj.data.pops.keys())
+
 
     return proj

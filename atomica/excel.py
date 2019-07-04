@@ -386,12 +386,9 @@ class TimeDependentConnections(object):
         """
 
         assert self.assumption_heading in {'Constant','Assumption'}, 'Unsupported assumption heading'
-        if self.write_units is None:
-            write_units = any((ts.units is not None for ts in self.ts.values()))
-        if self.write_uncertainty is None:
-            write_uncertainty = any((ts.sigma is not None for ts in self.ts.values()))
-        if self.write_assumption is None:
-            write_assumption = any((ts.assumption is not None for ts in self.ts.values()))
+        write_units = self.write_units if self.write_units is not None else any((ts.units is not None for ts in self.ts.values()))
+        write_uncertainty = self.write_uncertainty if self.write_uncertainty is not None else any((ts.sigma is not None for ts in self.ts.values()))
+        write_assumption = self.write_assumption if self.write_assumption is not None else any((ts.assumption is not None for ts in self.ts.values()))
 
         if not references:
             references = {x: x for x in self.from_pops+self.to_pops}  # Default null mapping for populations
@@ -435,17 +432,17 @@ class TimeDependentConnections(object):
         headings.append('')  # To
         offset = len(headings)
 
-        if self.write_units:
+        if write_units:
             headings.append('Units')
             units_index = offset  # Column to write the units in
             offset += 1
 
-        if self.write_uncertainty:
+        if write_uncertainty:
             headings.append('Uncertainty')
             uncertainty_index = offset  # Column to write the units in
             offset += 1
 
-        if self.write_assumption:
+        if write_assumption:
             headings.append(self.assumption_heading)
             headings.append('')
             constant_index = offset
@@ -660,8 +657,8 @@ class TimeDependentValuesEntry(object):
         if ts is None:
             ts = sc.odict()
 
-        self.name = name #: Name for th quantity printed in Excel
-        self.comment = comment #: A comment that will be added in Excel
+        self.name = name  #: Name for th quantity printed in Excel
+        self.comment = comment  #: A comment that will be added in Excel
         self.tvec = [] if tvec is None else tvec  #: time axis (e.g. np.arange(2000,2019)) - all TimeSeries time values must exactly match one of the values here
         self.ts = ts #: dict of :class:`TimeSeries` objects
         self.allowed_units = [x.title() if x in FS.STANDARD_UNITS else x for x in allowed_units] if allowed_units is not None else None  # Otherwise, can be an odict with keys corresponding to ts - leave as None for no restriction
@@ -819,12 +816,9 @@ class TimeDependentValuesEntry(object):
 
         assert self.assumption_heading in {'Constant','Assumption'}, 'Unsupported assumption heading'
 
-        if self.write_units is None:
-            write_units = any((ts.units is not None for ts in self.ts.values()))
-        if self.write_uncertainty is None:
-            write_uncertainty = any((ts.sigma is not None for ts in self.ts.values()))
-        if self.write_assumption is None:
-            write_assumption = any((ts.assumption is not None for ts in self.ts.values()))
+        write_units = self.write_units if self.write_units is not None else any((ts.units is not None for ts in self.ts.values()))
+        write_uncertainty = self.write_uncertainty if self.write_uncertainty is not None else any((ts.sigma is not None for ts in self.ts.values()))
+        write_assumption = self.write_assumption if self.write_assumption is not None else any((ts.assumption is not None for ts in self.ts.values()))
 
         if not references:
             references = dict()
@@ -836,17 +830,17 @@ class TimeDependentValuesEntry(object):
         headings.append(self.name)
         offset = 1  # This is the column where the time values start (after the 'or')
 
-        if self.write_units:
+        if write_units:
             headings.append('Units')
             units_index = offset  # Column to write the units in
             offset += 1
 
-        if self.write_uncertainty:
+        if write_uncertainty:
             headings.append('Uncertainty')
             uncertainty_index = offset  # Column to write the units in
             offset += 1
 
-        if self.write_assumption:
+        if write_assumption:
             headings.append(self.assumption_heading)
             headings.append('')
             constant_index = offset
@@ -860,8 +854,8 @@ class TimeDependentValuesEntry(object):
                 worksheet.write(current_row, i, entry, formats['center_bold'])
             update_widths(widths, i, entry)
 
-            if i == 0 and self.comment:
-                worksheet.write_comment(xlrc(current_row, i), self.comment)
+        if self.comment:
+            worksheet.write_comment(xlrc(current_row, 0), self.comment)
 
         # Now, write the TimeSeries objects - self.ts is an odict and whatever pops are present will be written in whatever order they are in
         for row_name, row_ts in self.ts.items():
@@ -876,7 +870,7 @@ class TimeDependentValuesEntry(object):
                 update_widths(widths, 0, row_name)
 
             # Write the units
-            if self.write_units:
+            if write_units:
 
                 if row_ts.units:
                     if row_ts.units.lower().strip() in FS.STANDARD_UNITS:  # Preserve case if nonstandard unit
@@ -898,7 +892,7 @@ class TimeDependentValuesEntry(object):
                 if allowed:
                     worksheet.data_validation(xlrc(current_row, units_index), {"validate": "list", "source": allowed})
 
-            if self.write_uncertainty:
+            if write_uncertainty:
                 if row_ts.sigma is None:
                     worksheet.write(current_row, uncertainty_index, row_ts.sigma, formats['not_required']) # NB. For now, uncertainty is always optional
                 else:
@@ -909,7 +903,7 @@ class TimeDependentValuesEntry(object):
             else:
                 format = formats['unlocked']
 
-            if self.write_assumption:
+            if write_assumption:
                 worksheet.write(current_row, constant_index, row_ts.assumption, format)
                 if len(self.tvec):
                     worksheet.write(current_row, constant_index+1, 'OR', formats['center'])
@@ -932,7 +926,7 @@ class TimeDependentValuesEntry(object):
                         worksheet.write(current_row, offset+idx, v, format)
                     widths[offset+idx] = max(widths[offset+idx],7) if offset+idx in widths else 7
 
-                if self.write_assumption:
+                if write_assumption:
                     # Conditional formatting for the assumption
                     # Do this here, because after the loop above, we have easy and clear access to the range of cells to include in the formula
                     fcn_empty_times = 'COUNTIF(%s:%s,"<>" & "")>0' % (xlrc(current_row, offset), xlrc(current_row, offset + len(content)-1))
