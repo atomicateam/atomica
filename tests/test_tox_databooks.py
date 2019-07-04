@@ -100,8 +100,6 @@ def test_databooks():
     # Check the values get read in correctly
     d3 = at.ProjectData.from_spreadsheet(tmpdir + 'd_blug_uncertainty.xlsx',F)
     assert d3.tdve['alive'].ts[0].sigma == 100
-    d3 = at.ProjectData.from_spreadsheet(tmpdir + 'd_blug_uncertainty_auto.xlsx',F)
-    assert d3.tdve['alive'].ts[0].sigma == 100
     d3 = at.ProjectData.from_spreadsheet(tmpdir + 'd_blug_uncertainty_stripped.xlsx',F)
     assert d3.tdve['alive'].ts[0].sigma is None
 
