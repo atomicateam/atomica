@@ -589,3 +589,11 @@ def refactor_optiminstructions(proj):
         proj.optims = atomica.NDict() # Make sure it's defined, even if it's empty
 
     return proj
+
+@migration('1.10.0', '1.11.0', 'TDVE stores headings to write internally')
+def add_internal_flags_to_tdve(proj):
+    if proj.data:
+        for tdve in proj.data.tdve.values():
+            raise NotImplementedError
+
+    return proj
