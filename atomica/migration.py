@@ -613,5 +613,4 @@ def add_internal_flags_to_tdve(proj):
                 tdc.to_pop_type = list(proj.framework.pop_types.keys())[0]
                 tdc.to_pops = list(proj.data.pops.keys())
 
-
     return proj

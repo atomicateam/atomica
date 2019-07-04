@@ -43,10 +43,6 @@ class ProjectData(sc.prettyobj):
     """
 
     def __init__(self, framework):
-        # This is just an overview of the structure of ProjectData
-        # There are two pathways to a ProjectData
-        # - Could load an existing one, with ProjectData.from_spreadsheet()
-        # - Could make a new one, with ProjectData.new()
         self.pops = sc.odict()  #: This is an odict mapping code_name:{'label':full_name, 'type':pop_type}
         self.transfers = list()  #: This stores a list of :class:`TimeDependentConnections` instances for transfers
         self.interpops = list()  #: This stores a list of :class:`TimeDependentConnections` instances for interactions
@@ -237,7 +233,7 @@ class ProjectData(sc.prettyobj):
         data.tvec = sc.promotetoarray(tvec)
         pages = defaultdict(list)  # This will store {sheet_name:(code_name,databook_order)} which will then get sorted further
 
-        for df in [framework.comps, framework.characs, framework.pars]:
+        for objtype, df in zip(['comps','characs','pars'],[framework.comps, framework.characs, framework.pars]):
             for _, spec in df.iterrows():
                 databook_page = spec.get('databook page')
                 if databook_page is not None:
