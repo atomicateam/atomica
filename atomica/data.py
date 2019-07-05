@@ -248,7 +248,8 @@ class ProjectData(sc.prettyobj):
                     pages[databook_page].append((spec.name, order))
                     data.tdve[spec.name] = TimeDependentValuesEntry(full_name, tvec, allowed_units=[framework.get_databook_units(full_name)], comment=spec['guidance'])
                     data.tdve[spec.name].write_units = True
-                    data.tdve[spec.name].write_assumption = True
+                    if objtype == 'pars':
+                        data.tdve[spec.name].write_assumption = True
                     data.tdve[spec.name].write_uncertainty = True
                     data.tdve[spec.name].pop_type = pop_type
 
