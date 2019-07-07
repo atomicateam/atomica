@@ -449,6 +449,7 @@ class ProjectFramework(object):
             for _, from_row in df.iterrows():  # For each row in the transition matrix
                 from_row.dropna(inplace=True)
                 from_comp = from_row.name
+                first_timed = None
                 for to_comp, par_names in from_row.iteritems():
                     for par_name in par_names.split(','):
                         par_name = par_name.strip()
@@ -459,6 +460,9 @@ class ProjectFramework(object):
                         if pars[par_name] != df.index.name:
                             raise InvalidFramework('Parameter "%s" belongs to pop type "%s" but it appears in the transition matrix for "%s"' % (par_name, pars[par_name], df.index.name))
 
+                        if self.pars.at[par_name,'timed'] == 'y':
+                            if first_timed:
+                                raise InvalidFramework(f'A compartment can only have one timed outflow - e.g., Parameters {first_timed}" and "{par_name}" are both timed parameters, so they cannot both be associated with Compartment "{from_comp}"')
                         self.transitions[par_name].append((from_comp, to_comp))
 
     def _validate(self) -> None:
@@ -719,12 +723,14 @@ class ProjectFramework(object):
             'guidance': None,
             'timescale': None,
             'population type': None,
-            'is derivative': 'n'
+            'is derivative': 'n',
+            'timed': 'n',
         }
         valid_content = {
             'display name': None,
             'targetable': {'y', 'n'},
             'is derivative': {'y', 'n'},
+            'timed': {'y', 'n'},
         }
 
         self.pars.set_index('code name', inplace=True)
@@ -772,6 +778,17 @@ class ProjectFramework(object):
 
             if par['is derivative'] == 'y' and par['databook page'] is None:
                 raise InvalidFramework('Parameter "%s" is marked "is derivative" but it does not have a databook page - it needs to appear in the databook so that an initial value can be provided.' % (par_name))
+
+            if par['timed'] == 'y':
+                if par['format'] != FS.QUANTITY_TYPE_DURATION:
+                    raise InvalidFramework(f'Parameter "{par_name}" is marked as driving a timed transition so the format needs to be "{FS.QUANTITY_TYPE_DURATION}"')
+
+                if par['is derivative'] == 'y':
+                    raise InvalidFramework(f'Parameter "{par_name}" is marked as driving a timed transition so it cannot be a derivative parameter')
+
+                if par['targetable'] == 'y':
+                    raise InvalidFramework(f'Parameter "{par_name}" is marked as driving a timed transition so it cannot be targeted by programs')
+
 
             if par['function'] is None:
                 # In order to have a value, a transition parameter must either be
