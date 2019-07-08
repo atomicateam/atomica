@@ -463,6 +463,9 @@ class ProjectFramework(object):
                         if self.pars.at[par_name,'timed'] == 'y':
                             if first_timed:
                                 raise InvalidFramework(f'A compartment can only have one timed outflow - e.g., Parameters {first_timed}" and "{par_name}" are both timed parameters, so they cannot both be associated with Compartment "{from_comp}"')
+                            if self.comps.at[from_comp,'is source'] == 'y' or self.comps.at[from_comp,'is sink'] == 'y' or self.comps.at[from_comp,'is junction'] == 'y':
+                                raise InvalidFramework(f'Parameter "{par_name}" defines a timed outflow from Compartment "{from_comp}" but timed outflows cannot be applied to source, sink, or junction compartments')
+
                         self.transitions[par_name].append((from_comp, to_comp))
 
     def _validate(self) -> None:
