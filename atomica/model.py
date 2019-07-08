@@ -351,6 +351,17 @@ class TimedCompartment(Compartment):
         self.duration = None  #: Duration (in years)
         self.timed_link = None  #: Reference to the timed outflow link. Note that this needs to be set externally because Links are instantiated after Compartments
 
+    def unlink(self):
+        Compartment.unlink(self)
+        if self.timed_link:
+            self.timed_link = self.timed_link.id
+
+    def relink(self, objs):
+        # Given a dictionary of objects, restore the internal references
+        Compartment.relink(self, objs)
+        if self.timed_link:
+            self.timed_link = objs[self.timed_link]
+
     @property
     def vals(self) -> np.array:
         """
