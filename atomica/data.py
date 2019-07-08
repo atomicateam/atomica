@@ -491,17 +491,17 @@ class ProjectData(sc.prettyobj):
 
         for _, spec in framework.interactions.iterrows():
             for tdc in self.interpops:
-                if tdc.code_name == spec_name:
+                if tdc.code_name == spec.name:
                     for (from_pop, to_pop), ts in tdc.ts.items():
-                        assert to_pop in self.pops, 'Population "%s" in "%s" not recognized. Should be one of: %s' % (to_pop, spec_name, self.pops.keys())
+                        assert to_pop in self.pops, 'Population "%s" in "%s" not recognized. Should be one of: %s' % (to_pop, spec.name, self.pops.keys())
                         assert self.pops[to_pop]['type'] == tdc.to_pop_type, 'Interaction "%s" has to-population type "%s", but contains Population "%s", which is type "%s"' % (tdc.full_name,tdc.to_pop_type,to_pop,self.pops[to_pop]['type'])
-                        assert from_pop in self.pops, 'Population "%s" in "%s" not recognized. Should be one of: %s' % (from_pop, spec_name, self.pops.keys())
+                        assert from_pop in self.pops, 'Population "%s" in "%s" not recognized. Should be one of: %s' % (from_pop, spec.name, self.pops.keys())
                         assert self.pops[from_pop]['type'] == tdc.from_pop_type, 'Interaction "%s" has from-population type "%s", but contains Population "%s", which is type "%s"' % (tdc.full_name,tdc.from_pop_type,from_pop,self.pops[from_pop]['type'])
-                        assert ts.has_data, 'Data values missing for interaction %s, %s->%s' % (spec_name, to_pop, from_pop)
-                        assert ts.units.lower().title() == FS.DEFAULT_SYMBOL_INAPPLICABLE.lower().title(), 'Units error in interaction %s, %s->%s. Interaction units must be "N.A."' % (spec_name, to_pop, from_pop)
+                        assert ts.has_data, 'Data values missing for interaction %s, %s->%s' % (spec.name, to_pop, from_pop)
+                        assert ts.units.lower().title() == FS.DEFAULT_SYMBOL_INAPPLICABLE.lower().title(), 'Units error in interaction %s, %s->%s. Interaction units must be "N.A."' % (spec.name, to_pop, from_pop)
                     break
             else:
-                raise Exception('Required interaction "%s" not found in databook' % spec_name)
+                raise Exception('Required interaction "%s" not found in databook' % spec.name)
 
         for tdc in self.transfers:
             for (from_pop, to_pop), ts in tdc.ts.items():
