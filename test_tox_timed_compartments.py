@@ -50,8 +50,8 @@ def test_spike():
     P = get_project()
     ps = P.parsets[0].copy()
     ps.pars['foi'].ts[0].insert(2018,24)
-    ps.pars['foi'].ts[0].insert(2019,100)
-    ps.pars['foi'].ts[0].insert(2019+1/12,24)
+    ps.pars['foi'].ts[0].insert(2018.99,100)
+    ps.pars['foi'].ts[0].insert(2019.01,24)
     ps.pars['foi'].smooth(P.settings.tvec,'previous')
     res2 = P.run_sim(ps)
     d = at.PlotData(res2,[':inf','inf:','inf'])
@@ -91,5 +91,5 @@ def test_lifespan():
 if __name__ == '__main__':
     # test_read_write_databook()
     # test_zero_duration()
-    # test_spike()
-    test_lifespan()
+    test_spike()
+    # test_lifespan()

@@ -21,6 +21,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from .programs import ProgramSet
 from .parameters import Parameter
+import math
 
 model_settings = dict()
 model_settings['tolerance'] = 1e-6
@@ -492,7 +493,7 @@ class TimedCompartment(Compartment):
         self.dt = dt
         assert np.all(self.parameter.vals==self.parameter.vals[0]), 'Duration parameter value cannot vary over time'
         self.duration = self.parameter.vals[0] * self.parameter.timescale * self.parameter.scale_factor
-        self._vals = np.empty((int(self.duration/dt)+1,tvec.size), order='F')  # Fortran/column-major order should be faster for summing over lags to get `vals`
+        self._vals = np.empty((math.ceil(self.duration/dt),tvec.size), order='F')  # Fortran/column-major order should be faster for summing over lags to get `vals`
         self._vals.fill(np.nan)
 
     def resolve_outflows(self,ti: int) -> None:
@@ -507,34 +508,29 @@ class TimedCompartment(Compartment):
 
         """
 
-        # At this stage, we rescale outflows via the outlinks
-        # The flush link is given a value of 0.0 at this stage
-        self.flush_link.vals[ti] = 0
+        # This is simpler in some ways because a TimedCompartment cannot be a junction, source, or sink
 
-        # In here, the rescaling needs to account for the fact that if someone goes down a TimedLink
-        # they won't be flushed. As in, someone can go from inf to death instead of inf to natural rec,
-        # but they can't
-        normal_outflow = 0.0
+        # First, work out the scale factors as usual
+        outflow = 0.0
+        self.flush_link._cache = 0.0  # At this stage, no outflow goes via the flush link
+
         for link in self.outlinks:
-            flow = link[ti]
-            normal_outflow += flow if np.isfinite(flow) else 0.0
+            outflow += link._cache
 
-        current_size = self._vals[:,ti].sum()
-        if normal_outflow > current_size:
-            # Rescale the outflow and assign. On this branch, rescale <= 1
-            rescale = current_size / normal_outflow
-            for link in self.outlinks:
-                link[ti] *= rescale
-            self.flush_link.vals[ti] = 0 # The compartment will empty fully via the normal outlinks
-
-        elif current_size > 0:
-            # We can leave the main outlinks as they are, but find out how many remaining we would have
-            # afterwards and move them via the timed link
-            self.flush_link.vals[ti] = self._vals[0,ti]*(1-normal_outflow/current_size)  # This is how many people will remain in the most recent time-bin once the normal links are resolved
+        if outflow > 1:
+            rescale = 1/outflow
         else:
-            self.flush_link.vals[ti] = 0
+            rescale = 1
 
-    def update_flush(self):
+        n = rescale*self._vals[:,ti] # n is now a array
+        ns = n.sum()
+        for link in self.outlinks:
+            if isinstance(link,TimedLink):
+                link._vals[:,ti] = link._cache*n
+            else:
+                link[ti] = link._cache*ns
+
+    def update_flush_link(self, ti):
         """
         Set the value of the flush link
 
@@ -546,6 +542,22 @@ class TimedCompartment(Compartment):
         exactly how many people are going to need to be flushed when updating the compartment.
 
         """
+
+        flush_flow = 0
+
+        for link in self.inlinks:
+            if isinstance(link,TimedLink):
+                flush_flow += link._vals[0,ti]
+
+        nr = self._vals[:,ti]  # old subcompartment sizes
+        nrs = nr.sum()  # old subcompartment total
+        for link in self.outlinks:
+            if isinstance(link,TimedLink):
+                flush_flow -= link._vals[0,ti]
+            else:
+                flush_flow -= link[ti]/nrs*nr[0]
+
+        self.flush_link.vals[ti] = self._vals[0,ti] + flush_flow
 
     def update(self, ti: int) -> None:
         """
@@ -560,31 +572,36 @@ class TimedCompartment(Compartment):
 
         tr = ti-1
 
-        # Work out the net *normal* outflow - these get subtracted from all times
-        # Note that even TimedLink objects *source* people uniformly across times
+        # Updating the compartment involves applying all of the incoming links
+        outflow = np.zeros(self._vals.shape[0])
+        nr = self._vals[:,tr]  # old subcompartment sizes
+        nrs = nr.sum()  # old subcompartment total
 
-        outflow = 0.0
         for link in self.outlinks:
-            if link is not self.flush_link:
-                outflow += link[tr]
+            if link is self.flush_link:
+                continue # Don't explicitly flush - it happens implicitly when the keyring is advanced
+            elif isinstance(link,TimedLink):
+                outflow += link._vals[:,tr]
+            else:
+                outflow += link[tr]/nrs*nr # Distribute the link proportionately
 
-        # Work out the inflow
-        inflow = np.zeros((self._vals.shape[0],1))
+        # Resolve the outflows
+        assert np.isclose(self._vals[0, tr]-outflow[0], self.flush_link.vals[tr]) # DEBUG: Check that the total is OK
+
+        # Advance the keyring. Note that the flush flow and outflow from the final subcompartment take place implicitly
+        if self._vals.shape[0] > 1:
+            self._vals[0:-1, ti] = self._vals[1:, tr] -outflow[1:] # shift the array and resolve outflow. If the size is equal to 1, then the inflow all goes in at this timestep
+        self._vals[-1,ti] = 0.0  # Zero out the inflow
+
+        # Resolve the inflows
         for link in self.inlinks:
             if isinstance(link,TimedLink):
-                inflow += link._vals[:,tr]
+                self._vals[:,ti] += link._vals[:,[tr]]
             else:
-                inflow[-1] += link[tr]
+                self._vals[-1,ti] += link[tr] # New arrivals from normal links go in the last time bin
 
-        self._vals[:,ti] = self._vals[:,tr]*(1-outflow/self._vals[:,tr].sum()) # The outflow gets subtracted proportionately uniformly from all times
-        self._vals[0,ti] -= self.flush_link[tr] # Then, the timed link acts on everyone eligible to move
-        assert np.isclose(self._vals[0, ti], 0) # DEBUG: Check that the total is OK
-        if self._vals.shape[0] > 1:
-            self._vals[0:-1, ti] = self._vals[1:, ti] # shift the array. If the size is equal to 1, then the inflow all goes in at this timestep
-            self._vals[-1,ti] = 0.0 # Otherwise, this entry would just replicate the one above it
-        # e.g. self._vals[0:-1,ti] = self._vals[1:,tr] - outflow/self._vals.shape[0] # TODO - It should be OK to just replace the separate steps above with this
-        self._vals[:,ti] += inflow # All inflow goes in the most recent time bin
-        self._vals[self._vals[:,ti]<0,ti] = 0 # Stop the system becoming numerically negative TODO - Check performance
+        # Stop the system becoming numerically negative TODO - Check performance
+        self._vals[self._vals[:,ti]<0,ti] = 0
 
 
 class Characteristic(Variable):
@@ -1576,8 +1593,11 @@ class Model(object):
         for pop in self.pops:
             pop.unlink()
 
+        # Unlink variables set by self._set_vars_by_pop()
         self._vars_by_pop = None
         self._par_list = None
+        self._timed_comps = None
+
         self._program_cache = None  # This drops the cache when pickling, but its only going to have anything if pickled DURING process() i.e. only devs would encounter this
 
     def relink(self):
@@ -1597,7 +1617,7 @@ class Model(object):
         if self._vars_by_pop is None:
             self._set_vars_by_pop()
 
-    def update_program_cache(self):
+    def _update_program_cache(self):
 
         # Finally, prepare programs
         if self.progset and self.program_instructions:
@@ -1633,9 +1653,12 @@ class Model(object):
         """
 
         self._vars_by_pop = defaultdict(list)
+        self._timed_comps = []
         for pop in self.pops:
             for var in pop.comps + pop.characs + pop.pars + pop.links:
                 self._vars_by_pop[var.name].append(var)
+                if isinstance(var,TimedCompartment):
+                    self._timed_comps.append(var)
         self._vars_by_pop = dict(self._vars_by_pop)  # Stop new entries from appearing in here by accident
 
         # Finally, it's possible that some parameters may be missing if population types were defined
@@ -1781,7 +1804,7 @@ class Model(object):
 
         assert self._t_index == 0  # Only makes sense to process a simulation once, starting at ti=0 - this might be relaxed later on
 
-        self.update_program_cache()
+        self._update_program_cache()
 
         # Initial flush of people in junctions
         if self._t_index == 0:
@@ -1791,7 +1814,7 @@ class Model(object):
             self.update_pars()  # Update the transition parameters in case junction outflows are functions _and_ they depend on compartment sizes that just changed in the line above
             self.update_links()  # Update all of the links
             self.update_junctions()  # Junctions are now empty - perform a normal update by setting the outflows to be equal to the inflows so the usual condition outflow[t]=inflow[t] is satisfied
-            # self.update_flush_links()
+            self.update_flush_links()
 
         # Main integration loop
         while self._t_index < (self.t.size - 1):
@@ -1800,7 +1823,7 @@ class Model(object):
             self.update_pars()
             self.update_links()
             self.update_junctions()
-            # self.update_flush_links()
+            self.update_flush_links()
 
         for pop in self.pops:
 
@@ -2081,6 +2104,10 @@ class Model(object):
                     par.constrain(ti+1)
                 else:
                     par.constrain(ti)
+
+    def update_flush_links(self):
+        for comp in self._timed_comps:
+            comp.update_flush_link(self._t_index)
 
 
 def run_model(settings, framework, parset, progset=None, program_instructions=None, name=None):
