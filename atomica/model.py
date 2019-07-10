@@ -202,7 +202,6 @@ class Compartment(Variable):
         self.tag_birth = False  # Tag for whether this compartment contains unborn people.
         self.tag_dead = False  # Tag for whether this compartment contains dead people.
         self.is_junction = False
-        self.vals = None
 
         self.outlinks = []
         self.inlinks = []
@@ -341,7 +340,7 @@ class TimedCompartment(Compartment):
 
         :param pop: A ``Population`` instance (the instance that will store this compartment)
         :param name: The name of the compartment
-        :param par: The duration (in years) after which the compartment will be emptied via the timed link
+        :param parameter: The parameter that will supply the duration (to be read after the parameter function is evaluated, if applicable)
 
         """
 
@@ -349,18 +348,18 @@ class TimedCompartment(Compartment):
         self._vals = None  #: Primary storage, a matrix of size (duration x timesteps). The first row is the one that people leave from, the last row is the one that people arrive in
         self.parameter = parameter  #: The parameter to read the duration from - this needs to be done after parameters are precomputed though, in case the duration is coming from a (constant) function
         self.duration = None  #: Duration (in years)
-        self.timed_link = None  #: Reference to the timed outflow link. Note that this needs to be set externally because Links are instantiated after Compartments
+        self.flush_link = None  #: Reference to the timed outflow link that flushes the compartment. Note that this needs to be set externally because Links are instantiated after Compartments
 
     def unlink(self):
         Compartment.unlink(self)
-        if self.timed_link:
-            self.timed_link = self.timed_link.id
+        if self.flush_link:
+            self.flush_link = self.flush_link.id
 
     def relink(self, objs):
         # Given a dictionary of objects, restore the internal references
         Compartment.relink(self, objs)
-        if self.timed_link:
-            self.timed_link = objs[self.timed_link]
+        if self.flush_link:
+            self.flush_link = objs[self.flush_link]
 
     @property
     def vals(self) -> np.array:
@@ -442,11 +441,13 @@ class TimedCompartment(Compartment):
         # Preallocating the keyring matrix rounds the duration down
         # That way, if the duration is less than the step size, the compartment will
         # be emptied every timestep
+        # Note that the effective duration is _entirely_ driven by the number of rows in `self._vals`
+        # because the logic is simply - flush the topmost row, shift the array by 1, inflow goes in the bottom row
         self.t = tvec
         self.dt = dt
         assert np.all(self.parameter.vals==self.parameter.vals[0]), 'Duration parameter value cannot vary over time'
         self.duration = self.parameter.vals[0] * self.parameter.timescale * self.parameter.scale_factor
-        self._vals = np.empty((int(self.duration/dt),tvec.size), order='F')  # Fortran/column-major order should be faster for summing over lags to get `vals`
+        self._vals = np.empty((int(self.duration/dt)+1,tvec.size), order='F')  # Fortran/column-major order should be faster for summing over lags to get `vals`
         self._vals.fill(np.nan)
 
     def resolve_outflows(self,ti: int) -> None:
@@ -471,23 +472,28 @@ class TimedCompartment(Compartment):
 
         """
 
-        outflow = 0.0
+        # TODO
+        # In here, the rescaling needs to account for the fact that if someone goes down a TimedLink
+        # they won't be flushed. As in, someone can go from inf to death instead of inf to natural rec,
+        # but they can't
+        normal_outflow = 0.0
         for link in self.outlinks:
             flow = link[ti]
-            outflow += flow if np.isfinite(flow) else 0.0
+            normal_outflow += flow if np.isfinite(flow) else 0.0
 
         current_size = self._vals[:,ti].sum()
-        rescale = current_size / outflow
-
-        if outflow >= current_size:
+        if normal_outflow > current_size:
             # Rescale the outflow and assign. On this branch, rescale <= 1
+            rescale = current_size / normal_outflow
             for link in self.outlinks:
                 link[ti] *= rescale
-            self.timed_link.vals[ti] = 0 # The compartment will empty fully via the normal outlinks
+            self.flush_link.vals[ti] = 0 # The compartment will empty fully via the normal outlinks
+        elif current_size > 0:
+            # We can leave the main outlinks as they are, but find out how many remaining we would have
+            # afterwards and move them via the timed link
+            self.flush_link.vals[ti] = self._vals[0,ti]*(1-normal_outflow/current_size)  # This is how many people will remain in the most recent time-bin once the normal links are resolved
         else:
-            # We can leave the main outlinks as they are, but find out how many remaining we have
-            # and move them via the timed link
-            self.timed_link.vals[ti] = self._vals[0,ti]*(1-1/rescale)  # This is how many people will remain in the most recent time-bin once the normal links are resolved
+            self.flush_link.vals[ti] = 0
 
     def update(self, ti: int) -> None:
         """
@@ -503,23 +509,29 @@ class TimedCompartment(Compartment):
         tr = ti-1
 
         # Work out the net *normal* outflow - these get subtracted from all times
+        # Note that even TimedLink objects *source* people uniformly across times
+
         outflow = 0.0
         for link in self.outlinks:
-            if link is not self.timed_link:
+            if link is not self.flush_link:
                 outflow += link[tr]
 
-        # Work out the net inflow for the timestep
-        inflow = 0.0
+        # Work out the inflow
+        inflow = np.zeros((self._vals.shape[0],1))
         for link in self.inlinks:
-            inflow += link[tr]
+            if isinstance(link,TimedLink):
+                inflow += link._vals[:,tr]
+            else:
+                inflow[-1] += link[tr]
 
         self._vals[:,ti] = self._vals[:,tr]*(1-outflow/self._vals[:,tr].sum()) # The outflow gets subtracted proportionately uniformly from all times
-        self._vals[0,ti] -= self.timed_link[tr] # Then, the timed link acts on everyone eligible to move
+        self._vals[0,ti] -= self.flush_link[tr] # Then, the timed link acts on everyone eligible to move
         assert np.isclose(self._vals[0, ti], 0) # DEBUG: Check that the total is OK
         if self._vals.shape[0] > 1:
             self._vals[0:-1, ti] = self._vals[1:, ti] # shift the array. If the size is equal to 1, then the inflow all goes in at this timestep
+            self._vals[-1,ti] = 0.0 # Otherwise, this entry would just replicate the one above it
         # e.g. self._vals[0:-1,ti] = self._vals[1:,tr] - outflow/self._vals.shape[0] # TODO - It should be OK to just replace the separate steps above with this
-        self._vals[-1,ti] = inflow # All inflow goes in the most recent time bin
+        self._vals[:,ti] += inflow # All inflow goes in the most recent time bin
         self._vals[self._vals[:,ti]<0,ti] = 0 # Stop the system becoming numerically negative TODO - Check performance
 
 
@@ -863,17 +875,44 @@ class Link(Variable):
     """
     A Link is a Variable that maps to a transition between compartments. As
     such, it contains an inflow and outflow compartment.  A Link's value is
-    drawn from a Parameter, and there may be multiple links that draw values
-    from the same parameter. The values stored in this extended version of
-    Variable refer to flow rates. If used in ModelPop, the Link references two
-    cascade compartments within a single population.
+    generally derived from a Parameter, and there may be multiple links that draw values
+    from the same parameter. The value corresponds to the number transferred
+    from the source compartment to the destination compartment in the subsequent timestep.
     """
 
     # *** Link values are always dt-based ***
-    def __init__(self, pop, parameter, source, dest, tag=None):
+    @staticmethod
+    def new(pop, parameter, source, dest):
+        """
+        Construct a new link
+
+        This static method automatically instantiates a Link of the correct type between
+        two compartments. Specifically, both the source and destination compartments are
+        TimedCompartments corresponding to the same parameter, then this method will
+        instantiate a TimedLink that preserves time spent in the compartment. Otherwise, a
+        normal Link will be instantiated.
+
+        TimedLinks will only be generated if the compartments have a duration grouped under
+        the same parameter. The check is based on the parameter name rather than the parameter
+        instance though. This is because a transfer between two TimedCompartments will have
+        different Parameter instances in each population, but conceptually will refer to the same
+        period (and thus the 'time until transferred out' will remain unchanged).
+
+        :param pop: A :class:`Population` instance
+        :param parameter: A :class:`Parameter` instance
+        :param source: A :class:`Compartment` instance
+        :param dest: A :class:`Compartment` instance
+        :return: A :class:`Link` instance
+
+        """
+        if isinstance(source, TimedCompartment) and isinstance(dest, TimedCompartment) and (source.parameter.name == dest.parameter.name):
+            return TimedLink(pop, parameter, source, dest)
+        else:
+            return Link(pop, parameter, source, dest)
+
+    def __init__(self, pop, parameter, source, dest):
         # Note that the Link's name is the transition tag
-        Variable.__init__(self, pop=pop, id=(pop.name, source.name, dest.name, tag))  # A Link is only uniquely identified by (Pop,Source,Dest,Par)
-        self.vals = None
+        Variable.__init__(self, pop=pop, id=(pop.name, source.name, dest.name, parameter.name+':flow'))  # A Link is only uniquely identified by (Pop,Source,Dest,Par)
         self.units = 'Number of people'
 
         # Source parameter where unscaled link value is drawn from (a single parameter may have multiple links).
@@ -902,13 +941,96 @@ class Link(Variable):
 
     def __repr__(self, *args, **kwargs):
         if self.parameter:
-            return "Link %s (parameter %s) - %s to %s" % (self.name, self.parameter.name, self.source.name, self.dest.name)
+            return "%s %s (parameter %s) - %s to %s" % (type(self).__name__, self.name, self.parameter.name, self.source.name, self.dest.name)
         else:
-            return "Link %s - %s to %s" % (self.name, self.source.name, self.dest.name)
+            return "%s %s - %s to %s" % (type(self).__name__, self.name, self.source.name, self.dest.name)
 
     def plot(self):
         Variable.plot(self)
         plt.title('Link %s to %s' % (self.source.name, self.dest.name))
+
+    def update(self,ti: int, converted_frac: float) -> None:
+        """
+        Update the value of the link
+
+        This method takes in the fraction of the source compartment to move, and
+        updates the value of the link accordingly. In `update_links`, parameters are
+        first all converted into timestep-based fractions. These fractions are then
+        used to update the links. However, depending on whether the link stores
+        compartment duration information, this update may or may not require the use
+        of TimedCompartment properties. Therefore, updating the link is delegated
+        to this Link method that can be overloaded in derived classes.
+
+        :param ti: The time index to update
+        :param converted_frac: The fraction of the source compartment to move (the parent parameter value, converted to timestep fraction)
+
+        """
+
+        self.vals[ti] = self.source.vals[ti]*converted_frac
+
+
+class TimedLink(Link):
+    """
+    A TimedLink connects two TimedCompartments
+
+    A TimedLink should be used between two TimedCompartments if it is important to preserve the 'time until forced removal'
+    when making the transition. For example, a vaccinated individual with 3 years of protection remaining may need to move
+    to a vaccinated+latent state, for instance. In that case, they would still have 3 years remaining in vaccinated+latent.
+
+    The value for the TimedLink corresponds to the number of people in each time bin from the *source* compartment.
+    If there is a mismatch in durations across the TimedLink endpoints, it is up to the destination compartment to
+    resolve them.
+
+    A TimedLink should _not_ be used for the timed outflow of a TimedCompartment as people flowing out of a timed outflow
+    all originate at the same time.
+
+    """
+
+    def __init__(self, pop, parameter, source, dest):
+        Link.__init__(self, pop, parameter, source, dest)
+        self._vals = None  #: Primary storage, a matrix with size matching the source compartment
+
+    @property
+    def vals(self) -> np.array:
+        """
+        Link total flow
+
+        This returns link outflow obtained by summing over the people in each time bin at each point in time
+
+        :return: A numpy array with the link flow rate
+
+        """
+
+        return self._vals.sum(axis=0)
+
+    def preallocate(self, tvec, dt):
+        # Preallocate to the same size as the source compartment
+        self.t = tvec
+        self.dt = dt
+        self._vals = np.empty(self.source._vals.shape, order='F')  # Fortran/column-major order should be faster for summing over lags to get `vals`
+        self._vals.fill(np.nan)
+
+    def update(self,ti: int, converted_frac: float) -> None:
+        """
+        Updated link flow rate
+
+        For TimedLink instances, we update at all of the time indices
+
+        :param ti:
+        :param converted_frac:
+        :return:
+        """
+        self._vals[:,ti] = self.source._vals[:,ti]*converted_frac
+
+    def __setitem__(self, ti, number):
+        """
+        Compatibility for link shortcut calculation
+
+        """
+        if number == 0:
+            self._vals[:, ti] = number
+        else:
+            raise Exception('Not supported yet')
 
 
 class Population(object):
@@ -1153,18 +1275,17 @@ class Population(object):
                 for pair in framework.transitions[par.name]:
                     src = self.get_comp(pair[0])
                     dst = self.get_comp(pair[1])
-                    tag = par.name + ':flow'
-                    new_link = Link(self, par, src, dst, tag)
-                    if tag not in self.link_lookup:
-                        self.link_lookup[tag] = [new_link]
+                    new_link = Link.new(self, par, src, dst)
+                    if new_link.name not in self.link_lookup:
+                        self.link_lookup[new_link.name] = [new_link]
                     else:
-                        self.link_lookup[tag].append(new_link)
+                        self.link_lookup[new_link.name].append(new_link)
                     self.links.append(new_link)
 
                     if pars.at[par.name, "timed"] == 'y':
-                        # If it's a timed parameter, this link must also be assigned to the `timed_link` in the TimedCompartment
-                        # These links are also not matched up to any parameters
-                        src.timed_link = new_link
+                        # If it's a timed parameter, this link must also be assigned to the `flush_link` in the TimedCompartment
+                        # These links are also not matched up directly to any parameters (although the name is used for the link tag)
+                        src.flush_link = new_link
                         new_link.parameter = None
                         par.links = []
 
@@ -1489,7 +1610,7 @@ class Model(object):
                             if not (source.tag_birth or source.tag_dead or source.is_junction):
                                 # Instantiate a link between corresponding compartments
                                 dest = target_pop_obj.get_comp(source.name)  # Get the corresponding compartment
-                                link = Link(pop, par, source, dest, par.name + ':flow')
+                                link = Link.new(pop, par, source, dest)
                                 link.preallocate(self.t, self.dt)
                                 pop.links.append(link)
                                 if link.name in pop.link_lookup:
@@ -1597,8 +1718,8 @@ class Model(object):
             # First, populate all of the link values without any outflow constraints
             for par in pop.pars:
                 if par.links:
-
                     transition = par[ti]
+
                     if transition < 0:
                         # This condition is likely to occur if the parameter has a function but it has been
                         # incorrectly/poorly defined so that it returns a negative value. If this is expected
@@ -1621,7 +1742,7 @@ class Model(object):
                     if quantity_type == FS.QUANTITY_TYPE_DURATION:
                         converted_frac = min(1,self.dt / (transition * par.timescale))
                         for link in par.links:
-                            link[ti] = link.source[ti] * converted_frac
+                            link.update(ti,converted_frac)
 
                     # Convert probability by Poisson distribution formula to a value appropriate for timestep.
                     elif quantity_type == FS.QUANTITY_TYPE_PROBABILITY:
@@ -1634,18 +1755,26 @@ class Model(object):
                         # exceeds 1.0 once operating on the timestep level
                         converted_frac = min(1,transition * (self.dt / par.timescale))
                         for link in par.links:
-                            link[ti] = link.source[ti] * converted_frac
+                            link.update(ti,converted_frac)
 
                     # Linearly convert number down to that appropriate for one timestep.
                     elif quantity_type == FS.QUANTITY_TYPE_NUMBER:
-
                         # Disaggregate proportionally across all source compartment sizes related to all links.
                         converted_amt = transition * (self.dt / par.timescale) # Number flow in this timestep, so it includes a timescale factor
-                        if len(par.links) > 1:
+                        source_popsize = par.source_popsize(ti)
+                        if source_popsize:
+                            # The source popsize is greater than zero, so we can convert to and from fraction representation
+                            converted_frac = converted_amt / par.source_popsize(ti)  # Convert to fraction. Note that this is converted using the parameter's source popsize, but the link number then comes from the link source compartment
                             for link in par.links:
-                                link[ti] = converted_amt * link.source[ti] / par.source_popsize(ti)
-                        else:
+                                link.update(ti,converted_frac)
+                        elif par.links[0].source.tag_birth:
+                            # If the source popsize is exactly zero, then either this is a source compartment, so it's fine to use the
+                            # value as-is and there is no need to disaggregate, OR the source popsize is actually zero, in which case all
+                            # of the links would
+                            # Source compartments have zero popsize so cannot be updated using `link.update()` assuming fraction units
                             par.links[0][ti] = converted_amt
+                        else:
+                            par.links[0][ti] = 0.0
 
                     # Raise an error if the transition parameter has unrecognized units
                     elif quantity_type not in [FS.QUANTITY_TYPE_PROPORTION]:

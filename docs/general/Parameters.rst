@@ -123,37 +123,4 @@ By specifying a different set of times, you can apply different smoothing method
 Maximum compartment duration
 ****************************
 
-Intended usage
-- NOT used when there is a constant inflow/outflow or if inflows and outflows are slowly changing
-- In a compartment model, the amount of time people spend in the compartment follows an exponential distribution. In the steady state, only the mean matters. When things change rapidly, then discrepencies can occur. These discrepencies are largest if the compartment has a long expected duration relative to the step size, and if the inflow changes dramatically.
-
-Therefore, the maximum compartment duration is suitable under the following circumstances
-- The expected time in the compartment is long relative to the step size (e.g. >4 timesteps), and
-- At the end of the duration, all individuals transition to the same compartment (although this could be a junction), and
-- There are sharp changes to inflow or outflow
-
-Two examples of where this usage might be appropriate:
-
-- A mass vaccination schedule where
-    - A large proportion of the population is vaccinated at the same time
-    - The duration of protection is several years
-    - At the end, all uninfected individuals return to the susceptible compartment
-- TB early to late latent states
-    - The time spent in the early latent state is several years
-    - At the end, all infected individuals progress to late latent
-    - The inflow changes rapidly if the force of infection changes due to interventions e.g. treatment scale-up reducing the number of new infections
-
-One example of where this usage would be inappropriate
-- Treatment lasts 6 months
-    - The expected time spent in the compartment is only 1-2 timesteps, so the approximation that the time spent in the compartment by individuals is uniformly distributed is sufficiently good even if the treatment initiation rate changes rapidly
-
-
-Timed parameter restrictions
-
-x - If entered in the databook, only a constant value can be provided
-- If it has a function, then it must be precomputable and have the same value at all times
-x - Cannot be marked as a derivative
-x - Must be in 'duration' units
-x - Cannot be marked as 'targetable' (i.e. cannot be changed by programs)
-x - Any given compartment can have a maximum of one outgoing timed transition
-x - The timed compartment cannot be a birth, death, or junction compartment
+A common, complex situation occurs if there are durations in the model that are significantly larger than the simulation time step (such as the duration of protection of a vaccine). See :ref:`timed-transitions` for details on how to implement this in a framework.

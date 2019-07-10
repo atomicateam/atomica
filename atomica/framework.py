@@ -962,6 +962,9 @@ class ProjectFramework(object):
                 if n_source_outflow > 1:
                     raise InvalidFramework('Parameter "%s" has an outflow from more than one source compartment, which prevents disaggregation from working correctly' % par_name)
 
+                if n_source_outflow > 0 and len(from_comps) > 1:
+                    raise InvalidFramework(f'Parameter "{par_name}" has an outflow from a source compartment, therefore it cannot be associated with any other transitions')
+
                 for comp in to_comps:
                     if self.comps.at[comp,'is source'] == 'y':
                         raise InvalidFramework('Parameter "%s" has an inflow to Compartment "%s" which is a source' % par_name, comp)

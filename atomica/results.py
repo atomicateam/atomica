@@ -117,7 +117,10 @@ class Result(NamedItem):
     def get_alloc(self,year=None) -> dict:
         """
         Return spending allocation
-        If the result was generated using programs, this method
+
+        If the result was generated using programs, this method will return the spending
+        on all programs in the requested years.
+
         :param year: Optionally specify a scalar or list/array of years to return budget values
                      for. Otherwise, uses all simulation times
         :return: Dictionary keyed by program name with arrays of spending values
