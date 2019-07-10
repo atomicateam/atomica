@@ -614,3 +614,16 @@ def add_internal_flags_to_tdve(proj):
                 tdc.to_pops = list(proj.data.pops.keys())
 
     return proj
+
+# @migration('1.11.0', '1.12.0', 'Replace tag_birth with SourceCompartment')
+# def add_sourcecompartment(proj):
+#     for result in all_results(proj):
+#         result.model.unlink()
+#         for pop in result.model.pops:
+#             for i,comp in enumerate(pop.comps):
+#                 if comp.tag_birth:
+#                     raise Exception('Work out how to replace it here')
+#                     bare_s = String.__new__(String)
+#
+#         result.model.relink() # Make sure all of the references are updated to the new compartment instance - it has the same ID so it should be fine
+#
