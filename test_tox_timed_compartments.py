@@ -28,6 +28,15 @@ def get_project():
     P.settings.sim_end = 2020
     return P
 
+def run_framework(fname):
+    F = at.ProjectFramework(testdir + fname)
+    D = at.ProjectData.new(framework=F,tvec=[2018],pops=1,transfers=0)
+    P = at.Project(framework=F,databook=D.to_spreadsheet(),do_run=False)
+    P.settings.sim_dt = 1
+    P.settings.sim_start = 2018
+    P.settings.sim_end = 2023
+    return P.run_sim()
+
 def test_read_write_databook():
     # Test that the timed databook can be written and read
     F = get_framework()
@@ -87,9 +96,14 @@ def test_lifespan():
     D = at.ProjectData.new(framework=F,tvec=[2018],pops=1,transfers=0)
     P = at.Project(framework=F,databook=D.to_spreadsheet(),do_run=True)
 
+def test_junctions():
+    res = run_framework('timed_junctions_1.xlsx')
+
+
 
 if __name__ == '__main__':
     # test_read_write_databook()
     # test_zero_duration()
-    test_spike()
+    # test_spike()
     # test_lifespan()
+    test_junctions()

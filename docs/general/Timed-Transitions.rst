@@ -42,6 +42,12 @@ x - The timed compartment cannot be a birth, death, or junction compartment
 A timed parameter defines a shared state
 The quantity being tracked is 'time until the person needs to be moved'
 
+Timed compartments and junctions
+********************************
+
+Timed compartments can be used in conjunction with junctions
+
+
 Example calculation
 *******************
 

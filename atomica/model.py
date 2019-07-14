@@ -20,7 +20,7 @@ import sciris as sc
 import numpy as np
 import matplotlib.pyplot as plt
 from .programs import ProgramSet
-from .parameters import Parameter
+from .parameters import Parameter as 
 import math
 
 model_settings = dict()
@@ -202,7 +202,6 @@ class Compartment(Variable):
         Variable.__init__(self, pop=pop, id=(pop.name, name))
         self.units = 'Number of people'
         self.tag_dead = False  # Tag for whether this compartment contains dead people.
-        self.is_junction = False
 
         self.outlinks = []
         self.inlinks = []
@@ -288,7 +287,7 @@ class Compartment(Variable):
 
         # If it's a junction, links are computed separately
         # If it's a death compartment, then there are no outflows to adjust
-        if self.is_junction or self.tag_dead:
+        if self.tag_dead:
             return
 
         outflow = 0.0
@@ -320,10 +319,6 @@ class Compartment(Variable):
 
         """
 
-        if self.is_junction:
-            self[ti] = 0.0
-            return
-
         tr = ti-1
         v = self[tr]
 
@@ -338,6 +333,54 @@ class Compartment(Variable):
         else:
             self[ti] = 0.0
 
+    def connect(self, dest, par):
+        """
+        Construct link out of this compartment
+
+        :param dest: A ``Compartment`` instance
+        :param par: The parameter that the Link will be associated with
+        :return: A new ``Link`` instance (it will have been wired up to the compartments and parameter)
+
+        """
+        new_link = Link(pop=self.pop, parameter=par, source=self, dest=dest)
+
+class JunctionCompartment(Compartment):
+    def __init__(self, pop, name):
+        super().__init__(pop,name)
+
+    def resolve_outflows(self,ti: int) -> None:
+        # Junction outflows are resolved in a separate step because they cannot
+        # be resolved junction-by-junction
+        # TODO - Look into whether a recursive algorithm here can simplify update_junctions
+        pass
+
+    def update(self, ti: int) -> None:
+        # Junction value is 0 at all times
+        self[ti] = 0.0
+
+    def connect(self, dest, par):
+        # Connect up this junction
+        # If the junction has any inflows from TimedCompartments, then it should have timed outflows
+        # To keep things tractable, it's only allowed to have inputs from one duration group
+        # Any destination is acceptable, however
+
+        # First, check if we have a destination group
+        duration_group = None
+        for link in self.inlinks:
+            if isinstance(link.source, TimedCompartment):
+                duration_group = link.source.parameter.name
+
+        # Then, check that the downstream compartment is valid
+        if isinstance(dest, TimedCompartment):
+            assert dest.parameter.name == duration_group, "Duration group for destination parameter does not match"
+
+
+
+        if duration_group:
+            new_link = TimedLink(pop=self.pop, parameter=par, source=self, dest=dest)
+        else:
+            new_link = Link(pop=self.pop, parameter=par, source=self, dest=dest)
+        return new_link
 
 class SourceCompartment(Compartment):
     """
@@ -500,9 +543,9 @@ class TimedCompartment(Compartment):
         """
         Resolve outgoing links
 
-        Rescale outgoing links (except for the flush link) to avoid negative population sizes.
-        Note that unlike normal compartments, a ``TimedCompartment`` may have also have ``TimedLink``
-        instances associated with it
+        At this point, all links going out of the compartment would have had their ``._cache`` value set to the
+        fraction to transfer. This method converts them to numbers, taking into account the fact that only
+        certain subcompartments are eligible for timed links within the same duration group
 
         :param ti: Time index at which to update link outflows
 
@@ -511,53 +554,29 @@ class TimedCompartment(Compartment):
         # This is simpler in some ways because a TimedCompartment cannot be a junction, source, or sink
 
         # First, work out the scale factors as usual
-        outflow = 0.0
         self.flush_link._cache = 0.0  # At this stage, no outflow goes via the flush link
 
+        total_outflow = np.zeros(self._vals.shape[0])
         for link in self.outlinks:
-            outflow += link._cache
-
-        if outflow > 1:
-            rescale = 1/outflow
-        else:
-            rescale = 1
-
-        n = rescale*self._vals[:,ti] # n is now a array
-        ns = n.sum()
-        for link in self.outlinks:
-            if isinstance(link,TimedLink):
-                link._vals[:,ti] = link._cache*n
+            if isinstance(link.dest,TimedCompartment) and link.dest.parameter.name == self.parameter.name: # The outflow could be a transfer, in which case the parameter won't be the same instance but the name will match
+                total_outflow[1:] += link._cache
             else:
-                link[ti] = link._cache*ns
+                total_outflow[:] += link._cache
 
-    def update_flush_link(self, ti):
-        """
-        Set the value of the flush link
+        # Rescaling factors for each subcompartment
+        rescale = np.divide(1, total_outflow, out=np.ones_like(total_outflow), where=total_outflow > 1)
+        n = rescale * self._vals[:, ti]  # Rescaled number of people - to multiply by the cache value
 
-        This function should be run after both `Compartment.resolve_outflows()` has been called for
-        all compartments AND `update_junctions()` has been called. This is because any inflows due to
-        junctions are eligible to be flushed at this timestep. In practice, such new arrivals will
-        only be flushed if the duration is less than one timestep (so the compartment is flushed
-        entirely every time step). . This means that the final inflow values are fixed and known, so we know
-        exactly how many people are going to need to be flushed when updating the compartment.
-
-        """
-
-        flush_flow = 0
-
-        for link in self.inlinks:
-            if isinstance(link,TimedLink):
-                flush_flow += link._vals[0,ti]
-
-        nr = self._vals[:,ti]  # old subcompartment sizes
-        nrs = nr.sum()  # old subcompartment total
+        flush_outflow = 0.0
         for link in self.outlinks:
-            if isinstance(link,TimedLink):
-                flush_flow -= link._vals[0,ti]
+            if isinstance(link.dest,TimedCompartment) and link.dest.parameter.name == self.parameter.name: # The outflow could be a transfer, in which case the parameter won't be the same instance but the name will match
+                link._vals[1:, ti] = n[1:]*link._cache
+                link._vals[0, ti] = 0.0
             else:
-                flush_flow -= link[ti]/nrs*nr[0]
+                link._vals[:, ti] = n*link._cache
+                flush_outflow += link._vals[0,ti]
 
-        self.flush_link.vals[ti] = self._vals[0,ti] + flush_flow
+        self.flush_link[ti] = max(0,self._vals[0,ti] - flush_outflow)
 
     def update(self, ti: int) -> None:
         """
@@ -571,37 +590,73 @@ class TimedCompartment(Compartment):
         """
 
         tr = ti-1
+        self._vals[:, ti] = self._vals[:, tr]
 
-        # Updating the compartment involves applying all of the incoming links
-        outflow = np.zeros(self._vals.shape[0])
-        nr = self._vals[:,tr]  # old subcompartment sizes
-        nrs = nr.sum()  # old subcompartment total
-
+        # First, apply all of the outflows
+        # With the exception of the flush link, all outflows are TimedLinks
         for link in self.outlinks:
-            if link is self.flush_link:
-                continue # Don't explicitly flush - it happens implicitly when the keyring is advanced
-            elif isinstance(link,TimedLink):
-                outflow += link._vals[:,tr]
-            else:
-                outflow += link[tr]/nrs*nr # Distribute the link proportionately
-
-        # Resolve the outflows
-        assert np.isclose(self._vals[0, tr]-outflow[0], self.flush_link.vals[tr]) # DEBUG: Check that the total is OK
-
-        # Advance the keyring. Note that the flush flow and outflow from the final subcompartment take place implicitly
-        if self._vals.shape[0] > 1:
-            self._vals[0:-1, ti] = self._vals[1:, tr] -outflow[1:] # shift the array and resolve outflow. If the size is equal to 1, then the inflow all goes in at this timestep
-        self._vals[-1,ti] = 0.0  # Zero out the inflow
-
-        # Resolve the inflows
-        for link in self.inlinks:
             if isinstance(link,TimedLink):
-                self._vals[:,ti] += link._vals[:,[tr]]
+                self.vals[:, ti] -= link._vals[:,tr]
             else:
-                self._vals[-1,ti] += link[tr] # New arrivals from normal links go in the last time bin
+                self.vals[0, ti] -= link[ti]
+
+        # Now, resolved TimedLink inputs from the same duration group
+        # This happens before advancing the keyring because people making a within-group
+        # transition need to be advanced in this timestep. All other links flow into the
+        # initial subcompartment, as durations are not tracked for such links
+        for link in self.inlinks:
+            if isinstance(link.dest,TimedCompartment) and link.dest.parameter.name == self.parameter.name:
+                self._vals[:,ti] += link._vals[:,tr]
+
+        # Advance the keyring
+        assert np.isclose(self._vals[0, ti], 0)  # Now, the flush subcompartment should be empty - maybe disable this check if it's slow
+        if self._vals.shape[0] > 1:
+            self._vals[0:-1, ti] = self._vals[1:, ti]
+        self._vals[-1,ti] = 0.0  # Zero out the inflow (otherwise, it just replicates previous value)
+
+        # Now, resolve other inputs for which durations are not preserved
+        # Regardless of whether they are TimedLinks or not, they should go into the initial subcompartment
+        for link in self.inlinks:
+            if not (isinstance(link.dest,TimedCompartment) and link.dest.parameter.name == self.parameter.name):
+                self._vals[-1,ti] += link[tr]
 
         # Stop the system becoming numerically negative TODO - Check performance
         self._vals[self._vals[:,ti]<0,ti] = 0
+
+    def connect(self, dest, par):
+        """
+        Construct link out of this compartment
+
+        For TimedCompartments, all outgoing links are TimedLinks. If the parameter passed in here
+        matches the compartment's flush parameter, the link will also be assigned to this compartment's
+        flush link
+
+        :param dest: A ``Compartment`` instance
+        :param par: The parameter that the Link will be associated with
+        :return: A new ``Link`` instance (it will have been wired up to the compartments and parameter)
+
+        """
+
+        new_link = TimedLink(pop=self.pop, parameter=par, source=self, dest=dest)
+        if par is self.par:
+            self.flush_link = new_link
+            # We also need to break the connection between the parameter and the link
+            # so that the parameter doesn't try to update the link during `update_pars()`
+            new_link.parameter = None
+            par.links = []
+
+        if isinstance(dest, JunctionCompartment):
+            # If the destination is a junction, it's possible that it has Link outflows to
+            # If the destination is a junction, the junction might already have outflows
+            # If it has a duration group, the group needs to match
+            # If it has outflows, they all need to be converted to timed links
+            for link in dest.inlinks:
+                if isinstance(link.source, TimedCompartment):
+                    duration_group = link.source.parameter.name
+            else:
+                duration_group = None
+
+        return new_link
 
 
 class Characteristic(Variable):
@@ -779,10 +834,13 @@ class Parameter(Variable):
                 if not (dep_name in ['t', 'dt']):  # There are no integration variables associated with the interactions, as they are treated as a special matrix
                     self.deps[dep_name] = self.pop.get_variable(dep_name) # nb. this lookup will fail if the user has a function that depends on a quantity outside this population
 
-        # If this Parameter has links and a function, it must be updated during computation
-        # Similarly, if it is a derivative then it should be vector-computed
-        # (for simplicity in implementation)
-        if (self.links and self.fcn_str) or self.derivative:
+        # If this Parameter has links and a function, it must be updated before it is needed during integration.
+        # If the function depends on any compartment sizes, it must be updated element-wise during integration.
+        # Similarly, if it is a derivative parameter, it needs to be updated element-wise.
+        # Otherwise, it can be pre-computed in a fast vector operation
+        # A timed parameter doesn't _directly_ have links associated with it (because it does not supply values
+        # for the links) but it does need to be precomputed
+        if self.links or self.derivative or framework.pars.at[self.name,'timed'] == 'y':
             self.set_dynamic(progset)
 
     def set_dynamic(self, progset=None) -> None:
@@ -957,36 +1015,6 @@ class Link(Variable):
     from the source compartment to the destination compartment in the subsequent timestep.
     """
 
-    # *** Link values are always dt-based ***
-    @staticmethod
-    def new(pop, parameter, source, dest):
-        """
-        Construct a new link
-
-        This static method automatically instantiates a Link of the correct type between
-        two compartments. Specifically, both the source and destination compartments are
-        TimedCompartments corresponding to the same parameter, then this method will
-        instantiate a TimedLink that preserves time spent in the compartment. Otherwise, a
-        normal Link will be instantiated.
-
-        TimedLinks will only be generated if the compartments have a duration grouped under
-        the same parameter. The check is based on the parameter name rather than the parameter
-        instance though. This is because a transfer between two TimedCompartments will have
-        different Parameter instances in each population, but conceptually will refer to the same
-        period (and thus the 'time until transferred out' will remain unchanged).
-
-        :param pop: A :class:`Population` instance
-        :param parameter: A :class:`Parameter` instance
-        :param source: A :class:`Compartment` instance
-        :param dest: A :class:`Compartment` instance
-        :return: A :class:`Link` instance
-
-        """
-        if isinstance(source, TimedCompartment) and isinstance(dest, TimedCompartment) and (source.parameter.name == dest.parameter.name):
-            return TimedLink(pop, parameter, source, dest)
-        else:
-            return Link(pop, parameter, source, dest)
-
     def __init__(self, pop, parameter, source, dest):
         # Note that the Link's name is the transition tag
         Variable.__init__(self, pop=pop, id=(pop.name, source.name, dest.name, parameter.name+':flow'))  # A Link is only uniquely identified by (Pop,Source,Dest,Par)
@@ -1093,6 +1121,17 @@ class TimedLink(Link):
 
     """
 
+    @classmethod
+    def convert(cls, link) -> None:
+        """
+        Turn a Link into a TimedLink
+
+        :param link: A Link instance to convert
+
+        """
+        del link.vals
+        link.__class__ = cls
+
     def __init__(self, pop, parameter, source, dest):
         Link.__init__(self, pop, parameter, source, dest)
         self._vals = None  #: Primary storage, a matrix with size matching the source compartment
@@ -1137,6 +1176,22 @@ class TimedLink(Link):
         """
 
         self._vals[:,ti] = self.source._vals[:,ti]*converted_frac
+
+    def __getitem__(self, ti):
+        """
+        Retrieve total flow at given time index
+
+        By only adding the requested timesteps, this approach is faster than accessing ``vals`` first i.e.
+
+        >>> self.vals[ti]
+        >>> self[ti] # <-- Faster
+
+        :param ti: Time index/indices
+        :return: Total compartment size at given time index/indices
+
+        """
+
+        return self._vals[:, ti].sum(axis=0)
 
     def __setitem__(self, ti: int, number: float) -> None:
         """
@@ -1351,7 +1406,11 @@ class Population(object):
 
         # Parameters first pass
         # Instantiate all parameters first. That way, we know which compartments need to be TimedCompartments
-        timed_compartments = dict() # Dict mapping {timed_compartment_name:parameter}
+        # We make a `timed_compartments` dict mapping {timed_compartment_name:parameter} so that we can identify
+        # the timed compartments and quickly retrieve their parameters. This is done here partly because we need
+        # to instantiate the parameters first, and also because `framework.transitions` is keyed by parameter
+        # rather than compartment so it's straightforward to include here
+        timed_compartments = dict()
         for par_name in list(pars.index):
             if pars.at[par_name,'population type'] == self.type:
                 par = Parameter(pop=self, name=par_name)
@@ -1371,13 +1430,12 @@ class Population(object):
                     self.comps.append(TimedCompartment(pop=self, name=comp_name, parameter=timed_compartments[comp_name]))
                 elif comps.at[comp_name, "is source"] == 'y':
                     self.comps.append(SourceCompartment(pop=self, name=comp_name))
+                elif comps.at[comp_name, "is junction"] == 'y':
+                    self.comps.append(JunctionCompartment(pop=self, name=comp_name))
                 else:
                     self.comps.append(Compartment(pop=self, name=comp_name))
+                    self.comps[-1].tag_dead = comps.at[comp_name, "is sink"] == 'y'
 
-                if comps.at[comp_name, "is sink"] == 'y':
-                    self.comps[-1].tag_dead = True
-                if comps.at[comp_name, "is junction"] == 'y':
-                    self.comps[-1].is_junction = True
         self.comp_lookup = {comp.name: comp for comp in self.comps}
 
         # Characteristics first pass, instantiate objects
@@ -1403,19 +1461,10 @@ class Population(object):
                 for pair in framework.transitions[par.name]:
                     src = self.get_comp(pair[0])
                     dst = self.get_comp(pair[1])
-                    new_link = Link.new(self, par, src, dst)
-                    if new_link.name not in self.link_lookup:
-                        self.link_lookup[new_link.name] = [new_link]
-                    else:
-                        self.link_lookup[new_link.name].append(new_link)
-                    self.links.append(new_link)
+                    new_link = src.connect(dst, par) # If the parameter is a timed parameter, the TimedCompartment will also instantitate the FlushLink in this step
 
-                    if pars.at[par.name, "timed"] == 'y':
-                        # If it's a timed parameter, this link must also be assigned to the `flush_link` in the TimedCompartment
-                        # These links are also not matched up directly to any parameters (although the name is used for the link tag)
-                        src.flush_link = new_link
-                        new_link.parameter = None
-                        par.links = []
+        # TODO! populate link_lookup here
+
 
         # Parameters third pass, process f_stacks, deps, and limits
         # This is a separate pass because output parameters can depend on Links
@@ -1596,7 +1645,6 @@ class Model(object):
         # Unlink variables set by self._set_vars_by_pop()
         self._vars_by_pop = None
         self._par_list = None
-        self._timed_comps = None
 
         self._program_cache = None  # This drops the cache when pickling, but its only going to have anything if pickled DURING process() i.e. only devs would encounter this
 
@@ -1653,12 +1701,9 @@ class Model(object):
         """
 
         self._vars_by_pop = defaultdict(list)
-        self._timed_comps = []
         for pop in self.pops:
             for var in pop.comps + pop.characs + pop.pars + pop.links:
                 self._vars_by_pop[var.name].append(var)
-                if isinstance(var,TimedCompartment):
-                    self._timed_comps.append(var)
         self._vars_by_pop = dict(self._vars_by_pop)  # Stop new entries from appearing in here by accident
 
         # Finally, it's possible that some parameters may be missing if population types were defined
@@ -1741,11 +1786,11 @@ class Model(object):
                         target_pop_obj = self.get_pop(pop_target)
 
                         for source in pop.comps:
-                            if not (isinstance(source,SourceCompartment) or source.tag_dead or source.is_junction):
+                            if not (isinstance(source,SourceCompartment) or source.tag_dead or isinstance(source,JunctionCompartment):
                                 # Instantiate a link between corresponding compartments
                                 dest = target_pop_obj.get_comp(source.name)  # Get the corresponding compartment
                                 link = Link.new(pop, par, source, dest)
-                                link.preallocate(self.t, self.dt)
+                                # TODO - instantiate TimedLink for transfers here
                                 pop.links.append(link)
                                 if link.name in pop.link_lookup:
                                     pop.link_lookup[link.name].append(link)
@@ -1793,6 +1838,9 @@ class Model(object):
 
 
         # Finally, preallocate remaining quantities and initialize the compartments
+        # Note that TimedLink preallocation depends on TimedCompartment preallocation
+        # which is setting the duration based on the evaluated parameters above.
+        # Therefore, in the loop below, compartments must be preallocated before links
         for pop in self.pops:
             for obj in pop.comps + pop.characs + pop.links:
                 obj.preallocate(self.t, self.dt)
@@ -1814,7 +1862,6 @@ class Model(object):
             self.update_pars()  # Update the transition parameters in case junction outflows are functions _and_ they depend on compartment sizes that just changed in the line above
             self.update_links()  # Update all of the links
             self.update_junctions()  # Junctions are now empty - perform a normal update by setting the outflows to be equal to the inflows so the usual condition outflow[t]=inflow[t] is satisfied
-            self.update_flush_links()
 
         # Main integration loop
         while self._t_index < (self.t.size - 1):
@@ -1823,7 +1870,6 @@ class Model(object):
             self.update_pars()
             self.update_links()
             self.update_junctions()
-            self.update_flush_links()
 
         for pop in self.pops:
 
@@ -1958,12 +2004,12 @@ class Model(object):
         for pop in self.pops:
 
             # Initialize the junctions and their links
-            junctions = [comp for comp in pop.comps if comp.is_junction]
+            junctions = [comp for comp in pop.comps if isinstance(comp,JunctionCompartment)]
             for junc in junctions:
                 if not initial_flush:  # At most timesteps, initialize based on inflows
                     junc[ti] = 0.
                     for link in junc.inlinks:
-                        if not link.source.is_junction:  # inlinks that come from a junction won't have been initialized at this timestep yet
+                        if not isinstance(link.source, JunctionCompartment):  # inlinks that come from a junction won't have been initialized at this timestep yet
                             junc[ti] += link[ti]
                 else:  # At the very first iteration, use the junction's current value (e.g., if a nonzero value arose from the databook)
                     if np.isnan(junc[ti]):
@@ -1997,9 +2043,13 @@ class Model(object):
                             flow = current_size * link.parameter[ti] / denom_val
                             junc[ti] -= flow
                             link[ti] += flow
-                            if link.dest.is_junction or initial_flush:
+                            if isinstance(link.dest, JunctionCompartment) or initial_flush:
                                 # In the initial flush, we need to update the downstream compartments
-                                link.dest[ti] += flow
+                                if isinstance(link.dest, TimedCompartment):
+                                    # If it's an initial flow into a TimedCompartment, then populate the downstream compartment at all times
+                                    link.dest._vals[:, ti] += flow/link.dest._vals.shape[0]
+                                else:
+                                    link.dest[ti] += flow
                                 review_required = True  # Need to review if a junction received an inflow at this step
 
                 if not review_required:
@@ -2104,10 +2154,6 @@ class Model(object):
                     par.constrain(ti+1)
                 else:
                     par.constrain(ti)
-
-    def update_flush_links(self):
-        for comp in self._timed_comps:
-            comp.update_flush_link(self._t_index)
 
 
 def run_model(settings, framework, parset, progset=None, program_instructions=None, name=None):

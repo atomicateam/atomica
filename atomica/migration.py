@@ -627,3 +627,9 @@ def add_internal_flags_to_tdve(proj):
 #
 #         result.model.relink() # Make sure all of the references are updated to the new compartment instance - it has the same ID so it should be fine
 #
+
+@migration('1.11.0', '1.12.0', 'Replace tag_birth with SourceCompartment')
+def add_timed_attribute(proj):
+    for fw in all_frameworks(proj):
+        fw.pars['timed'] = 'n'
+    return proj
