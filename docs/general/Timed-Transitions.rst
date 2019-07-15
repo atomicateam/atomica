@@ -38,6 +38,8 @@ x - Must be in 'duration' units
 x - Cannot be marked as 'targetable' (i.e. cannot be changed by programs)
 x - Any given compartment can have a maximum of one outgoing timed transition
 x - The timed compartment cannot be a birth, death, or junction compartment
+- A timedcompartment cannot flush into a junction if one of the junction outputs belongs to the same duration group
+x - A junction cannot receive inflow from more than one duration group
 
 A timed parameter defines a shared state
 The quantity being tracked is 'time until the person needs to be moved'

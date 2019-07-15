@@ -333,20 +333,20 @@ class Compartment(Variable):
         else:
             self[ti] = 0.0
 
-    def connect(self, dest, par):
+    def connect(self, dest, par) -> None:
         """
         Construct link out of this compartment
 
         :param dest: A ``Compartment`` instance
         :param par: The parameter that the Link will be associated with
-        :return: A new ``Link`` instance (it will have been wired up to the compartments and parameter)
 
         """
-        new_link = Link(pop=self.pop, parameter=par, source=self, dest=dest)
+        Link(pop=self.pop, parameter=par, source=self, dest=dest)
 
 class JunctionCompartment(Compartment):
     def __init__(self, pop, name):
         super().__init__(pop,name)
+        self._cache_duration = None  #: Cache the subcompartment size
 
     def resolve_outflows(self,ti: int) -> None:
         # Junction outflows are resolved in a separate step because they cannot
@@ -358,7 +358,63 @@ class JunctionCompartment(Compartment):
         # Junction value is 0 at all times
         self[ti] = 0.0
 
-    def connect(self, dest, par):
+    def balance(self, ti: int) -> None:
+        # This is the primary update for a junction - where outflows are adjusted so that they
+        # equal the inflows. It's analogous to `resolve_outflows` as a primary update method, but
+        # it takes place at a separate integration stage (once the outflows for normal compartments
+        # have been finalized, as these outputs serve as the junction inputs in that same timestep)
+        # After this method is called, all outflows should equal inflows
+        # The parameter workflow is simplified because all links flowing out of junctions must be
+        # in 'proportion' units, so they can be looked up and used directly
+
+        # Flow logic is
+        # - Work out the normalized outflow fractions
+        # - Assign each input proportionately to each output
+
+        if self._cache_duration is None:
+            # Work out the cache size. This needs to be done after initialization is complete, so can just do it the first time the junction is balanced
+            for link in self.outlinks:
+                if isinstance(link.dest,TimedCompartment):
+                    self._cache_duration = link.dest._vals.shape[0]
+                    break
+            else:
+                self._cache_duration = 0
+
+        # Normalized vector saying, for each inlink, what proportion goes to each outlink
+        outlink_weights = np.array([link.parameter[ti] for link in self.outlinks])
+        outlink_weights /= np.sum(outlink_weights)
+
+        # Now this is the net flow to each subcompartment in each outlink
+        # The subcompartments come from the inlinks. The resulting matrix
+        # is (inlink_duration x num_outlinks) in size
+        net_outputs = np.zeros(self._cache_duration,len(self.outlinks))
+
+        for i, link in enumerate(self.inlinks):
+            if isinstance(link, TimedLink):
+                # TimedLinks will pass outputs in the same duration group to all subcompartments
+                # apart from the first one
+                net_outputs[1:, :] += link._vals[1:,ti]*outlink_weights
+            else:
+                # Otherwise, output links feed into the initial subcompartment. Again, we must have
+                # a leading zero if there are any TimedCompartments downstream
+                net_outputs[-1, :] += link[ti]*outlink_weights
+
+        rebalance = []
+
+        for i, link in enumerate(self.outlinks):
+            if isinstance(link, TimedLink):
+                # Preserve durations within the same duration group
+                # An outgoing TimedLink is only created either if the duration group matches
+                link._vals[:,ti] = net_outputs[:,i]
+            else:
+                link.vals[ti] = np.sum(net_outputs[:,i]) # Put all of the outputs into the (untimed) Link
+            if isinstance(link.dest, JunctionCompartment):
+                rebalance.append(link.dest)
+
+        [j.balance() for j in rebalance] # Rebalance any compartments that received an inflow from this junction
+
+
+    def connect(self, dest, par) -> None:
         # Connect up this junction
         # If the junction has any inflows from TimedCompartments, then it should have timed outflows
         # To keep things tractable, it's only allowed to have inputs from one duration group
@@ -373,14 +429,9 @@ class JunctionCompartment(Compartment):
         # Then, check that the downstream compartment is valid
         if isinstance(dest, TimedCompartment):
             assert dest.parameter.name == duration_group, "Duration group for destination parameter does not match"
-
-
-
-        if duration_group:
-            new_link = TimedLink(pop=self.pop, parameter=par, source=self, dest=dest)
+            TimedLink(pop=self.pop, parameter=par, source=self, dest=dest)
         else:
-            new_link = Link(pop=self.pop, parameter=par, source=self, dest=dest)
-        return new_link
+            Link(pop=self.pop, parameter=par, source=self, dest=dest)
 
 class SourceCompartment(Compartment):
     """
@@ -596,9 +647,9 @@ class TimedCompartment(Compartment):
         # With the exception of the flush link, all outflows are TimedLinks
         for link in self.outlinks:
             if isinstance(link,TimedLink):
-                self.vals[:, ti] -= link._vals[:,tr]
+                self.vals[:, ti] -= link._vals[:,tr] # TimedLinks act on all subcompartments. Those that are within the same duration group should have a leading 0
             else:
-                self.vals[0, ti] -= link[ti]
+                self.vals[0, ti] -= link[ti] # The flush link acts only on the final subcompartment
 
         # Now, resolved TimedLink inputs from the same duration group
         # This happens before advancing the keyring because people making a within-group
@@ -623,7 +674,7 @@ class TimedCompartment(Compartment):
         # Stop the system becoming numerically negative TODO - Check performance
         self._vals[self._vals[:,ti]<0,ti] = 0
 
-    def connect(self, dest, par):
+    def connect(self, dest, par) -> None:
         """
         Construct link out of this compartment
 
@@ -633,30 +684,34 @@ class TimedCompartment(Compartment):
 
         :param dest: A ``Compartment`` instance
         :param par: The parameter that the Link will be associated with
-        :return: A new ``Link`` instance (it will have been wired up to the compartments and parameter)
 
         """
 
         new_link = TimedLink(pop=self.pop, parameter=par, source=self, dest=dest)
+
         if par is self.par:
-            self.flush_link = new_link
+            # If we are connecting up the timed parameter, also assign it to the flush link
             # We also need to break the connection between the parameter and the link
             # so that the parameter doesn't try to update the link during `update_pars()`
+            self.flush_link = new_link
             new_link.parameter = None
             par.links = []
 
         if isinstance(dest, JunctionCompartment):
-            # If the destination is a junction, it's possible that it has Link outflows to
-            # If the destination is a junction, the junction might already have outflows
-            # If it has a duration group, the group needs to match
-            # If it has outflows, they all need to be converted to timed links
+            # If the destination is a junction, it's possible that it has Link outflows to a TimedCompartment in
+            # the same duration group. However, if no TimedCompartments are flowing into the junction yet, then
+            # it's possible that the outflow link was initialized as a Link rather than a TimedLink. Thus, such
+            # Links need to be promoted to TimedLinks at this point. Also, if the Junction already has
+            # inflow from another TimedCompartment, it needs to be in the same duration group as this one
             for link in dest.inlinks:
                 if isinstance(link.source, TimedCompartment):
-                    duration_group = link.source.parameter.name
-            else:
-                duration_group = None
+                    assert link.source.parameter.name == self.parameter.name, "Junction already assigned to a different duration group"
+                    break
 
-        return new_link
+            for link in dest.outlinks:
+                if isinstance(link.dest, TimedCompartment):
+                    TimedLink.convert(link) # Convert the Link into a TimedLink
+
 
 
 class Characteristic(Variable):
@@ -1029,6 +1084,7 @@ class Link(Variable):
         self.parameter.links.append(self)
         self.source.outlinks.append(self)
         self.dest.inlinks.append(self)
+        pop.links.append(self)
 
         self._cache = None  #: Temporarily cache either the fraction converted (normal links) or number of people (source outflows)
 
@@ -1461,10 +1517,10 @@ class Population(object):
                 for pair in framework.transitions[par.name]:
                     src = self.get_comp(pair[0])
                     dst = self.get_comp(pair[1])
-                    new_link = src.connect(dst, par) # If the parameter is a timed parameter, the TimedCompartment will also instantitate the FlushLink in this step
+                    src.connect(dst, par) # If the parameter is a timed parameter, the TimedCompartment will also assign the FlushLink in this step
 
         # TODO! populate link_lookup here
-
+        raise NotImplemented
 
         # Parameters third pass, process f_stacks, deps, and limits
         # This is a separate pass because output parameters can depend on Links
