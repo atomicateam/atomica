@@ -30,6 +30,7 @@ One example of where this usage would be inappropriate
 
 Timed parameter restrictions
 
+- If a junction has a timed compartment input, it cannot have any untimed inputs
 - If the same timed parameter is used for multiple compartments, the destination compartments cannot be in the group of source compartments
 x - If entered in the databook, only a constant value can be provided
 x - If it has a function, then it must be precomputable and have the same value at all times

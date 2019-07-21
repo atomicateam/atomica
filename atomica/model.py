@@ -354,9 +354,78 @@ class JunctionCompartment(Compartment):
         # TODO - Look into whether a recursive algorithm here can simplify update_junctions
         pass
 
+    def preallocate(self, tvec: np.array, dt: float) -> None:
+        super().preallocate(tvec,dt)
+        self.vals.fill(0.0)  #: Source compartments have an unlimited number of people in them. TODO: If this complicates validation, set to 0.0
+
     def update(self, ti: int) -> None:
-        # Junction value is 0 at all times
-        self[ti] = 0.0
+        pass
+
+    def get_duration_group(self) -> tuple:
+        """
+        Return junction duration group
+
+        :return: The name of the timed parameter (duration group) - None if not timed, and a reference to the TimedCompartment
+
+        """
+
+        for link in self.inlinks:
+            if isinstance(link.source, TimedCompartment):
+                return link.source.parameter.name, link.source
+            elif isinstance(link.source,JunctionCompartment):
+                n,c = link.source.get_duration_group()
+                if n is not None:
+                    return n,c
+        return None, None
+
+    def initialize(self):
+        """
+        Initialize junction
+
+        This method performs validation checks, promotes Links to TimedLinks
+        :return:
+        """
+
+        # Check the inputs and see if any are TimedCompartments
+        duration_group, duration_comp = self.get_duration_group()
+        if duration_group is not None:
+            # If we have 
+            for link in comp.inlinks:
+                if duration_group is not None:
+                    assert n == duration_group, 'All junction inflows must belong to the same duration group'
+                elif n is not None:
+                    duration_group = n
+                    duration_comp = c
+
+
+
+        if isinstance(dest, JunctionCompartment):
+            # If the destination is a junction, it's possible that it has Link outflows to a TimedCompartment in
+            # the same duration group. However, if no TimedCompartments are flowing into the junction yet, then
+            # it's possible that the outflow link was initialized as a Link rather than a TimedLink. Thus, such
+            # Links need to be promoted to TimedLinks at this point. Also, if the Junction already has
+            # inflow from another TimedCompartment, it needs to be in the same duration group as this one
+            for link in dest.inlinks:
+                if isinstance(link.source, TimedCompartment):
+                    assert link.source.parameter.name == self.parameter.name, "Junction already assigned to a different duration group"
+                    break
+                elif not isinstance(link.source, JunctionCompartment):
+                    raise Exception(
+                        'If a junction receives an input from a TimedCompartment all other inputs must be junctions or timed compartments')
+
+
+
+
+
+
+        # Now, check the outlinks
+        for link in dest.outlinks:
+            if isinstance(link.dest,JunctionCompartment) or (isinstance(link.dest, TimedCompartment) and link.dest.parameter.name == duration_group):
+                TimedLink.convert(link)  # Convert the Link into a TimedLink
+
+
+
+
 
     def balance(self, ti: int) -> None:
         # This is the primary update for a junction - where outflows are adjusted so that they
@@ -380,24 +449,36 @@ class JunctionCompartment(Compartment):
             else:
                 self._cache_duration = 0
 
-        # Normalized vector saying, for each inlink, what proportion goes to each outlink
-        outlink_weights = np.array([link.parameter[ti] for link in self.outlinks])
-        outlink_weights /= np.sum(outlink_weights)
-
         # Now this is the net flow to each subcompartment in each outlink
         # The subcompartments come from the inlinks. The resulting matrix
         # is (inlink_duration x num_outlinks) in size
-        net_outputs = np.zeros(self._cache_duration,len(self.outlinks))
-
+        net_outputs = np.zeros(self._cache_duration+1,1) # The +1 is because we can't mix people arriving via Links and people arriving via TimedLinks
         for i, link in enumerate(self.inlinks):
             if isinstance(link, TimedLink):
                 # TimedLinks will pass outputs in the same duration group to all subcompartments
                 # apart from the first one
-                net_outputs[1:, :] += link._vals[1:,ti]*outlink_weights
+                if np.isnan(link._vals[0,ti]):
+                    return # Abort early, this can happen if the junction is receiving inputs from a junction that is yet to be balanced. So instead, trigger updating this junction when the last junction is balanced
+                net_outputs[:-1] += link._vals[1:,ti]
             else:
                 # Otherwise, output links feed into the initial subcompartment. Again, we must have
                 # a leading zero if there are any TimedCompartments downstream
-                net_outputs[-1, :] += link[ti]*outlink_weights
+                if np.isnan(link[ti]):
+                    return # Abort early if link isn't yet initialized
+                net_outputs[-1] += link[ti]
+
+        if ti == 0 and self.vals[ti]:
+            # If this is the initial timestep and there needs to be an initial flush, then add those in too
+            # The initial flush gets multiplied by the outlink weights to decide what proportion goes to which
+            # So we just add the initial compartment size to every outgoing subcompartment, and the weights
+            # will scale them down. Note that the initial flush WILL place people into the final
+            # subcompartment, just the same as if the downstream compartment had been initialized in that way.
+            net_outputs += self.vals[ti]/self._cache_duration
+
+        # Normalized vector saying, for each inlink, what proportion goes to each outlink
+        outlink_weights = np.array([link.parameter[ti] for link in self.outlinks])
+        outlink_weights /= np.sum(outlink_weights)
+        net_outputs *= outlink_weights
 
         rebalance = []
 
@@ -696,23 +777,6 @@ class TimedCompartment(Compartment):
             self.flush_link = new_link
             new_link.parameter = None
             par.links = []
-
-        if isinstance(dest, JunctionCompartment):
-            # If the destination is a junction, it's possible that it has Link outflows to a TimedCompartment in
-            # the same duration group. However, if no TimedCompartments are flowing into the junction yet, then
-            # it's possible that the outflow link was initialized as a Link rather than a TimedLink. Thus, such
-            # Links need to be promoted to TimedLinks at this point. Also, if the Junction already has
-            # inflow from another TimedCompartment, it needs to be in the same duration group as this one
-            for link in dest.inlinks:
-                if isinstance(link.source, TimedCompartment):
-                    assert link.source.parameter.name == self.parameter.name, "Junction already assigned to a different duration group"
-                    break
-
-            for link in dest.outlinks:
-                if isinstance(link.dest, TimedCompartment):
-                    TimedLink.convert(link) # Convert the Link into a TimedLink
-
-
 
 class Characteristic(Variable):
     """ A characteristic represents a grouping of compartments. """
@@ -2056,62 +2120,8 @@ class Model(object):
         # so it needs to fill itself from its incoming links
 
         ti = self._t_index  # The current simulation timestep, at time ti the inflow and outflow need to be balanced. `update_links()` sets the inflow but not the outflow, which is done here
-
-        for pop in self.pops:
-
-            # Initialize the junctions and their links
-            junctions = [comp for comp in pop.comps if isinstance(comp,JunctionCompartment)]
-            for junc in junctions:
-                if not initial_flush:  # At most timesteps, initialize based on inflows
-                    junc[ti] = 0.
-                    for link in junc.inlinks:
-                        if not isinstance(link.source, JunctionCompartment):  # inlinks that come from a junction won't have been initialized at this timestep yet
-                            junc[ti] += link[ti]
-                else:  # At the very first iteration, use the junction's current value (e.g., if a nonzero value arose from the databook)
-                    if np.isnan(junc[ti]):
-                        junc[ti] = 0.
-
-                # Initialize the outflow links
-                for link in junc.outlinks:
-                    link[ti] = 0.
-
-            # Repeatedly flush the junctions until they have all resolved (this deals with cases where one
-            # junction has a flow into another junction)
-            for i in range(0, model_settings["iteration_limit"]):
-                review_required = False
-
-                for junc in junctions:
-                    # If the compartment is numerically empty, make it empty
-                    if junc[ti] <= model_settings['tolerance']:  # Includes negative values.
-                        junc[ti] = 0.
-                    else:
-                        current_size = junc[ti]
-                        # This is the total fraction of people requested to leave.
-                        # Outflows are scaled to the entire compartment size.
-                        denom_val = 0.0
-                        for link in junc.outlinks:
-                            denom_val += link.parameter[ti]
-
-                        if denom_val == 0:
-                            raise Exception("Total junction outflow for junction '%s' was zero - all junctions must have a nonzero outflow" % (self.framework.get_label(junc.name)))
-
-                        for link in junc.outlinks:
-                            flow = current_size * link.parameter[ti] / denom_val
-                            junc[ti] -= flow
-                            link[ti] += flow
-                            if isinstance(link.dest, JunctionCompartment) or initial_flush:
-                                # In the initial flush, we need to update the downstream compartments
-                                if isinstance(link.dest, TimedCompartment):
-                                    # If it's an initial flow into a TimedCompartment, then populate the downstream compartment at all times
-                                    link.dest._vals[:, ti] += flow/link.dest._vals.shape[0]
-                                else:
-                                    link.dest[ti] += flow
-                                review_required = True  # Need to review if a junction received an inflow at this step
-
-                if not review_required:
-                    break
-            else:
-                raise Exception("Processing junctions for timestep {0} is taking too long. Infinite loop suspected.".format(ti))
+        for j in self._root_junctions:
+            j.balance()
 
     # @profile
     def update_pars(self):
