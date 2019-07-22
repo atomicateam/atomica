@@ -981,7 +981,6 @@ class ProjectFramework(object):
             defined.add(par_name)  # Only add the parameter to the list of definitions after it has finished validating, because parameters cannot depend on themselves
 
         # VALIDATE NAMES - No collisions, no keywords
-
         code_names = list(self.comps.index) + list(self.characs.index) + list(self.pars.index) + list(self.interactions.index) + list(available_pop_types)
         tmp = set()
         for name in code_names:
@@ -1009,7 +1008,6 @@ class ProjectFramework(object):
                 raise InvalidFramework('Duplicate display name "%s"' % name)
 
         # VALIDATE CASCADES
-
         if 'cascades' not in self.sheets or not self.cascades:
             # Make the fallback cascade with name 'Default'
             used_fallback_cascade = True

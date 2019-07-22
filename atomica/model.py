@@ -343,6 +343,7 @@ class Compartment(Variable):
         """
         Link(pop=self.pop, parameter=par, source=self, dest=dest)
 
+
 class JunctionCompartment(Compartment):
     def __init__(self, pop, name):
         super().__init__(pop,name)
@@ -353,10 +354,6 @@ class JunctionCompartment(Compartment):
         # be resolved junction-by-junction
         # TODO - Look into whether a recursive algorithm here can simplify update_junctions
         pass
-
-    def preallocate(self, tvec: np.array, dt: float) -> None:
-        super().preallocate(tvec,dt)
-        self.vals.fill(0.0)  #: Source compartments have an unlimited number of people in them. TODO: If this complicates validation, set to 0.0
 
     def update(self, ti: int) -> None:
         pass
@@ -378,24 +375,37 @@ class JunctionCompartment(Compartment):
                     return n,c
         return None, None
 
-    def initialize(self):
+    # def preallocate(self, tvec: np.array, dt: float) -> None:
+    #     super().preallocate(tvec, dt)
+    #     self.vals.fill(0.0)  #: Source compartments have an unlimited number of people in them. TODO: If this complicates validation, set to 0.0
+
+    def promote_links(self):
         """
-        Initialize junction
+        Promote Links to TimedLinks based on transition structure
 
         This method performs validation checks, promotes Links to TimedLinks
         :return:
         """
 
-        # Check the inputs and see if any are TimedCompartments
-        duration_group, duration_comp = self.get_duration_group()
+        # Determine whether this is a timed junction (whether direct or indirect)
+        duration_group = self.get_duration_group()
+
+        # If it's a timed junction, check that all input links match the duration group
         if duration_group is not None:
-            # If we have 
-            for link in comp.inlinks:
-                if duration_group is not None:
-                    assert n == duration_group, 'All junction inflows must belong to the same duration group'
-                elif n is not None:
-                    duration_group = n
-                    duration_comp = c
+            for link in self.inlinks:
+                if isinstance(link.source,JunctionCompartment):
+                    assert duration_group == link.source.get_duration_group()
+                    if not isinstance(link, TimedLink):
+                        TimedLink.convert(link)
+                elif isinstance(link.source,TimedCompartment):
+                    assert duration_group == link.source.parameter.name
+                else:
+                    raise Exception('If a junction receives a timed input, it cannot receive any untimed inputs')
+
+        # Now, we can preallocate
+
+
+
 
 
 
@@ -414,17 +424,10 @@ class JunctionCompartment(Compartment):
                         'If a junction receives an input from a TimedCompartment all other inputs must be junctions or timed compartments')
 
 
-
-
-
-
         # Now, check the outlinks
         for link in dest.outlinks:
             if isinstance(link.dest,JunctionCompartment) or (isinstance(link.dest, TimedCompartment) and link.dest.parameter.name == duration_group):
                 TimedLink.convert(link)  # Convert the Link into a TimedLink
-
-
-
 
 
     def balance(self, ti: int) -> None:
@@ -458,7 +461,7 @@ class JunctionCompartment(Compartment):
                 # TimedLinks will pass outputs in the same duration group to all subcompartments
                 # apart from the first one
                 if np.isnan(link._vals[0,ti]):
-                    return # Abort early, this can happen if the junction is receiving inputs from a junction that is yet to be balanced. So instead, trigger updating this junction when the last junction is balanced
+                    return # Abort early, this can happen if the junction is receiving inputs from a junction that is yet to be balanced. So instead, trigger updating this junction when the *other* junction gets balanced
                 net_outputs[:-1] += link._vals[1:,ti]
             else:
                 # Otherwise, output links feed into the initial subcompartment. Again, we must have
@@ -513,6 +516,7 @@ class JunctionCompartment(Compartment):
             TimedLink(pop=self.pop, parameter=par, source=self, dest=dest)
         else:
             Link(pop=self.pop, parameter=par, source=self, dest=dest)
+
 
 class SourceCompartment(Compartment):
     """
@@ -608,9 +612,9 @@ class TimedCompartment(Compartment):
 
         raise Exception('Unexpected usage - writing back to ``.vals`` may give unexpected results because the specific times spent currently stored in the compartment will be lost')
 
-        assert value.ndim == 1, 'Array must be a vector'
-        assert value.size == self.tvec.size, 'Number of time points does not match'
-        self._vals = value.reshape((1, -1)) / (self._vals.shape[0] * np.ones((self._vals.shape[0], 1)))
+        # assert value.ndim == 1, 'Array must be a vector'
+        # assert value.size == self.tvec.size, 'Number of time points does not match'
+        # self._vals = value.reshape((1, -1)) / (self._vals.shape[0] * np.ones((self._vals.shape[0], 1)))
 
     def __getitem__(self, ti):
         """
@@ -777,6 +781,7 @@ class TimedCompartment(Compartment):
             self.flush_link = new_link
             new_link.parameter = None
             par.links = []
+
 
 class Characteristic(Variable):
     """ A characteristic represents a grouping of compartments. """
@@ -1246,11 +1251,15 @@ class TimedLink(Link):
         """
         Turn a Link into a TimedLink
 
+        If the link is already a TimedLink, do nothing
+
         :param link: A Link instance to convert
 
         """
-        del link.vals
-        link.__class__ = cls
+
+        if not isinstance(link, cls):
+            del link.vals
+            link.__class__ = cls
 
     def __init__(self, pop, parameter, source, dest):
         Link.__init__(self, pop, parameter, source, dest)
@@ -1272,6 +1281,10 @@ class TimedLink(Link):
     def preallocate(self, tvec: np.array, dt: float) -> None:
         """
         Preallocate data storage
+
+        Note that TimedLinks preallocate their internal storage based on the preallocated size
+        of the source TimedCompartment. Therefore, it must be preallocated after the compartments
+        have been preallocated.
 
         :param tvec: An array of time values
         :param dt: Time step size
@@ -1906,7 +1919,7 @@ class Model(object):
                         target_pop_obj = self.get_pop(pop_target)
 
                         for source in pop.comps:
-                            if not (isinstance(source,SourceCompartment) or source.tag_dead or isinstance(source,JunctionCompartment):
+                            if not (isinstance(source,SourceCompartment) or source.tag_dead or isinstance(source,JunctionCompartment)):
                                 # Instantiate a link between corresponding compartments
                                 dest = target_pop_obj.get_comp(source.name)  # Get the corresponding compartment
                                 link = Link.new(pop, par, source, dest)
