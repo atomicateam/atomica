@@ -349,6 +349,7 @@ class JunctionCompartment(Compartment):
     def __init__(self, pop, name: str):
         super().__init__(pop,name)
         self._cache_duration = 0  #: Cache the subcompartment size
+        self.duration_group = None
 
     def resolve_outflows(self, ti: int) -> None:
         # Junction outflows are resolved in a separate step because they cannot
@@ -362,17 +363,22 @@ class JunctionCompartment(Compartment):
         """
         Return junction duration group
 
-        A junction is considered to belong to a duration group if it receives any timed inputs. If it receives
-        an untimed input from a timed compartment, this would be the result of a flush link, so the constraints
-        that apply to timed junction compartments don't need to apply.
+        A junction is considered to belong to a duration group if it is attached to a duration group on _both_ the upstream
+        and downstream sides. Attachment may be via any type of link, but a flush link does not provide an attachment. For
+        upstream compartments, attachment is therefore mediated by
 
         :return: The name of the timed parameter (duration group) - None if not timed, and a reference to the compartment supplying the group (if needed for preallocation/initialization)
 
         """
 
+        # Check upstream attachments
+        upstream_par_name = None
+        upstream_comp = None
         for link in self.inlinks:
             if isinstance(link, TimedLink):
-                return link.get_duration_group()
+                upstream_par_name, upstream_comp = link.get_duration_group()
+
+
         return None, None
 
     def get_flush_groups(self, groups: set = None) -> set:
@@ -781,14 +787,17 @@ class TimedCompartment(Compartment):
         """
         Construct link out of this compartment
 
-        For TimedCompartments, outgoing links are 
+        For TimedCompartments, outgoing links are
 
         :param dest: A ``Compartment`` instance
         :param par: The parameter that the Link will be associated with
 
         """
 
-        new_link = TimedLink(pop=self.pop, parameter=par, source=self, dest=dest)
+        if isinstance(dest, TimedCompartment) and dest.parameter.name == self.parameter.name:  # Comparing name rather than the instance ID will allow duration-preserving transfers
+            new_link = TimedLink(pop=self.pop, parameter=par, source=self, dest=dest)
+        else:
+            new_link = Link(pop=self.pop, parameter=par, source=self, dest=dest)
 
         if par is self.parameter:
             # If we are connecting up the timed parameter, also assign it to the flush link

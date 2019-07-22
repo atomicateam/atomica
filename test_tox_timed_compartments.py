@@ -88,7 +88,7 @@ def test_flows():
     ps.pars['alive'].ts[0].insert(2018,0) # Zero birth rate
     ps.pars['sus'].ts[0].insert(2018,0) # Zero birth rate
 
-def timed_tb():
+def test_timed_tb():
     P = at.Project(framework=testdir + 'tb_timed_framework.xlsx', databook=testdir + 'tb_timed_databook.xlsx', do_run=True)
 
 def test_lifespan():
@@ -99,7 +99,7 @@ def test_lifespan():
 def test_junctions():
     res = run_framework('timed_junctions_1.xlsx')
 
-def test_multiple():
+def test_indirect():
     res = run_framework('timed_test_indirect_framework.xlsx')
 
 
@@ -109,4 +109,5 @@ if __name__ == '__main__':
     # test_spike()
     # test_lifespan()
     # test_junctions()
-    test_multiple()
+    test_indirect()
+    # test_timed_tb()

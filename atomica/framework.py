@@ -10,8 +10,9 @@ class, which provides a Python representation of a Framework file.
 import numpy as np
 import openpyxl
 import pandas as pd
-
+import networkx as nx
 import sciris as sc
+
 from .cascade import validate_cascade
 from .excel import read_tables, validate_category
 from .function_parser import parse_function
@@ -461,6 +462,7 @@ class ProjectFramework(object):
                             raise InvalidFramework('Parameter "%s" belongs to pop type "%s" but it appears in the transition matrix for "%s"' % (par_name, pars[par_name], df.index.name))
 
                         if self.pars.at[par_name,'timed'] == 'y':
+                            self.comps.at[from_comp,'duration group'] = par_name
                             if first_timed:
                                 raise InvalidFramework(f'A compartment can only have one timed outflow - e.g., Parameters {first_timed}" and "{par_name}" are both timed parameters, so they cannot both be associated with Compartment "{from_comp}"')
                             if self.comps.at[from_comp,'is source'] == 'y' or self.comps.at[from_comp,'is sink'] == 'y' or self.comps.at[from_comp,'is junction'] == 'y':
@@ -556,6 +558,7 @@ class ProjectFramework(object):
         # In general, if the user has specified any pop types, then the first population type will be
         # selected as the default in downstream functions e.g. `ProjectData.add_pop`
         self.comps['population type'] = self.comps['population type'].fillna(available_pop_types[0])
+        self.comps['duration group'] = None  # Store the duration group (the name of the outgoing timed parameter) if there is one
 
         # Default setup weight is 1 if in databook or 0 otherwise
         # This is a separate check because the default value depends on other columns
@@ -1082,6 +1085,62 @@ class ProjectFramework(object):
 
             if np.linalg.matrix_rank(A) < len(comps):
                 logger.warning('Initialization characteristics are underdetermined - this may be intentional, but check the initial compartment sizes carefully')
+
+        # ASSIGN DURATION GROUPS
+        # This needs to be done for compartments, as well as junctions
+        # We can also validate that junctions do not have cycles at this point
+        if any(self.comps['duration group']):
+
+            # For each junction, work out if there are any upstream or downstream timed compartments
+            for junc_name in self.comps.index[self.comps['is junction'] == 'y']:
+
+                # Retrieve the transition matrix for the given population type
+                for s in self.sheets['transitions']:
+                    if junc_name in s.index:
+                        transition_matrix = s
+                        break
+
+                # We are a member of the duration group if there is a path to a timed compartment
+                # that does not go via a timed parameter
+                def get_attached_comps(comp_name, direction, comps=None, groups=None):
+                    if comps is None:
+                        comps = set()
+                        groups = set()
+
+                    if direction == 'upstream':
+                        items = zip(transition_matrix.columns.tolist(), transition_matrix[comp_name].tolist())
+                    if direction == 'downstream':
+                        items = zip(transition_matrix.index.tolist(), transition_matrix.loc[comp_name].tolist())
+
+                    for inflow_comp, inflow_par in items:
+                        if inflow_par is None:
+                            continue
+                        elif self.comps.at[inflow_comp, 'is junction'] == 'y':
+                            get_attached_comps(inflow_comp, direction, comps, groups)
+                        else:
+                            comps.add(inflow_comp) # Add the inflow comp regardless of how it's connected
+                            if self.pars.at[inflow_par, 'timed'] != 'y':
+                                group = self.comps.at[inflow_comp, 'duration group']
+                                groups.add(group)
+
+                    return comps, groups
+
+                upstream_comps, upstream_groups = get_attached_comps(junc_name, 'upstream')
+
+                if len(upstream_groups) > 1:
+                    # Note that because `None` is a 'group', this check will correctly detect cases where a single duration group is mixed with an untimed inflow
+                    raise InvalidFramework(f'Junction "{junc_name}" receives upstream inputs from more than one duration group (a compartment with a timed parameter that is not flushing into this junction)')
+                elif len(upstream_groups) == 0 or upstream_groups == {None}:
+                    continue # If there are no upstream timed compartments, we can rule out the junction from belonging to a duration group
+
+                # There is exactly one upstream duration group. Now check whether the compartment belongs to the duration group or not
+                downstream_comps, downstream_groups = get_attached_comps(junc_name, 'downstream')
+                if downstream_groups == upstream_groups:
+                    # We belong to the group
+                    self.comps.at[junc_name,'duration group'] = list(downstream_groups)[0]
+                else:
+                    assert not downstream_groups.intersection(upstream_groups), f'Junction "{junc_name}" receives upstream inputs from a duration group. The downstream compartments can either all belong to the same group, or none can belong to that group'
+
 
     def get_databook_units(self, code_name: str) -> str:
         """
