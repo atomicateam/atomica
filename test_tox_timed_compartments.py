@@ -99,6 +99,8 @@ def test_lifespan():
 def test_junctions():
     res = run_framework('timed_junctions_1.xlsx')
 
+def test_multiple():
+    res = run_framework('timed_test_indirect_framework.xlsx')
 
 
 if __name__ == '__main__':
@@ -106,4 +108,5 @@ if __name__ == '__main__':
     # test_zero_duration()
     # test_spike()
     # test_lifespan()
-    test_junctions()
+    # test_junctions()
+    test_multiple()
