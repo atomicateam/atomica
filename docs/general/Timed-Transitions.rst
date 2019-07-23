@@ -68,3 +68,11 @@ At each timestep, any individuals needing to be flushed from the compartment are
 To reduce storage requirements, the top row is omitted and that way ``TimedLink`` instances act on entire columns at a time.
 
 Step (2) in this calculation populates the flush links with the number of people in each ``TimedCompartment`` that need to be cleared from the state. Therefore, they have their values set based on the ``TimedCompartment`` they are associated with during step (2), and are not updated during ``update_links``.
+
+
+Test cases
+**********
+
+- Indirect flows (multiple junctions)
+- Transfers with different durations in same group
+- TimedCompartments with duration less than one timestep

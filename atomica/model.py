@@ -375,6 +375,8 @@ class JunctionCompartment(Compartment):
         """
 
         if self.duration_group:
+            if (isinstance(dest, TimedCompartment) and dest.parameter.name != self.duration_group) or (isinstance(dest, JunctionCompartment) and dest.duration_group != self.duration_group):
+                raise Exception('Mismatched junction duration groups - the framework has not been validated correctly')
             TimedLink.create(pop=self.pop, parameter=par, source=self, dest=dest)
         else:
             Link.create(pop=self.pop, parameter=par, source=self, dest=dest)
@@ -389,106 +391,44 @@ class JunctionCompartment(Compartment):
 
     def preallocate(self, tvec: np.array, dt: float) -> None:
         super().preallocate(tvec, dt)
-        self.vals.fill(0.0)  #: Junction compartments are always empty
-        _, duration_comp = self.get_duration_group()
-        if duration_comp is not None:
-            self._cache_duration = duration_comp._vals.shape[0]
-
-    def validate(self) -> None:
-        """
-        Validate and promote Links to TimedLinks
-
-        This method checks that inflows and outflows are valid, and that
-        This method performs validation checks, promotes Links to TimedLinks
-
-        """
-
-        # Determine whether this is a timed junction (whether direct or indirect)
-        # It's considered a timed junction if it receives input from any TimedLinks
-        # However, one subtlety is that if it receives a flush link input, then it is not allowed
-        # to have outflows into the same duration group (direct or indirect)
-
-        duration_group = self.get_duration_group()[0]
-
-        if duration_group is not None:
-            # If it's a timed junction, then we need to make sure we
-            # only receive timed inputs inputs from the same duration group
-            for link in self.inlinks:
-                assert isinstance(link, TimedLink), 'If a junction receives a timed input, it cannot receive any untimed inputs'
-                if isinstance(link.source, JunctionCompartment):
-                    assert duration_group == link.source.get_duration_group(), 'Duration group mismatch'
-                elif isinstance(link.source, TimedCompartment):
-                    assert duration_group == link.source.parameter.name, 'Duration group mismatch'
-
-            # If it's a timed junction, then all outputs should be TimedLinks
-            for link in self.outlinks:
-                TimedLink.convert(link)
-        else:
-            flush_groups = self.get_flush_groups() # This is a set of all of the duration groups flushing into this compartment
-            # Immediate outflows cannot flow into any of the flush duration groups - otherwise, the notion that
-            # the flush link removes an individual from the duration group would not be satisfied.
-            # If the outflow is into a junction, then the downstream junction is responsible for validation
-            for link in self.outlinks:
-                if isinstance(link.dest, TimedCompartment):
-                    assert link.dest.parameter.name not in flush_groups, 'Flush outflow cannot return to the same duration group'
+        self.vals.fill(0.0)  #: Junction compartments are always empty (note the first entry may be given a nonzero value after compartment initialization and before the initial flush)
 
     def balance(self, ti: int) -> None:
-        # This is the primary update for a junction - where outflows are adjusted so that they
-        # equal the inflows. It's analogous to `resolve_outflows` as a primary update method, but
-        # it takes place at a separate integration stage (once the outflows for normal compartments
-        # have been finalized, as these outputs serve as the junction inputs in that same timestep)
-        # After this method is called, all outflows should equal inflows
-        # The parameter workflow is simplified because all links flowing out of junctions must be
-        # in 'proportion' units, so they can be looked up and used directly
+        """
+        Balance junction inflows and outflows
 
-        # Flow logic is
-        # - Work out the normalized outflow fractions
-        # - Assign each input proportionately to each output
+        This is the primary update for a junction - where outflows are adjusted so that they
+        equal the inflows. It's analogous to `resolve_outflows` as a primary update method, but
+        it takes place at a separate integration stage (once the outflows for normal compartments
+        have been finalized, as these outputs serve as the junction inputs in that same timestep)
+        After this method is called, all outflows should equal inflows
 
-        # Now this is the net flow to each subcompartment in each outlink
-        # The subcompartments come from the inlinks. The resulting matrix
-        # is (inlink_duration x num_outlinks) in size
-        net_outputs = np.zeros(self._cache_duration+1,1) # The +1 is because we can't mix people arriving via Links and people arriving via TimedLinks
-        for i, link in enumerate(self.inlinks):
-            if isinstance(link, TimedLink):
-                # TimedLinks will pass outputs in the same duration group to all subcompartments
-                # apart from the first one
-                if np.isnan(link._vals[0,ti]):
-                    return # Abort early, this can happen if the junction is receiving inputs from a junction that is yet to be balanced. So instead, trigger updating this junction when the *other* junction gets balanced
-                net_outputs[:-1] += link._vals[1:,ti]
+        The parameter workflow is simplified because all links flowing out of junctions must be
+        in 'proportion' units, so they can be looked up and used directly.
+
+        :param ti: Time index to update (scalar only, as this function is only called during integration)
+
+        """
+
+        # First, work out the total inflow that needs to pass through the junction
+        net_inflow = 0
+        if self.duration_group:
+            for link in self.inlinks:
+                net_inflow += link._vals[:,ti]  # If part of a duration group, get the flow from TimedLink._vals
+        else:
+            for link in self.inlinks:
+                net_inflow += link[ti] # If not part of a duration group, get scalar flow from Link[]
+
+        # Next, normalize all of the outflows. Note that the parameters are guaranteed to be in proportion units here
+        outflow_fractions = np.array([link.parameter[ti] for link in self.outlinks])
+        outflow_fractions /= np.sum(outflow_fractions)
+
+        # Finally, assign the inflow to the outflow proportionately
+        for frac, link in zip(outflow_fractions, self.outlinks):
+            if self.duration_group:
+                link._vals[:,ti] = net_inflow * frac
             else:
-                # Otherwise, output links feed into the initial subcompartment. Again, we must have
-                # a leading zero if there are any TimedCompartments downstream
-                if np.isnan(link[ti]):
-                    return # Abort early if link isn't yet initialized
-                net_outputs[-1] += link[ti]
-
-        if ti == 0 and self.vals[ti]:
-            # If this is the initial timestep and there needs to be an initial flush, then add those in too
-            # The initial flush gets multiplied by the outlink weights to decide what proportion goes to which
-            # So we just add the initial compartment size to every outgoing subcompartment, and the weights
-            # will scale them down. Note that the initial flush WILL place people into the final
-            # subcompartment, just the same as if the downstream compartment had been initialized in that way.
-            net_outputs += self.vals[ti]/self._cache_duration
-
-        # Normalized vector saying, for each inlink, what proportion goes to each outlink
-        outlink_weights = np.array([link.parameter[ti] for link in self.outlinks])
-        outlink_weights /= np.sum(outlink_weights)
-        net_outputs *= outlink_weights
-
-        rebalance = []
-
-        for i, link in enumerate(self.outlinks):
-            if isinstance(link, TimedLink):
-                # Preserve durations within the same duration group
-                # An outgoing TimedLink is only created either if the duration group matches
-                link._vals[:,ti] = net_outputs[:,i]
-            else:
-                link.vals[ti] = np.sum(net_outputs[:,i]) # Put all of the outputs into the (untimed) Link
-            if isinstance(link.dest, JunctionCompartment):
-                rebalance.append(link.dest)
-
-        [j.balance() for j in rebalance] # Rebalance any compartments that received an inflow from this junction
+                link[ti] = net_inflow * frac
 
     def initial_flush(self) -> None:
         """
@@ -496,35 +436,24 @@ class JunctionCompartment(Compartment):
 
         If the junction was initialized with a nonzero value, then the initial people need to be flushed.
         This is distinct from balancing, because the source of the people is the junction itself, rather
-        than the incoming links. Further, it also behaves differently with regard to downstream timed
-        compartments - if a TimedCompartment is downstream of the junction, the people will be uniformly
-        split across all subcompartments, even if the connection is via a normal link (so that subsequent
-        balancing only flows into the initial subcompartment). Similarly, normally TimedLinks do not
-        move anyone in the final subcompartment (so that nobody can remain within the duration group).
+        than the incoming links.
 
-        :return:
+        In this step, we need to actually update the value of the downstream compartments, rather than
+        updating the link values - the links get rebalanced again based on the parameters after the
+        initial flush has been completed
+
         """
-        # Perform an initial junction flush
-        # This happens if the junction has received
 
-    # def connect(self, dest, par) -> None:
-    #     # Connect up this junction
-    #     # If the junction has any inflows from TimedCompartments, then it should have timed outflows
-    #     # To keep things tractable, it's only allowed to have inputs from one duration group
-    #     # Any destination is acceptable, however
-    #
-    #     # First, check if we have a destination group
-    #     duration_group = None
-    #     for link in self.inlinks:
-    #         if isinstance(link.source, TimedCompartment):
-    #             duration_group = link.source.parameter.name
-    #
-    #     # Then, check that the downstream compartment is valid
-    #     if isinstance(dest, TimedCompartment):
-    #         assert dest.parameter.name == duration_group, "Duration group for destination parameter does not match"
-    #         TimedLink(pop=self.pop, parameter=par, source=self, dest=dest)
-    #     else:
-    #         Link(pop=self.pop, parameter=par, source=self, dest=dest)
+        if self.vals[0] > 0:
+            # Work out the outflow fractions
+            outflow_fractions = np.array([link.parameter[0] for link in self.outlinks])
+            outflow_fractions /= np.sum(outflow_fractions)
+
+            # Assign the inflow directly to the outflow compartments
+            for frac, link in zip(outflow_fractions, self.outlinks):
+                link.dest[0] = self.vals[0] * frac
+
+            self.vals[0] = 0.0
 
 
 class SourceCompartment(Compartment):
@@ -615,8 +544,8 @@ class TimedCompartment(Compartment):
         Compartment.__init__(self, pop=pop, name=name)
         self._vals = None  #: Primary storage, a matrix of size (duration x timesteps). The first row is the one that people leave from, the last row is the one that people arrive in
         self.parameter = parameter  #: The parameter to read the duration from - this needs to be done after parameters are precomputed though, in case the duration is coming from a (constant) function
-        self.duration = None  #: Duration (in years)
         self.flush_link = None  #: Reference to the timed outflow link that flushes the compartment. Note that this needs to be set externally because Links are instantiated after Compartments
+        self._cached_outflow = None  #: Cache the subcompartment outflows after resolving outflows and before updating
 
     def unlink(self):
         Compartment.unlink(self)
@@ -642,30 +571,27 @@ class TimedCompartment(Compartment):
 
         return self._vals.sum(axis=0)
 
-    @vals.setter
-    def vals(self, value: np.array) -> None:
-        """
-        Set values for all times
-
-        If the user assigns to _all_ values at once, then this setter method will automatically split
-        them up into time bins e.g. passing in a value of 3 with a duration of 3 timesteps will assign
-        1 person to each arrival time (and 1 person will be available to immediately transition via
-        the timed transition).
-
-        In theory, this method should not get used because the only time values get written to the
-        Compartment are during integration and thus only within the timestepping in `Model.process()`.
-        So this functionality is currently disabled, until there is a specific use case for it.
-
-        """
-
-        if value is None:
-            return # Do nothing if the value is None
-
-        raise Exception('Unexpected usage - writing back to ``.vals`` may give unexpected results because the specific times spent currently stored in the compartment will be lost')
-
-        # assert value.ndim == 1, 'Array must be a vector'
-        # assert value.size == self.tvec.size, 'Number of time points does not match'
-        # self._vals = value.reshape((1, -1)) / (self._vals.shape[0] * np.ones((self._vals.shape[0], 1)))
+    # @vals.setter
+    # def vals(self, value: np.array) -> None:
+    #     """
+    #     Set values for all times
+    #
+    #     If the user assigns to _all_ values at once, then this setter method will automatically split
+    #     them up into time bins e.g. passing in a value of 3 with a duration of 3 timesteps will assign
+    #     1 person to each arrival time (and 1 person will be available to immediately transition via
+    #     the timed transition).
+    #
+    #     In theory, this method should not get used because the only time values get written to the
+    #     Compartment are during integration and thus only within the timestepping in `Model.process()`.
+    #     So this functionality is currently disabled, until there is a specific use case for it.
+    #
+    #     """
+    #
+    #
+    #     raise Exception('Unexpected usage - writing back to ``.vals`` may give unexpected results because the specific times spent currently stored in the compartment will be lost')
+    #
+    #     if value is None:
+    #         return # Do nothing if the value is None
 
     def __getitem__(self, ti):
         """
@@ -722,8 +648,8 @@ class TimedCompartment(Compartment):
         self.t = tvec
         self.dt = dt
         assert np.all(self.parameter.vals==self.parameter.vals[0]), 'Duration parameter value cannot vary over time'
-        self.duration = self.parameter.vals[0] * self.parameter.timescale * self.parameter.scale_factor
-        self._vals = np.empty((math.ceil(self.duration/dt),tvec.size), order='F')  # Fortran/column-major order should be faster for summing over lags to get `vals`
+        duration = self.parameter.vals[0] * self.parameter.timescale * self.parameter.scale_factor
+        self._vals = np.empty((math.ceil(duration/dt),tvec.size), order='F')  # Fortran/column-major order should be faster for summing over lags to get `vals`
         self._vals.fill(np.nan)
 
     def resolve_outflows(self,ti: int) -> None:
@@ -754,16 +680,18 @@ class TimedCompartment(Compartment):
         rescale = np.divide(1, total_outflow, out=np.ones_like(total_outflow), where=total_outflow > 1)
         n = rescale * self._vals[:, ti]  # Rescaled number of people - to multiply by the cache value on each link
 
-        final_subcompartment_outflow = 0.0
+        self._cached_outflow = np.zeros(self._vals.shape[0]) # Cache the outflow, because for Links, we accumulate the subcompartment outflow but we need to record the subcompartment outflow separately
         for link in self.outlinks:
             if isinstance(link, TimedLink):
-                link._vals[1:, ti] = n[1:]*link._cache
-                link._vals[0, ti] = 0.0
-            else:
                 link._vals[:, ti] = n*link._cache
-                final_subcompartment_outflow += link._vals[0,ti]
+                link._vals[0, ti] = 0.0  # No flow out of final subcompartment
+                self._cached_outflow += link._vals[:, ti]
+            else:
+                link[ti] = sum(n*link._cache)
+                self._cached_outflow += n*link._cache
 
-        self.flush_link[ti] = max(0,self._vals[0,ti] - final_subcompartment_outflow)
+        self.flush_link[ti] = max(0,self._vals[0,ti] - self._cached_outflow[0])
+        self._cached_outflow[0] += self.flush_link[ti]
 
     def update(self, ti: int) -> None:
         """
@@ -777,26 +705,18 @@ class TimedCompartment(Compartment):
         """
 
         tr = ti-1
-        self._vals[:, ti] = self._vals[:, tr]
 
-        # First, apply all of the outflows
-        # With the exception of the flush link, all outflows are TimedLinks
-        for link in self.outlinks:
-            if isinstance(link,TimedLink):
-                self.vals[:, ti] -= link._vals[:,tr] # TimedLinks act on all subcompartments. Those that are within the same duration group should have a leading 0
-            else:
-                self.vals[0, ti] -= link[ti] # The flush link acts only on the final subcompartment
+        # First, apply all of the outflows (computed by `resolve_outflows()` at the last timestep)
+        self._vals[:, ti] = self._vals[:, tr] - self._cached_outflow
 
-        # Now, resolved TimedLink inputs from the same duration group
-        # This happens before advancing the keyring because people making a within-group
-        # transition need to be advanced in this timestep. All other links flow into the
-        # initial subcompartment, as durations are not tracked for such links
+        # Then, add in TimedLink inputs (prior to advancing the keyring)
         for link in self.inlinks:
-            if isinstance(link.dest,TimedCompartment) and link.dest.parameter.name == self.parameter.name:
+            if isinstance(link, TimedLink):
                 self._vals[:,ti] += link._vals[:,tr]
+                # TODO - if these sizes don't match, then we need to index the rows appropriately
 
         # Advance the keyring
-        assert np.isclose(self._vals[0, ti], 0)  # Now, the flush subcompartment should be empty - maybe disable this check if it's slow
+        assert np.isclose(self._vals[0, ti], 0)  # Now, the final subcompartment should be empty - can disable this check if it's slow
         if self._vals.shape[0] > 1:
             self._vals[0:-1, ti] = self._vals[1:, ti]
         self._vals[-1,ti] = 0.0  # Zero out the inflow (otherwise, it just replicates previous value)
@@ -804,7 +724,7 @@ class TimedCompartment(Compartment):
         # Now, resolve other inputs for which durations are not preserved
         # Regardless of whether they are TimedLinks or not, they should go into the initial subcompartment
         for link in self.inlinks:
-            if not (isinstance(link.dest,TimedCompartment) and link.dest.parameter.name == self.parameter.name):
+            if not isinstance(link, TimedLink):
                 self._vals[-1,ti] += link[tr]
 
         # Stop the system becoming numerically negative TODO - Check performance
@@ -814,7 +734,9 @@ class TimedCompartment(Compartment):
         """
         Construct link out of this compartment
 
-        For TimedCompartments, outgoing links are
+        For TimedCompartments, outgoing links are TimedLinks if the downstream compartment belongs to the same
+        duration group. For this purpose, a junction can be part of a duration group if all of the downstream
+        junction outputs are in this compartment's duration group.
 
         :param dest: A ``Compartment`` instance
         :param par: The parameter that the Link will be associated with
@@ -825,6 +747,7 @@ class TimedCompartment(Compartment):
             # Note that comparing the name rather than the instance ID will allow duration-preserving transfers where a difference instance of the same parameter is present in the dest population
             new_link = TimedLink.create(pop=self.pop, parameter=par, source=self, dest=dest)
         else:
+            # Note that if the duration group doesn't match, then a Link rather than a TimedLink will be instantiated
             new_link = Link.create(pop=self.pop, parameter=par, source=self, dest=dest)
 
         if par is self.parameter:
@@ -1218,6 +1141,12 @@ class Link(Variable):
         new_link.dest.inlinks.append(new_link)
         pop.links.append(new_link)
 
+        # Add the link to the population's lookup
+        if new_link.name in pop.link_lookup:
+            pop.link_lookup[new_link.name].append(new_link)
+        else:
+            pop.link_lookup[new_link.name] = [new_link]
+
         return new_link
 
 
@@ -1355,8 +1284,16 @@ class TimedLink(Link):
         # Preallocate to the same size as the source compartment
         self.t = tvec
         self.dt = dt
-        _, duration_comp = self.get_duration_group() # This will correctly identify the source compartment for TimedLinks out of JunctionCompartments
-        self._vals = np.empty(duration_comp._vals.shape, order='F')  # Fortran/column-major order should be faster for summing over lags to get `vals`
+        if isinstance(self.source, TimedCompartment):
+            # Preallocate based on the timed compartment size
+            self._vals = np.empty(self.source._vals.shape, order='F')  # Fortran/column-major order should be faster for summing over lags to get `vals`
+        else:
+            # Preallocate based on the upstream junction's duration group
+            # Note that the keyring size calculation is duplicated from TimedCompartment, this could be separated into a function if it is needed any more often than this
+            parameter = self.pop.par_lookup[self.source.duration_group]
+            assert np.all(parameter.vals == parameter.vals[0]), 'Duration parameter value cannot vary over time'
+            duration = parameter.vals[0] * parameter.timescale * parameter.scale_factor
+            self._vals = np.empty((math.ceil(duration / dt), tvec.size), order='F')  # Fortran/column-major order should be faster for summing over lags to get `vals`
         self._vals.fill(np.nan)
 
     def update(self,ti: int, converted_frac: float) -> None:
@@ -1388,43 +1325,26 @@ class TimedLink(Link):
 
         return self._vals[:, ti].sum(axis=0)
 
-    def __setitem__(self, ti: int, number: float) -> None:
-        """
-        Compatibility for link shortcut calculation
-
-        If we know that nobody is going to make a transition (i.e. if the parameter is 0 or the source popsize is 0)
-        then we can simply set the total outflow to zero. This is performed here by overloading `__setitem__`. If a
-        nonzero number were entered, it would be necessary to make a decision about how that number should be distributed
-        across the subcompartments in the source ``TimedCompartment`` - this logic is contained in ``TimedLink.update()``
-        by virtue of taking in the converted fraction rather than the number of people - which is fine as long as the
-        source popsize is not zero, in which case we can use this function here.
-
-        :param ti: Time index to update
-        :param number: Value to insert
-
-        """
-
-        if number == 0:
-            self._vals[:, ti] = number
-        else:
-            raise Exception('Not supported yet')
-
-    def get_duration_group(self) -> tuple:
-        """
-        Return junction duration group
-
-        A junction is considered to belong to a duration group if it receives any timed inputs. If it receives
-        an untimed input from a timed compartment, this would be the result of a flush link, so the constraints
-        that apply to timed junction compartments don't need to apply.
-
-        :return: The name of the timed parameter (duration group) - None if not timed, and a reference to the compartment supplying the group (if needed for preallocation/initialization)
-
-        """
-
-        if isinstance(self.source, JunctionCompartment):
-            return self.source.get_duration_group()
-        else:
-            return self.source.parameter.name, self.source  # A TimedLink must have an inflow from a junction or a TimedCompartment, if this line results in an error, then the TimedLink has probably been wired up incorrectly
+    # def __setitem__(self, ti: int, number: float) -> None:
+    #     """
+    #     Compatibility for link shortcut calculation
+    #
+    #     If we know that nobody is going to make a transition (i.e. if the parameter is 0 or the source popsize is 0)
+    #     then we can simply set the total outflow to zero. This is performed here by overloading `__setitem__`. If a
+    #     nonzero number were entered, it would be necessary to make a decision about how that number should be distributed
+    #     across the subcompartments in the source ``TimedCompartment`` - this logic is contained in ``TimedLink.update()``
+    #     by virtue of taking in the converted fraction rather than the number of people - which is fine as long as the
+    #     source popsize is not zero, in which case we can use this function here.
+    #
+    #     :param ti: Time index to update
+    #     :param number: Value to insert
+    #
+    #     """
+    #
+    #     if number == 0:
+    #         self._vals[:, ti] = number
+    #     else:
+    #         raise Exception('Not supported yet')
 
 
 class Population(object):
@@ -1469,7 +1389,6 @@ class Population(object):
         self.popsize_cache_val = None
 
         self.is_linked = True  # Flag to manage double unlinking/relinking
-        self.junctions = [] # A list of all of the junctions in execution order - that is, ordered such that junction[k] doesn't flow into junction[i<k]. So we can safely update the junctions in this order
 
     def __repr__(self):
         return '%s "%s"' % (self.__class__.__name__, self.name)
@@ -1484,7 +1403,6 @@ class Population(object):
         self.par_lookup = None
         self.link_lookup = None
         self.is_linked = False
-        self.junctions = [j.id for j in self.junctions]
 
     def relink(self, objs):
         if self.is_linked:
@@ -1497,7 +1415,6 @@ class Population(object):
         link_names = set([link.name for link in self.links])
         self.link_lookup = {name: [link for link in self.links if link.name == name] for name in link_names}
         self.is_linked = True
-        self.junctions = [objs[x] for x in self.junctions]
 
     def popsize(self, ti: int = None):
         """
@@ -1683,10 +1600,6 @@ class Population(object):
                     dst = self.get_comp(pair[1])
                     src.connect(dst, par) # If the parameter is a timed parameter, the TimedCompartment will also assign the FlushLink in this step
 
-
-        link_names = set([link.name for link in self.links])
-        self.link_lookup = {name: [link for link in self.links if link.name == name] for name in link_names}
-
         # Parameters third pass, process f_stacks, deps, and limits
         # This is a separate pass because output parameters can depend on Links
         for par in self.pars:
@@ -1819,12 +1732,12 @@ class Model(object):
     """ A class to wrap up multiple populations within model and handle cross-population transitions. """
 
     def __init__(self, settings, framework, parset, progset=None, program_instructions=None):
-        #
+
         # Note that if a progset is provided and program instructions are not, then programs will not be
         # turned on. However, the progset is still available so that the coverage can still be probed
         # (in particular, the coverage denominator from Result.get_coverage('denominator') is used
         # for reconciliation
-        #
+
         # Record version info for the model run. These are generally NOT updated in migration. Thus, they serve
         # as a record of which specific version of the code was used to generate the results
         self.version = version
@@ -1836,22 +1749,33 @@ class Model(object):
         self.programs_active = None  # True or False depending on whether Programs will be used or not
         self.progset = sc.dcp(progset)
         self.program_instructions = sc.dcp(program_instructions)  # program instructions
-        self.t = None
-        self.dt = None
+        self.t = settings.tvec  #: Simulation time vector (this is a brand new instance from the `settings.tvec` property method)
+        self.dt = settings.sim_dt  #: Simulation time step
 
         self._t_index = 0  # Keeps track of array index for current timepoint data within all compartments.
         self._vars_by_pop = None  # Cache to look up lists of variables by name across populations
         self._pop_ids = sc.odict()  # Maps name of a population to its position index within populations list.
-        self._program_cache = None
-        self._par_list = None  # This is a list of all parameters code names in the model
+        self._program_cache = None  #: Cache program capacities and coverage for coverage scenarios
+        self._par_exec_order = None  #: This is a list of all parameters code names in use in the model, in execution order
+        self._junc_exec_order = None  #: This is a list of ``JunctionCompartments`` in all populations in execution order (forward flow only)
 
         self.framework = sc.dcp(framework)  # Store a copy of the Framework used to generate this model
         self.framework.spreadsheet = None  # No need to keep the spreadsheet
-        self.build(settings, parset)
 
-    def unlink(self):
-        # Break cycles when deepcopying or pickling by swapping them for IDs
-        # Primary storage is in the comps, links, and outputs properties
+        self.build(parset)
+
+    def unlink(self) -> None:
+        """
+        Replace references with IDs
+
+        This method replaces all references with IDs so that there are no circular references
+        that prevent pickling. This operation is reversed using ``Model.relink()``. These get
+        called automatically when pickling and unpickling.
+
+        Note that primary storage of the variables is in the population objects, so that is the
+        one place where the variables remain in-scope.
+
+        """
 
         # If we are already unlinked, do nothing
         if self._vars_by_pop is None:
@@ -1860,28 +1784,45 @@ class Model(object):
         for pop in self.pops:
             pop.unlink()
 
-        # Unlink variables set by self._set_vars_by_pop()
+        # Drop this, it gets set by self._set_vars_by_pop()
         self._vars_by_pop = None
-        self._par_list = None
 
-        self._program_cache = None  # This drops the cache when pickling, but its only going to have anything if pickled DURING process() i.e. only devs would encounter this
+        # Drop cache - this gets set inside `model.process()`
+        self._program_cache = None
 
-    def relink(self):
+        # Preserve this, it is potentially a little expensive to compute so don't want
+        # to recompute them when unpickling during optimization
+        self._junc_exec_order =  [j.id for j in self._junc_exec_order]
+
+    def relink(self) -> None:
+        """
+        Replace IDs with references
+
+        This is the reverse operation of ``Model.unlink()`` where IDs are replaced with
+        object references.
+
+        """
+
+        # If we are already linked, do nothing
+        if self._vars_by_pop is not None:
+            return
+
         # Need to enumerate objects at Model level because transitions link across pops
-
-        # Do we need to link any pops?
         objs = {}
-        if any([not x.is_linked for x in self.pops]):
-            for pop in self.pops:
-                objs[pop.name] = pop
-                for obj in pop.comps + pop.characs + pop.pars + pop.links:
-                    objs[obj.id] = obj
+        for pop in self.pops:
+            objs[pop.name] = pop
+            for obj in pop.comps + pop.characs + pop.pars + pop.links:
+                objs[obj.id] = obj
 
-            for pop in self.pops:
-                pop.relink(objs)
+        # Relink populations
+        for pop in self.pops:
+            pop.relink(objs)
 
-        if self._vars_by_pop is None:
-            self._set_vars_by_pop()
+        # Relink junctions
+        self._junc_exec_order =  [objs[j] for j in self._junc_exec_order]
+
+        # Set vars by pop
+        self._set_vars_by_pop()
 
     def _update_program_cache(self):
 
@@ -1924,12 +1865,6 @@ class Model(object):
                 self._vars_by_pop[var.name].append(var)
         self._vars_by_pop = dict(self._vars_by_pop)  # Stop new entries from appearing in here by accident
 
-        # Finally, it's possible that some parameters may be missing if population types were defined
-        # but no populations with that type were instantiated. So we can safely remove any parameter
-        # names from consideration if they aren't actually present
-        in_use = set(self._vars_by_pop.keys())
-        self._par_list = [x for x in self.framework.pars.index if x in in_use]
-
     def __getstate__(self):
         self.unlink()
         d = sc.dcp(self.__dict__)  # Pickling to string results in a copy
@@ -1956,11 +1891,8 @@ class Model(object):
         pop_index = self._pop_ids[pop_name]
         return self.pops[pop_index]
 
-    def build(self, settings, parset):
+    def build(self, parset):
         """ Build the full model. """
-
-        self.t = settings.tvec  # Note: Class @property method returns a new object each time.
-        self.dt = settings.sim_dt
 
         # First construct populations
         for k, (pop_name, pop_label, pop_type) in enumerate(zip(parset.pop_names, parset.pop_labels, parset.pop_types)):
@@ -2003,23 +1935,20 @@ class Model(object):
 
                         target_pop_obj = self.get_pop(pop_target)
 
-                        for source in pop.comps:
-                            if not (isinstance(source,SourceCompartment) or isinstance(source,SinkCompartment) or isinstance(source,JunctionCompartment)):
+                        for src in pop.comps:
+                            if not (isinstance(src,SourceCompartment) or isinstance(src,SinkCompartment) or isinstance(src,JunctionCompartment)):
                                 # Instantiate a link between corresponding compartments
-                                dest = target_pop_obj.get_comp(source.name)  # Get the corresponding compartment
-                                link = Link.new(pop, par, source, dest)
-                                # TODO - instantiate TimedLink for transfers here
-                                pop.links.append(link)
-                                if link.name in pop.link_lookup:
-                                    pop.link_lookup[link.name].append(link)
-                                else:
-                                    pop.link_lookup[link.name] = [link]
+                                dest = target_pop_obj.get_comp(src.name)  # Get the corresponding compartment
+                                src.connect(dest, par)
 
         # Now that all object have been created, update _vars_by_pop() accordingly
         self._set_vars_by_pop()
 
+        # Set execution order
+        self._set_exec_order()
+
         # Flag dependencies for aggregated parameters prior to precomputing
-        for par in self._par_list:
+        for par in self._par_exec_order:
             pars = self._vars_by_pop[par]
             if pars[0].pop_aggregation:
                 for var in self._vars_by_pop[pars[0].pop_aggregation[1]]:
@@ -2064,19 +1993,46 @@ class Model(object):
                 obj.preallocate(self.t, self.dt)
             pop.initialize_compartments(parset, self.framework, self.t[0])
 
+    def _set_exec_order(self):
+        """
+        Set the execution order for parameters and junctions
+
+        This method sets the list of parameters and junctions in execution order for use in ``Model.process()``.
+        It should be called after all parameters and their dependencies have been instantiated, as well as all
+        junctions and links. This method is called automatically as part of ``build()`` and should be called again
+        if the parameters or junctions are modified after building.
+
+        :return:
+        """
+
+        # Set the parameter execution order
+        self._par_exec_order = [x for x in self.framework.pars.index if x in self._vars_by_pop.keys()]
+
+        # Set the junction execution order
+        G = nx.DiGraph()
+        for pop in self.pops:
+            for comp in pop.comps:
+                if isinstance(comp, JunctionCompartment):
+                    G.add_node(comp)
+                    for link in comp.outlinks:
+                        if isinstance(link.dest, JunctionCompartment):
+                            G.add_edge(link.source, link.dest)
+
+        assert nx.dag.is_directed_acyclic_graph(G), 'There is a cycle present where one junction has flows into another, which results in an infinite loop and is not permitted'
+        self._junc_exec_order = list(nx.dag.topological_sort(G))  # Topological sorting of the junction graph, which is a valid execution order
+
     # @profile
     def process(self):
         """ Run the full model. """
 
         assert self._t_index == 0  # Only makes sense to process a simulation once, starting at ti=0 - this might be relaxed later on
-
         self._update_program_cache()
 
         # Initial flush of people in junctions
         if self._t_index == 0:
             # Make sure initially-filled junctions are processed and initial dependencies are calculated, and calculate initial flows
             self.update_pars()  # Update transition parameters in case junction outflows are function parameters
-            self.update_junctions(initial_flush=True)  # Flush the current contents of the junction without considering any inflows
+            self.flush_junctions() # Flush the current contents of the junction without considering any inflows
             self.update_pars()  # Update the transition parameters in case junction outflows are functions _and_ they depend on compartment sizes that just changed in the line above
             self.update_links()  # Update all of the links
             self.update_junctions()  # Junctions are now empty - perform a normal update by setting the outflows to be equal to the inflows so the usual condition outflow[t]=inflow[t] is satisfied
@@ -2206,20 +2162,37 @@ class Model(object):
             for comp in pop.comps:
                 comp.update(ti)
 
-    # @profile
-    def update_junctions(self, initial_flush=False):
+    def flush_junctions(self):
         """
-        For every compartment considered a junction, propagate the contents onwards.
-        Do so until all junctions are empty.
+        Flush initialization values from junctions
+
+        If junctions have been initialized with nonzero values as a proxy for initializing the
+        downstream compartments, then the junctions need to be flushed into the downstream
+        compartments at the start of the simulation. This is done using the ``.flush()`` method
+        of the ``JunctionCompartment``. The order of the loop is important if junctions flow into
+        other junctions - this needs to be computed from the graph prior to calling this method
+        (so that ``Model.junctions`` is in the correct order)
+
         """
 
-        # A junction can be called either at the very start of the simulation, when it might have
-        # some people in it initially, or after `update_links` in which case it won't have any people
-        # so it needs to fill itself from its incoming links
+        for j in self._junc_exec_order:
+            j.initial_flush()
+
+    # @profile
+    def update_junctions(self):
+        """
+        Update junctions by balancing
+
+        Call ``JunctionCompartment.balance()`` on every junction in the model. The order
+        of the loop is important if junctions flow into other junctions - this needs to be
+        computed from the graph prior to calling this method (so that ``Model.junctions`` is
+        in the correct order)
+
+        """
 
         ti = self._t_index  # The current simulation timestep, at time ti the inflow and outflow need to be balanced. `update_links()` sets the inflow but not the outflow, which is done here
-        for j in self.junctions:
-            j.balance()
+        for j in self._junc_exec_order:
+            j.balance(ti)
 
     # @profile
     def update_pars(self):
@@ -2254,7 +2227,7 @@ class Model(object):
                     prop_coverage[k] = self.progset.programs[k].get_prop_covered(self.t[ti], self._program_cache['capacities'][k][ti], n)
             prog_vals = self.progset.get_outcomes(prop_coverage)
 
-        for par_name in self._par_list:
+        for par_name in self._par_exec_order:
             # All of the parameters with this name, across populations.
             # There should be one for each population (these are Parameters, not Links).
             pars = self._vars_by_pop[par_name]
