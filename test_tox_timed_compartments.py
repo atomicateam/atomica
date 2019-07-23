@@ -106,8 +106,8 @@ def test_indirect():
 if __name__ == '__main__':
     # test_read_write_databook()
     # test_zero_duration()
-    # test_spike()
+    test_spike()
     # test_lifespan()
     # test_junctions()
-    test_indirect()
+    # test_indirect()
     # test_timed_tb()
