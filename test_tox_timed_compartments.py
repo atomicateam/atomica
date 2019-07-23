@@ -95,6 +95,7 @@ def test_lifespan():
     F = at.ProjectFramework(testdir + 'timed_test_lifespan_framework.xlsx')
     D = at.ProjectData.new(framework=F,tvec=[2018],pops=1,transfers=0)
     P = at.Project(framework=F,databook=D.to_spreadsheet(),do_run=True)
+    P.results
 
 def test_junctions():
     res = run_framework('timed_junctions_1.xlsx')
@@ -106,8 +107,10 @@ def test_indirect():
 if __name__ == '__main__':
     # test_read_write_databook()
     # test_zero_duration()
-    test_spike()
-    # test_lifespan()
+
+    # test_spike()
+    test_lifespan()
+
     # test_junctions()
     # test_indirect()
     # test_timed_tb()

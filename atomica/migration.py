@@ -615,21 +615,30 @@ def add_internal_flags_to_tdve(proj):
 
     return proj
 
-# @migration('1.11.0', '1.12.0', 'Replace tag_birth with SourceCompartment')
-# def add_sourcecompartment(proj):
-#     for result in all_results(proj):
-#         result.model.unlink()
-#         for pop in result.model.pops:
-#             for i,comp in enumerate(pop.comps):
-#                 if comp.tag_birth:
-#                     raise Exception('Work out how to replace it here')
-#                     bare_s = String.__new__(String)
-#
-#         result.model.relink() # Make sure all of the references are updated to the new compartment instance - it has the same ID so it should be fine
-#
 
-@migration('1.11.0', '1.12.0', 'Replace tag_birth with SourceCompartment')
+@migration('1.11.0', '1.12.0', 'Timed compartment updates')
 def add_timed_attribute(proj):
+
     for fw in all_frameworks(proj):
         fw.pars['timed'] = 'n'
+        fw.comps['duration group'] = None
+
+    for result in all_results(proj):
+        result.model.unlink()
+
+        for pop in result.model.pops:
+            for i,comp in enumerate(pop.comps):
+                if comp.tag_birth:
+                    comp.__class__ = atomica.SourceCompartment
+                elif comp.tag_dead:
+                    comp.__class__ = atomica.SinkCompartment
+                elif comp.is_junction:
+                    comp.__class__ = atomica.JunctionCompartment
+                    comp.duration_group = None
+                del comp.tag_birth
+                del comp.tag_dead
+                del comp.is_junction
+
+        result.model.relink() # Make sure all of the references are updated to the new compartment instance - it has the same ID so it should be fine
+
     return proj

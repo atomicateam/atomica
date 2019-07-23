@@ -360,8 +360,7 @@ class JunctionCompartment(Compartment):
 
         """
         super().__init__(pop,name)
-        self._cache_duration = 0  #: Cache the subcompartment size
-        self.duration_group = duration_group
+        self.duration_group = duration_group  #: Store the name of the duration group, if the junction belongs to one
 
     def connect(self, dest, par) -> None:
         """
