@@ -336,7 +336,7 @@ class Compartment(Variable):
         :param par: The parameter that the Link will be associated with
 
         """
-        Link(pop=self.pop, parameter=par, source=self, dest=dest)
+        Link.create(pop=self.pop, parameter=par, source=self, dest=dest)
 
 
 class JunctionCompartment(Compartment):
@@ -363,56 +363,29 @@ class JunctionCompartment(Compartment):
         self._cache_duration = 0  #: Cache the subcompartment size
         self.duration_group = duration_group
 
+    def connect(self, dest, par) -> None:
+        """
+        Construct link out of this compartment
+
+        For junctions, outgoing links are normal links unless the junction belongs to a duration group
+
+        :param dest: A ``Compartment`` instance
+        :param par: The parameter that the Link will be associated with
+
+        """
+
+        if self.duration_group:
+            TimedLink.create(pop=self.pop, parameter=par, source=self, dest=dest)
+        else:
+            Link.create(pop=self.pop, parameter=par, source=self, dest=dest)
+
     def resolve_outflows(self, ti: int) -> None:
-        # Junction outflows are resolved in a separate step because they cannot
-        # be resolved junction-by-junction
+        # Junction outflows are resolved in a separate step because they cannot be resolved junction-by-junction
         pass
 
     def update(self, ti: int) -> None:
+        # Junction values never need to be updated, since it's always zero
         pass
-
-    def get_duration_group(self) -> tuple:
-        """
-        Return junction duration group
-
-        A junction is considered to belong to a duration group if it is attached to a duration group on _both_ the upstream
-        and downstream sides. Attachment may be via any type of link, but a flush link does not provide an attachment. For
-        upstream compartments, attachment is therefore mediated by
-
-        :return: The name of the timed parameter (duration group) - None if not timed, and a reference to the compartment supplying the group (if needed for preallocation/initialization)
-
-        """
-
-        # Check upstream attachments
-        upstream_par_name = None
-        upstream_comp = None
-        for link in self.inlinks:
-            if isinstance(link, TimedLink):
-                upstream_par_name, upstream_comp = link.get_duration_group()
-
-
-        return None, None
-
-    def get_flush_groups(self, groups: set = None) -> set:
-        """
-        Return a list of all duration groups flushing into this junction
-
-        This includes indirect flushing
-
-        :return: A list of parameter names/duration groups
-
-        """
-
-        if groups is None:
-            groups = set()
-
-        for link in self.inlinks:
-            if not isinstance(link, TimedLink) and isinstance(link.source, TimedCompartment):
-                groups.add(link.source.parameter.name)
-            elif not isinstance(link, TimedLink) and isinstance(link.source, JunctionCompartment):
-                link.source.get_flush_groups(groups=groups)
-
-        return groups
 
     def preallocate(self, tvec: np.array, dt: float) -> None:
         super().preallocate(tvec, dt)
@@ -581,6 +554,7 @@ class SourceCompartment(Compartment):
 
     def update(self, ti: int) -> None:
         pass
+
 
 class SinkCompartment(Compartment):
 
@@ -771,25 +745,25 @@ class TimedCompartment(Compartment):
 
         total_outflow = np.zeros(self._vals.shape[0])
         for link in self.outlinks:
-            if isinstance(link.dest,TimedCompartment) and link.dest.parameter.name == self.parameter.name: # The outflow could be a transfer, in which case the parameter won't be the same instance but the name will match
-                total_outflow[1:] += link._cache
+            if isinstance(link, TimedLink):
+                total_outflow[1:] += link._cache # Timed link outflows do not act on the final subcompartment
             else:
-                total_outflow[:] += link._cache
+                total_outflow[:] += link._cache # Normal link outflows do act on the final subcompartment
 
         # Rescaling factors for each subcompartment
         rescale = np.divide(1, total_outflow, out=np.ones_like(total_outflow), where=total_outflow > 1)
-        n = rescale * self._vals[:, ti]  # Rescaled number of people - to multiply by the cache value
+        n = rescale * self._vals[:, ti]  # Rescaled number of people - to multiply by the cache value on each link
 
-        flush_outflow = 0.0
+        final_subcompartment_outflow = 0.0
         for link in self.outlinks:
-            if isinstance(link.dest,TimedCompartment) and link.dest.parameter.name == self.parameter.name: # The outflow could be a transfer, in which case the parameter won't be the same instance but the name will match
+            if isinstance(link, TimedLink):
                 link._vals[1:, ti] = n[1:]*link._cache
                 link._vals[0, ti] = 0.0
             else:
                 link._vals[:, ti] = n*link._cache
-                flush_outflow += link._vals[0,ti]
+                final_subcompartment_outflow += link._vals[0,ti]
 
-        self.flush_link[ti] = max(0,self._vals[0,ti] - flush_outflow)
+        self.flush_link[ti] = max(0,self._vals[0,ti] - final_subcompartment_outflow)
 
     def update(self, ti: int) -> None:
         """
@@ -849,9 +823,9 @@ class TimedCompartment(Compartment):
 
         if (isinstance(dest, TimedCompartment) and dest.parameter.name == self.parameter.name) or (isinstance(dest, JunctionCompartment) and dest.duration_group == self.parameter.name):
             # Note that comparing the name rather than the instance ID will allow duration-preserving transfers where a difference instance of the same parameter is present in the dest population
-            new_link = TimedLink(pop=self.pop, parameter=par, source=self, dest=dest)
+            new_link = TimedLink.create(pop=self.pop, parameter=par, source=self, dest=dest)
         else:
-            new_link = Link(pop=self.pop, parameter=par, source=self, dest=dest)
+            new_link = Link.create(pop=self.pop, parameter=par, source=self, dest=dest)
 
         if par is self.parameter:
             # If we are connecting up the timed parameter, also assign it to the flush link
@@ -1218,6 +1192,35 @@ class Link(Variable):
     from the source compartment to the destination compartment in the subsequent timestep.
     """
 
+    @classmethod
+    def create(cls, pop, parameter, source, dest):
+        """
+        Create and wire up a new link
+
+        This method instantiates a Link (including of derived types) and also wires it up to
+        the population, parameter, source, and destination compartments. This allows the ``Link``
+        constructor to be used without needing the entire population infrastructure
+
+        :param pop: A ``Population`` instance that will contain the new ``Link``
+        :param parameter: A ``Parameter`` instance that will supply values for the new ``Link``
+        :param source: A ``Compartment`` instance to transfer from
+        :param dest: A ``Compartment`` instance to transfer to
+        :return: The newly created ``Link`` instance
+
+        """
+
+        # Instantiate the link
+        new_link = cls(pop, parameter, source, dest)
+
+        # Wire it up
+        new_link.parameter.links.append(new_link)
+        new_link.source.outlinks.append(new_link)
+        new_link.dest.inlinks.append(new_link)
+        pop.links.append(new_link)
+
+        return new_link
+
+
     def __init__(self, pop, parameter, source, dest):
         # Note that the Link's name is the transition tag
         Variable.__init__(self, pop=pop, id=(pop.name, source.name, dest.name, parameter.name+':flow'))  # A Link is only uniquely identified by (Pop,Source,Dest,Par)
@@ -1227,12 +1230,6 @@ class Link(Variable):
         self.parameter = parameter
         self.source = source  # Compartment to remove people from
         self.dest = dest  # Compartment to add people to
-
-        # Wire up references to this object
-        self.parameter.links.append(self)
-        self.source.outlinks.append(self)
-        self.dest.inlinks.append(self)
-        pop.links.append(self)
 
         self._cache = None  #: Temporarily cache either the fraction converted (normal links) or number of people (source outflows)
 
@@ -1324,21 +1321,6 @@ class TimedLink(Link):
     all originate at the same time.
 
     """
-
-    @classmethod
-    def convert(cls, link) -> None:
-        """
-        Turn a Link into a TimedLink
-
-        If the link is already a TimedLink, do nothing
-
-        :param link: A Link instance to convert
-
-        """
-
-        if not isinstance(link, cls):
-            del link.vals
-            link.__class__ = cls
 
     def __init__(self, pop, parameter, source, dest):
         Link.__init__(self, pop, parameter, source, dest)

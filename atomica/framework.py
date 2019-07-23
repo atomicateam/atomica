@@ -1139,6 +1139,11 @@ class ProjectFramework(object):
                     # We belong to the group
                     self.comps.at[junc_name,'duration group'] = list(downstream_groups)[0]
                 else:
+                    # If we don't belong to the group, then we can't have any outflows to compartments in any of the upstream groups
+                    # However, the upstream groups here are only those attached via non-flush link. Therefore, we need to recalculate the
+                    # groups based on the upstream compartments so that we use the groups for the compartments flushing into this junction
+                    upstream_groups = set(self.comps.loc[upstream_comps,'duration group'])
+                    downstream_groups = set(self.comps.loc[downstream_comps,'duration group'])
                     assert not downstream_groups.intersection(upstream_groups), f'Junction "{junc_name}" receives upstream inputs from a duration group. The downstream compartments can either all belong to the same group, or none can belong to that group. Downstream compartments are {downstream_comps}'
 
 
