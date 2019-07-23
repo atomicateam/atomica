@@ -202,9 +202,9 @@ class Compartment(Variable):
     def __init__(self, pop, name):
         Variable.__init__(self, pop=pop, id=(pop.name, name))
         self.units = 'Number of people'
-
         self.outlinks = []
         self.inlinks = []
+        self._cached_outflow = None
 
     def unlink(self):
         Variable.unlink(self)
@@ -294,9 +294,11 @@ class Compartment(Variable):
         else:
             rescale = 1
 
-        n = rescale*self[ti]
+        n = rescale*self.vals[ti]
+        self._cached_outflow = 0
         for link in self.outlinks:
-            link[ti] = link._cache*n
+            link.vals[ti] = link._cache*n
+            self._cached_outflow += link.vals[ti]
 
     def update(self, ti: int) -> None:
         """
@@ -315,18 +317,16 @@ class Compartment(Variable):
         """
 
         tr = ti-1
-        v = self[tr]
-
-        for link in self.outlinks:
-            v -= link[tr]
+        v = self.vals[tr]
+        v -= self._cached_outflow
         for link in self.inlinks:
-            v += link[tr]
+            v += link.vals[tr]
 
         # Guard against populations becoming negative due to numerical artifacts
         if v > 0:
-            self[ti] = v
+            self.vals[ti] = v
         else:
-            self[ti] = 0.0
+            self.vals[ti] = 0.0
 
     def connect(self, dest, par) -> None:
         """
@@ -417,18 +417,18 @@ class JunctionCompartment(Compartment):
                 net_inflow += link._vals[:,ti]  # If part of a duration group, get the flow from TimedLink._vals
         else:
             for link in self.inlinks:
-                net_inflow += link[ti] # If not part of a duration group, get scalar flow from Link[]
+                net_inflow += link.vals[ti] # If not part of a duration group, get scalar flow from Link.vals
 
-        # Next, normalize all of the outflows. Note that the parameters are guaranteed to be in proportion units here
-        outflow_fractions = np.array([link.parameter[ti] for link in self.outlinks])
-        outflow_fractions /= np.sum(outflow_fractions)
+        # Next, get the total outflow. Note that the parameters are guaranteed to be in proportion units here
+        outflow_fractions = [link.parameter.vals[ti] for link in self.outlinks]
+        total_outflow = sum(outflow_fractions)
 
-        # Finally, assign the inflow to the outflow proportionately
+        # Finally, assign the inflow to the outflow proportionately accounting for the total outflow downscaling
         for frac, link in zip(outflow_fractions, self.outlinks):
             if self.duration_group:
-                link._vals[:,ti] = net_inflow * frac
+                link._vals[:,ti] = net_inflow * frac/total_outflow
             else:
-                link[ti] = net_inflow * frac
+                link.vals[ti] = net_inflow * frac/total_outflow
 
     def initial_flush(self) -> None:
         """
@@ -526,6 +526,22 @@ class SinkCompartment(Compartment):
 
         raise Exception('Sink compartments cannot have outflows')
 
+    def update(self, ti: int) -> None:
+        """
+        Update sink compartment value
+
+        A sink compartment has inputs only
+
+        :param ti: Time index to update
+
+        """
+
+        tr = ti-1
+        v = self.vals[tr]
+        for link in self.inlinks:
+            v += link.vals[tr]
+        self.vals[ti] = v
+
 
 class TimedCompartment(Compartment):
     def __init__(self, pop, name: str, parameter: ParsetParameter):
@@ -545,7 +561,6 @@ class TimedCompartment(Compartment):
         self._vals = None  #: Primary storage, a matrix of size (duration x timesteps). The first row is the one that people leave from, the last row is the one that people arrive in
         self.parameter = parameter  #: The parameter to read the duration from - this needs to be done after parameters are precomputed though, in case the duration is coming from a (constant) function
         self.flush_link = None  #: Reference to the timed outflow link that flushes the compartment. Note that this needs to be set externally because Links are instantiated after Compartments
-        self._cached_outflow = None  #: Cache the subcompartment outflows after resolving outflows and before updating
 
     def unlink(self):
         Compartment.unlink(self)
@@ -687,11 +702,11 @@ class TimedCompartment(Compartment):
                 link._vals[0, ti] = 0.0  # No flow out of final subcompartment
                 self._cached_outflow += link._vals[:, ti]
             else:
-                link[ti] = sum(n*link._cache)
+                link.vals[ti] = sum(n*link._cache)
                 self._cached_outflow += n*link._cache
 
-        self.flush_link[ti] = max(0,self._vals[0,ti] - self._cached_outflow[0])
-        self._cached_outflow[0] += self.flush_link[ti]
+        self.flush_link.vals[ti] = max(0, self._vals[0,ti] - self._cached_outflow[0])
+        self._cached_outflow[0] += self.flush_link.vals[ti]
 
     def update(self, ti: int) -> None:
         """
@@ -1032,10 +1047,10 @@ class Parameter(Variable):
             if ti is None:
                 self.vals = np.clip(self.vals,self.limits[0],self.limits[1])
             else:
-                if self[ti] < self.limits[0]:
-                    self[ti] = self.limits[0]
-                if self[ti] > self.limits[1]:
-                    self[ti] = self.limits[1]
+                if self.vals[ti] < self.limits[0]:
+                    self.vals[ti] = self.limits[0]
+                if self.vals[ti] > self.limits[1]:
+                    self.vals[ti] = self.limits[1]
 
     def update(self, ti=None) -> None:
         """
@@ -1072,10 +1087,14 @@ class Parameter(Variable):
         dep_vals = dict.fromkeys(self.deps, 0.0)
         for dep_name, deps in self.deps.items():
             for dep in deps:
-                if isinstance(dep, Link):
+                if isinstance(dep, Parameter) or isinstance(dep, Characteristic):
+                    dep_vals[dep_name] += dep.vals[ti]
+                elif isinstance(dep,Compartment):
+                    dep_vals[dep_name] += dep[ti]
+                elif isinstance(dep, Link):
                     dep_vals[dep_name] += dep[ti] / dep.dt
                 else:
-                    dep_vals[dep_name] += dep[ti]
+                    raise Exception('Unhandled case')
 
         dep_vals['t'] = self.t[ti]
         dep_vals['dt'] = self.dt
@@ -1098,7 +1117,7 @@ class Parameter(Variable):
             if self.links:
                 n = 0
                 for link in self.links:
-                    n += link.source[ti]
+                    n += link.source[ti] # Use the direct indexing because we don't know what type of compartment we are operating on
             else:
                 raise Exception('Cannot retrieve source popsize for a non-transition parameter')
             self._source_popsize_cache_time = ti
@@ -1721,8 +1740,9 @@ class Model(object):
         self._vars_by_pop = None  # Cache to look up lists of variables by name across populations
         self._pop_ids = sc.odict()  # Maps name of a population to its position index within populations list.
         self._program_cache = None  #: Cache program capacities and coverage for coverage scenarios
-        self._par_exec_order = None  #: This is a list of all parameters code names in use in the model, in execution order
+        self._par_update_order = None  #: This is a list of all parameters code names in use in the model, in execution order
         self._junc_exec_order = None  #: This is a list of ``JunctionCompartments`` in all populations in execution order (forward flow only)
+        self._par_exec_order = None #: This is a list of all parameter objects with transitions that need to be updated
 
         self.framework = sc.dcp(framework)  # Store a copy of the Framework used to generate this model
         self.framework.spreadsheet = None  # No need to keep the spreadsheet
@@ -1917,7 +1937,7 @@ class Model(object):
         self._set_exec_order()
 
         # Flag dependencies for aggregated parameters prior to precomputing
-        for par in self._par_exec_order:
+        for par in self._par_update_order:
             pars = self._vars_by_pop[par]
             if pars[0].pop_aggregation:
                 for var in self._vars_by_pop[pars[0].pop_aggregation[1]]:
@@ -1975,8 +1995,15 @@ class Model(object):
         :return:
         """
 
+        # Set the parameter update order
+        self._par_update_order = [x for x in self.framework.pars.index if x in self._vars_by_pop.keys()]
+
         # Set the parameter execution order
-        self._par_exec_order = [x for x in self.framework.pars.index if x in self._vars_by_pop.keys()]
+        self._par_exec_order = []
+        for pop in self.pops:
+            for par in pop.pars:
+                if par.links and par.units != FS.QUANTITY_TYPE_PROPORTION:
+                    self._par_exec_order.append(par)
 
         # Set the junction execution order
         G = nx.DiGraph()
@@ -2039,82 +2066,83 @@ class Model(object):
 
         ti = self._t_index
 
+
+        # First, populate all of the link values without any outflow constraints
+        for par in self._par_exec_order:
+
+            transition = par.vals[ti]
+
+            if transition < 0:
+                # This condition is likely to occur if the parameter has a function but it has been
+                # incorrectly/poorly defined so that it returns a negative value. If this is expected
+                # to happen under certain conditions, then the Framework should have a minimum value of 0
+                # entered for the parameter to make it explicit that the value is constrained to be positive.
+                # This could be important if the parameter is *also* used as a dependency in other parameters
+                # because clipping in the Framework is applied before downstream parameters are computed, whereas
+                # the check here only relates to the links, so an incorrect negative value could still propagate
+                # to other parameters (but we cannot be *certain* here that this isn't what the user intended)
+                logger.warning('Negative transition occurred')
+                transition = 0
+
+            if not transition:
+                for link in par.links:
+                    link._cache = 0.0
+                continue
+
+
+
+
+            # Convert probability by Poisson distribution formula to a value appropriate for timestep.
+            if par.units == FS.QUANTITY_TYPE_PROBABILITY:
+                # Note that we convert the transition to the timestep before checking whether it is greater than 1 or not. That way,
+                # durations get preserved until we limit them based on the timestep size. The rationale is that the annual probability
+                # will come out at 1.0 if the *mean* duration is the same as the step size, but that doesn't mean that if the step size
+                # was smaller the timestep probability is also 1.0 - it's a consequence of the discretization. Essentially, a value
+                # greater than 1 simply implies that the mean duration is less than the timescale in question, and we need to retain that value
+                # to be able to correctly convert between timescales. The subsequent call to min() then ensures that the fraction moved never
+                # exceeds 1.0 once operating on the timestep level
+                converted_frac = min(1,transition * (self.dt / par.timescale))
+                for link in par.links:
+                    link._cache = converted_frac
+
+            # Linearly convert number down to that appropriate for one timestep.
+            elif par.units == FS.QUANTITY_TYPE_NUMBER:
+                # Disaggregate proportionally across all source compartment sizes related to all links.
+                converted_amt = transition * (self.dt / par.timescale) # Number flow in this timestep, so it includes a timescale factor
+
+                if isinstance(par.links[0].source,SourceCompartment):
+                    # For a source compartment, the link value should be explicitly set directly
+                    # Also, there is guaranteed to only be one link per parameter for outflows from source compartments
+                    par.links[0]._cache = converted_amt
+                    continue
+
+                source_popsize = par.source_popsize(ti)
+                if source_popsize:
+                    converted_frac = converted_amt / source_popsize
+                else:
+                    converted_frac = 0.0
+
+                for link in par.links:
+                    link._cache = converted_frac
+
+            # Convert from duration to equivalent probability
+            elif par.units == FS.QUANTITY_TYPE_DURATION:
+                converted_frac = min(1,self.dt / (transition * par.timescale))
+                for link in par.links:
+                    link._cache = converted_frac
+
+            # NOTE - probability format parameters should not be present in the exec list
+            else:
+                try:
+                    par_label = self.framework.get_label(par.name)
+                except:  # Name lookup will fail for transfer parameters
+                    par_label = par.name
+                raise Exception("Encountered unknown units '%s' for Parameter '%s' (%s) in Population %s" % (par.units, par.name, par_label, pop.name))
+
+        # Adjust cached fraction outflows and convert them to number units
         for pop in self.pops:
-
-            # First, populate all of the link values without any outflow constraints
-            for par in pop.pars:
-                if par.links:
-                    transition = par[ti]
-
-                    if transition < 0:
-                        # This condition is likely to occur if the parameter has a function but it has been
-                        # incorrectly/poorly defined so that it returns a negative value. If this is expected
-                        # to happen under certain conditions, then the Framework should have a minimum value of 0
-                        # entered for the parameter to make it explicit that the value is constrained to be positive.
-                        # This could be important if the parameter is *also* used as a dependency in other parameters
-                        # because clipping in the Framework is applied before downstream parameters are computed, whereas
-                        # the check here only relates to the links, so an incorrect negative value could still propagate
-                        # to other parameters (but we cannot be *certain* here that this isn't what the user intended)
-                        logger.warning('Negative transition occurred')
-                        transition = 0
-
-                    if not transition:
-                        for link in par.links:
-                            link._cache = 0.0
-                        continue
-
-                    quantity_type = par.units
-
-                    # Convert from duration to equivalent probability
-                    if quantity_type == FS.QUANTITY_TYPE_DURATION:
-                        converted_frac = min(1,self.dt / (transition * par.timescale))
-                        for link in par.links:
-                            link._cache = converted_frac
-
-                    # Convert probability by Poisson distribution formula to a value appropriate for timestep.
-                    elif quantity_type == FS.QUANTITY_TYPE_PROBABILITY:
-                        # Note that we convert the transition to the timestep before checking whether it is greater than 1 or not. That way,
-                        # durations get preserved until we limit them based on the timestep size. The rationale is that the annual probability
-                        # will come out at 1.0 if the *mean* duration is the same as the step size, but that doesn't mean that if the step size
-                        # was smaller the timestep probability is also 1.0 - it's a consequence of the discretization. Essentially, a value
-                        # greater than 1 simply implies that the mean duration is less than the timescale in question, and we need to retain that value
-                        # to be able to correctly convert between timescales. The subsequent call to min() then ensures that the fraction moved never
-                        # exceeds 1.0 once operating on the timestep level
-                        converted_frac = min(1,transition * (self.dt / par.timescale))
-                        for link in par.links:
-                            link._cache = converted_frac
-
-                    # Linearly convert number down to that appropriate for one timestep.
-                    elif quantity_type == FS.QUANTITY_TYPE_NUMBER:
-                        # Disaggregate proportionally across all source compartment sizes related to all links.
-                        converted_amt = transition * (self.dt / par.timescale) # Number flow in this timestep, so it includes a timescale factor
-
-                        if isinstance(par.links[0].source,SourceCompartment):
-                            # For a source compartment, the link value should be explicitly set directly
-                            # Also, there is guaranteed to only be one link per parameter for outflows from source compartments
-                            par.links[0]._cache = converted_amt
-                            continue
-
-                        source_popsize = par.source_popsize(ti)
-                        if source_popsize:
-                            converted_frac = converted_amt / source_popsize
-                        else:
-                            converted_frac = 0.0
-
-                        for link in par.links:
-                            link._cache = converted_frac
-
-                    # Raise an error if the transition parameter has unrecognized units
-                    elif quantity_type not in [FS.QUANTITY_TYPE_PROPORTION]:
-                        try:
-                            par_label = self.framework.get_label(par.name)
-                        except:  # Name lookup will fail for transfer parameters
-                            par_label = par.name
-                        raise Exception("Encountered unknown units '%s' for Parameter '%s' (%s) in Population %s" % (quantity_type, par.name, par_label, pop.name))
-
-            # Adjust cached fraction outflows and convert them to number units
             for comp in pop.comps:
-                comp.resolve_outflows(ti)
+                    comp.resolve_outflows(ti)
 
     # @profile
     def update_comps(self):
@@ -2198,7 +2226,7 @@ class Model(object):
                     prop_coverage[k] = self.progset.programs[k].get_prop_covered(self.t[ti], self._program_cache['capacities'][k][ti], n)
             prog_vals = self.progset.get_outcomes(prop_coverage)
 
-        for par_name in self._par_exec_order:
+        for par_name in self._par_update_order:
             # All of the parameters with this name, across populations.
             # There should be one for each population (these are Parameters, not Links).
             pars = self._vars_by_pop[par_name]
