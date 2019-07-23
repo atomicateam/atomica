@@ -196,7 +196,8 @@ def perform_autofit(project, parset, pars_to_adjust, output_quantities, max_time
     if max_time is not None:
         optim_args['maxtime'] = max_time
 
-    x1, _, _ = sc.asd(_calculate_objective, x0, args, **optim_args)
+    opt_result = sc.asd(_calculate_objective, x0, args, **optim_args)
+    x1 = opt_result['x']
 
     _update_parset(args['parset'], x1, pars_to_adjust)
 
