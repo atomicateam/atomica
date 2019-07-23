@@ -1129,7 +1129,7 @@ class ProjectFramework(object):
 
                 if len(upstream_groups) > 1:
                     # Note that because `None` is a 'group', this check will correctly detect cases where a single duration group is mixed with an untimed inflow
-                    raise InvalidFramework(f'Junction "{junc_name}" receives upstream inputs from more than one duration group (a compartment with a timed parameter that is not flushing into this junction)')
+                    raise InvalidFramework(f'Junction "{junc_name}" receives upstream inputs from more than one duration group (a compartment with a timed parameter that is not flushing into this junction). Upstream compartments are {upstream_comps}')
                 elif len(upstream_groups) == 0 or upstream_groups == {None}:
                     continue # If there are no upstream timed compartments, we can rule out the junction from belonging to a duration group
 
@@ -1139,7 +1139,7 @@ class ProjectFramework(object):
                     # We belong to the group
                     self.comps.at[junc_name,'duration group'] = list(downstream_groups)[0]
                 else:
-                    assert not downstream_groups.intersection(upstream_groups), f'Junction "{junc_name}" receives upstream inputs from a duration group. The downstream compartments can either all belong to the same group, or none can belong to that group'
+                    assert not downstream_groups.intersection(upstream_groups), f'Junction "{junc_name}" receives upstream inputs from a duration group. The downstream compartments can either all belong to the same group, or none can belong to that group. Downstream compartments are {downstream_comps}'
 
 
     def get_databook_units(self, code_name: str) -> str:

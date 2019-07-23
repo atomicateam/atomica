@@ -202,7 +202,6 @@ class Compartment(Variable):
     def __init__(self, pop, name):
         Variable.__init__(self, pop=pop, id=(pop.name, name))
         self.units = 'Number of people'
-        self.tag_dead = False  # Tag for whether this compartment contains dead people.
 
         self.outlinks = []
         self.inlinks = []
@@ -286,11 +285,6 @@ class Compartment(Variable):
 
         """
 
-        # If it's a junction, links are computed separately
-        # If it's a death compartment, then there are no outflows to adjust
-        if self.tag_dead:
-            return
-
         outflow = 0.0
         for link in self.outlinks:
             outflow += link._cache
@@ -346,10 +340,28 @@ class Compartment(Variable):
 
 
 class JunctionCompartment(Compartment):
-    def __init__(self, pop, name: str):
+    def __init__(self, pop, name: str, duration_group: str = None):
+        """
+
+        A TimedCompartment has a duration group by virtue of having a `.parameter` attribute and a flush link.
+        A junction might belong to a duration group by having inflows and outflows exclusively from that group.
+        However, it might not be directly attached to any timed compartments, if the connections are entirely
+        via upstream and downstream junctions. Junctions also do not have flush links. Therefore, we record
+        membership in the duration group by specifying the name of the parameter in the (indirect) upstream
+        and downstream compartments.
+
+        Note that having connections to timed compartments does not itself indicate membership in the duration
+        group - the junction is only a member if all of the upstream and downstream compartments belong to the
+        same duration group. The duration group is determined in framework validation and stored in the framework.
+
+        :param pop:
+        :param name:
+        :param duration_group: Optionally specify a duration group
+
+        """
         super().__init__(pop,name)
         self._cache_duration = 0  #: Cache the subcompartment size
-        self.duration_group = None
+        self.duration_group = duration_group
 
     def resolve_outflows(self, ti: int) -> None:
         # Junction outflows are resolved in a separate step because they cannot
@@ -569,6 +581,47 @@ class SourceCompartment(Compartment):
 
     def update(self, ti: int) -> None:
         pass
+
+class SinkCompartment(Compartment):
+
+    def __init__(self, pop, name):
+        super().__init__(pop,name)
+
+    def preallocate(self, tvec: np.array, dt: float) -> None:
+        """
+        Preallocate sink compartment
+
+        A sink compartment is initialized with 0.0 value at the initial timestep
+
+        :param tvec: Simulation time vector
+        :param dt: Simulation time step
+
+        """
+
+        super().preallocate(tvec,dt)
+        self.vals[0] = 0.0
+
+    def resolve_outflows(self,ti: int) -> None:
+        """
+        Resolve sink outflows
+
+        There should not be any outflows, so this function immediately returns
+
+        """
+        pass
+
+    def connect(self, dest, par) -> None:
+        """
+        Construct link out of sink compartment
+
+        This method raises an error because sinks cannot have outflows
+
+        :param dest: A ``Compartment`` instance
+        :param par: The parameter that the Link will be associated with
+
+        """
+
+        raise Exception('Sink compartments cannot have outflows')
 
 
 class TimedCompartment(Compartment):
@@ -794,7 +847,8 @@ class TimedCompartment(Compartment):
 
         """
 
-        if isinstance(dest, TimedCompartment) and dest.parameter.name == self.parameter.name:  # Comparing name rather than the instance ID will allow duration-preserving transfers
+        if (isinstance(dest, TimedCompartment) and dest.parameter.name == self.parameter.name) or (isinstance(dest, JunctionCompartment) and dest.duration_group == self.parameter.name):
+            # Note that comparing the name rather than the instance ID will allow duration-preserving transfers where a difference instance of the same parameter is present in the dest population
             new_link = TimedLink(pop=self.pop, parameter=par, source=self, dest=dest)
         else:
             new_link = Link(pop=self.pop, parameter=par, source=self, dest=dest)
@@ -1463,20 +1517,28 @@ class Population(object):
         self.is_linked = True
         self.junctions = [objs[x] for x in self.junctions]
 
-    def popsize(self, ti=None):
-        # A population's popsize is the sum of all of the people in its compartments, excluding
-        # birth and death compartments
+    def popsize(self, ti: int = None):
+        """
+        Return population size
+
+        A population's size is the sum of all of the people in its compartments, excluding
+        birth and death compartments
+
+        :param ti: Optionally specify a scalar time index to retrieve popsize for. ```None`` corresponds to all times
+        :return: If ``ti`` is specified, returns a scalar population size. If ``ti`` is ``None``, return a numpy array the same size as the simulation time vector
+
+        """
+
         if ti is None:
-            return np.sum([comp.vals for comp in self.comps if (not isinstance(comp,SourceCompartment) and not comp.tag_dead)], axis=0)
+            return np.sum([comp.vals for comp in self.comps if (not isinstance(comp,SourceCompartment) and not isinstance(comp,SinkCompartment))], axis=0)
 
         if ti == self.popsize_cache_time:
             return self.popsize_cache_val
         else:
             n = 0
             for comp in self.comps:
-                if not isinstance(comp,SourceCompartment) and not comp.tag_dead:
+                if not isinstance(comp,SourceCompartment) and not isinstance(comp,SinkCompartment):
                     n += comp[ti]
-
             return n
 
     def get_variable(self, name: str) -> list:
@@ -1589,35 +1651,28 @@ class Population(object):
         # the timed compartments and quickly retrieve their parameters. This is done here partly because we need
         # to instantiate the parameters first, and also because `framework.transitions` is keyed by parameter
         # rather than compartment so it's straightforward to include here
-        timed_compartments = dict()
         for par_name in list(pars.index):
             if pars.at[par_name,'population type'] == self.type:
                 par = Parameter(pop=self, name=par_name)
                 par.units = pars.at[par_name, "format"]
                 par.timescale = pars.at[par_name, "timescale"]
                 par.derivative = pars.at[par_name, "is derivative"] == 'y'
-                if pars.at[par_name, "timed"] == 'y' and par_name in framework.transitions:
-                    for x in framework.transitions[par_name]:
-                        timed_compartments[x[0]] = par
                 self.pars.append(par)
         self.par_lookup = {par.name: par for par in self.pars}
 
         # Instantiate compartments
-        junction_graph = nx.DiGraph()
-
         for comp_name in list(comps.index):
             if comps.at[comp_name, 'population type'] == self.type:
-                if comp_name in timed_compartments:
-                    self.comps.append(TimedCompartment(pop=self, name=comp_name, parameter=timed_compartments[comp_name]))
+                if comps.at[comp_name, "is junction"] == 'y':
+                    self.comps.append(JunctionCompartment(pop=self, name=comp_name, duration_group=comps.at[comp_name, 'duration group']))
+                elif comps.at[comp_name, 'duration group']:
+                    self.comps.append(TimedCompartment(pop=self, name=comp_name, parameter=self.par_lookup[comps.at[comp_name, 'duration group']]))
                 elif comps.at[comp_name, "is source"] == 'y':
                     self.comps.append(SourceCompartment(pop=self, name=comp_name))
-                elif comps.at[comp_name, "is junction"] == 'y':
-                    comp = JunctionCompartment(pop=self, name=comp_name)
-                    self.comps.append(comp)
-                    junction_graph.add_node(comp)
+                elif comps.at[comp_name, "is sink"] == 'y':
+                    self.comps.append(SinkCompartment(pop=self, name=comp_name))
                 else:
                     self.comps.append(Compartment(pop=self, name=comp_name))
-                    self.comps[-1].tag_dead = comps.at[comp_name, "is sink"] == 'y'
 
         self.comp_lookup = {comp.name: comp for comp in self.comps}
 
@@ -1645,19 +1700,10 @@ class Population(object):
                     src = self.get_comp(pair[0])
                     dst = self.get_comp(pair[1])
                     src.connect(dst, par) # If the parameter is a timed parameter, the TimedCompartment will also assign the FlushLink in this step
-                    if isinstance(src, JunctionCompartment) and isinstance(dst, JunctionCompartment):
-                        junction_graph.add_edge(src, dst)
+
 
         link_names = set([link.name for link in self.links])
         self.link_lookup = {name: [link for link in self.links if link.name == name] for name in link_names}
-
-        # Use the graph to set the execution order for the junctions
-        assert nx.dag.is_directed_acyclic_graph(junction_graph), 'There is a cycle present where one junction has flows into another, which results in an infinite loop and is not permitted'
-        self.junctions = list(nx.dag.topological_sort(junction_graph))
-
-        # Now validate the junctions and promote any Links to TimedLinks
-        for junc in self.junctions:
-            junc.validate()
 
         # Parameters third pass, process f_stacks, deps, and limits
         # This is a separate pass because output parameters can depend on Links
@@ -1676,10 +1722,6 @@ class Population(object):
             if fcn_str is not None:
                 par.set_fcn(framework, fcn_str, progset)
 
-        # with sc.Timer(label='parameter_graph') as t:
-        #     G = nx.DiGraph()  # or DiGraph, MultiGraph, MultiDiGraph, etc
-        #     G.add_nodes_from(self.pars)
-
 
     def initialize_compartments(self, parset, framework, t_init):
         # Given a set of characteristics and their initial values, compute the initial
@@ -1691,7 +1733,7 @@ class Population(object):
         b_objs = [self.charac_lookup[x] for x in characs_to_use] + [self.comp_lookup[x] for x in comps_to_use]
 
         # Build up the comps corresponding to the `x` values in `x=A*b` i.e. the compartments being solved for
-        comps = [c for c in self.comps if not (isinstance(c,SourceCompartment) or c.tag_dead)]
+        comps = [c for c in self.comps if not (isinstance(c,SourceCompartment) or isinstance(c,SinkCompartment))]
         charac_indices = {c.name: i for i, c in enumerate(b_objs)}  # Make lookup dict for characteristic indices
         comp_indices = {c.name: i for i, c in enumerate(comps)}  # Make lookup dict for compartment indices
 
@@ -1789,10 +1831,6 @@ class Population(object):
         # Otherwise, insert the values
         for i, c in enumerate(comps):
             c[0] = max(0.0, x[i])
-
-        for c in self.comps:
-            if c.tag_dead:
-                c[0] = 0
 
 
 class Model(object):
@@ -1984,7 +2022,7 @@ class Model(object):
                         target_pop_obj = self.get_pop(pop_target)
 
                         for source in pop.comps:
-                            if not (isinstance(source,SourceCompartment) or source.tag_dead or isinstance(source,JunctionCompartment)):
+                            if not (isinstance(source,SourceCompartment) or isinstance(source,SinkCompartment) or isinstance(source,JunctionCompartment)):
                                 # Instantiate a link between corresponding compartments
                                 dest = target_pop_obj.get_comp(source.name)  # Get the corresponding compartment
                                 link = Link.new(pop, par, source, dest)
