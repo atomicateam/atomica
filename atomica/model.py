@@ -1162,20 +1162,6 @@ class Link(Variable):
 
         self._cache = None  #: Temporarily cache either the fraction converted (normal links) or number of people (source outflows)
 
-    # @property
-    # def _vals(self):
-    #     """
-    #     Access vals under _vals
-    #
-    #     For convenience, some code like that in `update_junctions` operates directly on `Link._vals` so that
-    #     it can treat both `Link` and `TimedLink` instances in exactly the same way. This means we need to
-    #     return a reshaped view (with 1 row) - this is fast because nothing actually gets moved in memory
-    #
-    #     """
-    #
-    #     return self.vals.reshape(1,-1)
-
-
     def __setitem__(self, key, value) -> None:
         """
         Shortcut to set .vals attribute
@@ -1324,27 +1310,6 @@ class TimedLink(Link):
         """
 
         return self._vals[:, ti].sum(axis=0)
-
-    # def __setitem__(self, ti: int, number: float) -> None:
-    #     """
-    #     Compatibility for link shortcut calculation
-    #
-    #     If we know that nobody is going to make a transition (i.e. if the parameter is 0 or the source popsize is 0)
-    #     then we can simply set the total outflow to zero. This is performed here by overloading `__setitem__`. If a
-    #     nonzero number were entered, it would be necessary to make a decision about how that number should be distributed
-    #     across the subcompartments in the source ``TimedCompartment`` - this logic is contained in ``TimedLink.update()``
-    #     by virtue of taking in the converted fraction rather than the number of people - which is fine as long as the
-    #     source popsize is not zero, in which case we can use this function here.
-    #
-    #     :param ti: Time index to update
-    #     :param number: Value to insert
-    #
-    #     """
-    #
-    #     if number == 0:
-    #         self._vals[:, ti] = number
-    #     else:
-    #         raise Exception('Not supported yet')
 
 
 class Population(object):
@@ -1894,6 +1859,7 @@ class Model(object):
         pop_index = self._pop_ids[pop_name]
         return self.pops[pop_index]
 
+    # @profile
     def build(self, parset):
         """ Build the full model. """
 
@@ -1996,6 +1962,7 @@ class Model(object):
                 obj.preallocate(self.t, self.dt)
             pop.initialize_compartments(parset, self.framework, self.t[0])
 
+    # @profile
     def _set_exec_order(self):
         """
         Set the execution order for parameters and junctions
@@ -2165,6 +2132,7 @@ class Model(object):
             for comp in pop.comps:
                 comp.update(ti)
 
+    # @profile
     def flush_junctions(self):
         """
         Flush initialization values from junctions

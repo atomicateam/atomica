@@ -24,7 +24,7 @@ from matplotlib.patches import Rectangle, Patch
 from matplotlib.ticker import FuncFormatter
 
 import sciris as sc
-from .model import Compartment, Characteristic, Parameter, Link
+from .model import Compartment, Characteristic, Parameter, Link, SourceCompartment, JunctionCompartment, SinkCompartment
 from .results import Result
 from .system import logger
 from .function_parser import parse_function
@@ -169,7 +169,7 @@ class PlotData:
 
         if outputs is None:
             outputs = [comp.name for comp in results[0].model.pops[0].comps if
-                       not (comp.tag_birth or comp.tag_dead or comp.is_junction)]
+                       not (isinstance(comp, SourceCompartment) or isinstance(comp, JunctionCompartment) or isinstance(comp, SinkCompartment))]
         elif not isinstance(outputs, list):
             outputs = [outputs]
 
@@ -222,7 +222,7 @@ class PlotData:
 
                         for link in vars:
                             data_dict[output_label] += link.vals
-                            compsize[output_label] += (link.source.vals if not link.source.is_junction else link.source.outflow)
+                            compsize[output_label] += (link.source.vals if not isinstance(link.source, JunctionCompartment) else link.source.outflow)
 
                         # Annualize the units, and record that they correspond to a flow per year
                         data_dict[output_label] /= dt
@@ -241,7 +241,7 @@ class PlotData:
                             output_units[output_label] = vars[0].units
                             compsize[output_label] = np.zeros(tvecs[result_label].shape)
                             for link in vars[0].links:
-                                compsize[output_label] += (link.source.vals if not link.source.is_junction else link.source.outflow)
+                                compsize[output_label] += (link.source.vals if not isinstance(link.source, JunctionCompartment) else link.source.outflow)
 
                     elif isinstance(vars[0], Compartment) or isinstance(vars[0], Characteristic):
                         data_dict[output_label] = vars[0].vals
