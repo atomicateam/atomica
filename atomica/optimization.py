@@ -1164,7 +1164,9 @@ def optimize(project, optimization, parset: ParameterSet, progset: ProgramSet, i
             'xmin': xmin,
             'xmax': xmax,
         }
-        x_opt = sc.asd(_objective_fcn, x0, args, **optim_args)[0]
+        opt_result = sc.asd(_objective_fcn, x0, args, **optim_args)
+        x_opt = opt_result['x']
+
     elif optimization.method == 'pso':
 
         import pyswarm

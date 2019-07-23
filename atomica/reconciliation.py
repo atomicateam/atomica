@@ -281,7 +281,9 @@ def reconcile(project, parset, progset, reconciliation_year: float, max_time=10,
         'maxtime': max_time,
     }
 
-    x_opt, _, _ = sc.asd(_objective, x0, args, **optim_args)
+    opt_result = sc.asd(_objective, x0, args, **optim_args)
+    x_opt = opt_result['x']
+
     _update_progset(x_opt, mapping, new_progset)  # Apply the changes to the progset
 
     # Before/after for quantities
