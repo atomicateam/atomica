@@ -1819,7 +1819,10 @@ class Model(object):
             pop.relink(objs)
 
         # Relink junctions
-        self._junc_exec_order =  [objs[j] for j in self._junc_exec_order]
+        try: # Migration, old projects didn't have a junction execution order
+            self._junc_exec_order = [objs[j] for j in self._junc_exec_order]
+        except:
+            self._junc_exec_order = list()
 
         # Set vars by pop
         self._set_vars_by_pop()
