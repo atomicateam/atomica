@@ -32,7 +32,7 @@ Timed parameter restrictions
 
 x - If a junction has a timed compartment input, it cannot have any untimed inputs
 x - If a junction receives flush inputs, it cannot have outflows that end up in the same duration group
-- If the same timed parameter is used for multiple compartments, the destination compartments cannot be in the group of source compartments
+x - If the same timed parameter is used for multiple compartments, the destination compartments cannot be in the group of source compartments (cannot flush into the duration group)
 x - If entered in the databook, only a constant value can be provided
 x - If it has a function, then it must be precomputable and have the same value at all times
 x - Cannot be marked as a derivative
@@ -71,6 +71,11 @@ Step (2) in this calculation populates the flush links with the number of people
 
 - Watch out for number parameters. In general the flow out of a timed compartment will be less. For example, suppose we have a number parameter moving 50 people out of vac to vacinf. But we have 100 people in vac and 10 of them due to move to sus. We end up moving 45 people from vac to vacinf. Because we cannot identify which people in vac are due to be flushed.
 
+Transfers
+*********
+
+- To a shorter duration, they are all inserted into the initial subcompartment. However, because they have already been in the duration group, they get advanced in the update
+- To a longer duration, the status is maintained
 
 Test cases
 **********
@@ -79,3 +84,6 @@ Test cases
 - Indirect flows (multiple junctions)
 - Transfers with different durations in same group
 - TimedCompartments with duration less than one timestep
+- Check initialization works correctly with cascaded junctions
+
+

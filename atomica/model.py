@@ -21,12 +21,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 from .programs import ProgramSet
 from .parameters import Parameter as ParsetParameter
+from .parameters import ParameterSet as ParameterSet
 import math
 import networkx as nx
 
 model_settings = dict()
 model_settings['tolerance'] = 1e-6
-model_settings['iteration_limit'] = 100
 
 
 class BadInitialization(Exception):
@@ -366,7 +366,8 @@ class JunctionCompartment(Compartment):
         """
         Construct link out of this compartment
 
-        For junctions, outgoing links are normal links unless the junction belongs to a duration group
+        For junctions, outgoing links are normal links unless the junction belongs to a duration group.
+        If the junction belongs to a duration group, then the output links should all be :class:`TimedLink` instances.
 
         :param dest: A ``Compartment`` instance
         :param par: The parameter that the Link will be associated with
@@ -381,14 +382,49 @@ class JunctionCompartment(Compartment):
             Link.create(pop=self.pop, parameter=par, source=self, dest=dest)
 
     def resolve_outflows(self, ti: int) -> None:
-        # Junction outflows are resolved in a separate step because they cannot be resolved junction-by-junction
+        """
+        Resolve outgoing links and convert to number
+
+        For junctions, links are updated in a separate step because the logic is different - instead
+        of the value of links coming from parameters, they come from the inflow into the junction.
+        We cannot update the junctions in the same step as compartments because while the junction
+        subgraphs must be acyclic, the entire system may contain cycles. Therefore it is not possible
+        to determine a topological ordering for the entire system. The system is solvable because for
+        normal compartments, only one transition per timestep is allowed. But regardless, this prevents
+        using graph analysis to determine an execution order for the entire system that would allow
+        junction computation in the same step.
+
+        :param ti: Time index to resolve outflows
+
+        """
+
         pass
 
     def update(self, ti: int) -> None:
-        # Junction values never need to be updated, since it's always zero
+        """
+        Update the junction at given time index
+
+        For compartments the ``update`` methods steps them forward in time. However, for junctions the
+        value never needs to be stepped forward, because it's always zero. Thus, this function does nothing.
+
+        :param ti: Time index to update
+
+        """
+
         pass
 
     def preallocate(self, tvec: np.array, dt: float) -> None:
+        """
+        Preallocate junction values
+
+        Junction preallocation pre-fills the values with zeros, since the junction must be empty
+        at all times.
+
+        :param tvec: An array of time values
+        :param dt: Time step size
+
+        """
+
         super().preallocate(tvec, dt)
         self.vals.fill(0.0)  #: Junction compartments are always empty (note the first entry may be given a nonzero value after compartment initialization and before the initial flush)
 
@@ -703,9 +739,18 @@ class TimedCompartment(Compartment):
         # Then, add in TimedLink inputs (prior to advancing the keyring)
         for link in self.inlinks:
             if isinstance(link, TimedLink):
-                self._vals[:,ti] += link._vals[:,tr]
-                raise Exception('Add row indexing here to deal with mismatched times')
-                # TODO - if these sizes don't match, then we need to index the rows appropriately
+                if self._vals.shape[0] == link._vals.shape[0]:
+                    # The sizes match exactly, no need to index rows at all
+                    self._vals[:, ti] += link._vals[:, tr]
+                elif self._vals.shape[0] > link._vals.shape[0]:
+                    # This compartment has a longer duration, so only insert the rows we've got
+                    self._vals[:link._vals.shape[0], ti] += link._vals[:, tr]
+                else:
+                    # This compartment has a shorter duration, so first insert the values we've got
+                    # then sum up and add the extra values to the initial subcompartment
+                    self._vals[:, ti] += link._vals[:self._vals.shape[0], tr]
+                    self._vals[-1,ti] += sum(link._vals[self._vals.shape[0]:, tr].tolist())
+
 
         # Advance the keyring
         assert np.isclose(self._vals[0, ti], 0)  # Now, the final subcompartment should be empty - can disable this check if it's slow
@@ -745,6 +790,7 @@ class TimedCompartment(Compartment):
             # If we are connecting up the timed parameter, also assign it to the flush link
             # We also need to break the connection between the parameter and the link
             # so that the parameter doesn't try to update the link during `update_pars()`
+            assert not isinstance(new_link, TimedLink), "Cannot flush into the same duration group"
             self.flush_link = new_link
             new_link.parameter = None
             par.links = []
@@ -877,11 +923,11 @@ class Parameter(Variable):
         self.fcn_str = None  #: String representation of parameter function
         self.deps = dict()  #: Dict of dependencies containing lists of integration objects
         self._fcn = None  #: Internal cache for parsed parameter function (this will be dropped when pickled)
-        self._precompute = False #: If True, the parameter function will be computed in a vector operation prior to integration
-        self._is_dynamic = False #: If True, this parameter will be updated during integration. Note that `precompute` and `dynamic` are mutually exclusive
-        self.derivative = False #: If True, the parameter function will be treated as a derivative and the value added on to the end
-        self._dx = None #: Internal cache for the value of the derivative at the current timestep
-        self.skip_function = None #: Can optionally be set to a (start,stop) tuple of times. Between these times, the parameter will not be updated so the parset value will be left unchanged
+        self._precompute = False  #: If True, the parameter function will be computed in a vector operation prior to integration
+        self._is_dynamic = False  #: If True, this parameter will be updated during integration. Note that `precompute` and `dynamic` are mutually exclusive
+        self.derivative = False  #: If True, the parameter function will be treated as a derivative and the value added on to the end
+        self._dx = None  #: Internal cache for the value of the derivative at the current timestep
+        self.skip_function = None  #: Can optionally be set to a (start,stop) tuple of times. Between these times, the parameter will not be updated so the parset value will be left unchanged
 
         #: For transition parameters, the ``vals`` stored by the parameter is effectively a rate. The ``timescale``
         #: attribute informs the time period corresponding to the units in which the rate has been provided.
@@ -1396,7 +1442,7 @@ class Population(object):
         else:
             n = 0
             for comp in self.comps:
-                if not isinstance(comp,SourceCompartment) and not isinstance(comp,SinkCompartment):
+                if not isinstance(comp, SourceCompartment) and not isinstance(comp, SinkCompartment):
                     n += comp[ti]
             return n
 
@@ -1578,7 +1624,22 @@ class Population(object):
                 par.set_fcn(framework, fcn_str, progset)
 
 
-    def initialize_compartments(self, parset, framework, t_init):
+    def initialize_compartments(self, parset: ParameterSet, framework, t_init: float) -> None:
+        """
+        Set compartment sizes
+
+        This method takes the databook values for compartments and characteristics, and uses them to
+        compute the initial compartment sizes at ``ti=0``. The computation is carried out by solving
+        the linear matrix equation mapping characteristics to compartments. For this purpose,
+        both compartments and characteristics in the databook are treated in the same way i.e. a databook
+        compartment is treated like a characteristic containing only that compartment.
+
+        :param parset: A py:class:`ParameterSet` instance with initial values for compartments/characteristics
+        :param framework: A py:class:`ProjectFramework` instance, used to identify and retrieve interaction terms
+        :param t_init: The year to use for initialization. This should generally be set to the sim start year
+
+        """
+
         # Given a set of characteristics and their initial values, compute the initial
         # values for the compartments by solving the set of characteristics simultaneously
 
@@ -1599,11 +1660,11 @@ class Population(object):
         for i, obj in enumerate(b_objs):
             # Look up the characteristic value
             par = parset.pars[obj.name]
-            b[i] = par.interpolate(tvec=np.array([t_init]), pop_name=self.name)[0] * par.y_factor[self.name] * par.meta_y_factor
+            b[i] = par.interpolate(t_init, pop_name=self.name)[0] * par.y_factor[self.name] * par.meta_y_factor
             if isinstance(obj, Characteristic):
                 if obj.denominator is not None:
                     denom_par = parset.pars[obj.denominator.name]
-                    b[i] *= denom_par.interpolate(tvec=np.array([t_init]), pop_name=self.name)[0] * denom_par.y_factor[self.name] * denom_par.meta_y_factor
+                    b[i] *= denom_par.interpolate(t_init, pop_name=self.name)[0] * denom_par.y_factor[self.name] * denom_par.meta_y_factor
                 for inc in obj.get_included_comps():
                     A[i, comp_indices[inc.name]] = 1.0
             else:
@@ -1855,7 +1916,6 @@ class Model(object):
         pop_index = self._pop_ids[pop_name]
         return self.pops[pop_index]
 
-    # @profile
     def build(self, parset):
         """ Build the full model. """
 
@@ -1958,7 +2018,6 @@ class Model(object):
                 obj.preallocate(self.t, self.dt)
             pop.initialize_compartments(parset, self.framework, self.t[0])
 
-    # @profile
     def _set_exec_order(self):
         """
         Set the execution order for parameters and junctions
@@ -1994,7 +2053,6 @@ class Model(object):
         assert nx.dag.is_directed_acyclic_graph(G), 'There is a cycle present where one junction has flows into another, which results in an infinite loop and is not permitted'
         self._junc_exec_order = list(nx.dag.topological_sort(G))  # Topological sorting of the junction graph, which is a valid execution order
 
-    # @profile
     def process(self):
         """ Run the full model. """
 
@@ -2003,12 +2061,11 @@ class Model(object):
 
         # Initial flush of people in junctions
         if self._t_index == 0:
-            # Make sure initially-filled junctions are processed and initial dependencies are calculated, and calculate initial flows
             self.update_pars()  # Update transition parameters in case junction outflows are function parameters
-            self.flush_junctions() # Flush the current contents of the junction without considering any inflows
+            self.flush_junctions()  # Flush the current contents of the junction without including any inflows
             self.update_pars()  # Update the transition parameters in case junction outflows are functions _and_ they depend on compartment sizes that just changed in the line above
             self.update_links()  # Update all of the links
-            self.update_junctions()  # Junctions are now empty - perform a normal update by setting the outflows to be equal to the inflows so the usual condition outflow[t]=inflow[t] is satisfied
+            self.update_junctions()  # Junctions are now empty - perform a normal update by setting the outflows to be equal to the inflows so the usual condition outflow[t]=inflow[t] is satisfied. This would be nonzero if a source is connected directly to a junction
 
         # Main integration loop
         while self._t_index < (self.t.size - 1):
@@ -2030,7 +2087,6 @@ class Model(object):
 
         self._program_cache = None  # Drop the program cache afterwards to save space
 
-    # @profile
     def update_links(self):
         """
         Evolve model characteristics by one timestep (defaulting as 1 year).
@@ -2110,14 +2166,13 @@ class Model(object):
                     par_label = self.framework.get_label(par.name)
                 except:  # Name lookup will fail for transfer parameters
                     par_label = par.name
-                raise Exception("Encountered unknown units '%s' for Parameter '%s' (%s) in Population %s" % (par.units, par.name, par_label, pop.name))
+                raise Exception("Encountered unknown units '%s' for Parameter '%s' (%s) in Population %s" % (par.units, par.name, par_label, par.pop.name))
 
         # Adjust cached fraction outflows and convert them to number units
         for pop in self.pops:
             for comp in pop.comps:
                 comp.resolve_outflows(ti)
 
-    # @profile
     def update_comps(self):
         """
         Set the compartment values at self._t_index+1 based on the current values at self._t_index
@@ -2133,7 +2188,6 @@ class Model(object):
             for comp in pop.comps:
                 comp.update(ti)
 
-    # @profile
     def flush_junctions(self):
         """
         Flush initialization values from junctions
@@ -2150,15 +2204,14 @@ class Model(object):
         for j in self._junc_exec_order:
             j.initial_flush()
 
-    # @profile
     def update_junctions(self):
         """
         Update junctions by balancing
 
         Call ``JunctionCompartment.balance()`` on every junction in the model. The order
         of the loop is important if junctions flow into other junctions - this needs to be
-        computed from the graph prior to calling this method (so that ``Model.junctions`` is
-        in the correct order)
+        computed from the graph prior to calling this method (so that ``Model._junc_exec_order``
+        is in the correct order)
 
         """
 
@@ -2166,15 +2219,27 @@ class Model(object):
         for j in self._junc_exec_order:
             j.balance(ti)
 
-    # @profile
     def update_pars(self):
         """
-        Run through all parameters and characteristics flagged as dependencies for custom-function parameters.
-        Evaluate them for the current timestep.
-        These dependencies must be calculated in the same order as defined in settings.
-        This also means characteristics before parameters, otherwise references may break.
-        Also, parameters in dependency list do not need calculation unless explicitly depending on another parameter.
-        Parameters that have special rules are usually dependent on other population values, so are included here.
+        Update parameter values
+
+        Run through all parameters and characteristics, updating as required. This takes place in stages
+
+        1. Characteristics that are dependencies of parameters are updated
+        2. Parameters are updated in dependency order
+            a. The parameter function is evaluated
+            b. The parameter is overwritten by programs
+            c. The parameter is updated with the population aggregation calculation
+            d. The parameter value is constrained
+
+        The parameters are updated parameter-at-a-time (across populations) so that the population aggregation
+        can be carried out.
+
+        Only parameters that are required for transitions or that are overwritten by programs are
+        modified here - otherwise, parameter values are computed in vector calculations either before
+        integration (if the value is purely from the databook) or after integration (if the parameter depends
+        on any flow rates or compartment sizes).
+
         """
 
         ti = self._t_index

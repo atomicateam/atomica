@@ -220,7 +220,7 @@ class ProjectData(sc.prettyobj):
         new_transfers = sc.odict()
         if sc.isnumber(transfers):
             for i in range(0, transfers):
-                new_transfers['transfer_%d' % (i)] = {'label':'Population %d' % (i),'type':default_pop_type}
+                new_transfers['transfer_%d' % (i)] = {'label': 'Transfer %d' % (i), 'type': default_pop_type}
         else:
             for code_name, spec in transfers.items():
                 if sc.isstring(spec):
@@ -251,8 +251,10 @@ class ProjectData(sc.prettyobj):
                     if obj_type == 'pars':
                         data.tdve[spec.name].write_assumption = True
                         if spec['timed'] == 'y':
-                            data.tdve[spec.name].tvec = [] # If parameter is timed, don't show any years
-                    data.tdve[spec.name].write_uncertainty = True
+                            data.tdve[spec.name].tvec = []  # If parameter is timed, don't show any years
+                            data.tdve[spec.name].write_uncertainty = False  # Don't show uncertainty for timed parameters. In theory users could manually add the column and sample over it, but because the duration is rounded to the timestep, it's likely to have confusing stepped effects
+                        else:
+                            data.tdve[spec.name].write_uncertainty = True
                     data.tdve[spec.name].pop_type = pop_type
 
         # Now convert pages to full names and sort them into the correct order
