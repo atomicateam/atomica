@@ -27,6 +27,7 @@ One example of where this usage would be inappropriate
 - Treatment lasts 6 months
     - The expected time spent in the compartment is only 1-2 timesteps, so the approximation that the time spent in the compartment by individuals is uniformly distributed is sufficiently good even if the treatment initiation rate changes rapidly
 
+Note - what does it mean to be 'in' a compartment for a duration. Easiest way is to think of it as the number of chances to undergo a transition e.g. dt=0.25 and 1 year duration, there are 4 timesteps where you'd be eligible for transitions
 
 Timed parameter restrictions
 
@@ -80,10 +81,10 @@ Transfers
 Test cases
 **********
 
-- Finish lifespan test (transitions with junctions)
-- Indirect flows (multiple junctions)
-- Transfers with different durations in same group
+x - Finish lifespan test (transitions with junctions)
+x - Indirect flows (multiple junctions)
+x - Transfers with different durations in same group
 - TimedCompartments with duration less than one timestep
-- Check initialization works correctly with cascaded junctions
+x - Check initialization works correctly with cascaded junctions
 
 

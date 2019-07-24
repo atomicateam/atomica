@@ -678,7 +678,7 @@ class TimedCompartment(Compartment):
         self.dt = dt
         assert np.all(self.parameter.vals==self.parameter.vals[0]), 'Duration parameter value cannot vary over time'
         duration = self.parameter.vals[0] * self.parameter.timescale * self.parameter.scale_factor
-        self._vals = np.empty((math.ceil(duration/dt),tvec.size), order='F')  # Fortran/column-major order should be faster for summing over lags to get `vals`
+        self._vals = np.empty((max(1, math.ceil(duration/dt)), tvec.size), order='F')  # Fortran/column-major order should be faster for summing over lags to get `vals`
         self._vals.fill(np.nan)
 
     def resolve_outflows(self,ti: int) -> None:
@@ -1234,6 +1234,8 @@ class Link(Variable):
     def __repr__(self, *args, **kwargs):
         if self.parameter:
             return "%s %s (parameter %s) - %s to %s" % (type(self).__name__, self.name, self.parameter.name, self.source.name, self.dest.name)
+        elif isinstance(self.source, TimedCompartment) and self.source.flush_link is self:
+            return "%s %s - %s to %s (flush)" % (type(self).__name__, self.name, self.source.name, self.dest.name)
         else:
             return "%s %s - %s to %s" % (type(self).__name__, self.name, self.source.name, self.dest.name)
 
