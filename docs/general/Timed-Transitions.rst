@@ -69,10 +69,13 @@ To reduce storage requirements, the top row is omitted and that way ``TimedLink`
 
 Step (2) in this calculation populates the flush links with the number of people in each ``TimedCompartment`` that need to be cleared from the state. Therefore, they have their values set based on the ``TimedCompartment`` they are associated with during step (2), and are not updated during ``update_links``.
 
+- Watch out for number parameters. In general the flow out of a timed compartment will be less. For example, suppose we have a number parameter moving 50 people out of vac to vacinf. But we have 100 people in vac and 10 of them due to move to sus. We end up moving 45 people from vac to vacinf. Because we cannot identify which people in vac are due to be flushed.
+
 
 Test cases
 **********
 
+- Finish lifespan test (transitions with junctions)
 - Indirect flows (multiple junctions)
 - Transfers with different durations in same group
 - TimedCompartments with duration less than one timestep

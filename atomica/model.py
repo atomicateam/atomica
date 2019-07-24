@@ -450,7 +450,7 @@ class JunctionCompartment(Compartment):
 
             # Assign the inflow directly to the outflow compartments
             for frac, link in zip(outflow_fractions, self.outlinks):
-                link.dest[0] = self.vals[0] * frac
+                link.dest[0] += self.vals[0] * frac
 
             self.vals[0] = 0.0
 
@@ -478,7 +478,8 @@ class SourceCompartment(Compartment):
         self.vals.fill(0.0)  #: Source compartments have an unlimited number of people in them. TODO: If this complicates validation, set to 0.0
 
     def resolve_outflows(self,ti: int) -> None:
-        self.outlinks[0].vals[ti] = self.outlinks[0]._cache
+        for link in self.outlinks:
+            link.vals[ti] = link._cache
 
     def update(self, ti: int) -> None:
         pass
@@ -585,28 +586,6 @@ class TimedCompartment(Compartment):
 
         return self._vals.sum(axis=0)
 
-    # @vals.setter
-    # def vals(self, value: np.array) -> None:
-    #     """
-    #     Set values for all times
-    #
-    #     If the user assigns to _all_ values at once, then this setter method will automatically split
-    #     them up into time bins e.g. passing in a value of 3 with a duration of 3 timesteps will assign
-    #     1 person to each arrival time (and 1 person will be available to immediately transition via
-    #     the timed transition).
-    #
-    #     In theory, this method should not get used because the only time values get written to the
-    #     Compartment are during integration and thus only within the timestepping in `Model.process()`.
-    #     So this functionality is currently disabled, until there is a specific use case for it.
-    #
-    #     """
-    #
-    #
-    #     raise Exception('Unexpected usage - writing back to ``.vals`` may give unexpected results because the specific times spent currently stored in the compartment will be lost')
-    #
-    #     if value is None:
-    #         return # Do nothing if the value is None
-
     def __getitem__(self, ti):
         """
         Retrieve compartment size at given time index
@@ -678,8 +657,6 @@ class TimedCompartment(Compartment):
 
         """
 
-        # This is simpler in some ways because a TimedCompartment cannot be a junction, source, or sink
-
         # First, work out the scale factors as usual
         self.flush_link._cache = 0.0  # At this stage, no outflow goes via the flush link
 
@@ -727,6 +704,7 @@ class TimedCompartment(Compartment):
         for link in self.inlinks:
             if isinstance(link, TimedLink):
                 self._vals[:,ti] += link._vals[:,tr]
+                raise Exception('Add row indexing here to deal with mismatched times')
                 # TODO - if these sizes don't match, then we need to index the rows appropriately
 
         # Advance the keyring
@@ -741,7 +719,6 @@ class TimedCompartment(Compartment):
             if not isinstance(link, TimedLink):
                 self._vals[-1,ti] += link[tr]
 
-        # Stop the system becoming numerically negative TODO - Check performance
         self._vals[self._vals[:,ti]<0,ti] = 0
 
     def connect(self, dest, par) -> None:
@@ -2088,9 +2065,6 @@ class Model(object):
                     link._cache = 0.0
                 continue
 
-
-
-
             # Convert probability by Poisson distribution formula to a value appropriate for timestep.
             if par.units == FS.QUANTITY_TYPE_PROBABILITY:
                 # Note that we convert the transition to the timestep before checking whether it is greater than 1 or not. That way,
@@ -2130,7 +2104,7 @@ class Model(object):
                 for link in par.links:
                     link._cache = converted_frac
 
-            # NOTE - probability format parameters should not be present in the exec list
+            # NOTE - proportion format parameters should not be present in the exec list, so any other units are an error
             else:
                 try:
                     par_label = self.framework.get_label(par.name)
@@ -2141,7 +2115,7 @@ class Model(object):
         # Adjust cached fraction outflows and convert them to number units
         for pop in self.pops:
             for comp in pop.comps:
-                    comp.resolve_outflows(ti)
+                comp.resolve_outflows(ti)
 
     # @profile
     def update_comps(self):
