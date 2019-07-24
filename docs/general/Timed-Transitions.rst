@@ -84,7 +84,7 @@ Test cases
 x - Finish lifespan test (transitions with junctions)
 x - Indirect flows (multiple junctions)
 x - Transfers with different durations in same group
-- TimedCompartments with duration less than one timestep
+x - TimedCompartments with duration less than one timestep
 x - Check initialization works correctly with cascaded junctions
-
+- Various invalid junctions
 

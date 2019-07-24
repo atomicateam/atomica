@@ -45,7 +45,6 @@ def test_read_write_databook():
     P = at.Project(framework=F,databook='test.xlsx',do_run=False)
     P.load_databook('test.xlsx')
 
-
 def test_zero_duration():
     # Test junction-like behaviour where the compartment empties every timestep
     # This makes sure the algorithm works when there is no lag
@@ -66,9 +65,10 @@ def test_zero_duration():
     assert pop.get_variable('inf')[0].vals[1] == sum(l.vals[1] for l in pop.get_variable('inf')[0].outlinks)
 
 def test_timed_tb():
-    P = at.Project(framework=testdir + 'tb_timed_framework.xlsx', databook=testdir + 'tb_timed_databook.xlsx', do_run=True)
-
-
+    # Just check that it runs as a demonstration
+    P = at.Project(framework=testdir + 'timed_tb_framework.xlsx', databook=testdir + 'timed_tb_databook.xlsx', do_run=False)
+    P.settings.sim_dt = 0.25
+    return P.run_sim()
 
 def test_spike():
     P = get_project()
@@ -281,15 +281,12 @@ def test_timed_transfer():
 
 if __name__ == '__main__':
 
-    # COMPLETED TESTS
-    # test_timed_invalid()
-    # test_timed_indirect()
-    # test_timed_indirect2()
-    # test_timed_eligibility()
-    # test_timed_transfer()
-    # test_spike()
-    # test_read_write_databook()
-    # test_zero_duration()
-
-    # WIP TESTS
-    # test_timed_tb()
+    test_timed_invalid()
+    test_timed_indirect()
+    test_timed_indirect2()
+    test_timed_eligibility()
+    test_timed_transfer()
+    test_spike()
+    test_read_write_databook()
+    test_zero_duration()
+    test_timed_tb()

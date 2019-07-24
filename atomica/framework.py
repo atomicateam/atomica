@@ -1105,11 +1105,19 @@ class ProjectFramework(object):
 
                 # We are a member of the duration group if there is a path to a timed compartment
                 # that does not go via a timed parameter
-                def get_attached_comps(comp_name, direction, comps=None, groups=None):
+                def get_attached_comps(comp_name, direction, comps=None, groups=None, attachments=None):
+                    # If there is a compartment linked to the junction with a duration group, the group
+                    # is added to the upstream/downstream groups. Additionally, if the link is not the flush link,
+                    # then it is considered 'attached'. A compartment must attach
+                    # An attachment is a connection via a parameter that isn't a flush link. A junction is
+                    # part of the duration group only if group equals the attachments and the attachments match
+                    # on the upstream and downstream sides. Otherwise, the links are untimed, and the only
+                    # constraint is that upstream groups can't flow into the same downstream groups (which would
+                    # require TimedLinks)
                     if comps is None:
                         comps = set()
                         groups = set()
-
+                        attachments = set()
                     if direction == 'upstream':
                         items = zip(transition_matrix.columns.tolist(), transition_matrix[comp_name].tolist())
                     if direction == 'downstream':
@@ -1119,38 +1127,32 @@ class ProjectFramework(object):
                         if inflow_par is None:
                             continue
                         elif self.comps.at[inflow_comp, 'is junction'] == 'y':
-                            get_attached_comps(inflow_comp, direction, comps, groups)
+                            get_attached_comps(inflow_comp, direction, comps, groups, attachments)
                         else:
                             comps.add(inflow_comp) # Add the inflow comp regardless of how it's connected
-                            if self.pars.at[inflow_par, 'timed'] != 'y':
-                                group = self.comps.at[inflow_comp, 'duration group']
+                            group = self.comps.at[inflow_comp, 'duration group']
+                            if group is not None:
                                 groups.add(group)
+                                if self.pars.at[inflow_par, 'timed'] != 'y':
+                                    attachments.add(group)
+                    return comps, groups, attachments
 
-                    return comps, groups
+                upstream_comps, upstream_groups, upstream_attachments = get_attached_comps(junc_name, 'upstream')
+                downstream_comps, downstream_groups, downstream_attachments = get_attached_comps(junc_name, 'downstream')
 
-                upstream_comps, upstream_groups = get_attached_comps(junc_name, 'upstream')
-                downstream_comps, downstream_groups = get_attached_comps(junc_name, 'downstream')
-
-                if len(upstream_groups) > 1:
-                    # Note that because `None` is a 'group', this check will correctly detect cases where a single duration group is mixed with an untimed inflow
-                    raise InvalidFramework(f'Junction "{junc_name}" receives upstream inputs from more than one duration group (a compartment with a timed parameter that is not flushing into this junction). Upstream compartments are {upstream_comps}')
-                if len(downstream_groups) > 1:
-                    raise InvalidFramework(f'Junction "{junc_name}" has outputs into more than one duration group (a compartment with a timed parameter that is not flushing into this junction). Downstream compartments are {downstream_comps}')
-
-                # If we belong to a duration group, then check the downstream groups match
-                if len(upstream_groups) == 1:
-                    if downstream_groups != upstream_groups:
-                        raise InvalidFramework(f'Junction "{junc_name}" has upstream inputs from a duration group, but it does not have downstream compartments that are all in the same group. Upstream compartments are {upstream_comps} with groups {upstream_groups}. Downstream compartments are {downstream_comps} with groups {upstream_groups}')
-                    else:
-                        # Add the junction to the duration group
-                        self.comps.at[junc_name, 'duration group'] = list(upstream_groups)[0]
-                else:
-                    # Otherwise, check that there is no overlap in the compartment groups upstream and downstream
-                    # This checks that if any compartments flush into the junction, the same duration group isn't downstream
-                    upstream_groups = set(self.comps.loc[upstream_comps, 'duration group'])
-                    downstream_groups = set(self.comps.loc[downstream_comps, 'duration group'])
+                # The logic is
+                # - If there is more than one upstream or downstream group, the junction doesn't belong to the duration group
+                #   In that case, there can be no overlap between the duration groups in the upstream and downstream compartments
+                #   noting that it's the compartment groups that matter regardless of attachment status
+                # - If there is exactly one upstream or downstream group, then the junction belongs to the duration group
+                # - Similarly, if there are upstream or downstream groups and no groups in the opposite direction, this is also allowed
+                if len(upstream_attachments) == 1 and len(downstream_attachments) == 1 and upstream_attachments==upstream_groups and downstream_attachments==downstream_groups and upstream_attachments==downstream_attachments:
+                    # If the
+                    self.comps.at[junc_name, 'duration group'] = list(upstream_attachments)[0]
+                elif len(upstream_attachments) or len(downstream_attachments):
+                    # If there is at least one upstream or downstream attachment, then there can be no overlap between the upstream and downstream groups.
                     if downstream_groups.intersection(upstream_groups):
-                        raise InvalidFramework(f'Junction "{junc_name}" receives flush inputs from a duration group. The downstream compartments therefore cannot belong to the same duration group. Upstream compartments are {upstream_comps} with groups {upstream_groups}. Downstream compartments are {downstream_comps} with groups {upstream_groups}')
+                        raise InvalidFramework(f'Junction "{junc_name}" has inputs and outputs to multiple duration groups. As these are untimed flows, there can be no overlap in the upstream and downstream groups. Upstream compartments are {upstream_comps} with groups {upstream_groups}. Downstream compartments are {downstream_comps} with groups {upstream_groups}')
 
 
     def get_databook_units(self, code_name: str) -> str:

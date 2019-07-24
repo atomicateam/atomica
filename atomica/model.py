@@ -485,6 +485,8 @@ class JunctionCompartment(Compartment):
             outflow_fractions /= np.sum(outflow_fractions)
 
             # Assign the inflow directly to the outflow compartments
+            # This is done using the [] indexing on the downstream compartment so it is agnostic
+            # to the downstream compartment type
             for frac, link in zip(outflow_fractions, self.outlinks):
                 link.dest[0] += self.vals[0] * frac
 
