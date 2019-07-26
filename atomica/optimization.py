@@ -503,7 +503,7 @@ class DecreaseByMeasurable(Measurable):
         self.weight = 1.0
         assert decrease >= 0, 'Set positive value for magnitude of decrease e.g. 0.05 for a 5%% decrease'
         assert (target_type == 'abs' or decrease <= 1), 'Cannot decrease by more than 100%% - fractional decrease should be a value between 0 and 1'
-        self.threshold = 1 - decrease
+        self.decrease = decrease
         self.target_type = target_type
 
     def get_baseline(self,model) -> float:
