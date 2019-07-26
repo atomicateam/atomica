@@ -244,6 +244,80 @@ class Compartment(Variable):
 
         return outflow
 
+    def resolve_outflows(self,ti: int) -> None:
+        """
+        Resolve outgoing links
+
+        For the base class, rescale outgoing links so that the compartment won't go negative
+
+        :param ti: Time index at which to update link outflows
+
+        """
+
+        if not (self.is_junction or self.tag_birth or self.tag_dead):
+            outflow = 0.0
+            for link in self.outlinks:
+                outflow += link.vals[ti]
+
+            if outflow > self.vals[ti]:
+                rescale = self.vals[ti] / outflow
+                for link in self.outlinks:
+                    link.vals[ti] *= rescale
+
+    def update(self, ti: int) -> None:
+        """
+        Update compartment value
+
+        A compartment update passes in the time to assign (ti). We have
+
+        x(ti) = x(ti-1) + inflow(ti-1) - outflow(ti-1)
+
+        Thus, need to initialize the value and then resolve all inflows and outflows
+        Junctions have already been flushed and thus do not need to be updated in this step
+
+        :param ti:
+        :return:
+
+        """
+
+        if self.is_junction or self.tag_birth:
+            self.vals[ti] = 0.0
+            return
+
+        tr = ti-1
+        v = self.vals[tr]
+
+        for link in self.outlinks:
+            v -= link.vals[tr]
+        for link in self.inlinks:
+            v += link.vals[tr]
+
+        # Guard against populations becoming negative due to numerical artifacts
+        if v > 0:
+            self.vals[ti] = v
+        else:
+            self.vals[ti] = 0.0
+
+
+
+class TimedCompartment(Compartment):
+    def __init__(self, pop, name, duration, destination):
+        Variable.__init__(self, pop=pop, id=(pop.name, name))
+        self.units = 'Number of people'
+        self.tag_birth = False  # Tag for whether this compartment contains unborn people.
+        self.tag_dead = False  # Tag for whether this compartment contains dead people.
+        self.is_junction = False
+        self._vals = None
+
+        self.outlinks = []
+        self.inlinks = []
+
+    def preallocate(self, tvec, dt):
+        # Note that we don't use Variable.preallocate() here because we cannot
+        # preallocate self.vals because it is a property method
+        self.t = tvec
+        self.dt = dt
+        self._vals = np.ones(tvec.shape) * np.nan
 
 class Characteristic(Variable):
     """ A characteristic represents a grouping of compartments. """
@@ -1050,6 +1124,7 @@ class Model(object):
             pop.unlink()
 
         self._vars_by_pop = None
+        self._par_list = None
         self._program_cache = None  # This drops the cache when pickling, but its only going to have anything if pickled DURING process() i.e. only devs would encounter this
 
     def relink(self):
@@ -1244,6 +1319,7 @@ class Model(object):
 
                     par.constrain()  # Sampling might result in the parameter value going out of bounds (or user might have entered bad values in the databook) so ensure they are clipped here
 
+    # @profile
     def process(self):
         """ Run the full model. """
 
@@ -1262,8 +1338,8 @@ class Model(object):
 
         # Main integration loop
         while self._t_index < (self.t.size - 1):
-            self.update_comps()  # This writes values to comp.vals[ti+1] so this will be out of bounds if self._t_index == self.t.size-1
             self._t_index += 1  # Step the simulation forward
+            self.update_comps()
             self.update_pars()
             self.update_links()
             self.update_junctions()
@@ -1280,6 +1356,7 @@ class Model(object):
 
         self._program_cache = None  # Drop the program cache afterwards to save space
 
+    # @profile
     def update_links(self):
         """
         Evolve model characteristics by one timestep (defaulting as 1 year).
@@ -1355,17 +1432,10 @@ class Model(object):
                         raise Exception("Encountered unknown units '%s' for Parameter '%s' (%s) in Population %s" % (quantity_type, par.name, par_label, pop.name))
 
             # Then, adjust outflows to prevent negative popsizes.
-            for comp_source in pop.comps:
-                if not (comp_source.is_junction or comp_source.tag_birth):
-                    outflow = 0.0
-                    for link in comp_source.outlinks:
-                        outflow += link.vals[ti]
+            for comp in pop.comps:
+                comp.resolve_outflows(ti)
 
-                    if outflow > comp_source.vals[ti]:
-                        rescale = comp_source.vals[ti] / outflow
-                        for link in comp_source.outlinks:
-                            link.vals[ti] *= rescale
-
+    # @profile
     def update_comps(self):
         """
         Set the compartment values at self._t_index+1 based on the current values at self._t_index
@@ -1379,25 +1449,9 @@ class Model(object):
         # will cross population boundaries
         for pop in self.pops:
             for comp in pop.comps:
-                comp.vals[ti + 1] = comp.vals[ti]
+                comp.update(ti)
 
-        # update_junctions will perform the compartment size update for all junctions but nothing else
-        # Therefore, we need to resolve any links where neither endpoint is a junction
-        # This is because a junction with inlinks still needs its sources to have the flow deducted, and
-        # a junction with outlinks still needs its destination to have the flow applied
-        for pop in self.pops:
-            for comp in pop.comps:
-                for link in comp.outlinks:
-                    if not link.source.is_junction:
-                        link.source.vals[ti + 1] -= link.vals[ti]
-                    if not link.dest.is_junction:
-                        link.dest.vals[ti + 1] += link.vals[ti]
-
-        # Guard against populations becoming negative due to numerical artifacts
-        for pop in self.pops:
-            for comp in pop.comps:
-                comp.vals[ti + 1] = max(0, comp.vals[ti + 1])
-
+    # @profile
     def update_junctions(self, initial_flush=False):
         """
         For every compartment considered a junction, propagate the contents onwards.
@@ -1441,7 +1495,10 @@ class Model(object):
                         current_size = junc.vals[ti]
                         # This is the total fraction of people requested to leave.
                         # Outflows are scaled to the entire compartment size.
-                        denom_val = sum(link.parameter.vals[ti] for link in junc.outlinks)
+                        denom_val = 0.0
+                        for link in junc.outlinks:
+                            denom_val += link.parameter.vals[ti]
+
                         if denom_val == 0:
                             raise Exception("Total junction outflow for junction '%s' was zero - all junctions must have a nonzero outflow" % (self.framework.get_label(junc.name)))
 
@@ -1459,6 +1516,7 @@ class Model(object):
             else:
                 raise Exception("Processing junctions for timestep {0} is taking too long. Infinite loop suspected.".format(ti))
 
+    # @profile
     def update_pars(self):
         """
         Run through all parameters and characteristics flagged as dependencies for custom-function parameters.
@@ -1544,7 +1602,8 @@ class Model(object):
                 par_vals = np.matmul(weights, par_vals)
 
                 for par, val in zip(pars, par_vals):
-                    par.vals[ti] = par.scale_factor * val
+                    if par.skip_function is None or (self.t[ti] < par.skip_function[0]) or (self.t[ti] > par.skip_function[1]): # Careful - note how the < here matches >= in Parameter.update()
+                        par.vals[ti] = par.scale_factor * val
 
             # Restrict the parameter's value if a limiting range was defined
             for par in pars:

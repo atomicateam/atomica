@@ -28,7 +28,8 @@ def test_migration():
 
     at.plot_series(at.PlotData(results))
 
-    P.databook.save(tmpdir + 'migration_test_databook_save')
+    P.databook.save(tmpdir + 'migration_test_databook_save') # Save original databook
+    P.data.save(tmpdir + 'migration_test_data_save') # Re-convert data to spreadsheet and save
 
 
 if __name__ == '__main__':

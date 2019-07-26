@@ -31,6 +31,7 @@ def test_databooks():
     # Change the time axis
     d2 = sc.dcp(data)
     d2.change_tvec(np.arange(2000,2017,0.5))
+    d2.transfers[0].comment = 'Test comment'
     d2.save(tmpdir + 'd_blug_halfyear.xlsx')
 
     # Run the half-year databook
@@ -86,17 +87,18 @@ def test_databooks():
     data = ProjectData.from_spreadsheet(at.LIBRARY_PATH + "tb_databook.xlsx",F)
     data.tdve['alive'].ts[0].sigma = 100
 
-    data.save(tmpdir + 'd_blug_uncertainty.xlsx', write_uncertainty=True) # Every table has uncertainty
-
-    data.save(tmpdir + 'd_blug_uncertainty_auto.xlsx') # Only the 'alive' table has uncertainty
+    # Check stripping uncertainty values
+    for tdve in data.tdve.values():
+        tdve.write_uncertainty = True # Force writing uncertainty
+    data.save(tmpdir + 'd_blug_uncertainty.xlsx') # Every table has uncertainty - this is the default
 
     # Check stripping uncertainty values
-    data.save(tmpdir + 'd_blug_uncertainty_stripped.xlsx', write_uncertainty=False) # No tables have uncertainty
+    for tdve in data.tdve.values():
+        tdve.write_uncertainty = False
+    data.save(tmpdir + 'd_blug_uncertainty_stripped.xlsx') # No tables have uncertainty
 
     # Check the values get read in correctly
     d3 = at.ProjectData.from_spreadsheet(tmpdir + 'd_blug_uncertainty.xlsx',F)
-    assert d3.tdve['alive'].ts[0].sigma == 100
-    d3 = at.ProjectData.from_spreadsheet(tmpdir + 'd_blug_uncertainty_auto.xlsx',F)
     assert d3.tdve['alive'].ts[0].sigma == 100
     d3 = at.ProjectData.from_spreadsheet(tmpdir + 'd_blug_uncertainty_stripped.xlsx',F)
     assert d3.tdve['alive'].ts[0].sigma is None

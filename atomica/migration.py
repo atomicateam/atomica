@@ -43,6 +43,7 @@ atomica.structure.TimeSeries = atomica.utils.TimeSeries  # Moved 'TimeSeries' in
 # The migration function can then replace Placeholder instances with actual
 # instances - see the AtomicaSpreadsheet -> sciris.Spreadsheet migration function
 atomica.excel.AtomicaSpreadsheet = _Placeholder
+atomica.optimization.OptimInstructions = _Placeholder
 
 # PROJECT MIGRATIONS
 #
@@ -515,7 +516,6 @@ def add_pop_type(proj):
             
     return proj
 
-
 @migration('1.3.0', '1.4.0', 'Parameter can be derivative')
 def add_derivatives(proj):
     for fw in all_frameworks(proj):
@@ -548,3 +548,70 @@ def add_parset_disable_function(proj):
                 optim.json['adjustment_year'] = optim.json['start_year']
     return proj
 
+
+@migration('1.7.0', '1.8.0', 'Parameters store interpolation method, deprecate scenario smooth onset')
+def add_parameter_interpolation_method(proj):
+    for parset in proj.parsets.values():
+        for par in parset.all_pars():
+            par._interpolation_method = 'pchip' # New projects will default to linear, but migrations use pchip to ensure results don't change
+    for scen in proj.scens.values():
+        if isinstance(scen,atomica.ParameterScenario):
+            for par_name in scen.scenario_values.keys():
+                for pop_name in scen.scenario_values[par_name].keys():
+                    if 'smooth_onset' in scen.scenario_values[par_name][pop_name]:
+                        logger.warning('Parameter scenario smooth onset is deprecated and will not be used')
+
+    return proj
+
+@migration('1.8.0', '1.9.0', 'OptimInstructions functionality moved to apps')
+def refactor_optiminstructions(proj):
+    if hasattr(proj,'optims'):
+        delkeys = []
+        for k,v in proj.optims.items():
+            if isinstance(v,_Placeholder) and hasattr(v,'json'): # If it was previously an OptimInstructions
+                # This was a project from the FE, which stores the optimization JSON dicts in
+                if not hasattr(proj,'optim_jsons'):
+                    proj.optim_jsons = []
+
+                json = v.json
+                for prog_name in json['prog_spending'].keys():
+                    spend = json['prog_spending'][prog_name]
+                    try:
+                        prog_label = proj.progsets().programs[prog_name].label
+                    except:
+                        prog_label = prog_name
+                    json['prog_spending'][prog_name] = {'min': spend[0], 'max': spend[1], 'label': prog_label}
+                proj.optim_jsons.append(json)
+                delkeys.append(k)
+        for k in delkeys:
+            del proj.optims[k]
+    else:
+        proj.optims = atomica.NDict() # Make sure it's defined, even if it's empty
+
+    return proj
+
+@migration('1.10.0', '1.11.0', 'TDVE stores headings to write internally')
+def add_internal_flags_to_tdve(proj):
+    # This migration adds missing attributes to TDVE and TDC objects
+    if proj.data:
+        for tdve in proj.data.tdve.values():
+            tdve.assumption_heading = 'Constant'
+            tdve.write_assumption = True
+            tdve.write_units = True
+            tdve.write_uncertainty = True
+            tdve.comment = None
+
+        for tdc in proj.data.transfers + proj.data.interpops:
+            tdc.assumption_heading = 'Constant'
+            tdc.write_assumption = True
+            tdc.write_units = True
+            tdc.write_uncertainty = True
+            if not hasattr(tdc,'from_pops'): # This was missed in the previous migration `add_pop_type` so add it in here
+                # If the pop type is missing, then we must be using a legacy framework with only one pop type
+                tdc.from_pop_type = list(proj.framework.pop_types.keys())[0]
+                tdc.from_pops = list(proj.data.pops.keys())
+                tdc.to_pop_type = list(proj.framework.pop_types.keys())[0]
+                tdc.to_pops = list(proj.data.pops.keys())
+
+
+    return proj
