@@ -279,14 +279,37 @@ def test_timed_transfer():
     D = at.ProjectData.new(framework=P.framework, tvec=[2018, 2019], pops=3, transfers=2)
     D.save(tempdir + 'timed_transfer_databook_test.xlsx')
 
+
+def test_timed_vac_duration():
+    P = at.Project(framework=at.LIBRARY_PATH + 'sir_vaccine_framework.xlsx', databook=at.LIBRARY_PATH + 'sir_vaccine_databook.xlsx',do_run=False)
+    P.settings.sim_dt = 0.25
+    P.settings.sim_start = 2018
+    P.settings.sim_end = 2030
+    parset = P.make_parset('test')
+    parset.pars['v_rate'].smooth(P.settings.tvec,'previous')
+    res = P.run_sim(parset)
+
+    d = at.PlotData(res,'v_rate')
+    at.plot_series(d)
+
+    d = at.PlotData(res,['sus:vac','vac:sus'])
+    at.plot_series(d)
+
+    d = at.PlotData(res,['sus','vac'])
+    at.plot_series(d)
+
+    d = at.PlotData(res,['sus:inf','vac:inf'])
+    at.plot_series(d)
+
 if __name__ == '__main__':
 
-    test_timed_invalid()
-    test_timed_indirect()
-    test_timed_indirect2()
-    test_timed_eligibility()
-    test_timed_transfer()
-    test_spike()
-    test_read_write_databook()
-    test_zero_duration()
-    test_timed_tb()
+    # test_timed_invalid()
+    # test_timed_indirect()
+    # test_timed_indirect2()
+    # test_timed_eligibility()
+    # test_timed_transfer()
+    # test_spike()
+    # test_read_write_databook()
+    # test_zero_duration()
+    # test_timed_tb()
+    test_timed_vac_duration()

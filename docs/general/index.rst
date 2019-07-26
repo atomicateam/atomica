@@ -12,3 +12,4 @@ General content
     Parameters
     population-types/Population-Types
     stochastic/stochastic
+    timed-transitions/Timed-Transitions

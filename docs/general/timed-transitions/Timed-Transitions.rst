@@ -1,5 +1,8 @@
 .. _timed-transitions:
 
+Timed transitions
+################
+
 Maximum compartment duration
 ****************************
 
@@ -51,6 +54,22 @@ Timed compartments and junctions
 ********************************
 
 Timed compartments can be used in conjunction with junctions
+
+We have defined previously the behaviours for transitions out of a TimedCompartment, namely that they can be
+Transitions to another TimedCompartment in the same duration group, in which the final subcompartment is not eligible for the transition
+Transitions to a normal compartment or a TimedCompartment in a different duration group, in which case the final subcompartment is eligible for the transition
+These are mutually exclusive, because the final subcompartment either is or is not eligible for the transition
+A junction can be thought of as disaggregating a single link out of the source compartment – that is, one link flows out of the source into the junction, but it ends up populating multiple downstream compartments
+This is not logically possible if the downstream compartments mix the two cases described above, because the single link flowing out of the source compartment cannot simultaneously satisfy both cases
+Therefore, in such cases we need to apply restrictions such that either the first case or the second case above is met, but not both
+Namely, either all of the downstream compartments are in the same duration group as the source compartment, or none of them are
+For this purpose, a junction also needs to be considered part of a duration group in this validation
+
+A junction is attached to a duration group if it directly or indirectly has a TimedLink connecting it to a TimedCompartment and indirect paths only pass through JunctionCompartments. Attachment is directional
+A junction belongs to a duration group if it attached to an upstream duration group, and also attached to the same group downstream
+A junction can only belong to one duration group
+If a junction is attached to an upstream duration group, it can either be attached to only the same downstream duration group, or it can be attached to any downstream groups except the upstream group
+A junction that belongs to a duration group can only be connected, directly or indirectly, to TimedCompartments
 
 
 Example calculation

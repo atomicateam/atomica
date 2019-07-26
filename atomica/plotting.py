@@ -24,7 +24,7 @@ from matplotlib.patches import Rectangle, Patch
 from matplotlib.ticker import FuncFormatter
 
 import sciris as sc
-from .model import Compartment, Characteristic, Parameter, Link, SourceCompartment, JunctionCompartment, SinkCompartment
+from .model import Compartment, Characteristic, Parameter, Link, TimedLink, SourceCompartment, JunctionCompartment, SinkCompartment
 from .results import Result
 from .system import logger
 from .function_parser import parse_function
@@ -228,7 +228,7 @@ class PlotData:
                         data_dict[output_label] /= dt
                         output_units[output_label] = vars[0].units
                         output_timescales[output_label] = 1.0
-                        data_label[output_label] = vars[0].parameter.name if vars[0].parameter.units == FS.QUANTITY_TYPE_NUMBER else None  # Only use parameter data points if the units match
+                        data_label[output_label] = vars[0].parameter.name if (vars[0].parameter and vars[0].parameter.units == FS.QUANTITY_TYPE_NUMBER) else None  # Only use parameter data points if the units match
 
                     elif isinstance(vars[0], Parameter):
                         data_dict[output_label] = vars[0].vals
