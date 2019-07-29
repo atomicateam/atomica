@@ -76,7 +76,8 @@ class ProjectData(sc.prettyobj):
 
         start_year = np.inf
         for td_table in list(self.tdve.values()) + self.transfers + self.interpops:
-            start_year = min(start_year, np.amin(td_table.tvec))
+            if len(td_table.tvec) and np.amin(td_table.tvec) < start_year:
+                start_year = np.amin(td_table.tvec)
         return start_year
 
     @property
@@ -95,7 +96,8 @@ class ProjectData(sc.prettyobj):
 
         end_year = -np.inf
         for td_table in list(self.tdve.values()) + self.transfers + self.interpops:
-            end_year = max(end_year, np.amax(td_table.tvec))
+            if len(td_table.tvec) and np.amax(td_table.tvec) > end_year:
+                end_year = np.amax(td_table.tvec)
         return end_year
 
     def change_tvec(self, tvec: np.array) -> None:
@@ -249,6 +251,9 @@ class ProjectData(sc.prettyobj):
                         order = databook_order
                     pages[databook_page].append((spec.name, order))
                     data.tdve[spec.name] = TimeDependentValuesEntry(full_name, tvec, allowed_units=[framework.get_databook_units(full_name)], comment=spec['guidance'])
+                    data.tdve[spec.name].write_units = True
+                    data.tdve[spec.name].write_assumption = True
+                    data.tdve[spec.name].write_uncertainty = True
                     data.tdve[spec.name].pop_type = pop_type
 
         # Now convert pages to full names and sort them into the correct order
@@ -467,9 +472,8 @@ class ProjectData(sc.prettyobj):
                         missing_pops = set(required_pops).difference(tdve.ts.keys())
                         if missing_pops:
                             raise Exception("%s. The following populations were not supplied but are required: %s" % (location,missing_pops))
-                        
+
                         for name, ts in self.tdve[spec.name].ts.items():
-                            assert name in self.pops, '%s. Population "%s" not recognized. Should be one of: %s' % (location, name, self.pops.keys())
                             assert ts.has_data, '%s. Data values missing for %s (%s)' % (location, tdve.name, name)
                             assert ts.units is not None, '%s. Units missing for %s (%s)' % (location, tdve.name, name)
                             if ts.units.strip().lower() != framework_units.strip().lower():
@@ -509,13 +513,10 @@ class ProjectData(sc.prettyobj):
                 assert ts.units is not None, 'Units are missing for transfer %s, %s->%s' % (tdc.full_name, to_pop, from_pop)
         return True
 
-    def to_spreadsheet(self, write_uncertainty=None):
+    def to_spreadsheet(self):
         """
         Return content as an :class:`AtomicaSpreadsheet`
 
-        :param write_uncertainty: If True, uncertainty cells will always be printed.
-                                  If None, cells will be printed only for TDVEs with uncertainty values.
-                                  IF False, cells will not be shown at all even if data existed
         :return: An :class:`AtomicaSpreadsheet` instance
 
         """
@@ -531,9 +532,9 @@ class ProjectData(sc.prettyobj):
 
         # Write the contents
         self._write_pops()
-        self._write_tdve(write_uncertainty=write_uncertainty)
-        self._write_interpops(write_uncertainty=write_uncertainty)
-        self._write_transfers(write_uncertainty=write_uncertainty)
+        self._write_tdve()
+        self._write_interpops()
+        self._write_transfers()
 
         # Close the workbook
         self._book.close()
@@ -550,20 +551,17 @@ class ProjectData(sc.prettyobj):
         # Return the spreadsheet
         return spreadsheet
 
-    def save(self, fname, write_uncertainty=None) -> None:
+    def save(self, fname) -> None:
         """
         Save databook to disk
 
         This function provides a shortcut to generate a spreadsheet and immediately save it to disk.
 
         :param fname: File name to write on disk
-        :param write_uncertainty: If True, uncertainty cells will always be printed.
-                                  If None, cells will be printed only for TDVEs with uncertainty values.
-                                  IF False, cells will not be shown at all even if data existed
 
         """
 
-        ss = self.to_spreadsheet(write_uncertainty=write_uncertainty)
+        ss = self.to_spreadsheet()
         ss.save(fname + '.xlsx' if not fname.endswith('.xlsx') else fname)
 
     def add_pop(self, code_name:str, full_name:str, pop_type:str=None) -> None:
@@ -693,6 +691,9 @@ class ProjectData(sc.prettyobj):
 
         # Here, need to list all relevant populations
         new_transfer = TimeDependentConnections(code_name, full_name, self.tvec, from_pops=pop_names, to_pops=pop_names, interpop_type='transfer', ts=None, from_pop_type=pop_type, to_pop_type=pop_type)
+        new_transfer.write_units = True
+        new_transfer.write_assumption = True
+        new_transfer.write_uncertainty = True
         self.transfers.append(new_transfer)
         return new_transfer
 
@@ -765,6 +766,9 @@ class ProjectData(sc.prettyobj):
         from_pops = [name for name,pop_spec in self.pops.items() if pop_spec['type'] == from_pop_type]
         to_pops = [name for name,pop_spec in self.pops.items() if pop_spec['type'] == to_pop_type]
         interpop = TimeDependentConnections(code_name, full_name, self.tvec, from_pops=from_pops, to_pops=to_pops, interpop_type='interaction', ts=None, from_pop_type=from_pop_type, to_pop_type=to_pop_type)
+        interpop.write_units = True
+        interpop.write_assumption = True
+        interpop.write_uncertainty = True
         self.interpops.append(interpop)
         return interpop
 
@@ -860,7 +864,7 @@ class ProjectData(sc.prettyobj):
         for i in range(0, len(tables), 3):
             self.transfers.append(TimeDependentConnections.from_tables(tables[i:i + 3], 'transfer'))
 
-    def _write_transfers(self, write_uncertainty) -> None:
+    def _write_transfers(self) -> None:
         """
         Writes the 'Transfers' sheet
 
@@ -877,7 +881,7 @@ class ProjectData(sc.prettyobj):
         widths = dict()
         next_row = 0
         for transfer in self.transfers:
-            next_row = transfer.write(sheet, next_row, self._formats, self._references, widths, write_units=True, write_assumption=True, write_uncertainty=write_uncertainty)
+            next_row = transfer.write(sheet, next_row, self._formats, self._references, widths)
         apply_widths(sheet, widths)
 
     def _read_interpops(self, sheet) -> None:
@@ -892,7 +896,7 @@ class ProjectData(sc.prettyobj):
             self.interpops.append(TimeDependentConnections.from_tables(tables[i:i + 3], 'interaction'))
         return
 
-    def _write_interpops(self, write_uncertainty) -> None:
+    def _write_interpops(self) -> None:
         """
         Writes the 'Interactions' sheet
 
@@ -907,10 +911,10 @@ class ProjectData(sc.prettyobj):
         widths = dict()
         next_row = 0
         for interpop in self.interpops:
-            next_row = interpop.write(sheet, next_row, self._formats, self._references, widths, write_units=True, write_assumption=True, write_uncertainty=write_uncertainty)
+            next_row = interpop.write(sheet, next_row, self._formats, self._references, widths)
         apply_widths(sheet, widths)
 
-    def _write_tdve(self, write_uncertainty) -> None:
+    def _write_tdve(self) -> None:
         """
         Writes the TDVE tables
 
@@ -928,7 +932,7 @@ class ProjectData(sc.prettyobj):
             has_editable_content = False
             for code_name in code_names:
                 has_editable_content = has_editable_content or (not self.tdve[code_name].has_data)  # there is editable content if any TDVE is missing data, so blue cells are present
-                next_row = self.tdve[code_name].write(sheet, next_row, self._formats, references=self._references, widths=widths, write_units=True, write_assumption=True, write_uncertainty=write_uncertainty)
+                next_row = self.tdve[code_name].write(sheet, next_row, self._formats, references=self._references, widths=widths)
 
             if has_editable_content:
                 sheet.set_tab_color('#92D050')

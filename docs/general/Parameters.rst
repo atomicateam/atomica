@@ -91,21 +91,32 @@ Instead, it is possible to mark a parameter function as supplying a derivative r
 .. image:: parameters_1.png
 	:width: 650px
 
-When marking the parameter as a derivative, two things happen
+When marking the parameter as a derivative:
 
 1. The parameter value is initialized as normal from values entered in the databook
-2. The parameter function :math:`f(\theta,t)` is evaluated as normal
-3. Normally, the parameter value is updated as  :math:`P(t) = f(\theta,t)` - that is, the function is evaluated and directly overwrites the parameter value. However, if the parameter is marked as a derivative, then the update is  :math:`P(t) = P(t-\Delta t) + \Delta t f(\theta,t)`. That is, a single step of an Euler integration is performed, where :math:`f(\theta,t)` is treated as the first derivative of the quantity.
+2. The parameter function :math:`f(\theta,t)` is evaluated like normal. The parameter function can refer to any other parameters previously defined in the framework. However, unlike normal parameters, a derivative parameter can also refer to its own value. Derivative parameters are updated out of sync with the rest of the model - after the value of the derivative is computed at time `ti`, we can immediately assign the value of time ``ti+1``, whereas with normal parameter, the parameter function needs to be executed at time ``ti+1`` in order to determine the value. For derivative parameters, the parameter function being evaluated at time ``ti+1`` yields the value of the *derivative* at time ``ti+1``, rather than the actual value. Therefore, it is possible to refer to the parameter's current value inside the function, because the function is not being used to compute that value. In effect, you can simply refer to the parameter by name inside a derivative function, as illustrated in the ``framework_derivative_test.xlsx`` example in the ``tests`` folder.
+3. Normally, the parameter value is updated as  :math:`P(t) = f(\theta,t)` - that is, the function is evaluated and directly overwrites the parameter value. However, if the parameter is marked as a derivative, then the update is  :math:`P(t+1) = P(t) + \Delta t f(\theta,t)`. That is, a single step of an Euler integration is performed.
 
 .. note::
 
 	Don't forget that the databook contains the initialization values for the parameter, and thus needs to be entered in the same units as the parameter itself.
 
-After integration, the parameter value can be inspected and analyzed as normal. Note that this means you cannot directly read out :math:`f(\theta,t)` because the parameter has integrated :math:`f(\theta,t)` over time. Note also that the update step multiplies :math:`f(\theta,t)`  by :math:`\Delta t`. This means that the units of the value returned by the parameter function should be the same as the units of the Parameter, but on a 'per year' basis. This is because :math:`\Delta t` is in units of years. So in the example above, ``m_prev`` is a dimensionless fraction, and the parameter function has the same units as ``dm_prev``, which is in units of ``1/years``, thus when integrated, ``m_prev`` will be dimensionless. It is important that this multiplication by :math:`\Delta t` is taken into account, because this formulation allows consistent results to be obtained even when the step size is changed. 
+Derivative parameters must have both a databook page (for the initialization value) and a function (for the derivative value) and an error will be raised if either is missing.
+
+Program overwrites are applied to the derivative. So if you define a derivative parameter, don't forget that programs do not overwrite the actual value, but they overwrite the derivative. You could set another parameter equal to the derivative parameter and target that instead, if you wish to explicitly overwrite the value of a derivative parameter - however, be cautious and inspect results carefully if you then later switch programs off.
+
+After integration, the parameter value can be inspected and analyzed as normal. Note that this means you cannot directly read out :math:`f(\theta,t)` because the parameter has integrated :math:`f(\theta,t)` over time. Note also that the update step multiplies :math:`f(\theta,t)`  by :math:`\Delta t`. This means that the units of the value returned by the parameter function should be the same as the units of the Parameter, but on a 'per year' basis. This is because :math:`\Delta t` is in units of years. So in the example above, ``m_prev`` is a dimensionless fraction, and the parameter function has the same units as ``dm_prev``, which is in units of ``1/years``, thus when integrated, ``m_prev`` will be dimensionless. It is important that this multiplication by :math:`\Delta t` is taken into account, because this formulation allows consistent results to be obtained even when the step size is changed.
 
 .. warning::
 
-	Notice that the parameter timescale does not enter here. The parameter timescale affects the conversion from the parameter value into flow rates. The derivative is always with respect to time, in the *simulation* units, which are always years. Thus the function value's units should differ from the parameter's units by a factor of ``1/years`` regardless of the timescale of the parameter. 
+	Notice that the parameter timescale does not enter here. The parameter timescale affects the conversion from the parameter value into flow rates. The derivative is always with respect to time, in the *simulation* units, which are always years. Thus the function value's units should differ from the parameter's units by a factor of ``1/years`` regardless of the timescale of the parameter. If you have set different timescales for quantities appearing in the derivative parameter's function, you may need to include conversion factors in the parameter function to ensure that the timescale of the derivative comes out correctly.
 
+Interpolation and smoothing
+***************************
 
+Parameters generally contain sparse time-dependent values matching those entered in the databook. As part of running the model, these automatically get interpolated onto the simulation time points. This interpolation is linear by default (although legacy projects use spline interpolation). Generally, this means that you can look at the values in the databook and they will be linearly interpolated when running the simulation.
+
+However, in some cases, it is desirable to incorporate additional assumptions into the input parameters - for example, that they are smoothly changing. To support this, ``Parameter`` objects contain a smoothing method, ``Parameter.smooth``. This applies smoothing in-place, onto a set of specified time points, replacing the parameter's value. The most common usage would be to simply use ``Parameter.smooth(proj.settings.tvec)`` which will smooth the parameter onto the simulation times (assuming the step size is not subsequently modified).
+
+By specifying a different set of times, you can apply different smoothing methods to different parts of the parameter. For example, you could smooth parameter scenario values differently to the databook values. Don't forget that you can always modify the ``TimeSeries`` object contained in the ``Parameter`` as well, to perform arbitrarily specific modifications.
 

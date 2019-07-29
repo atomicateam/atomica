@@ -16,6 +16,10 @@ for f in os.listdir(at.LIBRARY_PATH):
     if f.endswith('_framework.xlsx') and not f.startswith('~$'):
         models.append(f.replace('_framework.xlsx', ''))
 
+def check_for_nans(result):
+    for pop in result.model.pops:
+        for var in pop.pars + pop.comps + pop.characs + pop.links:
+            assert np.all(np.isfinite(var.vals)), 'NaNs detected'
 
 def run_auto_calibration(proj):
     """ Run an automatic calibration
@@ -56,8 +60,8 @@ def run_parameter_scenario(proj):
     scvalues[spec.name][pop_name]["t"] = [2015., 2020.]
     scvalues[spec.name][pop_name]["y"] = par.interpolate(scvalues[spec.name][pop_name]["t"],pop_name) * np.array([1,1.5]).ravel()
     scen = proj.make_scenario(which='parameter', name="Test", scenario_values=scvalues)
-    scen.run(proj, proj.parsets["default"])
-
+    res = scen.run(proj, proj.parsets["default"])
+    check_for_nans(res)
     return
 
 
@@ -88,7 +92,8 @@ def run_budget_scenario(proj):
     doubled_budget = {x:v*2 for x,v in alloc.items()}
     instructions = at.ProgramInstructions(start_year=2018,alloc=doubled_budget)
     scen = at.CombinedScenario(name='Doubled budget',instructions=instructions)
-    scen.run(proj,parset='default',progset='default')
+    res = scen.run(proj,parset='default',progset='default')
+    check_for_nans(res)
 
     return
 
@@ -106,7 +111,8 @@ def run_coverage_scenario(proj):
     half_coverage = {x:0.5 for x in proj.progsets[0].programs.keys()}
     instructions = at.ProgramInstructions(start_year=2018,coverage=half_coverage)
     scen = at.CombinedScenario(name='Doubled budget',instructions=instructions)
-    scen.run(proj,parset='default',progset='default')
+    res = scen.run(proj,parset='default',progset='default')
+    check_for_nans(res)
 
     return
 
@@ -184,6 +190,7 @@ def test_model(model):
     # Test loading the progbook and doing a basic run
     P.load_progbook(progbook_file)
     res = P.run_sim(P.parsets[0],P.progsets[0],at.ProgramInstructions(start_year=2018))
+    check_for_nans(res)
 
     run_export(res,model)
 

@@ -163,48 +163,52 @@ def test_parameter_scenarios():
     scen = proj.make_scenario(which='parameter', scenario_values=scvalues)
     scen_results = scen.run(proj, proj.parsets["default"])
 
-    # Check that default is stepped interpolation
+    # Check that default is linear interpolation
     var = scen_results.get_variable(scen_par1,scen_pop)[0]
     assert np.allclose(var.vals[var.t==2010][0], 80, equal_nan=True)  # Default tolerances are rtol=1e-05, atol=1e-08
-    assert np.allclose(var.vals[var.t==2015][0], 80, equal_nan=True)  # Default tolerances are rtol=1e-05, atol=1e-08
-    assert np.allclose(var.vals[var.t==2020][0], 40, equal_nan=True)  # Default tolerances are rtol=1e-05, atol=1e-08
+    assert np.allclose(var.vals[var.t==2015][0], 60, equal_nan=True)
+    assert np.allclose(var.vals[var.t==2020][0], 40, equal_nan=True)
 
-    # Check smooth onset when smooth onset is applied
-    scvalues[scen_par1][scen_pop]["smooth_onset"] = 2
-    scen = proj.make_scenario(which='parameter', scenario_values=scvalues)
+    # Check stepped/previous method also works
+    scen.interpolation = 'previous'
     scen_results = scen.run(proj, proj.parsets["default"])
     var = scen_results.get_variable(scen_par1,scen_pop)[0]
-    assert np.allclose(var.vals[var.t == 2018][0], 80, equal_nan=True)  # Default tolerances are rtol=1e-05, atol=1e-08
-    assert np.allclose(var.vals[var.t == 2019][0], 60, equal_nan=True)  # Default tolerances are rtol=1e-05, atol=1e-08
-    assert np.allclose(var.vals[var.t == 2020][0], 40, equal_nan=True)  # Default tolerances are rtol=1e-05, atol=1e-08
-
-    # Check smooth onset works if larger than the gap in overwrite
-    scvalues[scen_par1][scen_pop]["smooth_onset"] = 11
-    scen = proj.make_scenario(which='parameter', scenario_values=scvalues)
-    scen_results = scen.run(proj, proj.parsets["default"])
-    var = scen_results.get_variable(scen_par1,scen_pop)[0]
-    assert np.allclose(var.vals[var.t == 2010][0], 80, equal_nan=True)  # Default tolerances are rtol=1e-05, atol=1e-08
-    assert np.allclose(var.vals[var.t == 2015][0], 60, equal_nan=True)  # Default tolerances are rtol=1e-05, atol=1e-08
-    assert np.allclose(var.vals[var.t == 2020][0], 40, equal_nan=True)  # Default tolerances are rtol=1e-05, atol=1e-08
+    assert np.allclose(var.vals[var.t == 2018][0], 80, equal_nan=True)
+    assert np.allclose(var.vals[var.t == 2019][0], 80, equal_nan=True)
+    assert np.allclose(var.vals[var.t == 2020][0], 40, equal_nan=True)
 
     # Check that multiple overwrites work
     scen_par2 = "transpercontact"
     scen_pop = "adults"
     scvalues[scen_par2] = dict()
     scvalues[scen_par2][scen_pop] = dict()
-    scvalues[scen_par2][scen_pop]["y"] = [0.008, 0.005]
+    scvalues[scen_par2][scen_pop]["y"] = [0.008, 0.006]
     scvalues[scen_par2][scen_pop]["t"] = [2010., 2020.]
     scen = proj.make_scenario(which='parameter', scenario_values=scvalues)
     scen_results = scen.run(proj, proj.parsets["default"])
     var1 = scen_results.get_variable(scen_par1,scen_pop)[0]
     var2 = scen_results.get_variable(scen_par2,scen_pop)[0]
 
-    assert np.allclose(var1.vals[var1.t == 2010][0], 80, equal_nan=True)  # Default tolerances are rtol=1e-05, atol=1e-08
-    assert np.allclose(var1.vals[var1.t == 2015][0], 60, equal_nan=True)  # Default tolerances are rtol=1e-05, atol=1e-08
-    assert np.allclose(var1.vals[var1.t == 2020][0], 40, equal_nan=True)  # Default tolerances are rtol=1e-05, atol=1e-08
-    assert np.allclose(var2.vals[var2.t == 2010][0], 0.008, equal_nan=True)  # Default tolerances are rtol=1e-05, atol=1e-08
-    assert np.allclose(var2.vals[var2.t == 2015][0], 0.008, equal_nan=True)  # Default tolerances are rtol=1e-05, atol=1e-08
-    assert np.allclose(var2.vals[var2.t == 2020][0], 0.005, equal_nan=True)  # Default tolerances are rtol=1e-05, atol=1e-08
+    assert np.allclose(var1.vals[var1.t == 2010][0], 80, equal_nan=True)
+    assert np.allclose(var1.vals[var1.t == 2015][0], 60, equal_nan=True)
+    assert np.allclose(var1.vals[var1.t == 2020][0], 40, equal_nan=True)
+    assert np.allclose(var2.vals[var2.t == 2010][0], 0.008, equal_nan=True)
+    assert np.allclose(var2.vals[var2.t == 2015][0], 0.007, equal_nan=True)
+    assert np.allclose(var2.vals[var2.t == 2020][0], 0.006, equal_nan=True)
+
+    # Check that scenarios don't end
+    scen_par1 = "contacts"
+    scen_pop = "adults"
+    scvalues[scen_par1] = dict()
+    scvalues[scen_par1][scen_pop] = dict()
+    scvalues[scen_par1][scen_pop]["y"] = [80., 40]
+    scvalues[scen_par1][scen_pop]["t"] = [2010., 2020.]
+    scen = proj.make_scenario(which='parameter', scenario_values=scvalues)
+    scen_results = scen.run(proj, proj.parsets["default"])
+    var = scen_results.get_variable(scen_par1,scen_pop)[0]
+    assert np.allclose(var.vals[var.t==2020][0], 40, equal_nan=True)
+    assert np.allclose(var.vals[var.t==2021][0], 40, equal_nan=True)
+
 
 def test_overwrite_function_scenario():
     proj = at.demo('sir',do_run=False)
@@ -228,13 +232,14 @@ def test_overwrite_function_scenario():
     var1 = baseline.get_variable(scen_par1,scen_pop)[0]
     var2 = scen_results.get_variable(scen_par1,scen_pop)[0]
 
-    assert np.allclose(var1.vals[var1.t == 2010][0], var2.vals[var2.t == 2010][0], equal_nan=True)  # Default tolerances are rtol=1e-05, atol=1e-08
-    assert np.allclose(var2.vals[var2.t == 2015][0], 0.1, equal_nan=True)  # Default tolerances are rtol=1e-05, atol=1e-08
-    assert np.allclose(var2.vals[var2.t == 2018][0], 0.15, equal_nan=True)  # Default tolerances are rtol=1e-05, atol=1e-08
+    assert np.allclose(var1.vals[var1.t == 2010][0], var2.vals[var2.t == 2010][0], equal_nan=True)
+    assert np.allclose(var2.vals[var2.t == 2015][0], 0.1, equal_nan=True)
+    assert np.allclose(var2.vals[var2.t == 2018][0], 0.15, equal_nan=True)
+    assert np.allclose(var2.vals[var2.t == 2019][0], 0.15, equal_nan=True) # Check that the function didn't turn back on
 
 if __name__ == '__main__':
     # test_program_scenarios()
     # test_timevarying_progscen()
-    # test_parameter_scenarios()
+    test_parameter_scenarios()
     # test_combined_scenario()
-    test_overwrite_function_scenario()
+    # test_overwrite_function_scenario()

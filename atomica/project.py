@@ -27,7 +27,7 @@ from .parameters import ParameterSet
 
 from .programs import ProgramSet, ProgramInstructions
 from .scenarios import Scenario, ParameterScenario, CombinedScenario, BudgetScenario, CoverageScenario
-from .optimization import Optimization, optimize, OptimInstructions, InvalidInitialConditions
+from .optimization import Optimization, optimize, InvalidInitialConditions
 from .system import logger
 from .cascade import sanitize_cascade
 from .utils import NDict, evaluate_plot_string, NamedItem, TimeSeries
@@ -68,17 +68,34 @@ class ProjectSettings(object):
 
 
 class Project(NamedItem):
-    def __init__(self, name="default", framework=None, databook=None, do_run=True, **kwargs):
-        """ Initialize the project. Keywords are passed to ProjectSettings. """
-        # INPUTS
-        # - framework : a Framework to use. This could be
-        #               - A filename to an Excel file on disk
-        #               - An sc.Spreadsheet instance
-        #               - A ProjectFramework instance
-        #               - None (this should generally not be used though!)
-        # - databook : The path to a databook file. The databook will be loaded into Project.data and the spreadsheet saved to Project.databook
-        # - do_run : If True, a simulation will be run upon project construction
+    """
+    Main simulation container
 
+    A Project provides a centralized point of storage when working with Atomica. It contains
+
+    - A framework
+    - Data
+    - Parameters
+    - Programs
+    - Scenarios and optimizations
+    - Results
+
+    Importantly, it is generally assumed that saving and loading work is done by saving and
+    loading projects.
+
+    :param name:
+    :param framework: a Framework to use. This could be
+                      - A filename to an Excel file on disk
+                      - An sc.Spreadsheet instance
+                      - A ProjectFramework instance
+                      - None (this should generally not be used though!)
+    :param databook: The path to a databook file. The databook will be loaded into Project.data and the spreadsheet saved to Project.databook
+    :param do_run: If True, a simulation will be run upon project construction
+    :param kwargs: These are passed to the :class`ProjectSettings` constructor
+
+    """
+
+    def __init__(self, name="default", framework=None, databook=None, do_run=True, **kwargs):
         NamedItem.__init__(self, name)
 
         if sc.isstring(framework) or isinstance(framework, sc.Spreadsheet):
@@ -140,19 +157,19 @@ class Project(NamedItem):
         output += '============================================================\n'
         return output
 
-    @property
-    def pop_names(self):
-        if self.data is None:
-            return []
-        else:
-            return list(self.data.pops.keys())
-
-    @property
-    def pop_labels(self):
-        if self.data is None:
-            return []
-        else:
-            return list([x['label'] for x in self.data.pops.values()])
+    # @property
+    # def pop_names(self):
+    #     if self.data is None:
+    #         return []
+    #     else:
+    #         return list(self.data.pops.keys())
+    #
+    # @property
+    # def pop_labels(self):
+    #     if self.data is None:
+    #         return []
+    #     else:
+    #         return list([x['label'] for x in self.data.pops.values()])
 
     #######################################################################################################
     # Methods for I/O and spreadsheet loading
@@ -253,7 +270,7 @@ class Project(NamedItem):
         self.progsets.append(progset)
         return progset
 
-    def make_scenario(self, which:str ='combined', **kwargs):
+    def make_scenario(self, which: str = 'combined', **kwargs) -> Scenario:
         """
         Make new scenario and store in Project
 
@@ -263,24 +280,10 @@ class Project(NamedItem):
 
         """
 
-        if which == 'parameter':
-            scenario = ParameterScenario(**kwargs)
-        elif which == 'budget':
-            scenario = BudgetScenario(**kwargs)
-        elif which == 'coverage':
-            scenario = CoverageScenario(**kwargs)
-        elif which == 'combined':
-            scenario = CombinedScenario(**kwargs)
-        else:
-            raise Exception('Unknown scenario type')
+        types = {'parameter': ParameterScenario,'budget': BudgetScenario,'coverage': CoverageScenario,'combined': CombinedScenario}
+        scenario = types[which](**kwargs)
         self.scens.append(scenario)
         return scenario
-
-    def make_optimization(self, json=None):
-        optim_ins = OptimInstructions(json=json)
-        self.optims[optim_ins.json['name']] = optim_ins
-        return optim_ins
-
 
 #    #######################################################################################################
 #    ### Utilities
@@ -505,7 +508,7 @@ class Project(NamedItem):
         return results
 
     def calibrate(self, parset=None, adjustables=None, measurables=None, max_time=60, save_to_project=True, new_name=None,
-                  default_min_scale=0.0, default_max_scale=2.0, default_weight=1.0, default_metric="fractional"):
+                  default_min_scale=0.0, default_max_scale=2.0, default_weight=1.0, default_metric="fractional") -> ParameterSet:
         """
         Method to perform automatic calibration.
 
@@ -559,7 +562,15 @@ class Project(NamedItem):
 
         return new_parset
 
-    def run_scenarios(self, store_results=True):
+    def run_scenarios(self, store_results:bool = True) -> list:
+        """
+        Run all active scenarios
+
+        :param store_results: If True, results will be appended to the project
+        :return: List of results (one for each active scenario)
+
+        """
+
         results = []
         for scenario in self.scens.values():
             if scenario.active:
@@ -632,170 +643,6 @@ class Project(NamedItem):
         self.__dict__ = d
         P = migrate(self)
         self.__dict__ = P.__dict__
-
-    def demo_scenarios(self, dorun=False):
-        """
-        Create demo scenarios
-
-        This method creates three default budget scenarios
-
-        - Default budget
-        - Doubled budget
-        - Zero budget
-
-        The scenarios will be created and added to the project's list of scenarios
-
-        :param dorun: If True, and if doadd=True, simulations will be run
-
-        """
-
-        parsetname = self.parsets[-1].name
-        progset = self.progsets[-1]
-        start_year = self.data.end_year
-
-        # Come up with the current allocation by truncating after the start year
-        current_budget = {}
-        for prog in progset.programs.values():
-            if prog.spend_data.has_time_data:
-                current_budget[prog.name] = sc.dcp(prog.spend_data)
-            else:
-                current_budget[prog.name] = TimeSeries(start_year,prog.spend_data.assumption)
-
-        # Add default budget scenario
-        # self.scens.append(CombinedScenario(name='Default budget',parsetname=parsetname,progsetname=progset.name,active=True,instructions=ProgramInstructions(start_year,alloc=current_budget)))
-        self.scens.append(BudgetScenario(name='Default budget', parsetname=parsetname, progsetname=progset.name,
-            active=True, alloc=current_budget, start_year=start_year))
-
-        # Add doubled budget
-        doubled_budget = sc.dcp(current_budget)
-        for ts in doubled_budget.values():
-            ts.insert(start_year,ts.interpolate(start_year))
-            ts.remove_after(start_year)
-            ts.insert(start_year+1,ts.get(start_year)*2)
-        # self.scens.append(CombinedScenario(name='Doubled budget',parsetname=parsetname,progsetname=progset.name,active=True,instructions=ProgramInstructions(start_year,alloc=doubled_budget)))
-        self.scens.append(BudgetScenario(name='Doubled budget', parsetname=parsetname, progsetname=progset.name,
-            active=True, alloc=doubled_budget, start_year=start_year))
-
-        # Add zero budget
-        zero_budget = sc.dcp(doubled_budget)
-        for ts in zero_budget.values():
-            ts.insert(start_year+1,0.0)
-        # self.scens.append(CombinedScenario(name='Zero budget',parsetname=parsetname,progsetname=progset.name,active=True,instructions=ProgramInstructions(start_year,alloc=zero_budget)))
-        self.scens.append(BudgetScenario(name='Zero budget', parsetname=parsetname, progsetname=progset.name,
-            active=True, alloc=zero_budget, start_year=start_year))
-
-        if dorun:
-            results = self.run_scenarios()
-            return results
-        else:
-            return None
-
-
-    def demo_optimization(self, dorun=False, tool=None, optim_type=None):
-        """
-        Create demo optimizations
-
-        Note that if optim_type='money' then the optimization 'weights' entered in the FE are
-        actually treated as relative scalings for the minimization target. e.g. If ':ddis' has a weight
-        of 25, this is a objective weight factor for optim_type='outcome' but it means 'we need to reduce
-        deaths by 25%' if optim_type='money' (since there is no weight factor for the minimize money epi targets)
-
-        :param dorun: If True, runs optimization immediately
-        :param tool: Choose optimization objectives based on whether tool is ``'cascade'`` or ``'tb'``
-        :param optim_type: set to ``'outcome'`` or ``'money'`` - use ``'money'`` to minimize money
-        :return: If ``dorun=True``, return list of results. Otherwise, returns an ``OptimInstructions`` instance
-
-        """
-
-        if optim_type is None:
-            optim_type = 'outcome'
-        assert tool in ['cascade', 'tb']
-        assert optim_type in ['outcome', 'money']
-        json = sc.odict()
-        if optim_type == 'outcome':
-            json['name'] = 'Default outcome optimization'
-        elif optim_type == 'money':
-            json['name'] = 'Default money optimization'
-        json['parset_name'] = -1
-        json['progset_name'] = -1
-        json['start_year'] = self.data.end_year
-        json['end_year'] = self.settings.sim_end
-        json['budget_factor'] = 1.0
-        json['optim_type'] = optim_type
-        json['tool'] = tool
-        json['method'] = 'asd'  # Note: may want to change this if PSO is improved
-
-        if tool == 'cascade':
-            json['objective_weights'] = sc.odict()
-            json['objective_labels'] = sc.odict()
-
-            for cascade_name in self.framework.cascades:
-                cascade = sanitize_cascade(self.framework, cascade_name)[1]
-
-                if optim_type == 'outcome':
-                    json['objective_weights']['conversion:%s' % (cascade_name)] = 1.
-                elif optim_type == 'money':
-                    json['objective_weights']['conversion:%s' % (cascade_name)] = 0.
-                else:
-                    raise Exception('Unknown optim_type')
-
-                if cascade_name.lower() == 'cascade':
-                    json['objective_labels']['conversion:%s' % (cascade_name)] = 'Maximize the conversion rates along each stage of the cascade'
-                else:
-                    json['objective_labels']['conversion:%s' % (cascade_name)] = 'Maximize the conversion rates along each stage of the %s cascade' % (cascade_name)
-
-                for stage_name in cascade.keys():
-                    # We checked earlier that there are no ':' symbols here, but asserting that this is true, just in case
-                    assert ':' not in cascade_name
-                    assert ':' not in stage_name
-                    objective_name = 'cascade_stage:%s:%s' % (cascade_name, stage_name)
-
-                    if optim_type == 'outcome':
-                        json['objective_weights'][objective_name] = 1
-                    elif optim_type == 'money':
-                        json['objective_weights'][objective_name] = 0
-                    else:
-                        raise Exception('Unknown optim_type')
-
-                    if cascade_name.lower() == 'cascade':
-                        json['objective_labels'][objective_name] = 'Maximize the number of people in cascade stage "%s"' % (stage_name)
-                    else:
-                        json['objective_labels'][objective_name] = 'Maximize the number of people in stage "%s" of the %s cascade' % (stage_name, cascade_name)
-
-        elif tool == 'tb':
-            if optim_type == 'outcome':
-                json['objective_weights'] = {'ddis': 1, 'acj': 1, 'ds_inf': 0, 'mdr_inf': 0, 'xdr_inf': 0}  # These are TB-specific: maximize people alive, minimize people dead due to TB
-                json['objective_labels'] = {'ddis': 'Minimize TB-related deaths',
-                                            'acj': 'Minimize total new active TB infections',
-                                            'ds_inf': 'Minimize prevalence of active DS-TB',
-                                            'mdr_inf': 'Minimize prevalence of active MDR-TB',
-                                            'xdr_inf': 'Minimize prevalence of active XDR-TB'}
-            elif optim_type == 'money':
-                # The weights here default to 0 because it's possible, depending on what programs are selected, that improvement
-                # in one or more of them might be impossible even with infinite money. Also, can't increase money too much because otherwise
-                # run the risk of a local minimum stopping optimization early with the current algorithm (this will change in the future)
-                json['objective_weights'] = {'ddis': 0, 'acj': 5, 'ds_inf': 0, 'mdr_inf': 0, 'xdr_inf': 0}  # These are TB-specific: maximize people alive, minimize people dead due to TB
-                json['objective_labels'] = {'ddis': 'Minimize TB-related deaths',
-                                            'acj': 'Total new active TB infections',
-                                            'ds_inf': 'Prevalence of active DS-TB',
-                                            'mdr_inf': 'Prevalence of active MDR-TB',
-                                            'xdr_inf': 'Prevalence of active XDR-TB'}
-
-            else:
-                raise Exception('Unknown optim_type')
-
-        else:
-            raise Exception('Tool "%s" not recognized' % tool)
-        json['maxtime'] = 30  # WARNING, default!
-        json['prog_spending'] = sc.odict()
-        for prog_name in self.progset().programs.keys():
-            json['prog_spending'][prog_name] = [0, None]
-        optim = self.make_optimization(json=json)
-        if dorun:
-            results = self.run_optimization(optimname=json['name'])
-            return results
-        else:
-            return optim
 
 
 def _run_sampled_sim(proj, parset, progset, progset_instructions:list, result_names:list, max_attempts:int =None):
