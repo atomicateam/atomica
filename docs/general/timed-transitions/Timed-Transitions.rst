@@ -1,5 +1,3 @@
-.. _timed-transitions:
-
 Timed transitions
 #################
 
@@ -12,7 +10,36 @@ This approach is widely used and is entirely valid in the steady state. In the s
 
 In most circumstances, the standard compartment assumptions are sufficiently satisfied for the model to produce results within required tolerances. In particular, the fact that the duration assumptions are not exactly met is of secondary importance either when the inflow and outflow is approximately matched (typically when the inflow is significantly smaller than the compartment's size, which implies that the inflow has only a small effect on the outflow) or when the compartment's duration is short (e.g. a few timesteps).
 
-There are some circumstances however, when both of these requirements are grossly violated. In that case, the model does not produce usable results. A common example would be mass vaccination campaigns. In that case, the proportion of people vaccinated changes very quickly, e.g. from 0% to 70% in a single year. Further, the duration of protection of vaccines tends to be quite long, for example, 5 years. In a simulation with quarterly timesteps, this would correspond to 20 timesteps. We might model this as vaccination moving people from a 'susceptible' compartment to a 'vaccinated' compartment, and protection wearing off as a transition from 'vaccinated' back to 'susceptible'. However, if we simply used the standard compartment assumptions, then people would be allowed to transition from 'vaccinated' to 'susceptible' immediately after being vaccinated. In this example, it is particularly noticable because the initial proportion vaccinated was 0% - therefore, it is obvious that _nobody_ should lose their vaccinated status until after 5 years. Further, the dynamics of the simulation would be significantly affected because the proportion vaccinated was very large (70%). Finally, if the mass vaccination is a temporary program (e.g. 1 year long) then the vaccination rate changes rapidly (from 0, to 70% of the population, then back to 0) over just a few timesteps. The standard compartment assumptions will not produce useful projections in these circumstances, so a different approach is required. To address this, Atomica implements **timed compartments** that explictly track arrival times, and allow transitions to take place only after a period of time has elapsed.
+There are some circumstances however, when both of these requirements are grossly violated. In that case, the model does not produce usable results. A common example would be mass vaccination campaigns. In that case, the proportion of people vaccinated changes very quickly, e.g. from 0% to 70% in a single year. Further, the duration of protection of vaccines tends to be quite long, for example, 5 years. In a simulation with quarterly timesteps, this would correspond to 20 timesteps. We might model this as vaccination moving people from a 'susceptible' compartment to a 'vaccinated' compartment, and protection wearing off as a transition from 'vaccinated' back to 'susceptible'. However, if we simply used the standard compartment assumptions, then people would be allowed to transition from 'vaccinated' to 'susceptible' immediately after being vaccinated. In this example, it is particularly noticable because the initial proportion vaccinated was 0% - therefore, it is obvious that *nobody* should lose their vaccinated status until after 5 years. Further, the dynamics of the simulation would be significantly affected because the proportion vaccinated was very large (70%). Finally, if the mass vaccination is a temporary program (e.g. 1 year long) then the vaccination rate changes rapidly (from 0, to 70% of the population, then back to 0) over just a few timesteps. The standard compartment assumptions will not produce useful projections in these circumstances, so a different approach is required. To address this, Atomica implements **timed compartments** that explictly track arrival times, and allow transitions to take place only after a period of time has elapsed.
+
+Use cases
+---------
+
+Timed compartment should generally **not** be used when there is a constant inflow/outflow, or if inflows and outflows are slowly changing, even if there is a 'duration' associated with the state. In a compartment model, the amount of time people spend in the compartment follows an exponential distribution. In the steady state, only the mean matters. When things change rapidly, then discrepencies can occur. These discrepencies are largest if the compartment has a long expected duration relative to the step size, and if the inflow changes dramatically. Therefore, timed compartments are typically suitable under the following circumstances
+
+- The expected time in the compartment is long relative to the step size (e.g. >4 timesteps), and
+- At the end of the duration, all individuals transition to the same compartment (although this could be a junction), and
+- There are sharp changes to inflow or outflow
+
+Two examples of where this usage might be appropriate:
+
+- A mass vaccination schedule where
+
+    - A large proportion of the population is vaccinated at the same time
+    - The duration of protection is several years
+    - At the end, all uninfected individuals return to the susceptible compartment
+
+- TB early to late latent states
+
+    - The time spent in the early latent state is several years
+    - At the end, all infected individuals progress to late latent
+    - The inflow changes rapidly if the force of infection changes due to interventions e.g. treatment scale-up reducing the number of new infections
+
+One example of where this usage would be inappropriate
+
+- Treatment lasts 6 months
+
+    - The expected time spent in the compartment is only 1-2 timesteps, so the approximation that the time spent in the compartment by individuals is uniformly distributed is sufficiently good even if the treatment initiation rate changes rapidly
 
 .. caution::
 
@@ -26,9 +53,8 @@ Basic implementation
 
 Fundamentally, timed compartments leverage the fact that in Atomica, an individual must spend at least one timestep in each compartment (except for junction compartments) because new arrivals to a compartment are not eligible to move out of the compartment in the same timestep. Thus, we can explictly model a duration within the standard Atomica framework as a chain of compartments, where there are multiple compartments corresponding to a single state. For example, consider the case where a state lasts for 1 year, and there are quarterly timesteps. This could be set up as shown in the top part of the figure below:
 
-.. image:: schematic/Slide1.PNG
-	:width: 500px
-    :alt: Basic compartment expansion
+.. image:: Slide1.PNG
+	:width: 100%
 
 Instead of one compartment for the state, there are 4 compartments. People arrive at the 'T=1' compartment on the left of the figure. Each timestep, they move to the next compartment in the chain. After 4 compartments (corresponding to one year), they then leave the state. This is essentially the implementation of timed compartments - after a period of time has elapsed, all people in the timed state (blue boxes) are forced to move out to a different state (orange). This movement out of the state at the end of the duration period is referred to as 'flushing'. 
 
@@ -45,6 +71,11 @@ Therefore, timed compartments are implemented as the bottom sequence shown below
 	- The 'initial subcompartment' is the 'compartment' where new arrivals enter (the 'T=1' compartment in the figure above)
 	- The 'final subcompartment' is the 'compartment' from which people are flushed after the duration period has elapsed (the 'T=4' compartment in the figure above) 
 
+Initialization
+**************
+
+When initializing a timed compartment, the initial value is uniformly distributed over the subcompartments.
+
 Normal transitions
 ******************
 
@@ -52,10 +83,8 @@ After the duration period has elapsed, people are 'flushed' via the flush link t
 
 This type of transition is equivalent to transitions from each subcompartment out to a specified compartment, as shown in the figure below. As with the example above, in Atomica this can be expressed simply as a transition from 'State 1' to 'Death', with the model automatically converting the simplified representation in the lower part of the figure, into the full representation in the top part of the figure.
 
-
-.. image:: schematic/Slide2.PNG
-	:width: 500px
-    :alt: Expanded compartments with normal outflow
+.. image:: Slide2.PNG
+	:width: 100%
 
 Most importantly, when transitioning out of the timed state (State 1), transitioning to 'Death' results in leaving the state, the same as transitioning to the orange flush state. Therefore, people in the final subcompartment (T=4) are also eligible for the transition, because it doesn't matter whether they leave State 1 to go to 'Death' or to go to the flush state, they have still left State 1 as required by the duration of the state. 
 
@@ -82,23 +111,20 @@ In this way, the 'vaccinated' and 'vaccinated + typhoid-like symptoms' can be co
 
 The duration group can be implemented at the subcompartment level as shown below
 
-.. image:: schematic/Slide3.PNG
-	:width: 500px
-    :alt: Expanded compartments with timed outflow
+.. image:: Slide3.PNG
+	:width: 100%
 
 The key feature here is that because only one transition is possible in each timestep, the link from 'State 1' to 'State 2' also takes into account progression towards the total duration. 'T=1' in State 1 links to 'T=2' in State 2, and so on, resulting in the diagonal links shown in the figure above. Crucially, consider flows out of 'T=4', the final subcompartment. If an individual transitioned from State 1 'T=4' to State 2 'T=4', they would have to remain there for an additional timestep. This would result in them spending too much time in the duration group. Therefore, people in the final subcompartment are not eligible for transitions within the same duration group, as otherwise the total duration would not be preserved (keeping in mind that the use cases for timed compartments are ones where exactly preserving the duration is critically important). Therefore, in the figure above, the only transitions allowed out of the final subcompartment are to the flush state. 
 
 These links within duration groups can coexist with links to other unrelated states as described above. For example, we could also include transitions to a death state, as shown below:
 
-.. image:: schematic/Slide4.PNG
-	:width: 500px
-    :alt: Expanded compartments with mixed outflow
+.. image:: Slide4.PNG
+	:width: 100%
 
 As before, Atomica simplifies this representation when defining the model, as shown below:
 
-.. image:: schematic/Slide5.PNG
-	:width: 500px
-    :alt: Overall simplified structure
+.. image:: Slide5.PNG
+	:width: 300px
 
 The flush links are shown as red dashed arrows. However, there is a red link between State 1 and State 2, because they belong to the same duration group and the transition between them preserves time spent in the group. This link is referred to as a 'timed link'. In contrast, a normal blue link joins 'State 1' and 'Death', because they are not part of the same duration group. 
 
@@ -122,165 +148,98 @@ and the following parameters
 
 In the framework, the parameters would be defined as usual, but with 'flush' marked as a timed parameter. The transition matrix then looks like:
 
-.. image:: schematic/transition_matrix_example.png
-	:width: 500px
-    :alt: Transition matrix example
+.. image:: transition_matrix_example.png
+	:width: 350px
 
 This is all that is required to define the model - the software will automatically set up 'state_1' and 'state_2' to be timed compartments, and it will automatically determine that 'state_1' and 'state_2' belong to the same duration group and set up a timed link between them. 
 
 Architecture
 ************
 
-.. image:: schematic/Slide6.PNG
-	:width: 500px
-    :alt: TimedCompartment internal architecture
+Internally, when a compartment has a timed transition associated within it, a ``TimedCompartment`` will be created inside the model. This timed compartment internally stores a set of subcompartments (although note that the implementation simply stores the compartment's values as a matrix rather than a vector). The different components are marked on the figure below 
 
-.. image:: schematic/Slide7.PNG
-	:width: 500px
-    :alt: Outflow paths from TimedCompartments
+.. image:: Slide6.PNG
+	:width: 350px
 
-.. image:: schematic/Slide8.PNG
-	:width: 500px
-    :alt: Inflow and update for TimedCompartments
+The outflow paths discussed in detail above are summarized here. There are three cases
 
-.. image:: schematic/Slide10.PNG
-	:width: 500px
-    :alt: TimedCompartment disaggregation
+- Transitions from a ``TimedCompartment`` to a normal ``Compartment``
+- Transitions from a ``TimedCompartment`` to another ``TimedCompartment`` within the same duration group
+- Transitions from a ``TimedCompartment`` to another ``TimedCompartment`` in a different duration group
 
+.. image:: Slide7.PNG
+	:width: 100%
 
+Notice how a ``TimedLink`` is only used for transitions within the same duration group.
 
-Maximum compartment duration
-****************************
+Stepping a ``TimedCompartment`` forward in time involves three steps, shown below. 
 
-Intended usage
-- NOT used when there is a constant inflow/outflow or if inflows and outflows are slowly changing
-- In a compartment model, the amount of time people spend in the compartment follows an exponential distribution. In the steady state, only the mean matters. When things change rapidly, then discrepencies can occur. These discrepencies are largest if the compartment has a long expected duration relative to the step size, and if the inflow changes dramatically.
+1. First, the input from any ``TimedLinks`` is processed by directly adding the values into the corresponding subcompartments. 
+2. Second, the values in the subcompartments are stepped forward. Note that the outflow from the final subcompartment (A) is computed so that the subcompartment will be emptied via the flush link (if not everyone would be removed by normal links). Therefore, the value of subcompartment (A) is zero
+3. Finally, any normal inflow from outside the duration group is added into the initial subcompartment
 
-Therefore, the maximum compartment duration is suitable under the following circumstances
-- The expected time in the compartment is long relative to the step size (e.g. >4 timesteps), and
-- At the end of the duration, all individuals transition to the same compartment (although this could be a junction), and
-- There are sharp changes to inflow or outflow
+.. image:: Slide8.PNG
+	:width: 100%
 
-Two examples of where this usage might be appropriate:
+As described above, links across duration groups can transfer people in all subcompartments, while timed links can transfer anyone _except_ people in the final subcompartment. One subtle issue occurs if a number parameter is used to drive two transitions, where only one of them is a timed link. An example of this is shown below, where the ``tx`` parameter moves people into a ``dxr`` state, and this is replicated in both the unvaccinated and vaccinated groups. 
 
-- A mass vaccination schedule where
-    - A large proportion of the population is vaccinated at the same time
-    - The duration of protection is several years
-    - At the end, all uninfected individuals return to the susceptible compartment
-- TB early to late latent states
-    - The time spent in the early latent state is several years
-    - At the end, all infected individuals progress to late latent
-    - The inflow changes rapidly if the force of infection changes due to interventions e.g. treatment scale-up reducing the number of new infections
+.. image:: Slide10.PNG
+	:width: 450px
 
-One example of where this usage would be inappropriate
-- Treatment lasts 6 months
-    - The expected time spent in the compartment is only 1-2 timesteps, so the approximation that the time spent in the compartment by individuals is uniformly distributed is sufficiently good even if the treatment initiation rate changes rapidly
+Suppose that the step size is 1, the duration of protection ``dur`` is 10, and the people in ``vac`` are uniformly distributed over arrival times. Thus, 10 people need to transition from ``vac`` to ``sus`` and they are thus ineligible to move to ``vacdxr``. The parameter ``tx`` needs to be split across the two links. Should this be done in a ``200:100`` ratio, or a ``200:90`` ratio? The model uses the ``200:100`` ratio, so the logic is the same regardless of whether a timed link or a link is driving the transition. The interpretation of this is that the eligiblity of people for the transition is not known ahead of time. In general, it is common for links to move a smaller number of people than the corresponding number parameter, simply because links often get downscaled to prevent negative compartment sizes. The other reason for using the ``200:100`` is that it better preserves the equivalency between probability and number, where the number transitioning can always be expressed as a probability relative to the number of people in the source compartments, and using that probability as the parameter value instead of a number would provide identical results. 
 
-Note - what does it mean to be 'in' a compartment for a duration. Easiest way is to think of it as the number of chances to undergo a transition e.g. dt=0.25 and 1 year duration, there are 4 timesteps where you'd be eligible for transitions
+Although using ``200:100`` instead of ``200:90`` can seem counterintuitive, this occurs in many other places too. For example, a treatment may be provided to someone who dies of unrelated causes prior to being successfully treated. All the implementation is saying is that flows are not targeted at specific subcompartments, and if someone needs to leave the duration group and they are also eligible for a transition that would see them remain in the duration group, they are guaranteed to leave the group.
 
-Timed parameter restrictions
+.. caution::
 
-x - If a junction has a timed compartment input, it cannot have any untimed inputs
-x - If a junction receives flush inputs, it cannot have outflows that end up in the same duration group
-x - If the same timed parameter is used for multiple compartments, the destination compartments cannot be in the group of source compartments (cannot flush into the duration group)
-x - If entered in the databook, only a constant value can be provided
-x - If it has a function, then it must be precomputable and have the same value at all times
-x - Cannot be marked as a derivative
-x - Must be in 'duration' units
-x - Cannot be marked as 'targetable' (i.e. cannot be changed by programs)
-x - Any given compartment can have a maximum of one outgoing timed transition
-x - The timed compartment cannot be a birth, death, or junction compartment
-x - A timedcompartment cannot flush into a junction if one of the junction outputs belongs to the same duration group
-x - A junction cannot receive inflow from more than one duration group
-
-A timed parameter defines a shared state
-The quantity being tracked is 'time until the person needs to be moved'
+	If a number parameter drives a transition involving a timed link, the actual number of people moved will typically be less than the parameter's value, because people in the final subcompartment are not eligible for the transition. This is expected to be of secondary importance as long as the duration is much longer than the simulation step size, which is one of the prerequisites for using timed compartments described above. 
 
 Transfers
 *********
 
-- To a shorter duration, they are all inserted into the initial subcompartment. However, because they have already been in the duration group, they get advanced in the update
-- To a longer duration, the status is maintained
+Transfers between populations also need to preserve time spent in a duration group - for example, children that have been vaccinated and that subsequently change age groups retain their duration of protection. However, in some cases, the duration associated with the timed compartment may differ across populations. For example, a vaccine may last longer in adults than in children, or coinfection with HIV could decrease incubation time. 
 
-.. image:: schematic/Slide9.PNG
-	:width: 500px
-    :alt: TimedCompartment duration mismatch
+The figure below shows how discrepencies in durations are managed. The incoming ``TimedLink`` corresponds to the duration in the source population. If the duration in the destination is longer, then the original time remaining until the individual needs to leave the duration group is preserved. For example, if an 11 year old is vaccinated with a vaccine that has a duration protection of 5 years in children and 10 years in adults, and they are subsequently transferred from a ``5-14`` population to a ``15-64`` population when they turn 15, they will retain their original 5 year duration of protection, and will have their vaccine expire after spending 1 more year in ``15-64``. 
 
+In contrast, if the destination population has a shorter duration of protection than the source population, individuals are 'accelerated' by transferring them into the initial subcompartment. For example, suppose the normal incubation period of a disease is 4 weeks, but in a PLHIV population it is 1 week. If an individual acquires the disease in the main population, and then is transferred to the PLHIV population 1 week later, they would normally have 3 weeks of incubation remaining, but this would be reduced to 1 week after the transfer. 
 
-Timed compartments and junctions
-********************************
+.. image:: Slide9.PNG
+	:width: 100%
 
-Timed compartments can be used in conjunction with junctions
+Junctions
+*********
 
-We have defined previously the behaviours for transitions out of a TimedCompartment, namely that they can be
-Transitions to another TimedCompartment in the same duration group, in which the final subcompartment is not eligible for the transition
-Transitions to a normal compartment or a TimedCompartment in a different duration group, in which case the final subcompartment is eligible for the transition
-These are mutually exclusive, because the final subcompartment either is or is not eligible for the transition
-A junction can be thought of as disaggregating a single link out of the source compartment – that is, one link flows out of the source into the junction, but it ends up populating multiple downstream compartments
-This is not logically possible if the downstream compartments mix the two cases described above, because the single link flowing out of the source compartment cannot simultaneously satisfy both cases
-Therefore, in such cases we need to apply restrictions such that either the first case or the second case above is met, but not both
-Namely, either all of the downstream compartments are in the same duration group as the source compartment, or none of them are
-For this purpose, a junction also needs to be considered part of a duration group in this validation
+Timed compartments can be used in conjunction with junctions. However, we have seen previously that while normal links can transfer people in any subcompartment, timed links can only transfer people that are not in the final subcompartment. Thus there is not a direct substitution between the two, because eligibility within the subcompartments is different. This can be problematic when dealing with junctions. Consider the example below:
 
-A junction is attached to a duration group if it directly or indirectly has a TimedLink connecting it to a TimedCompartment and indirect paths only pass through JunctionCompartments. Attachment is directional
-A junction belongs to a duration group if it attached to an upstream duration group, and also attached to the same group downstream
-A junction can only belong to one duration group
-If a junction is attached to an upstream duration group, it can either be attached to only the same downstream duration group, or it can be attached to any downstream groups except the upstream group
-A junction that belongs to a duration group can only be connected, directly or indirectly, to TimedCompartments
+.. image:: Slide12.PNG
+	:width: 350px
 
-.. image:: schematic/Slide11.PNG
-	:width: 500px
-    :alt: Junction flows
+In the top case, without a junction, the two links have different eligibility in the ``vac`` compartment. However, with the junction, only a single link connects ``vac`` to the junction. What should the eligibility of this link be? In general, we cannot have outflows from a junction where some links preserve durations, and others do not.
 
-.. image:: schematic/Slide12.PNG
-	:width: 500px
-    :alt: Junction mixed output schematic
+Similarly, junctions that recieve a flush link from a duration group cannot then move those people back into the duration group. The interpretation of a flush link is that it transfers people out of the duration group. These rules must be satisfied even if the junction is indirect (transferring people via additional junctions). 
 
-.. image:: schematic/Slide13.PNG
-	:width: 500px
-    :alt: Junction valid examples
+.. image:: Slide16.PNG
+	:width: 100%
 
-.. image:: schematic/Slide14.PNG
-	:width: 500px
-    :alt: Junction examples of valid and invalid structures
+Overall, junctions follow two rules
 
-.. image:: schematic/Slide15.PNG
-	:width: 500px
-    :alt: Indirect junctions examples
+- If a junction has a *timed* input from a compartment (i.e. not a flush link, and the input can be direct or indirect) and also has an output to the same duration group (whether direct or indirect), then the junction itself is also considered part of the duration group. In that case, *all* of its inputs must be timed inputs from the same duration group, and *all* of its outputs must be to the same duration group
+- Otherwise, there must be no overlap between the duration groups flowing into the junction, and the duration groups flowing out of the junction (whether direct or indirect)
 
-.. image:: schematic/Slide16.PNG
-	:width: 500px
-    :alt: Indirect junctions additional examples
+This implies that either all links are ``TimedLinks``, or no links are ``TimedLinks``, thus resolving issues of eligibility for transitions. An example of junctions belonging to a duration group is shown below.
 
+.. image:: Slide15.PNG
+	:width: 350px
 
+The figures below shows some examples of valid and invalid model structures. 
 
-Example calculation
-*******************
+.. image:: Slide14.PNG
+	:width: 100%
 
-Consider the example model shown below. There are 4 states in two groups, corresponding to vaccination status and diagnosis restricted. Individuals become diagnosis restricted by being treated (in this very simple example, perhaps prophylatically).  Here, ``dur`` is a timed parameter corresponding to the duration of protection for the vaccine. This means that ``vac`` and ``vacdxr`` are timed compartments, and the ``tx`` link between them (``vac:vacdxr``) is a duration-preserving timed link, while the ``tx`` link from ``sus:dxr`` is a normal link. From any compartment, transition to death is possible.
+.. image:: Slide13.PNG
+	:width: 100%
 
-At each timestep, any individuals needing to be flushed from the compartment are resolved separately from all other transitions. That is, updating the compartment sizes now involves two steps
+Finally, it is possible to initialize junctions with a nonzero amount of people, as an alternative to initializing compartments. This allows the junction outflow parameters to be used in the initialization. Normally, a junction within a duration group never transfers people in the final subcompartment (because they are not able to stay within the duration group). However, when initializing a timed compartment, people are added uniformly to every subcompartment including the final subcompartment. Therefore, if a junction belongs to a duration group *and* it is initialized with a nonzero number of people, the initial flush will still transfer people into the final subcompartment of any downstream compartments. The outflow paths for junctions are shown in detail below.
 
-1. Non-flush link values are computed all flush links and assuming everyone is eligible for these transitions
-2. The flush link value is computed based on inflow into the flush subcompartment. This is a separate compute stage because normal inflow into the compartment will affect how many people will be flushed
-3. An update is carried out by
-    1. Advancing the keyring, then
-    2. Resolving all links, where the flush link acts on the first row, ``TimedLinks`` act on the top ``n-1`` rows, and normal ``Links`` act on the last row
-
-To reduce storage requirements, the top row is omitted and that way ``TimedLink`` instances act on entire columns at a time.
-
-Step (2) in this calculation populates the flush links with the number of people in each ``TimedCompartment`` that need to be cleared from the state. Therefore, they have their values set based on the ``TimedCompartment`` they are associated with during step (2), and are not updated during ``update_links``.
-
-- Watch out for number parameters. In general the flow out of a timed compartment will be less. For example, suppose we have a number parameter moving 50 people out of vac to vacinf. But we have 100 people in vac and 10 of them due to move to sus. We end up moving 45 people from vac to vacinf. Because we cannot identify which people in vac are due to be flushed.
-
-
-Test cases
-**********
-
-x - Finish lifespan test (transitions with junctions)
-x - Indirect flows (multiple junctions)
-x - Transfers with different durations in same group
-x - TimedCompartments with duration less than one timestep
-x - Check initialization works correctly with cascaded junctions
-- Various invalid junctions
-
+.. image:: Slide11.PNG
+	:width: 100%

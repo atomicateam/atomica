@@ -123,4 +123,4 @@ By specifying a different set of times, you can apply different smoothing method
 Maximum compartment duration
 ****************************
 
-A common, complex situation occurs if there are durations in the model that are significantly larger than the simulation time step (such as the duration of protection of a vaccine). See :ref:`timed-transitions` for details on how to implement this in a framework.
+A common, complex situation occurs if there are durations in the model that are significantly larger than the simulation time step (such as the duration of protection of a vaccine). See the documentation on Timed Transitions for details on how to implement this in a framework.
