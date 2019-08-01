@@ -22,6 +22,9 @@ jobs:
   - script: python -m pip install --upgrade pip && python -m pip install tox
     displayName: 'Install Tox'
 
+  - script: sudo apt install pandoc -y
+    displayName: 'Install pandoc'
+
   - script: tox -e $(TOXENV)
     displayName: 'Run Tox'
 
@@ -36,6 +39,10 @@ jobs:
       codeCoverageTool: Cobertura
       summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/coverage.xml'
       reportDirectory: '$(System.DefaultWorkingDirectory)/**/htmlcov'
+
+  - publish: docs/_build
+    condition: eq(variables['TOXENV'], 'py37')
+    artifact: docs
 
 # TODO - Switch deployment over to Azure DevOps
 
