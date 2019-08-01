@@ -62,7 +62,7 @@ class ProjectFramework(object):
         # For some pages, we only ever want to read in one DataFrame, and we want empty lines to be ignored. For example, on the
         # 'compartments' sheet, we want to ignore blank lines, while on the 'cascades' sheet we want the blank line to delimit the
         # start of a new cascade. So, for the sheet names below, multiple tables will be compressed to one table
-        merge_tables = {'databook pages', 'compartments', 'parameters', 'characteristics', 'interactions', 'plots', 'population types'}
+        merge_tables = {'databook pages', 'parameters', 'interactions', 'plots', 'population types'}
 
         for worksheet in workbook.worksheets:
             sheet_title = worksheet.title.lower()
@@ -491,7 +491,7 @@ class ProjectFramework(object):
         """
 
         # Check for required sheets
-        for page in ['databook pages', 'compartments', 'parameters', 'characteristics', 'transitions']:
+        for page in ['databook pages', 'parameters']:
             if page not in self.sheets:
                 raise InvalidFramework('The Framework file is missing a required sheet: "%s"' % (page))
 
@@ -510,7 +510,7 @@ class ProjectFramework(object):
         }
 
         try:
-            name_df = sanitize_dataframe(name_df, required_columns, defaults, valid_content)
+            name_df = _sanitize_dataframe(name_df, required_columns, defaults, valid_content)
         except Exception as e:
             message = 'An error was detected on the "About" sheet in the Framework file -> '
             raise Exception('%s -> %s' % (message, e)) from e
@@ -532,6 +532,9 @@ class ProjectFramework(object):
         available_pop_types = list(self.pop_types.keys()) # Get available pop types
 
         # VALIDATE COMPARTMENTS
+        if 'compartments' not in self.sheets:
+            self.sheets['compartments'] = [pd.DataFrame(columns=['code name', 'display name'])]
+
         required_columns = ['display name']
         defaults = {
             'is sink': 'n',
@@ -550,9 +553,8 @@ class ProjectFramework(object):
             'is junction': {'y', 'n'},
         }
 
-        self.comps.set_index('code name', inplace=True)
         try:
-            self.comps = sanitize_dataframe(self.comps, required_columns, defaults, valid_content)
+            self.comps = _sanitize_dataframe(self.comps, required_columns, defaults, valid_content, set_index='code name')
         except Exception as e:
             message = 'An error was detected on the "Compartments" sheet in the Framework file -> '
             raise Exception('%s -> %s' % (message, e)) from e
@@ -608,6 +610,8 @@ class ProjectFramework(object):
                 raise InvalidFramework('Compartment "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (comp_name,row['population type'],available_pop_types))
 
         # VALIDATE CHARACTERISTICS
+        if 'characteristics' not in self.sheets:
+            self.sheets['characteristics'] = [pd.DataFrame(columns=['code name', 'display name'])]
 
         required_columns = ['display name']
         defaults = {
@@ -624,9 +628,8 @@ class ProjectFramework(object):
             'components': None,
         }
 
-        self.characs.set_index('code name', inplace=True)
         try:
-            self.characs = sanitize_dataframe(self.characs, required_columns, defaults, valid_content)
+            self.characs = _sanitize_dataframe(self.characs, required_columns, defaults, valid_content, set_index='code name')
         except Exception as e:
             message = 'An error was detected on the "Characteristics" sheet in the Framework file -> '
             raise Exception('%s -> %s' % (message, e)) from e
@@ -687,7 +690,6 @@ class ProjectFramework(object):
                     raise InvalidFramework('In Characteristic "%s", included component "%s" was not recognized as a Compartment or Characteristic' % (charac_name, component))
 
         # VALIDATE INTERACTIONS
-
         if 'interactions' not in self.sheets:
             self.sheets['interactions'] = [pd.DataFrame(columns=['code name', 'display name', 'to population type', 'from population type'])]
 
@@ -701,9 +703,8 @@ class ProjectFramework(object):
             'display name': None,
         }
 
-        self.interactions.set_index('code name', inplace=True)
         try:
-            self.interactions = sanitize_dataframe(self.interactions, required_columns, defaults, valid_content)
+            self.interactions = _sanitize_dataframe(self.interactions, required_columns, defaults, valid_content, set_index='code name')
         except Exception as e:
             message = 'An error was detected on the "Interactions" sheet in the Framework file -> '
             raise Exception('%s -> %s' % (message, e)) from e
@@ -742,9 +743,8 @@ class ProjectFramework(object):
             'timed': {'y', 'n'},
         }
 
-        self.pars.set_index('code name', inplace=True)
         try:
-            self.pars = sanitize_dataframe(self.pars, required_columns, defaults, valid_content)
+            self.pars = _sanitize_dataframe(self.pars, required_columns, defaults, valid_content, set_index='code name')
         except Exception as e:
             message = 'An error was detected on the "Parameters" sheet in the Framework file -> '
             raise Exception('%s -> %s' % (message, e)) from e
@@ -1074,6 +1074,12 @@ class ProjectFramework(object):
                 # If this population type has no compartments, then no need to initialize anything
                 continue
 
+            # Note - the underdetermined initialization logic means that it _is_ well defined to
+            # have no characteristics/compartments in the databook - this would simply initialize all compartments
+            # with zeros. However, although this is a valid use case, it is more likely that a missing initialization
+            # would occur by accident, and require a warning/error to be raised. Therefore, if the user does
+            # want to initialize everything as zero, they do still have to explicitly initialize at least one of the
+            # non-source/sink compartments.
             if len(characs) == 0:
                 if not self.comps['databook page'].any() and self.comps['databook page'].any():
                     message = 'No compartments or characteristics appear in the databook, which means it is not possible to initialize the simulation. Please assign at least some of the compartments and/or characteristics to a databook page.'
@@ -1208,17 +1214,30 @@ class ProjectFramework(object):
         return FS.DEFAULT_SYMBOL_INAPPLICABLE
 
 
-def sanitize_dataframe(df, required_columns, defaults, valid_content):
-    # Take in a DataFrame and sanitize it
-    # INPUTS
-    # - df : The DataFrame being sanitized
-    # - required : A list of column names that *must* be present
-    # - defaults : A dict/odict mapping column names to default values. If a column is not present, it will be initialized with this value. If entries in this column are None, they will be assigned this value
-    #              The default value can be a lambda function
-    # - valid_content : A dict mapping column names to valid content. If specified, all elements of the column must be members of the iterable (normally this would be a set)
-    #                   If 'valid_content' is None, then instead it will be checked that all of the values are NOT null i.e. use valid_content=None to specify it cannot be empty
+def _sanitize_dataframe(df: pd.DataFrame, required_columns: list, defaults: dict, valid_content: dict, set_index:str = None) -> pd.DataFrame:
+    """
+    Take in a DataFrame and sanitize it
+
+    This function gets called for most/all of the dataframes in the framework. It checks that
+    required columns are present, adds default values, and checks that content is valid.
+
+    :param df: The DataFrame to sanitize
+    :param required_columns: A list of column names that must be present
+    :param defaults: A dict/odict mapping column names to default values. If a column is not present, it will be initialized with this value. If entries in this column are None, they will be assigned this value
+                 The default value can be a lambda function
+    :param valid_content: A dict mapping column names to valid content. If specified, all elements of the column must be members of the iterable (normally this would be a set)
+                      If 'valid_content' is None, then instead it will be checked that all of the values are NOT null i.e. use valid_content=None to specify it cannot be empty
+    :param set_index: Optional, if provided, sets the dataframe's index to this column. This column should *not* be in the list of ``required_columns`` as it will not be present after the index is changed
+    :return: Sanitized dataframe
+
+    """
 
     # First check required columns are present
+    if set_index is not None:
+        if set_index not in df.columns:
+            raise InvalidFramework(f'Mandatory index column "{set_index}" is missing')
+        df.set_index(set_index, inplace = True)
+
     if any(df.index.isnull()):
         raise InvalidFramework('The first column contained an empty cell (this probably indicates that a "code name" was left empty')
 

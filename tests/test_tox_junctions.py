@@ -4,9 +4,10 @@ import numpy as np
 import atomica as at
 import os
 
+testdir = os.path.abspath(os.path.join(os.path.dirname(__file__))) + os.sep  # Must be relative to current file to work with tox
+
 def test_junctions():
 
-    testdir = os.path.abspath(os.path.join(os.path.dirname(__file__)))+os.sep # Must be relative to current file to work with tox
 
     F = at.ProjectFramework(testdir + "framework_junction_test.xlsx")
     D = at.ProjectData.new(F,np.arange(2000,2001),pops={'pop1':'Population 1'},transfers=0)
@@ -85,5 +86,23 @@ def test_junctions():
 
     print('Test successfully completed')
 
+def test_only_junctions():
+    # This is a minimal framework that has a source connected only to junctions and then sinks
+    # So there are no normal compartments
+    F = at.ProjectFramework(testdir + "test_only_junctions_framework.xlsx")
+    D = at.ProjectData.new(F,[2018],pops=1,transfers=0)
+
+    P = at.Project(name="test", framework=F, databook=D.to_spreadsheet(), do_run=True)
+    res = P.results[0]
+
+    assert res.get_variable('state1')[0].vals[0] == 0
+    assert res.get_variable('state1')[0].vals[1] == 40
+    assert res.get_variable('state1')[0].vals[2] == 80
+
+    assert res.get_variable('state2')[0].vals[0] == 0
+    assert res.get_variable('state2')[0].vals[1] == 60
+    assert res.get_variable('state2')[0].vals[2] == 120
+
 if __name__ == '__main__':
-    test_junctions()
+    # test_junctions()
+    test_only_junctions()
