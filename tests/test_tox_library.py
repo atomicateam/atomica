@@ -211,5 +211,6 @@ def test_model(model):
 if __name__ == '__main__':
 
     np.seterr(all='raise')
+    models = ['hiv_dyn']
     for m in models:
         test_model(m)

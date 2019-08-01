@@ -1782,8 +1782,9 @@ class Model(object):
         self._pop_ids = sc.odict()  # Maps name of a population to its position index within populations list.
         self._program_cache = None  #: Cache program capacities and coverage for coverage scenarios
         self._par_update_order = None  #: This is a list of all parameters code names in use in the model, in execution order
-        self._junc_exec_order = None  #: This is a list of ``JunctionCompartments`` in all populations in execution order (forward flow only)
+        self._junc_exec_order = None  #: This is a list of ``JunctionCompartment`` objects in all populations in execution order (forward flow only)
         self._par_exec_order = None #: This is a list of all parameter objects with transitions that need to be updated
+        self._charac_exec_order = None  #: This is a list of ``Characteristic`` objects in all populations in execution order (forward dependencies only)
 
         self.framework = sc.dcp(framework)  # Store a copy of the Framework used to generate this model
         self.framework.spreadsheet = None  # No need to keep the spreadsheet
@@ -1818,7 +1819,8 @@ class Model(object):
 
         # Preserve this, it is potentially a little expensive to compute so don't want
         # to recompute them when unpickling during optimization
-        self._junc_exec_order =  [j.id for j in self._junc_exec_order]
+        self._junc_exec_order = [x.id for x in self._junc_exec_order]
+        self._charac_exec_order = [x.id for x in self._charac_exec_order]
 
     def relink(self) -> None:
         """
@@ -1844,11 +1846,13 @@ class Model(object):
         for pop in self.pops:
             pop.relink(objs)
 
-        # Relink junctions
-        try: # Migration, old projects didn't have a junction execution order
-            self._junc_exec_order = [objs[j] for j in self._junc_exec_order]
+        # Relink execution order lists
+        try: # Migration, old projects didn't have a junction execution order or characteristic execution order
+            self._junc_exec_order = [objs[x] for x in self._junc_exec_order]
+            self._charac_exec_order = [objs[x] for x in self._charac_exec_order]
         except:
             self._junc_exec_order = list()
+            self._charac_exec_order = list()
 
         # Set vars by pop
         self._set_vars_by_pop()
@@ -2034,15 +2038,28 @@ class Model(object):
         :return:
         """
 
-        # Set the parameter update order
+        # Set the parameter update order - this is a list of parameters names, in dependency order
+        # The parameters may or may not exist in each population, but they are updated across populations
         self._par_update_order = [x for x in self.framework.pars.index if x in self._vars_by_pop.keys()]
 
-        # Set the parameter execution order
+        # Set the parameter execution order - this is a list of only transition parameters, used when updating links
         self._par_exec_order = []
         for pop in self.pops:
             for par in pop.pars:
                 if par.links and par.units != FS.QUANTITY_TYPE_PROPORTION:
                     self._par_exec_order.append(par)
+
+        # Set characteristic execution order - in cases where characteristics depend on each other
+        G = nx.DiGraph()
+        for pop in self.pops:
+            for charac in pop.characs:
+                for include in charac.includes:
+                    if isinstance(include, Characteristic):
+                        G.add_edge(include, charac)  # Note directionality - the included characteristic needs to be added first
+                if isinstance(charac.denominator, Characteristic):
+                    G.add_edge(charac.denominator, charac)  # Note directionality - the included characteristic needs to be added first
+        assert nx.dag.is_directed_acyclic_graph(G), 'There is a circular dependency in characteristics, which is not permitted'
+        self._charac_exec_order = list(nx.dag.topological_sort(G))  # Topological sorting of the junction graph, which is a valid execution order
 
         # Set the junction execution order
         G = nx.DiGraph()
@@ -2249,10 +2266,9 @@ class Model(object):
         ti = self._t_index
 
         # First, compute dependent characteristics, as parameters might depend on them
-        for pop in self.pops:
-            for charac in pop.characs:
-                if charac._is_dynamic:
-                    charac.update(ti)
+        for charac in self._charac_exec_order:
+            if charac._is_dynamic:
+                charac.update(ti)
 
         do_program_overwrite = self.programs_active and self.program_instructions.start_year <= self.t[ti] <= self.program_instructions.stop_year
 

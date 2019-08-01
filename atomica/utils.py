@@ -694,7 +694,7 @@ def fast_gitinfo(path):
     that directory, it will search parent directories for `.git` until it finds one.
     Then, the current information will be parsed.
 
-    :param path:
+    :param path: A folder either containing a ``.git`` directory, or with a parent that contains a ``.git`` directory
 
     """
 
@@ -710,7 +710,7 @@ def fast_gitinfo(path):
         else:
             raise Exception('Could not find .git directory')
 
-        # First, get the branch and commit
+        # Then, get the branch and commit
         with open(os.path.join(gitdir, 'HEAD'), 'r') as f1:
             ref = f1.read()
             if ref.startswith('ref:'):
