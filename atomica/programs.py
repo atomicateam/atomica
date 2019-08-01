@@ -904,6 +904,9 @@ class ProgramSet(NamedItem):
                 progs['Prog %i' % (p + 1)] = 'Program %i' % (p + 1)
         elif isinstance(progs, dict):  # will also match odict
             pass
+        elif progs is None:
+            errormsg = 'When creating a ProgramSet, the programs cannot be None - it can either be a number of programs, or a dict with code names and full names'
+            raise Exception(errormsg)
         else:
             errormsg = 'Please just supply a number of programs, not "%s"' % (type(progs))
             raise Exception(errormsg)
@@ -928,9 +931,15 @@ class ProgramSet(NamedItem):
         """
 
         for prog in self.programs.values():
-            if not prog.target_comps:
+            if not prog.target_comps and self.comps:
+                # If there are no compartments, then it's fine not to target any compartments - it should be obvious that only coverage scenarios are possible
+                # If there are compartments, then the same is true, but it's also possible (or even probable) that the user accidentally didn't target any compartments
+                # Therefore, in this case, raise an error - if a user wants to just do coverage scenarios, then they can still target the compartments anyway
                 raise Exception('Program "%s" does not target any compartments' % (prog.name))
             if not prog.target_pops:
+                # If the user is using parameters only, they will still have to define a population. And that population must be targeted in order
+                # to provide any program outcome values. Thus, the program should generally target the population even if there are no compartments,
+                # so we raise an error if no populations are targeted
                 raise Exception('Program "%s" does not target any populations' % (prog.name))
 
     #######################################################################################################

@@ -760,6 +760,8 @@ class ProjectFramework(object):
             self.pars['calibrate'][default_calibrate] = 'y'
 
         # Parse the transitions matrix
+        if 'transitions' not in self.sheets:
+            self.sheets['transitions'] = []
         self._process_transitions()
 
         # Now validate each parameter

@@ -1878,6 +1878,13 @@ class Model(object):
             for prog_name, coverage_ts in self.program_instructions.coverage.items():
                 self._program_cache['prop_coverage'][prog_name] = coverage_ts.interpolate(self.t)
 
+            # Check that any programs with no coverage denominator have been given coverage overwrites
+            # Otherwise, the coverage denominator will be treated as 0 and will result in 100% coverage
+            # but that would just be a side effect of not targeting anyone (division by 0 is treated as 100%)
+            for prog in self.progset.programs.values():
+                if not self._program_cache['comps'][prog.name] and prog.name not in self._program_cache['prop_coverage']:
+                    raise Exception(f'Program "{prog.name}" does not target any compartments, but the program instructions did not specify coverage for this program. Programs without target compartments require their coverage to be explicitly specified in the instructions')
+
         else:
             self.programs_active = False
 
