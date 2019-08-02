@@ -16,9 +16,8 @@ import sys
 #
 #
 
-testdir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'tests')) + os.sep  # Must be relative to current file to work with tox
+testdir = os.path.abspath(os.path.join(os.path.dirname(__file__))) + os.sep  # Must be relative to current file to work with tox
 tempdir = os.path.join(testdir, 'temp') + os.sep
-
 
 def get_project():
     P = at.Project(framework=at.ProjectFramework(testdir + 'timed_test_framework.xlsx'), databook=testdir + 'timed_test_databook.xlsx', do_run=False)
