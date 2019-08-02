@@ -44,6 +44,17 @@ jobs:
     condition: eq(variables['TOXENV'], 'py37')
     artifact: docs
 
+  - script: flake8 atomica tests --exit-zero --output-file flake8.txt
+    displayName: 'Run flake8'
+
+  - script: flake8_junit flake8.txt flake8_junit.xml
+    displayName: 'Generate flake8 junit output'
+
+  - task: PublishTestResults@2
+    inputs:
+      testResultsFiles: '**/flake8_junit.xml'
+      testRunTitle: 'Publish flake8 results'
+
 # TODO - Switch deployment over to Azure DevOps
 
 #- job: 'deploy'
