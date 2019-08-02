@@ -5,6 +5,7 @@ import pytest
 
 testdir = os.path.abspath(os.path.join(os.path.dirname(__file__))) + os.sep  # Must be relative to current file to work with tox
 
+
 def test_no_compartments():
     # Test a framework with absolutely no compartments or transitions
     # Only parameters
@@ -21,7 +22,7 @@ def test_no_compartments():
     # P.save(p_path)
 
     P = at.Project(name="test", framework=f_path)
-    P.load_databook(d_path,do_run=False)
+    P.load_databook(d_path, do_run=False)
     P.load_progbook(p_path)
     P.settings.update_time_vector(dt=1)
 
@@ -31,19 +32,20 @@ def test_no_compartments():
     with pytest.raises(Exception):
         instructions = at.ProgramInstructions(2002)
         # Running a progset without compartments and without coverage in the instructions should result in an error
-        P.run_sim(parset='default',progset='default',progset_instructions=instructions,result_name='Baseline (no progset)')
+        P.run_sim(parset='default', progset='default', progset_instructions=instructions, result_name='Baseline (no progset)')
 
-    instructions = at.ProgramInstructions(2002,coverage={'treatment':0.6})
+    instructions = at.ProgramInstructions(2002, coverage={'treatment': 0.6})
     res_progset = P.run_sim(parset='default', progset='default', progset_instructions=instructions, result_name='Increased treatment via progset')
 
-    d = at.PlotData(results=[res_parset,res_progset],outputs=['deaths',{'Number treated':'p_treat*n_infections'}])
-    at.plot_series(d,axis='results')
+    d = at.PlotData(results=[res_parset, res_progset], outputs=['deaths', {'Number treated': 'p_treat*n_infections'}])
+    at.plot_series(d, axis='results')
 
     # Check the values at the end of the simulation are as expected
-    assert res_parset.get_variable('deaths')[0].vals[-1] == 40*0.1+60*0.4
-    assert res_progset.get_variable('deaths')[0].vals[-1] == 60*0.1+40*0.4
+    assert res_parset.get_variable('deaths')[0].vals[-1] == 40 * 0.1 + 60 * 0.4
+    assert res_progset.get_variable('deaths')[0].vals[-1] == 60 * 0.1 + 40 * 0.4
 
     print('Test successfully completed')
+
 
 if __name__ == '__main__':
     test_no_compartments()

@@ -63,10 +63,10 @@ class Variable(object):
 
     def __init__(self, pop, id):
         self.id = id  #: Unique identifier for the integration object
-        self.t = None #: Array of time values. This should be a reference to the base array stored in a :class:`model` object
-        self.dt = None #: Time step size
+        self.t = None  # : Array of time values. This should be a reference to the base array stored in a :class:`model` object
+        self.dt = None  # : Time step size
         if 'vals' not in dir(self):  # If a derived class implements a @property method for `vals`, then don't instantiate it as an attribute
-            self.vals = None #: The fundamental values stored by this object
+            self.vals = None  # : The fundamental values stored by this object
         self.units = 'unknown'  #: The units for the quantity, used for plotting and for validation. Note that the default ``'unknown'`` units are distinct to dimensionless units, which have value ``''``
         self.pop = pop  #: Reference back to the Population containing this object
 
@@ -275,7 +275,7 @@ class Compartment(Variable):
 
         return outflow
 
-    def resolve_outflows(self,ti: int) -> None:
+    def resolve_outflows(self, ti: int) -> None:
         """
         Resolve outgoing links and convert to number
 
@@ -290,14 +290,14 @@ class Compartment(Variable):
             outflow += link._cache
 
         if outflow > 1:
-            rescale = 1/outflow
+            rescale = 1 / outflow
         else:
             rescale = 1
 
-        n = rescale*self.vals[ti]
+        n = rescale * self.vals[ti]
         self._cached_outflow = 0
         for link in self.outlinks:
-            link.vals[ti] = link._cache*n
+            link.vals[ti] = link._cache * n
             self._cached_outflow += link.vals[ti]
 
     def update(self, ti: int) -> None:
@@ -316,7 +316,7 @@ class Compartment(Variable):
 
         """
 
-        tr = ti-1
+        tr = ti - 1
         v = self.vals[tr]
         v -= self._cached_outflow
         for link in self.inlinks:
@@ -359,7 +359,7 @@ class JunctionCompartment(Compartment):
         :param duration_group: Optionally specify a duration group
 
         """
-        super().__init__(pop,name)
+        super().__init__(pop, name)
         self.duration_group = duration_group  #: Store the name of the duration group, if the junction belongs to one
 
     def connect(self, dest, par) -> None:
@@ -449,10 +449,10 @@ class JunctionCompartment(Compartment):
         net_inflow = 0
         if self.duration_group:
             for link in self.inlinks:
-                net_inflow += link._vals[:,ti]  # If part of a duration group, get the flow from TimedLink._vals
+                net_inflow += link._vals[:, ti]  # If part of a duration group, get the flow from TimedLink._vals
         else:
             for link in self.inlinks:
-                net_inflow += link.vals[ti] # If not part of a duration group, get scalar flow from Link.vals
+                net_inflow += link.vals[ti]  # If not part of a duration group, get scalar flow from Link.vals
 
         # Next, get the total outflow. Note that the parameters are guaranteed to be in proportion units here
         outflow_fractions = [link.parameter.vals[ti] for link in self.outlinks]
@@ -461,9 +461,9 @@ class JunctionCompartment(Compartment):
         # Finally, assign the inflow to the outflow proportionately accounting for the total outflow downscaling
         for frac, link in zip(outflow_fractions, self.outlinks):
             if self.duration_group:
-                link._vals[:,ti] = net_inflow * frac/total_outflow
+                link._vals[:, ti] = net_inflow * frac / total_outflow
             else:
-                link.vals[ti] = net_inflow * frac/total_outflow
+                link.vals[ti] = net_inflow * frac / total_outflow
 
     def initial_flush(self) -> None:
         """
@@ -509,13 +509,13 @@ class SourceCompartment(Compartment):
     """
 
     def __init__(self, pop, name):
-        super().__init__(pop,name)
+        super().__init__(pop, name)
 
     def preallocate(self, tvec: np.array, dt: float) -> None:
-        super().preallocate(tvec,dt)
+        super().preallocate(tvec, dt)
         self.vals.fill(0.0)  #: Source compartments have an unlimited number of people in them. TODO: If this complicates validation, set to 0.0
 
-    def resolve_outflows(self,ti: int) -> None:
+    def resolve_outflows(self, ti: int) -> None:
         for link in self.outlinks:
             link.vals[ti] = link._cache
 
@@ -526,7 +526,7 @@ class SourceCompartment(Compartment):
 class SinkCompartment(Compartment):
 
     def __init__(self, pop, name):
-        super().__init__(pop,name)
+        super().__init__(pop, name)
 
     def preallocate(self, tvec: np.array, dt: float) -> None:
         """
@@ -539,10 +539,10 @@ class SinkCompartment(Compartment):
 
         """
 
-        super().preallocate(tvec,dt)
+        super().preallocate(tvec, dt)
         self.vals[0] = 0.0
 
-    def resolve_outflows(self,ti: int) -> None:
+    def resolve_outflows(self, ti: int) -> None:
         """
         Resolve sink outflows
 
@@ -574,7 +574,7 @@ class SinkCompartment(Compartment):
 
         """
 
-        tr = ti-1
+        tr = ti - 1
         v = self.vals[tr]
         for link in self.inlinks:
             v += link.vals[tr]
@@ -660,7 +660,7 @@ class TimedCompartment(Compartment):
 
         if ti.size > 1 or ti[0] != 0:
             raise Exception('For safety, explicitly setting the compartment size for a TimedCompartment can currently only be done for the initial conditions. This requirement can be likely be relaxed if needed for a particular use case')
-        self._vals[:,ti] = value.reshape((1, -1)) / (self._vals.shape[0] * np.ones((self._vals.shape[0], 1)))
+        self._vals[:, ti] = value.reshape((1, -1)) / (self._vals.shape[0] * np.ones((self._vals.shape[0], 1)))
 
     def preallocate(self, tvec: np.array, dt: float) -> None:
         """
@@ -678,12 +678,12 @@ class TimedCompartment(Compartment):
         # because the logic is simply - flush the topmost row, shift the array by 1, inflow goes in the bottom row
         self.t = tvec
         self.dt = dt
-        assert np.all(self.parameter.vals==self.parameter.vals[0]), 'Duration parameter value cannot vary over time'
+        assert np.all(self.parameter.vals == self.parameter.vals[0]), 'Duration parameter value cannot vary over time'
         duration = self.parameter.vals[0] * self.parameter.timescale * self.parameter.scale_factor
-        self._vals = np.empty((max(1, math.ceil(duration/dt)), tvec.size), order='F')  # Fortran/column-major order should be faster for summing over lags to get `vals`
+        self._vals = np.empty((max(1, math.ceil(duration / dt)), tvec.size), order='F')  # Fortran/column-major order should be faster for summing over lags to get `vals`
         self._vals.fill(np.nan)
 
-    def resolve_outflows(self,ti: int) -> None:
+    def resolve_outflows(self, ti: int) -> None:
         """
         Resolve outgoing links
 
@@ -701,25 +701,25 @@ class TimedCompartment(Compartment):
         total_outflow = np.zeros(self._vals.shape[0])
         for link in self.outlinks:
             if isinstance(link, TimedLink):
-                total_outflow[1:] += link._cache # Timed link outflows do not act on the final subcompartment
+                total_outflow[1:] += link._cache  # Timed link outflows do not act on the final subcompartment
             else:
-                total_outflow[:] += link._cache # Normal link outflows do act on the final subcompartment
+                total_outflow[:] += link._cache  # Normal link outflows do act on the final subcompartment
 
         # Rescaling factors for each subcompartment
         rescale = np.divide(1, total_outflow, out=np.ones_like(total_outflow), where=total_outflow > 1)
         n = rescale * self._vals[:, ti]  # Rescaled number of people - to multiply by the cache value on each link
 
-        self._cached_outflow = np.zeros(self._vals.shape[0]) # Cache the outflow, because for Links, we accumulate the subcompartment outflow but we need to record the subcompartment outflow separately
+        self._cached_outflow = np.zeros(self._vals.shape[0])  # Cache the outflow, because for Links, we accumulate the subcompartment outflow but we need to record the subcompartment outflow separately
         for link in self.outlinks:
             if isinstance(link, TimedLink):
-                link._vals[:, ti] = n*link._cache
+                link._vals[:, ti] = n * link._cache
                 link._vals[0, ti] = 0.0  # No flow out of final subcompartment
                 self._cached_outflow += link._vals[:, ti]
             else:
-                link.vals[ti] = sum(n*link._cache)
-                self._cached_outflow += n*link._cache
+                link.vals[ti] = sum(n * link._cache)
+                self._cached_outflow += n * link._cache
 
-        self.flush_link.vals[ti] = max(0, self._vals[0,ti] - self._cached_outflow[0])
+        self.flush_link.vals[ti] = max(0, self._vals[0, ti] - self._cached_outflow[0])
         self._cached_outflow[0] += self.flush_link.vals[ti]
 
     def update(self, ti: int) -> None:
@@ -733,7 +733,7 @@ class TimedCompartment(Compartment):
 
         """
 
-        tr = ti-1
+        tr = ti - 1
 
         # First, apply all of the outflows (computed by `resolve_outflows()` at the last timestep)
         self._vals[:, ti] = self._vals[:, tr] - self._cached_outflow
@@ -751,22 +751,21 @@ class TimedCompartment(Compartment):
                     # This compartment has a shorter duration, so first insert the values we've got
                     # then sum up and add the extra values to the initial subcompartment
                     self._vals[:, ti] += link._vals[:self._vals.shape[0], tr]
-                    self._vals[-1,ti] += sum(link._vals[self._vals.shape[0]:, tr].tolist())
-
+                    self._vals[-1, ti] += sum(link._vals[self._vals.shape[0]:, tr].tolist())
 
         # Advance the keyring
         assert np.isclose(self._vals[0, ti], 0)  # Now, the final subcompartment should be empty - can disable this check if it's slow
         if self._vals.shape[0] > 1:
             self._vals[0:-1, ti] = self._vals[1:, ti]
-        self._vals[-1,ti] = 0.0  # Zero out the inflow (otherwise, it just replicates previous value)
+        self._vals[-1, ti] = 0.0  # Zero out the inflow (otherwise, it just replicates previous value)
 
         # Now, resolve other inputs for which durations are not preserved
         # Regardless of whether they are TimedLinks or not, they should go into the initial subcompartment
         for link in self.inlinks:
             if not isinstance(link, TimedLink):
-                self._vals[-1,ti] += link[tr]
+                self._vals[-1, ti] += link[tr]
 
-        self._vals[self._vals[:,ti]<0,ti] = 0
+        self._vals[self._vals[:, ti] < 0, ti] = 0
 
     def connect(self, dest, par) -> None:
         """
@@ -920,8 +919,8 @@ class Parameter(Variable):
         self.pop_aggregation = None  #: If not None, stores list of population aggregation information (special function, which weighting comp/charac and which interaction term to use)
         self.scale_factor = 1.0  #: This should be set to the product of the population-specific ``y_factor`` and the ``meta_y_factor`` from the ParameterSet
         self.links = []  #: References to links that derive from this parameter
-        self._source_popsize_cache_time = None #: Internal cache for the time at which the source popsize was previously computed
-        self._source_popsize_cache_val = None #: Internal cache for the last previously computed source popsize
+        self._source_popsize_cache_time = None  # : Internal cache for the time at which the source popsize was previously computed
+        self._source_popsize_cache_val = None  # : Internal cache for the last previously computed source popsize
         self.fcn_str = None  #: String representation of parameter function
         self.deps = dict()  #: Dict of dependencies containing lists of integration objects
         self._fcn = None  #: Internal cache for parsed parameter function (this will be dropped when pickled)
@@ -971,7 +970,7 @@ class Parameter(Variable):
         else:
             for dep_name in dep_list:
                 if not (dep_name in ['t', 'dt']):  # There are no integration variables associated with the interactions, as they are treated as a special matrix
-                    self.deps[dep_name] = self.pop.get_variable(dep_name) # nb. this lookup will fail if the user has a function that depends on a quantity outside this population
+                    self.deps[dep_name] = self.pop.get_variable(dep_name)  # nb. this lookup will fail if the user has a function that depends on a quantity outside this population
 
         # If this Parameter has links and a function, it must be updated before it is needed during integration.
         # If the function depends on any compartment sizes, it must be updated element-wise during integration.
@@ -979,7 +978,7 @@ class Parameter(Variable):
         # Otherwise, it can be pre-computed in a fast vector operation
         # A timed parameter doesn't _directly_ have links associated with it (because it does not supply values
         # for the links) but it does need to be precomputed
-        if self.links or self.derivative or framework.pars.at[self.name,'timed'] == 'y':
+        if self.links or self.derivative or framework.pars.at[self.name, 'timed'] == 'y':
             self.set_dynamic(progset)
 
     def set_dynamic(self, progset=None) -> None:
@@ -1012,11 +1011,11 @@ class Parameter(Variable):
             # dependencies have already been checked
             return
 
-        if self.pop_aggregation or self.derivative: # Pop aggregations and derivatives are handled in `update_pars()` so must be done incrementally during integration
+        if self.pop_aggregation or self.derivative:  # Pop aggregations and derivatives are handled in `update_pars()` so must be done incrementally during integration
             self._is_dynamic = True
 
-        if self.deps: # If there are no dependencies, then we know that this is precompute-only
-            for deps in self.deps.values(): # deps is {'dep_name':[dep_objects]}
+        if self.deps:  # If there are no dependencies, then we know that this is precompute-only
+            for deps in self.deps.values():  # deps is {'dep_name':[dep_objects]}
                 for dep in deps:
                     if isinstance(dep, Link):
                         raise Exception("A Parameter that depends on transition flow rates cannot be a dependency, it must be output only.")
@@ -1024,7 +1023,7 @@ class Parameter(Variable):
                         dep.set_dynamic()
                         self._is_dynamic = True
                     elif isinstance(dep, Parameter):
-                        dep.set_dynamic() # Run `set_dynamic()` on the parameter which will descend further to see if the Parameter depends on comps/characs or on overwritten parameters
+                        dep.set_dynamic()  # Run `set_dynamic()` on the parameter which will descend further to see if the Parameter depends on comps/characs or on overwritten parameters
                         if dep._is_dynamic or (progset and dep.name in progset.pars):
                             self._is_dynamic = True
                     else:
@@ -1069,7 +1068,7 @@ class Parameter(Variable):
 
         if self.limits is not None:
             if ti is None:
-                self.vals = np.clip(self.vals,self.limits[0],self.limits[1])
+                self.vals = np.clip(self.vals, self.limits[0], self.limits[1])
             else:
                 if self.vals[ti] < self.limits[0]:
                     self.vals[ti] = self.limits[0]
@@ -1101,7 +1100,7 @@ class Parameter(Variable):
             if hasattr(ti, '__len__'):
                 # Filter out years outside the excluded range
                 ti = ti[np.where((self.t[ti] < self.skip_function[0]) | (self.t[ti] > self.skip_function[1]))]
-                if ti.size == 0: # If all times were removed
+                if ti.size == 0:  # If all times were removed
                     return
             else:
                 # Dealing with a scalar ti
@@ -1113,7 +1112,7 @@ class Parameter(Variable):
             for dep in deps:
                 if isinstance(dep, Parameter) or isinstance(dep, Characteristic):
                     dep_vals[dep_name] += dep.vals[ti]
-                elif isinstance(dep,Compartment):
+                elif isinstance(dep, Compartment):
                     dep_vals[dep_name] += dep[ti]
                 elif isinstance(dep, Link):
                     dep_vals[dep_name] += dep[ti] / dep.dt
@@ -1141,7 +1140,7 @@ class Parameter(Variable):
             if self.links:
                 n = 0
                 for link in self.links:
-                    n += link.source[ti] # Use the direct indexing because we don't know what type of compartment we are operating on
+                    n += link.source[ti]  # Use the direct indexing because we don't know what type of compartment we are operating on
             else:
                 raise Exception('Cannot retrieve source popsize for a non-transition parameter')
             self._source_popsize_cache_time = ti
@@ -1192,10 +1191,9 @@ class Link(Variable):
 
         return new_link
 
-
     def __init__(self, pop, parameter, source, dest):
         # Note that the Link's name is the transition tag
-        Variable.__init__(self, pop=pop, id=(pop.name, source.name, dest.name, parameter.name+':flow'))  # A Link is only uniquely identified by (Pop,Source,Dest,Par)
+        Variable.__init__(self, pop=pop, id=(pop.name, source.name, dest.name, parameter.name + ':flow'))  # A Link is only uniquely identified by (Pop,Source,Dest,Par)
         self.units = 'Number of people'
 
         # Source parameter where unscaled link value is drawn from (a single parameter may have multiple links).
@@ -1245,7 +1243,7 @@ class Link(Variable):
         Variable.plot(self)
         plt.title('Link %s to %s' % (self.source.name, self.dest.name))
 
-    def update(self,ti: int, converted_frac: float) -> None:
+    def update(self, ti: int, converted_frac: float) -> None:
         """
         Update the value of the link
 
@@ -1262,7 +1260,7 @@ class Link(Variable):
 
         """
 
-        self.vals[ti] = self.source.vals[ti]*converted_frac
+        self.vals[ti] = self.source.vals[ti] * converted_frac
 
 
 class TimedLink(Link):
@@ -1327,7 +1325,7 @@ class TimedLink(Link):
             self._vals = np.empty((math.ceil(duration / dt), tvec.size), order='F')  # Fortran/column-major order should be faster for summing over lags to get `vals`
         self._vals.fill(np.nan)
 
-    def update(self,ti: int, converted_frac: float) -> None:
+    def update(self, ti: int, converted_frac: float) -> None:
         """
         Updated link flow rate
 
@@ -1338,7 +1336,7 @@ class TimedLink(Link):
 
         """
 
-        self._vals[:,ti] = self.source._vals[:,ti]*converted_frac
+        self._vals[:, ti] = self.source._vals[:, ti] * converted_frac
 
     def __getitem__(self, ti):
         """
@@ -1363,7 +1361,7 @@ class Population(object):
     Each model population must contain a set of compartments with equivalent names.
     """
 
-    def __init__(self, framework, name: str, label:str, progset:ProgramSet, pop_type:str):
+    def __init__(self, framework, name: str, label: str, progset: ProgramSet, pop_type: str):
         """
         Construct a Population
 
@@ -1439,7 +1437,7 @@ class Population(object):
         """
 
         if ti is None:
-            return np.sum([comp.vals for comp in self.comps if (not isinstance(comp,SourceCompartment) and not isinstance(comp,SinkCompartment))], axis=0)
+            return np.sum([comp.vals for comp in self.comps if (not isinstance(comp, SourceCompartment) and not isinstance(comp, SinkCompartment))], axis=0)
 
         if ti == self.popsize_cache_time:
             return self.popsize_cache_val
@@ -1561,7 +1559,7 @@ class Population(object):
         # to instantiate the parameters first, and also because `framework.transitions` is keyed by parameter
         # rather than compartment so it's straightforward to include here
         for par_name in list(pars.index):
-            if pars.at[par_name,'population type'] == self.type:
+            if pars.at[par_name, 'population type'] == self.type:
                 par = Parameter(pop=self, name=par_name)
                 par.units = pars.at[par_name, "format"]
                 par.timescale = pars.at[par_name, "timescale"]
@@ -1587,7 +1585,7 @@ class Population(object):
 
         # Characteristics first pass, instantiate objects
         for charac_name in list(characs.index):
-            if characs.at[charac_name,'population type'] == self.type:
+            if characs.at[charac_name, 'population type'] == self.type:
                 self.characs.append(Characteristic(pop=self, name=charac_name))
         self.charac_lookup = {charac.name: charac for charac in self.characs}
 
@@ -1608,7 +1606,7 @@ class Population(object):
                 for pair in framework.transitions[par.name]:
                     src = self.get_comp(pair[0])
                     dst = self.get_comp(pair[1])
-                    src.connect(dst, par) # If the parameter is a timed parameter, the TimedCompartment will also assign the FlushLink in this step
+                    src.connect(dst, par)  # If the parameter is a timed parameter, the TimedCompartment will also assign the FlushLink in this step
 
         # Parameters third pass, process f_stacks, deps, and limits
         # This is a separate pass because output parameters can depend on Links
@@ -1626,7 +1624,6 @@ class Population(object):
             fcn_str = pars.at[par.name, 'function']
             if fcn_str is not None:
                 par.set_fcn(framework, fcn_str, progset)
-
 
     def initialize_compartments(self, parset: ParameterSet, framework, t_init: float) -> None:
         """
@@ -1653,7 +1650,7 @@ class Population(object):
         b_objs = [self.charac_lookup[x] for x in characs_to_use] + [self.comp_lookup[x] for x in comps_to_use]
 
         # Build up the comps corresponding to the `x` values in `x=A*b` i.e. the compartments being solved for
-        comps = [c for c in self.comps if not (isinstance(c,SourceCompartment) or isinstance(c,SinkCompartment))]
+        comps = [c for c in self.comps if not (isinstance(c, SourceCompartment) or isinstance(c, SinkCompartment))]
         charac_indices = {c.name: i for i, c in enumerate(b_objs)}  # Make lookup dict for characteristic indices
         comp_indices = {c.name: i for i, c in enumerate(comps)}  # Make lookup dict for compartment indices
 
@@ -1677,7 +1674,7 @@ class Population(object):
         # Solve the linear system (nb. lstsq returns the minimum norm solution
         x = np.linalg.lstsq(A, b.ravel(), rcond=None)[0].reshape(-1, 1)
         proposed = np.matmul(A, x)
-        residual = np.sum((proposed.ravel()-b.ravel())**2)
+        residual = np.sum((proposed.ravel() - b.ravel())**2)
 
         # Accumulate any errors here. The errors could occur either at the system level or at the level
         # of individual comps/characs. To avoid
@@ -1736,7 +1733,7 @@ class Population(object):
 
         if residual > model_settings["tolerance"]:
             # Halt for an unsatisfactory overall solution
-            raise BadInitialization("Global residual was %g which is unacceptably large (should be < %g)\n%s" % (residual, model_settings['tolerance'],error_msg))
+            raise BadInitialization("Global residual was %g which is unacceptably large (should be < %g)\n%s" % (residual, model_settings['tolerance'], error_msg))
         elif np.any(np.less(x, -model_settings['tolerance'])):
             # Halt for any negative popsizes
             raise BadInitialization(f'Negative initial popsizes:\n{error_msg}')
@@ -1783,7 +1780,7 @@ class Model(object):
         self._program_cache = None  #: Cache program capacities and coverage for coverage scenarios
         self._par_update_order = None  #: This is a list of all parameters code names in use in the model, in execution order
         self._junc_exec_order = None  #: This is a list of ``JunctionCompartment`` objects in all populations in execution order (forward flow only)
-        self._par_exec_order = None #: This is a list of all parameter objects with transitions that need to be updated
+        self._par_exec_order = None  # : This is a list of all parameter objects with transitions that need to be updated
         self._charac_exec_order = None  #: This is a list of ``Characteristic`` objects in all populations in execution order (forward dependencies only)
 
         self.framework = sc.dcp(framework)  # Store a copy of the Framework used to generate this model
@@ -1847,7 +1844,7 @@ class Model(object):
             pop.relink(objs)
 
         # Relink execution order lists
-        try: # Migration, old projects didn't have a junction execution order or characteristic execution order
+        try:  # Migration, old projects didn't have a junction execution order or characteristic execution order
             self._junc_exec_order = [objs[x] for x in self._junc_exec_order]
             self._charac_exec_order = [objs[x] for x in self._charac_exec_order]
         except:
@@ -1942,8 +1939,8 @@ class Model(object):
         # Expand interactions into matrix form
         self.interactions = dict()
         for name, weights in parset.interactions.items():
-            from_pops = [x.name for x in self.pops if x.type == self.framework.interactions.at[name,'from population type']]
-            to_pops = [x.name for x in self.pops if x.type == self.framework.interactions.at[name,'to population type']]
+            from_pops = [x.name for x in self.pops if x.type == self.framework.interactions.at[name, 'from population type']]
+            to_pops = [x.name for x in self.pops if x.type == self.framework.interactions.at[name, 'to population type']]
             self.interactions[name] = np.zeros((len(from_pops), len(to_pops), len(self.t)))
             for from_pop, par in weights.items():
                 for to_pop in par.pops:
@@ -1964,9 +1961,9 @@ class Model(object):
                     for pop_target in transfer_parameter.ts:
 
                         # Create the parameter object for this link (shared across all compartments)
-                        par_name = "%s_%s_to_%s" % (transfer_name, pop_source , pop_target)  # e.g. 'aging_0-4_to_15-64'
+                        par_name = "%s_%s_to_%s" % (transfer_name, pop_source, pop_target)  # e.g. 'aging_0-4_to_15-64'
                         par = Parameter(pop=pop, name=par_name)
-                        par.preallocate(self.t, self.dt) # Preallocate now, because these parameters are not present in the framework so they won't get preallocated later
+                        par.preallocate(self.t, self.dt)  # Preallocate now, because these parameters are not present in the framework so they won't get preallocated later
                         par.scale_factor = transfer_parameter.y_factor[pop_target] * transfer_parameter.meta_y_factor
                         par.vals = transfer_parameter.interpolate(tvec=self.t, pop_name=pop_target) * par.scale_factor
                         par.units = transfer_parameter.ts[pop_target].units.strip().split()[0].strip().lower()
@@ -1976,7 +1973,7 @@ class Model(object):
                         target_pop_obj = self.get_pop(pop_target)
 
                         for src in pop.comps:
-                            if not (isinstance(src,SourceCompartment) or isinstance(src,SinkCompartment) or isinstance(src,JunctionCompartment)):
+                            if not (isinstance(src, SourceCompartment) or isinstance(src, SinkCompartment) or isinstance(src, JunctionCompartment)):
                                 # Instantiate a link between corresponding compartments
                                 dest = target_pop_obj.get_comp(src.name)  # Get the corresponding compartment
                                 src.connect(dest, par)
@@ -2022,7 +2019,6 @@ class Model(object):
                         par.update()
 
                     par.constrain()  # Sampling might result in the parameter value going out of bounds (or user might have entered bad values in the databook) so ensure they are clipped here
-
 
         # Finally, preallocate remaining quantities and initialize the compartments
         # Note that TimedLink preallocation depends on TimedCompartment preallocation
@@ -2126,7 +2122,6 @@ class Model(object):
 
         ti = self._t_index
 
-
         # First, populate all of the link values without any outflow constraints
         for par in self._par_exec_order:
 
@@ -2158,16 +2153,16 @@ class Model(object):
                 # greater than 1 simply implies that the mean duration is less than the timescale in question, and we need to retain that value
                 # to be able to correctly convert between timescales. The subsequent call to min() then ensures that the fraction moved never
                 # exceeds 1.0 once operating on the timestep level
-                converted_frac = min(1,transition * (self.dt / par.timescale))
+                converted_frac = min(1, transition * (self.dt / par.timescale))
                 for link in par.links:
                     link._cache = converted_frac
 
             # Linearly convert number down to that appropriate for one timestep.
             elif par.units == FS.QUANTITY_TYPE_NUMBER:
                 # Disaggregate proportionally across all source compartment sizes related to all links.
-                converted_amt = transition * (self.dt / par.timescale) # Number flow in this timestep, so it includes a timescale factor
+                converted_amt = transition * (self.dt / par.timescale)  # Number flow in this timestep, so it includes a timescale factor
 
-                if isinstance(par.links[0].source,SourceCompartment):
+                if isinstance(par.links[0].source, SourceCompartment):
                     # For a source compartment, the link value should be explicitly set directly
                     # Also, there is guaranteed to only be one link per parameter for outflows from source compartments
                     par.links[0]._cache = converted_amt
@@ -2184,7 +2179,7 @@ class Model(object):
 
             # Convert from duration to equivalent probability
             elif par.units == FS.QUANTITY_TYPE_DURATION:
-                converted_frac = min(1,self.dt / (transition * par.timescale))
+                converted_frac = min(1, self.dt / (transition * par.timescale))
                 for link in par.links:
                     link._cache = converted_frac
 
@@ -2306,7 +2301,7 @@ class Model(object):
                 for par in pars:
                     if (par.name, par.pop.name) in prog_vals:
                         if par.derivative:
-                            par._dx = prog_vals[(par.name, par.pop.name)] # For derivative parameters, overwrite the derivative rather than the value
+                            par._dx = prog_vals[(par.name, par.pop.name)]  # For derivative parameters, overwrite the derivative rather than the value
                         else:
                             par[ti] = prog_vals[(par.name, par.pop.name)]
                         if par.units == FS.QUANTITY_TYPE_NUMBER:
@@ -2322,7 +2317,7 @@ class Model(object):
                 # NOTE - When doing cross-population interactions, 'pars' is from the 'to' pop
                 # and 'par_vals' is from the 'from pop
                 if len(pars[0].pop_aggregation) < 3:
-                    weights = np.ones((len(par_vals),len(pars)))
+                    weights = np.ones((len(par_vals), len(pars)))
                 else:
                     weights = self.interactions[pars[0].pop_aggregation[2]][:, :, ti].copy()
 
@@ -2344,15 +2339,15 @@ class Model(object):
                 par_vals = np.matmul(weights, par_vals)
 
                 for par, val in zip(pars, par_vals):
-                    if par.skip_function is None or (self.t[ti] < par.skip_function[0]) or (self.t[ti] > par.skip_function[1]): # Careful - note how the < here matches >= in Parameter.update()
+                    if par.skip_function is None or (self.t[ti] < par.skip_function[0]) or (self.t[ti] > par.skip_function[1]):  # Careful - note how the < here matches >= in Parameter.update()
                         par[ti] = par.scale_factor * val
 
             # Restrict the parameter's value if a limiting range was defined
             for par in pars:
-                if par.derivative and ti<len(self.t)-1:
+                if par.derivative and ti < len(self.t) - 1:
                     # If derivative parameter, then perform an Euler forward step before constraining
-                    par[ti+1] = par[ti]+par._dx*self.dt
-                    par.constrain(ti+1)
+                    par[ti + 1] = par[ti] + par._dx * self.dt
+                    par.constrain(ti + 1)
                 else:
                     par.constrain(ti)
 

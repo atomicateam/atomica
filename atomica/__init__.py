@@ -46,6 +46,23 @@ using Atomica. It consists of the following submodules:
 
 # Display version information using logging
 
+from .system import *
+from .utils import *
+from .migration import *
+from .results import *
+from .cascade import *
+from .optimization import *
+from .reconciliation import *
+from .programs import *
+from .plotting import *
+from .defaults import *
+from .scenarios import *
+from .calibration import *
+from .project import *
+from .framework import *
+import pandas as pd
+from .version import gitinfo as __gitinfo__
+from .version import version as __version__, versiondate as __versiondate__
 import sys
 from datetime import datetime
 import logging
@@ -65,9 +82,7 @@ if not any([isinstance(h, logging.StreamHandler) and not isinstance(h, logging.F
     logger.addHandler(h1)
     logger.addHandler(h2)
 
-from .version import version as __version__, versiondate as __versiondate__
 logger.critical('Atomica %s (%s) -- (c) the Atomica development team' % (__version__, __versiondate__))  # Log with the highest level
-from .version import gitinfo as __gitinfo__
 if __gitinfo__['branch'] != 'N/A':
     logger.critical('git branch: %s (%s)' % (__gitinfo__['branch'], __gitinfo__['hash'][0:8]))
 logger.critical(datetime.now())
@@ -76,21 +91,6 @@ logger.critical(datetime.now())
 logger.setLevel('INFO')
 
 # Increase Framework performance by not calling garbage collection all the time
-import pandas as pd
 pd.set_option('mode.chained_assignment', None)
 
 # The Atomica user interface -- import from submodules
-from .framework import *
-from .project import *
-from .calibration import *
-from .scenarios import *
-from .defaults import *
-from .plotting import *
-from .programs import *
-from .reconciliation import *
-from .optimization import *
-from .cascade import *
-from .results import *
-from .migration import *
-from .utils import *
-from .system import *

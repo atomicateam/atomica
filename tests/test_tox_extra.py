@@ -1,6 +1,7 @@
-## Test that adding an extra population in the data for plotting is OK
+# Test that adding an extra population in the data for plotting is OK
 
 import atomica as at
+
 
 def test_extra_data_pop():
     testdir = at.parent_dir()
@@ -10,11 +11,12 @@ def test_extra_data_pop():
 
     P = at.Project(framework=F_path, databook=D_path, do_run=True)
 
-    d = at.PlotData(P.results[0],'sus')
-    at.plot_series(d,data=P.data)
+    d = at.PlotData(P.results[0], 'sus')
+    at.plot_series(d, data=P.data)
 
     d.series[0].data_pop = 'national'
-    at.plot_series(d,data=P.data)
+    at.plot_series(d, data=P.data)
+
 
 if __name__ == '__main__':
     test_extra_data_pop()

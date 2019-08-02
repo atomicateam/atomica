@@ -23,7 +23,7 @@ def parent_dir():
 
 
 class NamedItem():
-    def __init__(self, name:str=None):
+    def __init__(self, name: str = None):
         """
         NamedItem constructor
 
@@ -394,7 +394,7 @@ class TimeSeries(object):
         else:
             raise Exception('Item not found')
 
-    def remove_before(self,t_remove) -> None:
+    def remove_before(self, t_remove) -> None:
         """
         Remove times from start
 
@@ -505,7 +505,7 @@ class TimeSeries(object):
 
         # Otherwise, `method` is a callable (class instance e.g. `scipy.interpolate.PchipInterpolator` or generating function) that
         # produces a callable function representation of the interpolation. This function is then called with the new time points
-        interpolator = method(t1,v1,**kwargs)
+        interpolator = method(t1, v1, **kwargs)
         return interpolator(t2)
 
     def sample(self, constant=True):
@@ -532,17 +532,18 @@ class TimeSeries(object):
 
             if constant:
                 # Use the same delta for all data points
-                new.vals = [v+delta for v in new.vals]
+                new.vals = [v + delta for v in new.vals]
             else:
                 # Sample again for each data point
                 for i, (v, delta) in enumerate(zip(new.vals, self.sigma * np.random.randn(len(new.vals)))):
-                    new.vals[i] = v+delta
+                    new.vals[i] = v + delta
 
         # Sampling flag only needs to be set if the TimeSeries had data to change
         if new.has_data:
             new._sampled = True
 
         return new
+
 
 def evaluate_plot_string(plot_string: str):
     """
@@ -675,7 +676,7 @@ def nested_loop(inputs, loop_order):
 
     """
 
-    loop_order = list(loop_order) # Convert to list, in case loop order was passed in as a generator e.g. from map()
+    loop_order = list(loop_order)  # Convert to list, in case loop order was passed in as a generator e.g. from map()
     inputs = [inputs[i] for i in loop_order]
     iterator = itertools.product(*inputs)  # This is in the loop order
     for item in iterator:
@@ -738,5 +739,5 @@ def fast_gitinfo(path):
         githash = 'Git hash N/A'
         gitdate = 'Git date N/A'
 
-    output = {'branch':gitbranch, 'hash':githash, 'date':gitdate} # Assemble outupt
+    output = {'branch': gitbranch, 'hash': githash, 'date': gitdate}  # Assemble outupt
     return output

@@ -217,7 +217,7 @@ def perform_autofit(project, parset, pars_to_adjust, output_quantities, max_time
             tokens = par_name.split('_from_')
             par = args['parset'].transfers[tokens[0]][tokens[1]]
             logger.debug("parset.transfers['{}']['{}'].y_factor['{}']={:.2f}".format(tokens[0], tokens[1], pop_name,
-                                                                              par.y_factor[pop_name]))
+                                                                                     par.y_factor[pop_name]))
             raise NotImplemented  # Transfers might be handled differently in Atomica
 
     args['parset'].name = 'calibrated_' + args['parset'].name

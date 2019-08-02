@@ -10,6 +10,7 @@ from .system import LIBRARY_PATH, logger
 from .scenarios import BudgetScenario
 from .utils import TimeSeries
 
+
 def default_framework(which=None, show_options=False):
 
     options = sc.odict([
@@ -136,30 +137,30 @@ def make_demo_scenarios(proj: Project) -> None:
         if prog.spend_data.has_time_data:
             current_budget[prog.name] = sc.dcp(prog.spend_data)
         else:
-            current_budget[prog.name] = TimeSeries(start_year,prog.spend_data.assumption)
+            current_budget[prog.name] = TimeSeries(start_year, prog.spend_data.assumption)
 
     # Add default budget scenario
     # proj.scens.append(CombinedScenario(name='Default budget',parsetname=parsetname,progsetname=progset.name,active=True,instructions=ProgramInstructions(start_year,alloc=current_budget)))
     proj.scens.append(BudgetScenario(name='Default budget', parsetname=parsetname, progsetname=progset.name,
-        active=True, alloc=current_budget, start_year=start_year))
+                                     active=True, alloc=current_budget, start_year=start_year))
 
     # Add doubled budget
     doubled_budget = sc.dcp(current_budget)
     for ts in doubled_budget.values():
-        ts.insert(start_year,ts.interpolate(start_year))
+        ts.insert(start_year, ts.interpolate(start_year))
         ts.remove_after(start_year)
-        ts.insert(start_year+1,ts.get(start_year)*2)
+        ts.insert(start_year + 1, ts.get(start_year) * 2)
     # proj.scens.append(CombinedScenario(name='Doubled budget',parsetname=parsetname,progsetname=progset.name,active=True,instructions=ProgramInstructions(start_year,alloc=doubled_budget)))
     proj.scens.append(BudgetScenario(name='Doubled budget', parsetname=parsetname, progsetname=progset.name,
-        active=True, alloc=doubled_budget, start_year=start_year))
+                                     active=True, alloc=doubled_budget, start_year=start_year))
 
     # Add zero budget
     zero_budget = sc.dcp(doubled_budget)
     for ts in zero_budget.values():
-        ts.insert(start_year+1,0.0)
+        ts.insert(start_year + 1, 0.0)
     # proj.scens.append(CombinedScenario(name='Zero budget',parsetname=parsetname,progsetname=progset.name,active=True,instructions=ProgramInstructions(start_year,alloc=zero_budget)))
     proj.scens.append(BudgetScenario(name='Zero budget', parsetname=parsetname, progsetname=progset.name,
-        active=True, alloc=zero_budget, start_year=start_year))
+                                     active=True, alloc=zero_budget, start_year=start_year))
 
 
 def demo(which=None, kind=None, do_plot=False, **kwargs):
