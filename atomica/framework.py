@@ -61,8 +61,11 @@ class ProjectFramework(object):
 
         # For some pages, we only ever want to read in one DataFrame, and we want empty lines to be ignored. For example, on the
         # 'compartments' sheet, we want to ignore blank lines, while on the 'cascades' sheet we want the blank line to delimit the
-        # start of a new cascade. So, for the sheet names below, multiple tables will be compressed to one table
-        merge_tables = {'databook pages', 'parameters', 'interactions', 'plots', 'population types'}
+        # start of a new cascade. So, for the sheet names below, multiple tables will be compressed to one table. We could have the
+        # logic reversed, so tables are flattened by default. However, this would make it impossible for users to add their own
+        # sheets with meaningful whitespace - whereas the other way round, users can always handle flattening their custom
+        # sheets in their own code at the point where they use their sheet.
+        merge_tables = {'databook pages', 'compartments', 'parameters', 'characteristics', 'interactions', 'plots', 'population types'}
 
         for worksheet in workbook.worksheets:
             sheet_title = worksheet.title.lower()
