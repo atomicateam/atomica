@@ -14,5 +14,4 @@ sphinx-autodoc-typehints
 sphinx-markdown-tables
 sphinx-rtd-theme
 recommonmark
-flake8
-flake8-junit-report
+
