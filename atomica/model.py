@@ -2057,8 +2057,9 @@ class Model(object):
                         G.add_edge(dep,par.name)
                 if par.pop_aggregation:
                     G.add_edge(par.pop_aggregation[1],par.name)
-        assert nx.dag.is_directed_acyclic_graph(G), 'There is a circular dependency in characteristics, which is not permitted'
+        assert nx.dag.is_directed_acyclic_graph(G), 'There is a circular dependency in parameters, which is not permitted'
         self._par_update_order = list(nx.dag.topological_sort(G))  # Topological sorting of the junction graph, which is a valid execution order
+        # self._par_update_order = [x for x in self.framework.pars.index if x in self._vars_by_pop.keys()]
 
         # Set the parameter execution order - this is a list of only transition parameters, used when updating links
         # This is a flat list of parameters, but the order actually should not matter since all parameters should be
@@ -2286,7 +2287,7 @@ class Model(object):
 
         # First, compute dependent characteristics, as parameters might depend on them
         for charac in self._charac_exec_order:
-            if True or charac._is_dynamic:
+            if charac._is_dynamic:
                 charac.update(ti)
 
         do_program_overwrite = self.programs_active and self.program_instructions.start_year <= self.t[ti] <= self.program_instructions.stop_year
@@ -2310,7 +2311,7 @@ class Model(object):
 
             # First - update parameters that are dependencies, evaluating f_stack if required
             for par in pars:
-                if True or par._is_dynamic:
+                if par._is_dynamic:
                     par.update(ti)
 
             # Then overwrite with program values
