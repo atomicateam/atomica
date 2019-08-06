@@ -154,7 +154,7 @@ class SpendingAdjustment(Adjustment):
                 initialization.append(adjustable.initial_value)
             else:
                 alloc = progset.get_alloc(t, instructions)
-                initialization.append(alloc[self.prog_name][0])  # The Adjustable's name corresponds to the name of the program being overwritten.
+                initialization.append(np.clip(alloc[self.prog_name][0], adjustable.lower_bound, adjustable.upper_bound))  # The Adjustable's name corresponds to the name of the program being overwritten.
         return initialization
 
 
