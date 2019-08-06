@@ -8,7 +8,6 @@ automatic calibration
 
 import numpy as np
 import sciris as sc
-from .utils import interpolate
 from .model import BadInitialization
 from .system import logger
 
@@ -70,9 +69,9 @@ def _calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, p
         # If there is data outside the range when the model was simulated, don't
         # extrapolate the model outputs
         y = data_v
-        y2 = interpolate(var[0].t, var[0].vals, data_t, extrapolate=False)
-        idx = ~np.isnan(y) & ~np.isnan(y2)
+        y2 = np.interp(data_t, var[0].t, var[0].vals, left=np.nan, right=np.nan)
 
+        idx = ~np.isnan(y) & ~np.isnan(y2)
         objective += weight * sum(_calculate_fitscore(y[idx], y2[idx], metric))
 
     return objective

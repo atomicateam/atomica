@@ -28,7 +28,6 @@ from .model import Compartment, Characteristic, Parameter, Link
 from .results import Result
 from .system import logger
 from .function_parser import parse_function
-from .utils import interpolate
 from .system import FrameworkSettings as FS
 from .utils import format_duration, nested_loop
 
@@ -491,7 +490,7 @@ class PlotData:
             else:
                 scale = 1.0
 
-            f = scipy.interpolate.interp1d(s.tvec/scale, s.vals, axis=0, kind='linear',copy=False, assume_sorted=True,bounds_error=False,fill_value=np.nan)
+            f = scipy.interpolate.interp1d(s.tvec/scale, s.vals, axis=0, kind='linear',copy=False, assume_sorted=True,bounds_error=False,fill_value=np.nan) # Return interpolation object for use in quadrature integration
             vals = np.array([scipy.integrate.quadrature(f, l, u,maxiter=5*s.vals.size)[0] for l, u in zip(lower/scale, upper/scale)])
 
             if method == 'integrate':
@@ -1007,11 +1006,10 @@ class Series:
 
         """
 
-        f = scipy.interpolate.interp1d(self.tvec, self.vals, axis=0, kind='linear', copy=False, assume_sorted=True, bounds_error=False, fill_value=np.nan)
         out_of_bounds = (new_tvec < self.tvec[0]) | (new_tvec > self.tvec[-1])
         if np.any(out_of_bounds):
             logger.warning('Series has values from %.2f to %.2f so requested time points %s are out of bounds', self.tvec[0], self.tvec[-1], new_tvec[out_of_bounds])
-        return f(sc.promotetoarray(new_tvec))
+        return np.interp(sc.promotetoarray(new_tvec), self.tvec, self.vals, left=np.nan, right=np.nan)
 
 
 def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer=None, legend_mode=None, show_all_labels=False, orientation='vertical') -> list:
@@ -1560,7 +1558,7 @@ def _render_data(ax, data, series, baseline=None, filled=False) -> None:
     t, y = ts.get_arrays()
 
     if baseline is not None:
-        y_data = interpolate(series.tvec, baseline, t, extrapolate=False)
+        y_data = np.interp(sc.promotetoarray(t), series.tvec, baseline, left=np.nan, right=np.nan)
         y = y + y_data
 
     if filled:

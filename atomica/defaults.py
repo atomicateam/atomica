@@ -7,6 +7,8 @@ import sciris as sc
 from .framework import ProjectFramework
 from .project import Project
 from .system import LIBRARY_PATH, logger
+from .scenarios import BudgetScenario
+from .utils import TimeSeries
 
 def default_framework(which=None, show_options=False):
 
@@ -72,7 +74,6 @@ def default_project(which=None, do_run=True, addprogs=True, verbose=False, show_
     dtdict = sc.odict.fromkeys(options.keys(), 1.)
     dtdict['tb'] = 0.5
 
-    tool = 'tb' if which=='tb' else 'cascade'
     if which is None or which == 'default':
         which = 'udt'
     elif which not in options.keys():
@@ -102,14 +103,63 @@ def default_project(which=None, do_run=True, addprogs=True, verbose=False, show_
         P.load_progbook(progbook_path=LIBRARY_PATH + which + "_progbook.xlsx")
         if verbose:
             print('Creating scenarios')
-        P.demo_scenarios()  # Add example scenarios
-        if verbose:
-            print('Creating optimizations')
-        P.demo_optimization(tool=tool)  # Add optimization example
+        make_demo_scenarios(P)  # Add example scenarios
         if verbose:
             print('Done!')
 
     return P
+
+
+def make_demo_scenarios(proj: Project) -> None:
+    """
+    Create demo scenarios
+
+    This method creates three default budget scenarios
+
+    - Default budget
+    - Doubled budget
+    - Zero budget
+
+    The scenarios will be created and added to the project's list of scenarios
+
+    :param dorun: If True, and if doadd=True, simulations will be run
+
+    """
+
+    parsetname = proj.parsets[-1].name
+    progset = proj.progsets[-1]
+    start_year = proj.data.end_year
+
+    # Come up with the current allocation by truncating after the start year
+    current_budget = {}
+    for prog in progset.programs.values():
+        if prog.spend_data.has_time_data:
+            current_budget[prog.name] = sc.dcp(prog.spend_data)
+        else:
+            current_budget[prog.name] = TimeSeries(start_year,prog.spend_data.assumption)
+
+    # Add default budget scenario
+    # proj.scens.append(CombinedScenario(name='Default budget',parsetname=parsetname,progsetname=progset.name,active=True,instructions=ProgramInstructions(start_year,alloc=current_budget)))
+    proj.scens.append(BudgetScenario(name='Default budget', parsetname=parsetname, progsetname=progset.name,
+        active=True, alloc=current_budget, start_year=start_year))
+
+    # Add doubled budget
+    doubled_budget = sc.dcp(current_budget)
+    for ts in doubled_budget.values():
+        ts.insert(start_year,ts.interpolate(start_year))
+        ts.remove_after(start_year)
+        ts.insert(start_year+1,ts.get(start_year)*2)
+    # proj.scens.append(CombinedScenario(name='Doubled budget',parsetname=parsetname,progsetname=progset.name,active=True,instructions=ProgramInstructions(start_year,alloc=doubled_budget)))
+    proj.scens.append(BudgetScenario(name='Doubled budget', parsetname=parsetname, progsetname=progset.name,
+        active=True, alloc=doubled_budget, start_year=start_year))
+
+    # Add zero budget
+    zero_budget = sc.dcp(doubled_budget)
+    for ts in zero_budget.values():
+        ts.insert(start_year+1,0.0)
+    # proj.scens.append(CombinedScenario(name='Zero budget',parsetname=parsetname,progsetname=progset.name,active=True,instructions=ProgramInstructions(start_year,alloc=zero_budget)))
+    proj.scens.append(BudgetScenario(name='Zero budget', parsetname=parsetname, progsetname=progset.name,
+        active=True, alloc=zero_budget, start_year=start_year))
 
 
 def demo(which=None, kind=None, do_plot=False, **kwargs):

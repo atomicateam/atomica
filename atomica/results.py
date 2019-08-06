@@ -18,7 +18,7 @@ import sciris as sc
 from .excel import standard_formats
 from .system import FrameworkSettings as FS
 from .system import logger, NotFoundError
-from .utils import NamedItem, evaluate_plot_string, nested_loop, interpolate
+from .utils import NamedItem, evaluate_plot_string, nested_loop
 from .function_parser import parse_function
 
 
@@ -133,11 +133,12 @@ class Result(NamedItem):
 
     def get_coverage(self, quantity: str = 'fraction', year=None) -> dict:
         """
-        Return program
+        Return program coverage
 
         This function is the primary function to use when wanting to query coverage
         values. All coverage quantities are accessible via the :class:`Result` object
         because the compartment sizes and thus eligible people are known.
+
         :param quantity: One of
             - 'capacity' - Program capacity in units of 'people/year' (for all types of programs)
             - 'eligible' - The number of people eligible for the program (coverage denominator) in units of 'people'
@@ -189,7 +190,7 @@ class Result(NamedItem):
 
         if year is not None:
             for k in output.keys():
-                output[k] = interpolate(self.t, output[k], sc.promotetoarray(year), extrapolate=False)
+                output[k] = np.interp(sc.promotetoarray(year), self.t, output[k], left=np.nan, right=np.nan)  # Linear output interpolation
 
         return output
 

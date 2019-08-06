@@ -695,7 +695,7 @@ class ProgramSet(NamedItem):
         if len(units) == 1:
             self.currency = list(units)[0]
         else:
-            raise Exception('The progbook contains multiple currencies: (%s). All spending must be specified in the same currency' % (units))
+            raise Exception('The progbook contains multiple currencies: (%s). All spending must be specified in the same currency' % units)
 
         self.tvec = array(sorted(list(times)))  # NB. This means that  the ProgramSet's tvec (used when writing new programs) is based on the last Program to be read in
 
@@ -714,6 +714,11 @@ class ProgramSet(NamedItem):
             tdve.ts['Saturation'] = prog.saturation
             tdve.ts['Coverage'] = prog.coverage
 
+            tdve.assumption_heading = 'Assumption'
+            tdve.write_assumption = True
+            tdve.write_units = True
+            tdve.write_uncertainty = True
+
             tdve.allowed_units = {
                 'Unit cost': [self.currency + '/person (one-off)', self.currency + '/person/year'],
                 'Capacity': ['people/year', 'people']
@@ -722,7 +727,7 @@ class ProgramSet(NamedItem):
             # NOTE - If the ts contains time values that aren't in the ProgramSet's tvec, then an error will be thrown
             # However, if the ProgramSet's tvec contains values that the ts does not, then that's fine, there
             # will just be an empty cell in the spreadsheet
-            next_row = tdve.write(sheet, next_row, self._formats, self._references, widths, assumption_heading='Assumption', write_assumption=True, write_units=True, write_uncertainty=True)
+            next_row = tdve.write(sheet, next_row, self._formats, self._references, widths)
 
         apply_widths(sheet, widths)
 
