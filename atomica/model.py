@@ -2044,9 +2044,22 @@ class Model(object):
 
         # Set the parameter update order - this is a list of parameters names, in dependency order
         # The parameters may or may not exist in each population, but they are updated across populations
-        self._par_update_order = [x for x in self.framework.pars.index if x in self._vars_by_pop.keys()]
+        # Since parameters are implemented one name at a time, here we set the parameter order by
+        # making a graph using the names rather than actual parameter objects
+        par_names = set(self.framework.pars.index)
+        G = nx.DiGraph()
+        for pop in self.pops:
+            for par in pop.pars:
+                G.add_node(par.name)
+                for dep in par.deps.keys():
+                    if dep in par_names:
+                        G.add_edge(dep,par.name)
+        assert nx.dag.is_directed_acyclic_graph(G), 'There is a circular dependency in characteristics, which is not permitted'
+        self._par_update_order = list(nx.dag.topological_sort(G))  # Topological sorting of the junction graph, which is a valid execution order
 
         # Set the parameter execution order - this is a list of only transition parameters, used when updating links
+        # This is a flat list of parameters, but the order actually should not matter since all parameters should be
+        # resolved at this point
         self._par_exec_order = []
         for pop in self.pops:
             for par in pop.pars:

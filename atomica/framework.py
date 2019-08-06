@@ -766,7 +766,7 @@ class ProjectFramework(object):
         self._process_transitions()
 
         # Now validate each parameter
-        defined = set()  # Track which parameters have already been defined
+        G = nx.DiGraph() # Generate a dependency graph
 
         def cross_pop_message(par, quantity_type, quantity_name):
             spec = self.get_variable(quantity_name)[0]
@@ -905,13 +905,16 @@ class ProjectFramework(object):
                                 raise InvalidFramework(f"Parameter '{par_name}' uses interaction {dep} which crosses population types. Because this interaction is directed, only SRC_POP_SUM and SRC_POP_AVG can be used")
 
                     elif dep in self.pars.index:
-                        if dep not in defined:  # If it's a forward reference to a parameter not already defined
+
+                        # If any cycles are present, an informative error will be raised later. However, the common case of a user entering the parameter's name in its own
+                        # formula can be caught immediately, and an even more specific error message displayed. We don't include self connections in the graph for this
+                        # purpose, if a derivative refers to itself it can be computed any time and we can then simply check if the graph is acyclic to probe for indirect
+                        # circular dependencies
+                        if dep == par_name:
                             if self.pars.at[dep, 'is derivative'] != 'y':
-                                if dep == par_name:
                                     raise InvalidFramework(f"Parameter '{par_name}' has a parameter function that refers to itself, but it is not marked as a derivative parameter. Circular references are only permitted if the parameter function is providing a derivative")
-                                else:
-                                    message = 'The function for parameter "%s" depends on the parameter "%s", which needs to be defined in the Framework before "%s" (or be defined as a derivative parameter). Please move "%s" up on the "Parameters" sheet of the Framework file, so that it appears before "%s"' % (par_name, dep, par_name, dep, par_name)
-                                    raise InvalidFramework(message)
+                        else:
+                            G.add_edge(dep, par_name)  # Note directionality - we use par_name->dep for the dependency so that the topological ordering of the graph corresponds to the execution order
 
                         if self.pars.at[dep, 'population type'] != par['population type'] and not is_aggregation:  # Population types for the dependency and the parameter can only differ if it's an aggregation
                             raise InvalidFramework(cross_pop_message(par, 'parameter', dep))
@@ -985,7 +988,13 @@ class ProjectFramework(object):
                 # if par['timescale'] is not None:
                 #     raise InvalidFramework('Parameter "%s" is not a transition parameter, but has a timescale associated with it. To avoid ambiguity in the parameter value used in functions, non-transition parameters cannot have timescales provided. Please remove the timescale value from the framework.' % par_name)
 
-            defined.add(par_name)  # Only add the parameter to the list of definitions after it has finished validating, because parameters cannot depend on themselves
+        # Check for cycles in the parameter graph
+        if not nx.dag.is_directed_acyclic_graph(G):
+            # Do we have any cycles with length greater than 1? If length = 1, then this has already been checked for
+            message = 'Circular dependencies in parameters were found. These are not allowed, apart from derivative parameters being allowed to refer to themselves. The following circular dependencies are present:'
+            for cycle in nx.simple_cycles(G):
+                message += '\n - ' + ' -> '.join(cycle)
+            raise InvalidFramework(message)
 
         # VALIDATE NAMES - No collisions, no keywords
         code_names = list(self.comps.index) + list(self.characs.index) + list(self.pars.index) + list(self.interactions.index) + list(available_pop_types)
