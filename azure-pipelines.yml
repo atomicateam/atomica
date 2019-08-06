@@ -50,13 +50,10 @@ jobs:
       # Note - using --exit-zero will cause flake8 'errors' to show up as 'errors' in Azure Pipelines
       # but the test will have been considered to pass. Therefore, the overall tests suite will still
       # be considered to be passing as long as tox runs, and flake8 errors are just guidance for style
-      condition: eq(variables['TOXENV'], 'py37')
       displayName: 'Run flake8'
     - script: flake8_junit flake8.txt flake8_junit.xml
-      condition: eq(variables['TOXENV'], 'py37')
       displayName: 'Generate flake8 junit output'
     - task: PublishTestResults@2
-      condition: eq(variables['TOXENV'], 'py37')
       inputs:
         testResultsFiles: '**/flake8_junit.xml'
         testRunTitle: 'Publish flake8 results'
