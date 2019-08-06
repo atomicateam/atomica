@@ -968,6 +968,7 @@ class Parameter(Variable):
             function_args = temp_list.rstrip(")").split(',')
             function_args = [x.strip() for x in function_args]
             self.pop_aggregation = [special_function] + function_args
+            # Aggregation dependencies are set externally because they may cross populations - see `Model.build()`
         else:
             for dep_name in dep_list:
                 if not (dep_name in ['t', 'dt']):  # There are no integration variables associated with the interactions, as they are treated as a special matrix
@@ -2054,6 +2055,8 @@ class Model(object):
                 for dep in par.deps.keys():
                     if dep in par_names:
                         G.add_edge(dep,par.name)
+                if par.pop_aggregation:
+                    G.add_edge(par.pop_aggregation[1],par.name)
         assert nx.dag.is_directed_acyclic_graph(G), 'There is a circular dependency in characteristics, which is not permitted'
         self._par_update_order = list(nx.dag.topological_sort(G))  # Topological sorting of the junction graph, which is a valid execution order
 
@@ -2283,7 +2286,7 @@ class Model(object):
 
         # First, compute dependent characteristics, as parameters might depend on them
         for charac in self._charac_exec_order:
-            if charac._is_dynamic:
+            if True or charac._is_dynamic:
                 charac.update(ti)
 
         do_program_overwrite = self.programs_active and self.program_instructions.start_year <= self.t[ti] <= self.program_instructions.stop_year
@@ -2307,7 +2310,7 @@ class Model(object):
 
             # First - update parameters that are dependencies, evaluating f_stack if required
             for par in pars:
-                if par._is_dynamic:
+                if True or par._is_dynamic:
                     par.update(ti)
 
             # Then overwrite with program values
