@@ -29,14 +29,9 @@ def test_cascade_validate():
             for cascade in F.cascades:
                 validate_cascade(F, cascade)
 
-    F = ProjectFramework(at.LIBRARY_PATH + "tb_framework.xlsx")
-
-    with pytest.raises(InvalidCascade):
-        validate_cascade(F, None)  # Try running this on the command line to see the error message
-
     for fname in ["framework_sir_badcascade1.xlsx", "framework_sir_badcascade2.xlsx"]:
         with pytest.raises(InvalidCascade):
-            F = ProjectFramework(at.parent_dir() + fname)
+            ProjectFramework(at.parent_dir() + fname)
 
 
 def test_cascade_basic_tb():
