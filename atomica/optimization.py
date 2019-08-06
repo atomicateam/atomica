@@ -64,16 +64,42 @@ class FailedConstraint(Exception):
     pass
 
 class Adjustable(object):
+    """
+    Class to store single optimizable parameter
+
+    An ``Adjustable`` represents a single entry in the ASD matrix. An ``Adjustment`` uses one or more
+    ``Adjustables`` to make changes to the program instructions.
+
+    :param name: The name of the adjustable
+    :param limit_type: If bounds are provided, are they relative or absolute (``'abs'`` or ``'rel'``)
+    :param lower_bound: Optionally specify minimum value
+    :param upper_bound: Optionally specify maximum value
+    :param initial_value: Optionally specify initial value. Most commonly, the initial value would be set by the ``Adjustment`` containing the ``Adjustable``
+
+    """
 
     def __init__(self, name, limit_type='abs', lower_bound=-np.inf, upper_bound=np.inf, initial_value=None):
-        self.name = name  # identify the adjustable
-        self.limit_type = limit_type  # 'abs' or 'rel'
+        self.name = name
+        self.limit_type = limit_type
         self.lower_bound = lower_bound
         self.upper_bound = upper_bound
-        self.initial_value = initial_value  # This could be None, but if it is None
+        self.initial_value = initial_value
 
-    def get_hard_bounds(self, x0=None):
-        # Return hard bounds based the limit type and specified bounds
+    def get_hard_bounds(self, x0: float=None) -> tuple:
+        """
+        Return hard bounds for the adjustable
+
+        The hard bounds could be relative or absolute. If they are relative, then they are treated
+        as being relative to the initial value for this adjustable. This is because not all adjustables
+        can be directly drawn from the program instructions (e.g. parametric overwrites) in which case
+        it would not be possible to extract initial values from the instructions alone. For consistency,
+        all adjustables behave the same way with constraints relative to their initialization.
+
+        :param x0: The reference value for relative constraints - only required if the limit type is not absolute
+        :return: A tuple with ``(min,max)`` limits
+
+        """
+
         self.lower_bound = self.lower_bound if self.lower_bound is not None else -np.inf
         self.upper_bound = self.upper_bound if self.upper_bound is not None else np.inf
         xmin = self.lower_bound if self.limit_type == 'abs' else x0 * self.lower_bound
@@ -82,12 +108,29 @@ class Adjustable(object):
 
 
 class Adjustment(object):
+    """
+    Class to represent changes to instructions
+
+    An ``Adjustment`` represents a change to program instructions, governed by one or more ``Adjustables``.
+    This base class specifies the interface for all ``Adjustments``
+
+    :param name: The name of the adjustment
+
+    """
+
     def __init__(self, name):
         self.name = name
-        self.adjustables = None
+        self.adjustables = list()  #: A list of ``Adjustables``
 
-    def get_initialization(self, progset, instructions: ProgramInstructions):
-        # Return initial values for ASD
+    def get_initialization(self, progset: ProgramSet, instructions: ProgramInstructions) -> list:
+        """
+        Return initial values for ASD
+
+        :param progset: The ``ProgramSet`` being used for the optimization
+        :param instructions: The initial instructions
+        :return: A list of initial values, one for each adjustable
+
+        """
         return [x.initial_value for x in self.adjustables]
 
     def update_instructions(self, adjustable_values, instructions: ProgramInstructions):
@@ -147,7 +190,21 @@ class SpendingAdjustment(Adjustment):
             else:
                 instructions.alloc[self.prog_name].insert(t, adjustable_values[i])
 
-    def get_initialization(self, progset, instructions: ProgramInstructions):
+    def get_initialization(self, progset: ProgramSet, instructions: ProgramInstructions) -> list:
+        """
+        Return initial values for ASD
+
+        The initial values correspond to either
+
+        - The explicitly specified initial spend
+        - The initial spend from the program set/instructions, clipped to the lower/upper bounds (if provided)
+
+        :param progset: The ``ProgramSet`` being used for the optimization
+        :param instructions: The initial instructions
+        :return: A list of initial values, one for each adjustable
+
+        """
+
         initialization = []
         for adjustable, t in zip(self.adjustables, self.t):
             if adjustable.initial_value:
@@ -660,9 +717,18 @@ class TotalSpendConstraint(Constraint):
 
     The ``total_spend`` argument allows the total spending in a particular year to be explicitly specified
     rather than drawn from the initial allocation. This can be useful when using parametric programs where
-    the adjustables do not directly correspond to spending value.
+    the adjustables do not directly correspond to spending value. If the total spend is not provided, it will
+    automatically be computed from the first ASD step. Note that it is computed based on the initial instructions
+    *after* the initial ASD values have been applied. This is because relative constraints on all adjustables are
+    interpreted relative to the initial value of the adjustable, since not all adjustables map directly to values
+    in the instructions. Since the adjustable hard upper and lower bounds are used as part of the constraint, for
+    consistency, the total spend constraint itself is drawn from the same set of instructions (i.e. after the initial
+    value has been applied). In cases where this is not the desired behaviour, the cause would likely be that the
+    default value does not agree with a known desired total spend value. In that case, the desired total spend should
+    simply be specified here explicitly as an absolute value.
 
     This constraint can also be set to only apply in certain years.
+
     The ``budget_factor`` multiplies the total spend at the time the ``hard_constraint`` is assigned
     Typically this is to scale up the available spending when that spending is being drawn from
     the instructions/progset (otherwise the budget_factor could already be part of the specified total spend)
@@ -670,13 +736,13 @@ class TotalSpendConstraint(Constraint):
     Note that if no times are specified, the budget factor should be a scalar but no explicit
     spending values can be specified. This is because in the case where different programs are
     optimized in different years, an explicit total spending constraint applying to all
-    times is unlikely to be a sensible choice (so we just ask the user to specify the time as well)
+    times is unlikely to be a sensible choice (so we just ask the user to specify the time as well).
 
-    :param total_spend: A list of spending amounts the same size as t (can contain Nones), or None.
-                        For times in which the total spend is None, it will be automatically set to the sum of
+    :param total_spend: A list of spending amounts the same size as ``t`` (can contain Nones), or ``None``.
+                        For times in which the total spend is ``None``, it will be automatically set to the sum of
                         spending on optimizable programs in the corresponding year
     :param t: A time, or list of times, at which to apply the total spending constraint. If None, it will automatically be set to all years in which spending adjustments are being made
-    :param budget_factor: The budget factor multiplies whatever the total_spend is. This can either be a single value, or a year specific value
+    :param budget_factor: The budget factor multiplies whatever the ``total_spend`` is. This can either be a single value, or a year specific value
 
     """
 
