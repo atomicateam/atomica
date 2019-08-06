@@ -1820,6 +1820,7 @@ class Model(object):
         # to recompute them when unpickling during optimization
         self._junc_exec_order = [x.id for x in self._junc_exec_order]
         self._charac_exec_order = [x.id for x in self._charac_exec_order]
+        self._par_exec_order = [x.id for x in self._par_exec_order]
 
     def relink(self) -> None:
         """
@@ -1849,9 +1850,11 @@ class Model(object):
         try:  # Migration, old projects didn't have a junction execution order or characteristic execution order
             self._junc_exec_order = [objs[x] for x in self._junc_exec_order]
             self._charac_exec_order = [objs[x] for x in self._charac_exec_order]
+            self._par_exec_order = [x.id for x in self._par_exec_order]
         except AttributeError:
             self._junc_exec_order = list()
             self._charac_exec_order = list()
+            self._par_exec_order = [x.id for x in self._par_exec_order]
 
         # Set vars by pop
         self._set_vars_by_pop()
@@ -1997,7 +2000,7 @@ class Model(object):
                         var.set_dynamic(progset=self.progset)
 
         # Insert parameter initial values and do any required precomputation
-        for par_name in self.framework.pars.index:  # Iterate only over framework pars (parset.pars also includes characteristics)
+        for par_name in self._par_update_order:  # Iterate only over framework pars (parset.pars also includes characteristics)
             cascade_par = parset.pars[par_name]
             if cascade_par.name in self._vars_by_pop:  # The parameter could be missing if it is defined in a population type that is not present in the simulation
                 pars = self._vars_by_pop[cascade_par.name]
@@ -2046,7 +2049,10 @@ class Model(object):
         # Set the parameter update order - this is a list of parameters names, in dependency order
         # The parameters may or may not exist in each population, but they are updated across populations
         # Since parameters are implemented one name at a time, here we set the parameter order by
-        # making a graph using the names rather than actual parameter objects
+        # making a graph using the names rather than actual parameter objects. Note that par_update_order
+        # contains all parameters, which are used during initialization as well as in update_pars. However, we
+        # could have update_pars only operate on the subset of the graph contributing to transitions, or to
+        # dynamic programs or to program overwrites.
         par_names = set(self.framework.pars.index)
         G = nx.DiGraph()
         for pop in self.pops:
@@ -2305,6 +2311,8 @@ class Model(object):
             prog_vals = self.progset.get_outcomes(prop_coverage)
 
         for par_name in self._par_update_order:
+            # TODO - We only really need to consider parameters that are dynamic, or that are targeted by programs
+
             # All of the parameters with this name, across populations.
             # There should be one for each population (these are Parameters, not Links).
             pars = self._vars_by_pop[par_name]
