@@ -467,9 +467,9 @@ class ProjectFramework(object):
                             self.comps.at[from_comp, 'duration group'] = par_name
                             if first_timed:
                                 raise InvalidFramework(f'A compartment can only have one timed outflow - e.g., Parameters {first_timed}" and "{par_name}" are both timed parameters, so they cannot both be associated with Compartment "{from_comp}"')
-                            if self.comps.at[from_comp, 'is source'] == 'y' or self.comps.at[from_comp, 'is sink'] == 'y' or self.comps.at[from_comp, 'is junction'] == 'y':
+                            elif self.comps.at[from_comp, 'is source'] == 'y' or self.comps.at[from_comp, 'is sink'] == 'y' or self.comps.at[from_comp, 'is junction'] == 'y':
                                 raise InvalidFramework(f'Parameter "{par_name}" defines a timed outflow from Compartment "{from_comp}" but timed outflows cannot be applied to source, sink, or junction compartments')
-                            if par_name in set(df.loc[to_comp]):
+                            elif par_name in set(df.loc[to_comp]):
                                 raise InvalidFramework(f'Compartment "{from_comp}" belongs to the duration group "{par_name}" but it flushes into "{to_comp}" which is a member of the same group. Flushing into the same duration group is not permitted')
 
                         self.transitions[par_name].append((from_comp, to_comp))
@@ -557,7 +557,7 @@ class ProjectFramework(object):
         try:
             self.comps = _sanitize_dataframe(self.comps, required_columns, defaults, valid_content, set_index='code name')
         except Exception as e:
-            message = 'An error was detected on the "Compartments" sheet in the Framework file -> '
+            message = 'An error was detected on the "Compartments" sheet in the Framework file'
             raise Exception('%s -> %s' % (message, e)) from e
 
         # Assign first population type to any empty population types
@@ -632,7 +632,7 @@ class ProjectFramework(object):
         try:
             self.characs = _sanitize_dataframe(self.characs, required_columns, defaults, valid_content, set_index='code name')
         except Exception as e:
-            message = 'An error was detected on the "Characteristics" sheet in the Framework file -> '
+            message = 'An error was detected on the "Characteristics" sheet in the Framework file'
             raise Exception('%s -> %s' % (message, e)) from e
 
         # Assign first population type to any empty population types
@@ -707,7 +707,7 @@ class ProjectFramework(object):
         try:
             self.interactions = _sanitize_dataframe(self.interactions, required_columns, defaults, valid_content, set_index='code name')
         except Exception as e:
-            message = 'An error was detected on the "Interactions" sheet in the Framework file -> '
+            message = 'An error was detected on the "Interactions" sheet in the Framework file'
             raise Exception('%s -> %s' % (message, e)) from e
 
         # Assign first population type to any empty population types
@@ -747,7 +747,7 @@ class ProjectFramework(object):
         try:
             self.pars = _sanitize_dataframe(self.pars, required_columns, defaults, valid_content, set_index='code name')
         except Exception as e:
-            message = 'An error was detected on the "Parameters" sheet in the Framework file -> '
+            message = 'An error was detected on the "Parameters" sheet in the Framework file'
             raise Exception('%s -> %s' % (message, e)) from e
 
         # Assign first population type to any empty population types
@@ -1240,6 +1240,9 @@ def _sanitize_dataframe(df: pd.DataFrame, required_columns: list, defaults: dict
 
     if any(df.index.isnull()):
         raise InvalidFramework('The first column contained an empty cell (this probably indicates that a "code name" was left empty')
+
+    if not df.index.is_unique:
+        raise InvalidFramework(f'Row indices are not unique. The duplicate items are {set(df.index[df.index.duplicated()])}')
 
     for col in required_columns:
         if col not in df:
