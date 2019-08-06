@@ -22,11 +22,8 @@ jobs:
   - script: python -m pip install --upgrade pip && python -m pip install tox
     displayName: 'Install Tox'
 
-  - script: sudo apt install pandoc -y
-    displayName: 'Install pandoc'
-
   - script: tox -e $(TOXENV)
-    displayName: 'Run Tox'
+    displayName: 'Run Tox tests'
 
   - task: PublishTestResults@2
     inputs:
@@ -40,20 +37,36 @@ jobs:
       summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/coverage.xml'
       reportDirectory: '$(System.DefaultWorkingDirectory)/**/htmlcov'
 
-  - publish: docs/_build
+  - script: python -m pip install -r requirements.txt
     condition: eq(variables['TOXENV'], 'py37')
-    artifact: docs
-
+    displayName: 'Install Python dependencies for flake8 and sphinx'
+    
   - script: flake8 atomica tests --exit-zero --output-file flake8.txt
+    condition: eq(variables['TOXENV'], 'py37')
     displayName: 'Run flake8'
 
   - script: flake8_junit flake8.txt flake8_junit.xml
+    condition: eq(variables['TOXENV'], 'py37')
     displayName: 'Generate flake8 junit output'
 
   - task: PublishTestResults@2
+    condition: eq(variables['TOXENV'], 'py37')
     inputs:
       testResultsFiles: '**/flake8_junit.xml'
       testRunTitle: 'Publish flake8 results'
+
+  - script: sudo apt install pandoc -y
+    condition: eq(variables['TOXENV'], 'py37')
+    displayName: 'Install pandoc dependency for sphinx'
+
+  - script: sphinx-build "docs" "docs/_build"
+    condition: eq(variables['TOXENV'], 'py37')
+    displayName: 'Build documentation'
+
+  - publish: docs/_build
+    condition: eq(variables['TOXENV'], 'py37')
+    artifact: docs
+    displayName: 'Publish documentation'
 
 # TODO - Switch deployment over to Azure DevOps
 
