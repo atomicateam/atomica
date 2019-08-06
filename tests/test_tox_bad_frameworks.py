@@ -16,10 +16,12 @@ for f in os.listdir(fdir):
     if f.endswith('.xlsx') and not f.startswith('~$'):
         framework_files.append(f)
 
+
 @pytest.mark.parametrize('framework_file', framework_files)
 def test_bad_framework(framework_file):
     with pytest.raises(at.InvalidFramework):
-        F = at.ProjectFramework(fdir + framework_file)
+        at.ProjectFramework(fdir + framework_file)
+
 
 if __name__ == '__main__':
     for framework_file in framework_files:

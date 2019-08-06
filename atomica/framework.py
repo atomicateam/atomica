@@ -287,7 +287,6 @@ class ProjectFramework(object):
 
         """
 
-
         if 'cascades' not in self.sheets:
             return sc.odict()  # Return an empty dict will let code downstream iterate over d.keys() and fail gracefully (no iterations) if no cascades were present
 
@@ -325,9 +324,9 @@ class ProjectFramework(object):
 
         """
 
-        return self.sheets['population types'][0].set_index('code name').to_dict(orient='index',into=sc.odict)
+        return self.sheets['population types'][0].set_index('code name').to_dict(orient='index', into=sc.odict)
 
-    def get_interaction(self, interaction_name:str) -> pd.Series:
+    def get_interaction(self, interaction_name: str) -> pd.Series:
         """
         Retrieve interaction by code name
 
@@ -338,7 +337,7 @@ class ProjectFramework(object):
 
         return self.interactions.loc[interaction_name]
 
-    def get_variable(self, name:str) -> tuple:
+    def get_variable(self, name: str) -> tuple:
         """
         Retrieve variable from framework
 
@@ -389,7 +388,7 @@ class ProjectFramework(object):
 
         return self.get_variable(name)[0]['display name']
 
-    def __contains__(self, item:str) -> bool:
+    def __contains__(self, item: str) -> bool:
         """
         Check if code name is defined in framework
 
@@ -421,13 +420,13 @@ class ProjectFramework(object):
 
         # First, assign the transition matrices to population types
         self.transitions = {x: list() for x in self.pars.index}
-        comps = self.comps['population type'].to_dict() # Look up which pop type is associated with each compartment
-        pars = self.pars['population type'].to_dict() # Look up which pop type is associated with each parameter
+        comps = self.comps['population type'].to_dict()  # Look up which pop type is associated with each compartment
+        pars = self.pars['population type'].to_dict()  # Look up which pop type is associated with each parameter
 
         pop_types = set()
-        for i,df in enumerate(self.sheets['transitions']):
+        for i, df in enumerate(self.sheets['transitions']):
             cols = list(df.columns)
-            if cols[0] is None or cols[0].lower().strip() == 'transition matrix': # The template for single population type frameworks has 'Transition matrix' where the population type would normally go
+            if cols[0] is None or cols[0].lower().strip() == 'transition matrix':  # The template for single population type frameworks has 'Transition matrix' where the population type would normally go
                 cols[0] = self.pop_types.keys()[0]
             if cols[0] in pop_types:
                 raise InvalidFramework('More than one transition matrix is assigned to the same population type. This can happen if multiple transition matrices are being assigned to the default population type')
@@ -464,15 +463,14 @@ class ProjectFramework(object):
                         if pars[par_name] != df.index.name:
                             raise InvalidFramework('Parameter "%s" belongs to pop type "%s" but it appears in the transition matrix for "%s"' % (par_name, pars[par_name], df.index.name))
 
-                        if self.pars.at[par_name,'timed'] == 'y':
-                            self.comps.at[from_comp,'duration group'] = par_name
+                        if self.pars.at[par_name, 'timed'] == 'y':
+                            self.comps.at[from_comp, 'duration group'] = par_name
                             if first_timed:
                                 raise InvalidFramework(f'A compartment can only have one timed outflow - e.g., Parameters {first_timed}" and "{par_name}" are both timed parameters, so they cannot both be associated with Compartment "{from_comp}"')
-                            if self.comps.at[from_comp,'is source'] == 'y' or self.comps.at[from_comp,'is sink'] == 'y' or self.comps.at[from_comp,'is junction'] == 'y':
+                            if self.comps.at[from_comp, 'is source'] == 'y' or self.comps.at[from_comp, 'is sink'] == 'y' or self.comps.at[from_comp, 'is junction'] == 'y':
                                 raise InvalidFramework(f'Parameter "{par_name}" defines a timed outflow from Compartment "{from_comp}" but timed outflows cannot be applied to source, sink, or junction compartments')
                             if par_name in set(df.loc[to_comp]):
                                 raise InvalidFramework(f'Compartment "{from_comp}" belongs to the duration group "{par_name}" but it flushes into "{to_comp}" which is a member of the same group. Flushing into the same duration group is not permitted')
-
 
                         self.transitions[par_name].append((from_comp, to_comp))
 
@@ -532,7 +530,7 @@ class ProjectFramework(object):
         if 'population types' not in self.sheets:
             self.sheets['population types'] = [pd.DataFrame.from_records([(FS.DEFAULT_POP_TYPE, 'Default')], columns=['code name', 'description'])]
 
-        available_pop_types = list(self.pop_types.keys()) # Get available pop types
+        available_pop_types = list(self.pop_types.keys())  # Get available pop types
 
         # VALIDATE COMPARTMENTS
         if 'compartments' not in self.sheets:
@@ -607,10 +605,10 @@ class ProjectFramework(object):
                 logger.warning('Compartment "%s" has a databook order, but no databook page', comp_name)
 
             if (row['databook page'] is not None) and not (row['databook page'] in self.sheets['databook pages'][0]['datasheet code name'].values):
-                raise InvalidFramework('Compartment "%s" has databook page "%s" but that page does not appear on the "databook pages" sheet' % (comp_name,row['databook page']))
+                raise InvalidFramework('Compartment "%s" has databook page "%s" but that page does not appear on the "databook pages" sheet' % (comp_name, row['databook page']))
 
             if row['population type'] not in available_pop_types:
-                raise InvalidFramework('Compartment "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (comp_name,row['population type'],available_pop_types))
+                raise InvalidFramework('Compartment "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (comp_name, row['population type'], available_pop_types))
 
         # VALIDATE CHARACTERISTICS
         if 'characteristics' not in self.sheets:
@@ -676,18 +674,18 @@ class ProjectFramework(object):
                 raise InvalidFramework('Compartment "%s" is marked as being eligible for calibration, but it does not appear in the databook' % charac_name)
 
             if (row['databook page'] is not None) and not (row['databook page'] in self.sheets['databook pages'][0]['datasheet code name'].values):
-                raise InvalidFramework('Characteristic "%s" has databook page "%s" but that page does not appear on the "databook pages" sheet' % (charac_name,row['databook page']))
+                raise InvalidFramework('Characteristic "%s" has databook page "%s" but that page does not appear on the "databook pages" sheet' % (charac_name, row['databook page']))
 
             if row['population type'] not in available_pop_types:
-                raise InvalidFramework('Characteristic "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (charac_name,row['population type'],available_pop_types))
+                raise InvalidFramework('Characteristic "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (charac_name, row['population type'], available_pop_types))
 
             for component in row['components'].split(','):
                 component = component.strip()
                 if component in self.comps.index:
-                    if row['population type'] != self.comps.at[component,'population type']:
+                    if row['population type'] != self.comps.at[component, 'population type']:
                         raise InvalidFramework('In Characteristic "%s", included compartment "%s" does not have a matching population type' % (charac_name, component))
                 elif component in self.characs.index:
-                    if row['population type'] != self.characs.at[component,'population type']:
+                    if row['population type'] != self.characs.at[component, 'population type']:
                         raise InvalidFramework('In Characteristic "%s", included characteristic "%s" does not have a matching population type' % (charac_name, component))
                 else:
                     raise InvalidFramework('In Characteristic "%s", included component "%s" was not recognized as a Compartment or Characteristic' % (charac_name, component))
@@ -782,10 +780,10 @@ class ProjectFramework(object):
         for par_name, par in zip(self.pars.index, self.pars.to_dict(orient='records')):
 
             if (par['databook page'] is not None) and not (par['databook page'] in self.sheets['databook pages'][0]['datasheet code name'].values):
-                raise InvalidFramework('Parameter "%s" has databook page "%s" but that page does not appear on the "databook pages" sheet' % (par_name,par['databook page']))
+                raise InvalidFramework('Parameter "%s" has databook page "%s" but that page does not appear on the "databook pages" sheet' % (par_name, par['databook page']))
 
             if par['population type'] not in available_pop_types:
-                raise InvalidFramework('Parameter "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (par_name,par['population type'],available_pop_types))
+                raise InvalidFramework('Parameter "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (par_name, par['population type'], available_pop_types))
 
             if par['is derivative'] == 'y' and par['function'] is None:
                 raise InvalidFramework('Parameter "%s" is marked "is derivative" but it does not have a parameter function' % (par_name))
@@ -803,7 +801,6 @@ class ProjectFramework(object):
                 if par['targetable'] == 'y':
                     raise InvalidFramework(f'Parameter "{par_name}" is marked as driving a timed transition so it cannot be targeted by programs')
 
-
             if par['function'] is None:
                 # In order to have a value, a transition parameter must either be
                 # - have a function
@@ -818,21 +815,21 @@ class ProjectFramework(object):
                     raise InvalidFramework(message)
 
                 _, deps = parse_function(par['function'])  # Parse the function to get dependencies
-                is_aggregation =  (par['function'].startswith("SRC_POP_AVG") or par['function'].startswith("TGT_POP_AVG") or par['function'].startswith("SRC_POP_SUM") or par['function'].startswith("TGT_POP_SUM"))
-                is_cross_aggregation =  (par['function'].startswith("SRC_POP_AVG") or par['function'].startswith("SRC_POP_SUM"))
+                is_aggregation = (par['function'].startswith("SRC_POP_AVG") or par['function'].startswith("TGT_POP_AVG") or par['function'].startswith("SRC_POP_SUM") or par['function'].startswith("TGT_POP_SUM"))
+                is_cross_aggregation = (par['function'].startswith("SRC_POP_AVG") or par['function'].startswith("SRC_POP_SUM"))
 
                 for dep in deps:
                     if dep in ['t', 'dt']:
                         # These are special variables passed in by model.py
                         continue
-                    elif '___' in dep: # Note that the parser replaces ':' with '___'
+                    elif '___' in dep:  # Note that the parser replaces ':' with '___'
 
                         if is_aggregation:
-                            message = 'The function for parameter "%s" depends on a flow rate ("%s") but the function contains a population aggregation. Population aggregations can only operate on a single variable and cannot operate on flow rate' % (par_name, dep.replace('___',':'))
+                            message = 'The function for parameter "%s" depends on a flow rate ("%s") but the function contains a population aggregation. Population aggregations can only operate on a single variable and cannot operate on flow rate' % (par_name, dep.replace('___', ':'))
                             raise InvalidFramework(message)
 
                         if self.transitions[par_name]:
-                            message = 'The function for parameter "%s" depends on a flow rate ("%s"). However, "%s" also governs a flow rate, because it appears in the transition matrix. Transition parameters cannot depend on flow rates, so no flow rates can appear in the function for "%s"' % (par_name, dep.replace('___',':'), par_name, par_name)
+                            message = 'The function for parameter "%s" depends on a flow rate ("%s"). However, "%s" also governs a flow rate, because it appears in the transition matrix. Transition parameters cannot depend on flow rates, so no flow rates can appear in the function for "%s"' % (par_name, dep.replace('___', ':'), par_name, par_name)
                             raise InvalidFramework(message)
 
                         if dep.endswith('___flow'):
@@ -854,13 +851,13 @@ class ProjectFramework(object):
                             deps = dep.split('___')
                             if deps[0]:
                                 if deps[0] not in self.comps.index:
-                                    message = 'The function for parameter "%s" depends on the flow rate "%s". This requires a source compartment called "%s" to be defined in the Framework, but no compartment with that name was found' % (par_name, dep.replace('___',':'), deps[0])
+                                    message = 'The function for parameter "%s" depends on the flow rate "%s". This requires a source compartment called "%s" to be defined in the Framework, but no compartment with that name was found' % (par_name, dep.replace('___', ':'), deps[0])
                                     raise InvalidFramework(message)
-                                elif not is_cross_aggregation and self.comps.at[deps[0],'population type'] != par['population type']:
+                                elif not is_cross_aggregation and self.comps.at[deps[0], 'population type'] != par['population type']:
                                     raise InvalidFramework(cross_pop_message(par, 'compartment', deps[0]))
                             if deps[1]:
                                 if deps[1] not in self.comps.index:
-                                    message = 'The function for parameter "%s" depends on the flow rate "%s". This requires a destination compartment called "%s" to be defined in the Framework, but no compartment with that name was found' % (par_name, dep.replace('___',':'), deps[1])
+                                    message = 'The function for parameter "%s" depends on the flow rate "%s". This requires a destination compartment called "%s" to be defined in the Framework, but no compartment with that name was found' % (par_name, dep.replace('___', ':'), deps[1])
                                     raise InvalidFramework(message)
                                 elif not is_cross_aggregation and self.comps.at[deps[1], 'population type'] != par['population type']:
                                     raise InvalidFramework(cross_pop_message(par, 'compartment', deps[1]))
@@ -880,10 +877,10 @@ class ProjectFramework(object):
                             logger.warning(f"Parameter '{par_name}' has a weighting variable but uses a summation aggregation. It should very likely use SRC_POP_AVG or TGT_POP_AVG instead")
 
                         # If a population aggregation includes a weighting interaction, then the 'to' population must match this parameter
-                        if self.interactions.at[dep,'to population type'] != par['population type']:
+                        if self.interactions.at[dep, 'to population type'] != par['population type']:
                             message = f'''
-                                The parameter '{par_name}' has population type '{par['population type']}' and 
-                                weights the interaction using '{dep}', which is defined as applying from 
+                                The parameter '{par_name}' has population type '{par['population type']}' and
+                                weights the interaction using '{dep}', which is defined as applying from
                                 type '{self.interactions.at[dep,'from population type']}' to type '{self.interactions.at[dep,'to population type']}'.
                                 If weighting a cross-type interaction, the 'to' population type in the interaction must match the parameter
                                 '''
@@ -895,20 +892,20 @@ class ProjectFramework(object):
                                 var = self.get_variable(dep2)[0]
                                 if var['population type'] != self.interactions.at[dep, 'from population type']:
                                     message = f'''
-                                        The parameter '{par_name}' has uses interaction weighting '{dep}', which is defined as applying from 
+                                        The parameter '{par_name}' has uses interaction weighting '{dep}', which is defined as applying from
                                         type '{self.interactions.at[dep,'from population type']}' to type '{self.interactions.at[dep,'to population type']}'.
-                                        If weighting a cross-type interaction, the quantity being averaged and the optional weighting quantity must 
+                                        If weighting a cross-type interaction, the quantity being averaged and the optional weighting quantity must
                                         belong to the 'from' population type. However, the parameter contains the quantity '{dep2}' which has
                                         population type '{var['population type']}'
                                         '''
                                     raise InvalidFramework(' '.join(message.split()))
 
-                        if (self.interactions.at[dep,'to population type'] != self.interactions.at[dep,'from population type']):
+                        if (self.interactions.at[dep, 'to population type'] != self.interactions.at[dep, 'from population type']):
                             if par['function'].startswith('TGT_'):
                                 raise InvalidFramework(f"Parameter '{par_name}' uses interaction {dep} which crosses population types. Because this interaction is directed, only SRC_POP_SUM and SRC_POP_AVG can be used")
 
                     elif dep in self.pars.index:
-                        if dep not in defined: # If it's a forward reference to a parameter not already defined
+                        if dep not in defined:  # If it's a forward reference to a parameter not already defined
                             if self.pars.at[dep, 'is derivative'] != 'y':
                                 if dep == par_name:
                                     raise InvalidFramework(f"Parameter '{par_name}' has a parameter function that refers to itself, but it is not marked as a derivative parameter. Circular references are only permitted if the parameter function is providing a derivative")
@@ -916,7 +913,7 @@ class ProjectFramework(object):
                                     message = 'The function for parameter "%s" depends on the parameter "%s", which needs to be defined in the Framework before "%s" (or be defined as a derivative parameter). Please move "%s" up on the "Parameters" sheet of the Framework file, so that it appears before "%s"' % (par_name, dep, par_name, dep, par_name)
                                     raise InvalidFramework(message)
 
-                        if self.pars.at[dep, 'population type'] != par['population type'] and not is_aggregation: # Population types for the dependency and the parameter can only differ if it's an aggregation
+                        if self.pars.at[dep, 'population type'] != par['population type'] and not is_aggregation:  # Population types for the dependency and the parameter can only differ if it's an aggregation
                             raise InvalidFramework(cross_pop_message(par, 'parameter', dep))
                     else:
                         message = 'The function for parameter "%s" depends on a quantity "%s", but no Compartment, Characteristic, or Parameter with this name was found' % (par_name, dep)
@@ -938,13 +935,12 @@ class ProjectFramework(object):
 
                 allowed_formats = {FS.QUANTITY_TYPE_NUMBER, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_DURATION, FS.QUANTITY_TYPE_PROPORTION}
                 if par['format'] not in allowed_formats:
-                    raise InvalidFramework('Parameter %s is a transition parameter so format "%s is not allowed - it must be one of %s' % (par_name,par['format'],allowed_formats))
+                    raise InvalidFramework('Parameter %s is a transition parameter so format "%s is not allowed - it must be one of %s' % (par_name, par['format'], allowed_formats))
 
                 if par['timescale'] is None and par['format'] in {FS.QUANTITY_TYPE_NUMBER, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_DURATION}:
-                    self.pars.at[par_name,'timescale'] = 1.0 # Default timescale - note that currently only transition parameters are allowed to have a timescale that is not None
+                    self.pars.at[par_name, 'timescale'] = 1.0  # Default timescale - note that currently only transition parameters are allowed to have a timescale that is not None
                 elif par['timescale'] is not None and par['format'] == FS.QUANTITY_TYPE_PROPORTION:
                     raise InvalidFramework('Parameter %s is in proportion units, therefore it cannot have a timescale entered for it' % par_name)
-
 
                 from_comps = [x[0] for x in self.transitions[par_name]]
                 to_comps = [x[1] for x in self.transitions[par_name]]
@@ -957,17 +953,17 @@ class ProjectFramework(object):
 
                 n_source_outflow = 0
                 for comp in from_comps:
-                    if self.comps.at[comp,'is sink'] == 'y':
+                    if self.comps.at[comp, 'is sink'] == 'y':
                         raise InvalidFramework('Parameter "%s" has an outflow from Compartment "%s" which is a sink' % par_name, comp)
-                    elif self.comps.at[comp,'is source'] == 'y':
+                    elif self.comps.at[comp, 'is source'] == 'y':
                         n_source_outflow += 1
                         if par['format'] != FS.QUANTITY_TYPE_NUMBER:
                             raise InvalidFramework('Parameter "%s" has an outflow from a source compartment, so it needs to be in "number" units' % par_name)
-                    elif self.comps.at[comp,'is junction'] == 'y':
+                    elif self.comps.at[comp, 'is junction'] == 'y':
                         if par['format'] != FS.QUANTITY_TYPE_PROPORTION:
                             raise InvalidFramework('Parameter "%s" has an outflow from a junction, so it must be in "proportion" units' % par_name)
 
-                    if (par['format'] == FS.QUANTITY_TYPE_PROPORTION) and (self.comps.at[comp,'is junction'] != 'y'):
+                    if (par['format'] == FS.QUANTITY_TYPE_PROPORTION) and (self.comps.at[comp, 'is junction'] != 'y'):
                         raise InvalidFramework('"Parameter "%s" has units of "proportion" which means all of its outflows must be from junction compartments, which Compartment "%s" is not', par_name, comp)
 
                 if n_source_outflow > 1:
@@ -977,7 +973,7 @@ class ProjectFramework(object):
                     raise InvalidFramework(f'Parameter "{par_name}" has an outflow from a source compartment, therefore it cannot be associated with any other transitions')
 
                 for comp in to_comps:
-                    if self.comps.at[comp,'is source'] == 'y':
+                    if self.comps.at[comp, 'is source'] == 'y':
                         raise InvalidFramework('Parameter "%s" has an inflow to Compartment "%s" which is a source' % par_name, comp)
             else:
                 # If this is not a transition parameter
@@ -1064,15 +1060,15 @@ class ProjectFramework(object):
             characs = []
             df = self.characs
             for charac_name in df.index:
-                if df.at[charac_name,'population type'] == pop_type and df.at[charac_name,'databook page'] is not None and df.at[charac_name,'setup weight']:
+                if df.at[charac_name, 'population type'] == pop_type and df.at[charac_name, 'databook page'] is not None and df.at[charac_name, 'setup weight']:
                     characs.append(charac_name)
 
             comps = []
             df = self.comps
             for comp_name in df.index:
-                if df.at[comp_name,'population type'] == pop_type and df.at[comp_name,'is source'] == 'n' and df.at[comp_name,'is sink'] == 'n':
+                if df.at[comp_name, 'population type'] == pop_type and df.at[comp_name, 'is source'] == 'n' and df.at[comp_name, 'is sink'] == 'n':
                     comps.append(comp_name)
-                if df.at[comp_name,'population type'] == pop_type and df.at[comp_name,'databook page'] is not None and df.at[comp_name,'setup weight']:
+                if df.at[comp_name, 'population type'] == pop_type and df.at[comp_name, 'databook page'] is not None and df.at[comp_name, 'setup weight']:
                     characs.append(comp_name)
 
             if not comps:
@@ -1140,7 +1136,7 @@ class ProjectFramework(object):
                         elif self.comps.at[inflow_comp, 'is junction'] == 'y':
                             get_attached_comps(inflow_comp, direction, comps, groups, attachments)
                         else:
-                            comps.add(inflow_comp) # Add the inflow comp regardless of how it's connected
+                            comps.add(inflow_comp)  # Add the inflow comp regardless of how it's connected
                             group = self.comps.at[inflow_comp, 'duration group']
                             if group is not None:
                                 groups.add(group)
@@ -1157,14 +1153,13 @@ class ProjectFramework(object):
                 #   noting that it's the compartment groups that matter regardless of attachment status
                 # - If there is exactly one upstream or downstream group, then the junction belongs to the duration group
                 # - Similarly, if there are upstream or downstream groups and no groups in the opposite direction, this is also allowed
-                if len(upstream_attachments) == 1 and len(downstream_attachments) == 1 and upstream_attachments==upstream_groups and downstream_attachments==downstream_groups and upstream_attachments==downstream_attachments:
+                if len(upstream_attachments) == 1 and len(downstream_attachments) == 1 and upstream_attachments == upstream_groups and downstream_attachments == downstream_groups and upstream_attachments == downstream_attachments:
                     # If the
                     self.comps.at[junc_name, 'duration group'] = list(upstream_attachments)[0]
                 elif len(upstream_attachments) or len(downstream_attachments):
                     # If there is at least one upstream or downstream attachment, then there can be no overlap between the upstream and downstream groups.
                     if downstream_groups.intersection(upstream_groups):
                         raise InvalidFramework(f'Junction "{junc_name}" has inputs and outputs to multiple duration groups. As these are untimed flows, there can be no overlap in the upstream and downstream groups. Upstream compartments are {upstream_comps} with groups {upstream_groups}. Downstream compartments are {downstream_comps} with groups {upstream_groups}')
-
 
     def get_databook_units(self, code_name: str) -> str:
         """
@@ -1207,9 +1202,9 @@ class ProjectFramework(object):
                 if units is None:
                     raise InvalidFramework(f'A timescale was provided for Framework quantity {code_name} but no units were provided')
                 elif units.lower() == FS.QUANTITY_TYPE_DURATION:
-                    return '%s (%s)' % (FS.QUANTITY_TYPE_DURATION.title(),format_duration(item_spec['timescale'],pluralize=True))
-                elif units.lower() in {FS.QUANTITY_TYPE_NUMBER,FS.QUANTITY_TYPE_PROBABILITY}:
-                    return '%s (per %s)' % (units.title(),format_duration(item_spec['timescale'],pluralize=False))
+                    return '%s (%s)' % (FS.QUANTITY_TYPE_DURATION.title(), format_duration(item_spec['timescale'], pluralize=True))
+                elif units.lower() in {FS.QUANTITY_TYPE_NUMBER, FS.QUANTITY_TYPE_PROBABILITY}:
+                    return '%s (per %s)' % (units.title(), format_duration(item_spec['timescale'], pluralize=False))
                 else:
                     if units is None:
                         raise InvalidFramework(f'A timescale was provided for Framework quantity {code_name} but the units were not one of duration, number, or probability. It is therefore not possible to perform any automatic conversions, simply enter the relevant data entry timescale in the units directly instead.')
@@ -1219,7 +1214,7 @@ class ProjectFramework(object):
         return FS.DEFAULT_SYMBOL_INAPPLICABLE
 
 
-def _sanitize_dataframe(df: pd.DataFrame, required_columns: list, defaults: dict, valid_content: dict, set_index:str = None) -> pd.DataFrame:
+def _sanitize_dataframe(df: pd.DataFrame, required_columns: list, defaults: dict, valid_content: dict, set_index: str = None) -> pd.DataFrame:
     """
     Take in a DataFrame and sanitize it
 
@@ -1241,7 +1236,7 @@ def _sanitize_dataframe(df: pd.DataFrame, required_columns: list, defaults: dict
     if set_index is not None:
         if set_index not in df.columns:
             raise InvalidFramework(f'Mandatory index column "{set_index}" is missing')
-        df.set_index(set_index, inplace = True)
+        df.set_index(set_index, inplace=True)
 
     if any(df.index.isnull()):
         raise InvalidFramework('The first column contained an empty cell (this probably indicates that a "code name" was left empty')
@@ -1277,7 +1272,8 @@ def _sanitize_dataframe(df: pd.DataFrame, required_columns: list, defaults: dict
 
     return df
 
-def generate_framework_doc(framework,fname, databook_only=False):
+
+def generate_framework_doc(framework, fname, databook_only=False):
     """
     Generate a framework documentation template file
 
@@ -1290,7 +1286,7 @@ def generate_framework_doc(framework,fname, databook_only=False):
     :return: None
     """
 
-    with open(fname,'w') as f:
+    with open(fname, 'w') as f:
 
         # Write the heading
         f.write('# Framework overview\n\n')
@@ -1307,7 +1303,6 @@ def generate_framework_doc(framework,fname, databook_only=False):
             f.write('- [Plots](#plots)\n\n')
         if 'cascades' in framework.sheets:
             f.write('- [Cascades](#cascades)\n\n')
-
 
         f.write('## Compartments\n\n')
         for _, spec in framework.comps.iterrows():
@@ -1335,7 +1330,7 @@ def generate_framework_doc(framework,fname, databook_only=False):
 
             f.write('\n')
             f.write('- Description: <ENTER DESCRIPTION>\n')
-            f.write('- Data entry guidance: %s\n' % (spec['guidance'] if spec['guidance']  else '<ENTER GUIDANCE>'))
+            f.write('- Data entry guidance: %s\n' % (spec['guidance'] if spec['guidance'] else '<ENTER GUIDANCE>'))
 
             f.write('\n')
 
@@ -1366,19 +1361,19 @@ def generate_framework_doc(framework,fname, databook_only=False):
 
             f.write('\n')
             f.write('- Description: <ENTER DESCRIPTION>\n')
-            f.write('- Data entry guidance: %s\n' % (spec['guidance'] if spec['guidance']  else '<ENTER GUIDANCE>'))
+            f.write('- Data entry guidance: %s\n' % (spec['guidance'] if spec['guidance'] else '<ENTER GUIDANCE>'))
 
             f.write('\n')
 
         # Work out functional dependencies
-        fcn_deps = {x:set() for x in framework.pars.index.values}
-        fcn_used_in = {x:set() for x in framework.pars.index.values}
+        fcn_deps = {x: set() for x in framework.pars.index.values}
+        fcn_used_in = {x: set() for x in framework.pars.index.values}
         for _, spec in framework.pars.iterrows():
             if spec['function']:
                 _, deps = parse_function(spec['function'])  # Parse the function to get dependencies
                 for dep in deps:
                     if dep.endswith('___flow'):
-                        fcn_deps[spec.name].add(framework.get_label(dep.replace('___flow','')) + ' flow rate')
+                        fcn_deps[spec.name].add(framework.get_label(dep.replace('___flow', '')) + ' flow rate')
                     elif '___' in dep:
                         from_comp, to_comp = dep.split('___')
                         label = 'Flow'
@@ -1409,16 +1404,16 @@ def generate_framework_doc(framework,fname, databook_only=False):
             f.write('- Units/format: %s\n' % (spec['format']))
 
             if spec['minimum value'] is not None and spec['maximum value'] is not None:
-                f.write('- Value restrictions: %s-%s\n' % (sc.sigfig(spec['minimum value'],keepints=True),sc.sigfig(spec['maximum value'],keepints=True)))
+                f.write('- Value restrictions: %s-%s\n' % (sc.sigfig(spec['minimum value'], keepints=True), sc.sigfig(spec['maximum value'], keepints=True)))
             elif spec['minimum value'] is not None:
-                f.write('- Value restrictions: At least %s\n' % (sc.sigfig(spec['minimum value'],keepints=True)))
+                f.write('- Value restrictions: At least %s\n' % (sc.sigfig(spec['minimum value'], keepints=True)))
             elif spec['maximum value'] is not None:
-                f.write('- Value restrictions: At most %s\n' % (sc.sigfig(spec['maximum value'],keepints=True)))
+                f.write('- Value restrictions: At most %s\n' % (sc.sigfig(spec['maximum value'], keepints=True)))
 
             if framework.transitions[spec.name]:
                 f.write('- Contributes to transitions from:\n')
                 for transition in framework.transitions[spec.name]:
-                    f.write('\t- "%s" to "%s"\n'  % (framework.get_label(transition[0]), framework.get_label(transition[1])))
+                    f.write('\t- "%s" to "%s"\n' % (framework.get_label(transition[0]), framework.get_label(transition[1])))
 
             f.write('- Default value: %s\n' % (spec['default value']))
             if spec['databook page']:
@@ -1441,7 +1436,7 @@ def generate_framework_doc(framework,fname, databook_only=False):
 
             f.write('\n')
             f.write('- Description: <ENTER DESCRIPTION>\n')
-            f.write('- Data entry guidance: %s\n' % (spec['guidance'] if spec['guidance']  else '<ENTER GUIDANCE>'))
+            f.write('- Data entry guidance: %s\n' % (spec['guidance'] if spec['guidance'] else '<ENTER GUIDANCE>'))
 
             f.write('\n')
 
@@ -1474,17 +1469,14 @@ def generate_framework_doc(framework,fname, databook_only=False):
                 f.write('- Definition: `%s`\n' % (spec['quantities']))
                 f.write('- Description: <ENTER DESCRIPTION>\n\n')
 
-
         if framework.cascades:
             f.write('## Cascades\n\n')
             for name, df in framework.cascades.items():
                 f.write('### Cascade: %s\n\n' % (name))
                 f.write('- Description: <ENTER DESCRIPTION>\n')
                 f.write('- Stages:\n')
-                for _,stage in df.iterrows():
+                for _, stage in df.iterrows():
                     f.write('\t- %s\n' % (stage[0]))
                     for inc_name in stage[1].split(','):
                         f.write('\t\t- %s\n' % (framework.get_label(inc_name.strip())))
                 f.write('\n')
-
-

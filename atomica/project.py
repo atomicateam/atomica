@@ -39,6 +39,7 @@ import numpy as np
 import tqdm
 import logging
 
+
 class ProjectSettings(object):
     def __init__(self, sim_start=None, sim_end=None, sim_dt=None):
 
@@ -204,9 +205,9 @@ class Project(NamedItem):
 
         # If there are existing progsets, make sure the new data is consistent with them
         if self.progsets:
-            data_pops = set((x,y['label']) for x,y in data.pops.items())
+            data_pops = set((x, y['label']) for x, y in data.pops.items())
             for progset in self.progsets.values():
-                assert data_pops == set((x,y['label']) for x,y in progset.pops.items()), 'Existing progsets exist with populations that do not match the new databook'
+                assert data_pops == set((x, y['label']) for x, y in progset.pops.items()), 'Existing progsets exist with populations that do not match the new databook'
 
         self.data = data
         self.data.validate(self.framework)  # Make sure the data is suitable for use in the Project (as opposed to just manipulating the databook)
@@ -280,7 +281,7 @@ class Project(NamedItem):
 
         """
 
-        types = {'parameter': ParameterScenario,'budget': BudgetScenario,'coverage': CoverageScenario,'combined': CombinedScenario}
+        types = {'parameter': ParameterScenario, 'budget': BudgetScenario, 'coverage': CoverageScenario, 'combined': CombinedScenario}
         scenario = types[which](**kwargs)
         self.scens.append(scenario)
         return scenario
@@ -298,7 +299,7 @@ class Project(NamedItem):
         else:
             try:
                 return self.parsets[key]
-            except:
+            except Exception:
                 sc.printv('Warning, parset "%s" not found!' % key, 1, verbose)
                 return None
 
@@ -311,7 +312,7 @@ class Project(NamedItem):
         else:
             try:
                 return self.progsets[key]
-            except:
+            except Exception:
                 sc.printv('Warning, progset "%s" not found!' % key, 1, verbose)
                 return None
 
@@ -324,7 +325,7 @@ class Project(NamedItem):
         else:
             try:
                 return self.scens[key]
-            except:
+            except Exception:
                 sc.printv('Warning, scenario "%s" not found!' % key, 1, verbose)
                 return None
 
@@ -337,7 +338,7 @@ class Project(NamedItem):
         else:
             try:
                 return self.optims[key]
-            except:
+            except Exception:
                 sc.printv('Warning, scenario "%s" not found!' % key, 1, verbose)
                 return None
 
@@ -352,7 +353,7 @@ class Project(NamedItem):
         else:
             try:
                 return self.scens[key]
-            except:
+            except Exception:
                 sc.printv('Warning, scenario "%s" not found!' % key, 1, verbose)
                 return None
 
@@ -360,7 +361,7 @@ class Project(NamedItem):
             key = -1
         try:
             return self.results[key]
-        except:
+        except Exception:
             return sc.printv('Warning, results "%s" not found!' % key, 1, verbose)  # Returns None
 
     #######################################################################################################
@@ -398,7 +399,7 @@ class Project(NamedItem):
         """ Modify the project settings, e.g. the simulation time vector. """
         self.settings.update_time_vector(start=sim_start, end=sim_end, dt=sim_dt)
 
-    def run_sim(self, parset=None, progset=None, progset_instructions=None, store_results=False, result_name:str=None):
+    def run_sim(self, parset=None, progset=None, progset_instructions=None, store_results=False, result_name: str = None):
         """
         Run a single simulation
 
@@ -434,13 +435,13 @@ class Project(NamedItem):
         tm = sc.tic()
         result = run_model(settings=self.settings, framework=self.framework, parset=parset, progset=progset,
                            program_instructions=progset_instructions, name=result_name)
-        logger.info('Elapsed time for running "%s": %ss',self.name,sc.sigfig(sc.toc(tm,output=True),3))
+        logger.info('Elapsed time for running "%s": %ss', self.name, sc.sigfig(sc.toc(tm, output=True), 3))
         if store_results:
             self.results.append(result)
 
         return result
 
-    def run_sampled_sims(self,parset,progset=None,progset_instructions=None, result_names=None, n_samples:int =1,parallel=False, max_attempts=None) -> list:
+    def run_sampled_sims(self, parset, progset=None, progset_instructions=None, result_names=None, n_samples: int = 1, parallel=False, max_attempts=None) -> list:
         """
         Run sampled simulations
 
@@ -489,13 +490,13 @@ class Project(NamedItem):
             assert(len(result_names) == 1 and not progset) or (len(progset_instructions) == len(result_names)), "Number of result names must match number of instructions"
 
         original_level = logger.getEffectiveLevel()
-        logger.setLevel(logging.WARNING) # Never print debug messages inside the sampling loop - note that depending on the platform, this may apply within `sc.parallelize`
+        logger.setLevel(logging.WARNING)  # Never print debug messages inside the sampling loop - note that depending on the platform, this may apply within `sc.parallelize`
 
         if n_samples == 1:
             results = [_run_sampled_sim(self, parset, progset, progset_instructions, result_names, max_attempts=max_attempts)]
         elif parallel:
             # NB. The calling code must be wrapped in a 'if __name__ == '__main__' if on Windows
-            results = sc.parallelize(_run_sampled_sim, iterarg=n_samples, kwargs={'proj':self, 'parset':parset, 'progset':progset, 'progset_instructions':progset_instructions, 'result_names':result_names, 'max_attempts':max_attempts})
+            results = sc.parallelize(_run_sampled_sim, iterarg=n_samples, kwargs={'proj': self, 'parset': parset, 'progset': progset, 'progset_instructions': progset_instructions, 'result_names': result_names, 'max_attempts': max_attempts})
         else:
             if original_level <= logging.INFO:
                 # Print the progress bar if the logging level was INFO or lower
@@ -503,7 +504,7 @@ class Project(NamedItem):
             else:
                 results = [_run_sampled_sim(self, parset, progset, progset_instructions, result_names, max_attempts=max_attempts) for _ in range(n_samples)]
 
-        logger.setLevel(original_level) # Reset the logger
+        logger.setLevel(original_level)  # Reset the logger
 
         return results
 
@@ -562,7 +563,7 @@ class Project(NamedItem):
 
         return new_parset
 
-    def run_scenarios(self, store_results:bool = True) -> list:
+    def run_scenarios(self, store_results: bool = True) -> list:
         """
         Run all active scenarios
 
@@ -604,7 +605,7 @@ class Project(NamedItem):
         results = [unoptimized_result, optimized_result]
         return results
 
-    def save(self, filename:str =None, folder:str =None) -> str:
+    def save(self, filename: str = None, folder: str = None) -> str:
         """
         Save binary project file
 
@@ -645,7 +646,7 @@ class Project(NamedItem):
         self.__dict__ = P.__dict__
 
 
-def _run_sampled_sim(proj, parset, progset, progset_instructions:list, result_names:list, max_attempts:int =None):
+def _run_sampled_sim(proj, parset, progset, progset_instructions: list, result_names: list, max_attempts: int = None):
     """
     Internal function to run simulation with sampling
 

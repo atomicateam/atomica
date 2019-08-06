@@ -21,6 +21,7 @@ from .cascade import get_cascade_vals
 from .programs import ProgramSet, ProgramInstructions
 from .parameters import ParameterSet
 
+
 class InvalidInitialConditions(Exception):
     """
     Invalid initial parameter values
@@ -51,6 +52,7 @@ class UnresolvableConstraint(Exception):
 
     pass
 
+
 class FailedConstraint(Exception):
     """
     Not possible to apply constraint
@@ -62,6 +64,7 @@ class FailedConstraint(Exception):
     """
 
     pass
+
 
 class Adjustable(object):
     """
@@ -161,25 +164,25 @@ class SpendingAdjustment(Adjustment):
         self.prog_name = prog_name
         self.t = sc.promotetoarray(t)  # Time at which to apply the adjustment
 
-        lower = sc.promotetolist(lower,keepnone=True)
+        lower = sc.promotetolist(lower, keepnone=True)
         if len(lower) == 1:
-            lower = lower*len(self.t)
+            lower = lower * len(self.t)
         else:
             assert len(lower) == len(self.t), "If supplying lower bounds, you must either specify one, or one for every time point"
 
-        upper = sc.promotetolist(upper,keepnone=True)
+        upper = sc.promotetolist(upper, keepnone=True)
         if len(upper) == 1:
-            upper = upper*len(self.t)
+            upper = upper * len(self.t)
         else:
             assert len(upper) == len(self.t), "If supplying upper bounds, you must either specify one, or one for every time point"
 
-        initial = sc.promotetolist(initial,keepnone=True)
+        initial = sc.promotetolist(initial, keepnone=True)
         if len(initial) == 1:
-            initial = initial*len(self.t)
+            initial = initial * len(self.t)
         else:
             assert len(initial) == len(self.t), "If supplying initial values, you must either specify one, or one for every time point"
 
-        self.adjustables = [Adjustable(prog_name, limit_type, lower_bound=lb, upper_bound=ub, initial_value=init) for lb,ub,init in zip(lower,upper,initial)]
+        self.adjustables = [Adjustable(prog_name, limit_type, lower_bound=lb, upper_bound=ub, initial_value=init) for lb, ub, init in zip(lower, upper, initial)]
 
     def update_instructions(self, adjustable_values, instructions: ProgramInstructions):
         # There is one Adjustable for each time point, so the adjustable_values
@@ -332,7 +335,7 @@ class Measurable(object):
     def __init__(self, measurable_name, t, pop_names=None, weight=1.0):
         self.measurable_name = measurable_name
         self.t = sc.promotetoarray(t)
-        assert len(self.t)<=2, 'Measurable time must either be a year, or the `[low,high)` values defining a period of time'
+        assert len(self.t) <= 2, 'Measurable time must either be a year, or the `[low,high)` values defining a period of time'
         self.weight = weight
         self.pop_names = pop_names
 
@@ -342,7 +345,7 @@ class Measurable(object):
         # Only overload this if you want to customize the transformation and weighting
         return self.weight * self.get_objective_val(model, baseline)
 
-    def get_baseline(self,model):
+    def get_baseline(self, model):
         """
         Return cached baseline values
 
@@ -387,7 +390,7 @@ class Measurable(object):
             val = np.sum(alloc[self.measurable_name][t_filter])
         else:  # If the measurable is a model output...
             val = 0.0
-            matched = False # Flag whether any variables were found
+            matched = False  # Flag whether any variables were found
             for pop in model.pops:
                 if not self.pop_names:
                     # If no pops were provided, then iterate over all pops but skip those where the measureable is not defined
@@ -401,7 +404,7 @@ class Measurable(object):
                 elif pop not in self.pop_names:
                     continue
                 else:
-                    vars = pop.get_variable(self.measurable_name) # If variable is missing and the pop was explicitly defined, raise the error
+                    vars = pop.get_variable(self.measurable_name)  # If variable is missing and the pop was explicitly defined, raise the error
                     matched = True
 
                 for var in vars:
@@ -415,6 +418,7 @@ class Measurable(object):
                 raise Exception('"%s" not found in any populations' % (self.measurable_name))
 
         return val
+
 
 class MinimizeMeasurable(Measurable):
     # Syntactic sugar for a measurable that minimizes its quantity
@@ -451,7 +455,7 @@ class AtMostMeasurable(Measurable):
         self.threshold = threshold
 
     def get_objective_val(self, model, baseline):
-        val = Measurable.get_objective_val(self,model,baseline)
+        val = Measurable.get_objective_val(self, model, baseline)
         return np.inf if val > self.threshold else 0.0
 
     def __repr__(self):
@@ -480,11 +484,12 @@ class AtLeastMeasurable(Measurable):
         self.threshold = threshold
 
     def get_objective_val(self, model, baseline):
-        val = Measurable.get_objective_val(self,model,baseline)
+        val = Measurable.get_objective_val(self, model, baseline)
         return np.inf if val < self.threshold else 0.0
 
     def __repr__(self):
         return 'AtLeastMeasurable(%s > %f)' % (self.measurable_name, self.threshold)
+
 
 class IncreaseByMeasurable(Measurable):
     """
@@ -515,18 +520,18 @@ class IncreaseByMeasurable(Measurable):
         Measurable.__init__(self, measurable_name, t=t, weight=np.inf, pop_names=pop_names)
         assert increase >= 0, 'Cannot set negative increase'
         self.weight = 1.0
-        self.increase = increase # Required increase
+        self.increase = increase  # Required increase
         self.target_type = target_type
 
-    def get_baseline(self,model) -> float:
-        return Measurable.get_objective_val(self,model,None) # Get the baseline value using the underlying Measurable
+    def get_baseline(self, model) -> float:
+        return Measurable.get_objective_val(self, model, None)  # Get the baseline value using the underlying Measurable
 
     def get_objective_val(self, model: Model, baseline: float) -> float:
-        val = Measurable.get_objective_val(self,model,None)
+        val = Measurable.get_objective_val(self, model, None)
         if self.target_type == 'frac':
             return np.inf if (val / baseline) < (1 + self.increase) else 0.0
         elif self.target_type == 'abs':
-            return np.inf if val < (baseline+self.increase) else 0.0
+            return np.inf if val < (baseline + self.increase) else 0.0
         else:
             raise Exception('Unknown target type')
 
@@ -563,15 +568,15 @@ class DecreaseByMeasurable(Measurable):
         self.decrease = decrease
         self.target_type = target_type
 
-    def get_baseline(self,model) -> float:
+    def get_baseline(self, model) -> float:
         return Measurable.get_objective_val(self, model, None)  # Get the baseline value using the underlying Measurable
 
-    def get_objective_val(self, model: Model, baseline:float) -> float:
+    def get_objective_val(self, model: Model, baseline: float) -> float:
         val = Measurable.get_objective_val(self, model, None)
         if self.target_type == 'frac':
-            return np.inf if (val / baseline) > (1-self.decrease) else 0.0
+            return np.inf if (val / baseline) > (1 - self.decrease) else 0.0
         elif self.target_type == 'abs':
-            return np.inf if val > (baseline-self.decrease) else 0.0
+            return np.inf if val > (baseline - self.decrease) else 0.0
         else:
             raise Exception('Unknown target type')
 
@@ -628,14 +633,14 @@ class MaximizeCascadeConversionRate(Measurable):
 
     """
 
-    def __init__(self, cascade_name, t:float, pop_names='all', weight=1.0):
+    def __init__(self, cascade_name, t: float, pop_names='all', weight=1.0):
         Measurable.__init__(self, cascade_name, t=t, weight=-weight, pop_names=pop_names)
         if not isinstance(self.pop_names, list):
             self.pop_names = [self.pop_names]
 
     def get_objective_val(self, model, baseline):
         if self.t < model.t[0] or self.t > model.t[-1]:
-            raise Exception('Measurable year for optimization (%d) is outside the simulation range (%d-%d)' % (self.t,model.t[0],model.t[-1]))
+            raise Exception('Measurable year for optimization (%d) is outside the simulation range (%d-%d)' % (self.t, model.t[0], model.t[-1]))
         result = Result(model=model)
         val = 0
         for pop_name in self.pop_names:
@@ -905,7 +910,7 @@ class TotalSpendConstraint(Constraint):
                 if dist == 0:
                     return np.zeros(x.shape)
                 else:
-                    return (x-x0_array_scaled)/dist
+                    return (x - x0_array_scaled) / dist
 
             res = scipy.optimize.minimize(lambda x: np.linalg.norm(x - x0_array_scaled), x0_array_scaled, jac=jacfcn, bounds=bounds, constraints=LinearConstraint, options={'maxiter': 500})
 
@@ -1007,7 +1012,7 @@ class Optimization(NamedItem):
                 xmin[ptr] = bounds[0]
                 xmax[ptr] = bounds[1]
                 if x0[ptr] > xmax[ptr]:
-                    raise InvalidInitialConditions('Adjustment "%s" has an adjustable with initial value of %.2f but an upper bound of %.2f' % (adjustment.name,x0[ptr],xmax[ptr]))
+                    raise InvalidInitialConditions('Adjustment "%s" has an adjustable with initial value of %.2f but an upper bound of %.2f' % (adjustment.name, x0[ptr], xmax[ptr]))
                 elif x0[ptr] < xmin[ptr]:
                     raise InvalidInitialConditions('Adjustment "%s" has an adjustable with initial value of %.2f but a lower bound of %.2f' % (adjustment.name, x0[ptr], xmax[ptr]))
                 ptr += 1
@@ -1146,10 +1151,10 @@ def _objective_fcn(x, pickled_model, optimization, hard_constraints: list, basel
     try:
         model = pickle.loads(pickled_model)
         optimization.update_instructions(x, model.program_instructions)
-        constraint_penalty = optimization.constrain_instructions(model.program_instructions, hard_constraints)
+        optimization.constrain_instructions(model.program_instructions, hard_constraints)
         model.process()
     except FailedConstraint:
-        return np.inf # Return an objective of `np.inf` if the constraints could not be satisfied by ``x``
+        return np.inf  # Return an objective of `np.inf` if the constraints could not be satisfied by ``x``
 
     obj_val = optimization.compute_objective(model, baselines)
 
@@ -1157,7 +1162,9 @@ def _objective_fcn(x, pickled_model, optimization, hard_constraints: list, basel
     # The idea is to keep the optimization in a parameter regime where large corrections to the instructions
     # are not required. However, using ths constraint penalty directly can lead to it dominating the objective,
     # and with ASD's single-parameter stepping this prevents convergence. So needs some further work
-    #obj_val += 0.0 * constraint_penalty
+    #
+    # constaint_penalty = optimization.constrain_instructions(...)
+    # obj_val += 0.0 * constraint_penalty
 
     return obj_val
 
@@ -1190,7 +1197,7 @@ def optimize(project, optimization, parset: ParameterSet, progset: ProgramSet, i
     assert optimization.method in ['asd', 'pso', 'hyperopt']
 
     model = Model(project.settings, project.framework, parset, progset, instructions)
-    pickled_model = pickle.dumps(model) # Unpickling effectively makes a deep copy, so this _should_ be faster
+    pickled_model = pickle.dumps(model)  # Unpickling effectively makes a deep copy, so this _should_ be faster
 
     initialization = optimization.get_initialization(progset, model.program_instructions)
     x0 = x0 if x0 is not None else initialization[0]
@@ -1259,9 +1266,9 @@ def optimize(project, optimization, parset: ParameterSet, progset: ProgramSet, i
             raise Exception(errormsg)
 
         space = []
-        for i, (lower, upper) in enumerate(zip(xmin,xmax)):
-            space.append(hyperopt.hp.uniform(str(i),lower,upper))
-        fcn = functools.partial(_objective_fcn,**args) # Partial out the extra arguments to the objective
+        for i, (lower, upper) in enumerate(zip(xmin, xmax)):
+            space.append(hyperopt.hp.uniform(str(i), lower, upper))
+        fcn = functools.partial(_objective_fcn, **args)  # Partial out the extra arguments to the objective
 
         optim_args = {
             'max_evals': optimization.maxiters if optimization.maxiters is not None else 100,

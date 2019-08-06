@@ -16,53 +16,58 @@ import sys
 #
 #
 
-testdir = os.path.abspath(os.path.join(os.path.dirname(__file__),'tests')) + os.sep  # Must be relative to current file to work with tox
+testdir = os.path.abspath(os.path.join(os.path.dirname(__file__))) + os.sep  # Must be relative to current file to work with tox
 tempdir = os.path.join(testdir, 'temp') + os.sep
+
 
 def get_project():
     P = at.Project(framework=at.ProjectFramework(testdir + 'timed_test_framework.xlsx'), databook=testdir + 'timed_test_databook.xlsx', do_run=False)
-    P.settings.sim_dt = 1/12
+    P.settings.sim_dt = 1 / 12
     P.settings.sim_start = 2018
     P.settings.sim_end = 2020
     return P
+
 
 def run_framework(fname):
     # Saves a single-pop databook from a framework, then loads it back and runs a simulation
     # This assumes the framework provides default values for all quantities
     F = at.ProjectFramework(testdir + fname)
-    D = at.ProjectData.new(framework=F,tvec=[2018],pops=1,transfers=0)
-    P = at.Project(framework=F,databook=D.to_spreadsheet(),do_run=False)
+    D = at.ProjectData.new(framework=F, tvec=[2018], pops=1, transfers=0)
+    P = at.Project(framework=F, databook=D.to_spreadsheet(), do_run=False)
     P.settings.sim_dt = 0.25
     P.settings.sim_start = 2018
     P.settings.sim_end = 2023
     return P.run_sim()
 
+
 def test_read_write_databook():
     # Test that the timed databook can be written and read
     F = at.ProjectFramework(testdir + 'timed_test_framework.xlsx')
-    D = at.ProjectData.new(framework=F,tvec=[2018],pops=1,transfers=0)
+    D = at.ProjectData.new(framework=F, tvec=[2018], pops=1, transfers=0)
     D.save('test.xlsx')
-    P = at.Project(framework=F,databook='test.xlsx',do_run=False)
+    P = at.Project(framework=F, databook='test.xlsx', do_run=False)
     P.load_databook('test.xlsx')
+
 
 def test_zero_duration():
     # Test junction-like behaviour where the compartment empties every timestep
     # This makes sure the algorithm works when there is no lag
     P = get_project()
     ps = P.parsets[0].copy()
-    ps.pars['nat_rec'].ts[0].insert(None,0) # Sub-timestep size
+    ps.pars['nat_rec'].ts[0].insert(None, 0)  # Sub-timestep size
     res2 = P.run_sim(ps)
-    d = at.PlotData(res2,[':inf','inf:','inf'])
+    d = at.PlotData(res2, [':inf', 'inf:', 'inf'])
     at.plot_series(d)
 
     pop = res2.model.pops[0]
-    assert pop.get_variable('foi')[0].vals[0] == 24 # Flow into the compartment
-    assert pop.get_variable('inf')[0].vals[1] == 24*res2.dt # Compartment contents should now equal the inflow
-    assert pop.get_variable('inf')[0].vals[2] == 24*res2.dt # Same again, contents equals the inflow because it was flushed entirely
+    assert pop.get_variable('foi')[0].vals[0] == 24  # Flow into the compartment
+    assert pop.get_variable('inf')[0].vals[1] == 24 * res2.dt  # Compartment contents should now equal the inflow
+    assert pop.get_variable('inf')[0].vals[2] == 24 * res2.dt  # Same again, contents equals the inflow because it was flushed entirely
 
     # Check formally that total inflows equal total outflows
     assert pop.get_variable('inf')[0].vals[0] == sum(l.vals[0] for l in pop.get_variable('inf')[0].outlinks)
     assert pop.get_variable('inf')[0].vals[1] == sum(l.vals[1] for l in pop.get_variable('inf')[0].outlinks)
+
 
 def test_timed_tb():
     # Just check that it runs as a demonstration
@@ -70,16 +75,18 @@ def test_timed_tb():
     P.settings.sim_dt = 0.25
     return P.run_sim()
 
+
 def test_spike():
     P = get_project()
     ps = P.parsets[0].copy()
-    ps.pars['foi'].ts[0].insert(2018,24)
-    ps.pars['foi'].ts[0].insert(2018.99,100)
-    ps.pars['foi'].ts[0].insert(2019.01,24)
-    ps.pars['foi'].smooth(P.settings.tvec,'previous')
+    ps.pars['foi'].ts[0].insert(2018, 24)
+    ps.pars['foi'].ts[0].insert(2018.99, 100)
+    ps.pars['foi'].ts[0].insert(2019.01, 24)
+    ps.pars['foi'].smooth(P.settings.tvec, 'previous')
     res2 = P.run_sim(ps)
-    d = at.PlotData(res2,[':inf','inf:','inf'])
+    d = at.PlotData(res2, [':inf', 'inf:', 'inf'])
     at.plot_series(d)
+
 
 def test_timed_indirect():
     # This tests the case where there are multiple junctions and they pass untimed inputs into a duration group
@@ -146,6 +153,7 @@ def test_timed_indirect():
     assert pop.get_variable('ce:sus')[0].vals[7] == 0
     assert pop.get_variable('ce:sus')[0].vals[8] == 25
 
+
 def test_timed_indirect2():
     # This tests the case where there are multiple junctions and the inflow is from a TimedCompartment
     # within the same duration group. This checks that flows via indirect junctions still preserve
@@ -187,6 +195,7 @@ def test_timed_indirect2():
     assert pop.get_variable('sus')[0].vals[5] == 100  # They move into sus for the first time at ti=5 because that's the duration (4 timesteps)
     assert pop.get_variable('sus')[0].vals[6] == 200
 
+
 def test_timed_eligibility():
     # This test shows that time transitions only transfer people that are not required
     # to leave the duration group. We aren't able to target specifically people that are
@@ -223,9 +232,11 @@ def test_timed_eligibility():
     # 5 people out of the duration group.
     assert pop.get_variable('c2:c5')[0].vals[0] == 5
 
+
 def test_timed_invalid():
     with pytest.raises(Exception):
         run_framework('timed_test_indirect_framework_invalid.xlsx')
+
 
 def test_timed_transfer():
     # This test has transfers between populations where the same duration group has a different duration
@@ -260,20 +271,20 @@ def test_timed_transfer():
     # 45 people are transferred, which is 5 people per subcompartment
     # Going into pop0, there are more subcompartments, so we end up with all of them containing 15 people
     # And with no _other_ inflow, once the keyring is advanced, we have 0 people in the initial subcompartment
-    assert pops[0].get_comp('c1')._vals[8,1] == 15  # The 10th subcompartment recieved 5 people, then the keyring was advanced
-    assert pops[0].get_comp('c1')._vals[9,1] == 10  # The 11th subcompartment recieved 0 people, then the keyring was advanced
-    assert pops[0].get_comp('c1')._vals[-1,1] == 0  # The final subcompartment had no inflow
+    assert pops[0].get_comp('c1')._vals[8, 1] == 15  # The 10th subcompartment recieved 5 people, then the keyring was advanced
+    assert pops[0].get_comp('c1')._vals[9, 1] == 10  # The 11th subcompartment recieved 0 people, then the keyring was advanced
+    assert pops[0].get_comp('c1')._vals[-1, 1] == 0  # The final subcompartment had no inflow
 
     # Going into pop1, there are fewer subcompartments - only 5. Thus, the 5th subcompartment receives people
     # from the link from subcompartments 5 through 10. That is, 6 subcompartments worth
-    assert pops[2].get_comp('c1')._vals[2,1] == 15  # The 4th subcompartment recieved 5 people, then the keyring was advanced
-    assert pops[2].get_comp('c1')._vals[3,1] == 40  # The 5th subcompartment recieved 30 people, then the keyring was advanced
-    assert pops[2].get_comp('c1')._vals[-1,1] == 0  # The final subcompartment had no inflow
+    assert pops[2].get_comp('c1')._vals[2, 1] == 15  # The 4th subcompartment recieved 5 people, then the keyring was advanced
+    assert pops[2].get_comp('c1')._vals[3, 1] == 40  # The 5th subcompartment recieved 30 people, then the keyring was advanced
+    assert pops[2].get_comp('c1')._vals[-1, 1] == 0  # The final subcompartment had no inflow
 
     # The absolute total outflow from all three compartments should match the initialization plus the transfer
-    assert sum([l.vals.sum() for l in pops[2].get_comp('c1').outlinks]) == 95 # 50 initialized, plus 45 transferred
-    assert sum([l.vals.sum() for l in pops[1].get_comp('c1').outlinks]) == 100 # 90 transitioned out, plus 10 flushed
-    assert sum([l.vals.sum() for l in pops[0].get_comp('c1').outlinks]) == 245 # 200 initialized, plus 45 transferred
+    assert sum([l.vals.sum() for l in pops[2].get_comp('c1').outlinks]) == 95  # 50 initialized, plus 45 transferred
+    assert sum([l.vals.sum() for l in pops[1].get_comp('c1').outlinks]) == 100  # 90 transitioned out, plus 10 flushed
+    assert sum([l.vals.sum() for l in pops[0].get_comp('c1').outlinks]) == 245  # 200 initialized, plus 45 transferred
 
     # Test writing out this databook too
     D = at.ProjectData.new(framework=P.framework, tvec=[2018, 2019], pops=3, transfers=2)
@@ -281,25 +292,26 @@ def test_timed_transfer():
 
 
 def test_timed_vac_duration():
-    P = at.Project(framework=at.LIBRARY_PATH + 'sir_vaccine_framework.xlsx', databook=at.LIBRARY_PATH + 'sir_vaccine_databook.xlsx',do_run=False)
+    P = at.Project(framework=at.LIBRARY_PATH + 'sir_vaccine_framework.xlsx', databook=at.LIBRARY_PATH + 'sir_vaccine_databook.xlsx', do_run=False)
     P.settings.sim_dt = 0.25
     P.settings.sim_start = 2018
     P.settings.sim_end = 2030
     parset = P.make_parset('test')
-    parset.pars['v_rate'].smooth(P.settings.tvec,'previous')
+    parset.pars['v_rate'].smooth(P.settings.tvec, 'previous')
     res = P.run_sim(parset)
 
-    d = at.PlotData(res,'v_rate')
+    d = at.PlotData(res, 'v_rate')
     at.plot_series(d)
 
-    d = at.PlotData(res,['sus:vac','vac:sus'])
+    d = at.PlotData(res, ['sus:vac', 'vac:sus'])
     at.plot_series(d)
 
-    d = at.PlotData(res,['sus','vac'])
+    d = at.PlotData(res, ['sus', 'vac'])
     at.plot_series(d)
 
-    d = at.PlotData(res,['sus:inf','vac:inf'])
+    d = at.PlotData(res, ['sus:inf', 'vac:inf'])
     at.plot_series(d)
+
 
 if __name__ == '__main__':
 

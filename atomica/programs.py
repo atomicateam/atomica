@@ -80,7 +80,7 @@ class ProgramInstructions(object):
 
     """
 
-    def __init__(self, start_year:float, stop_year:float=None, alloc=None, coverage:dict=None, capacity:dict=None):
+    def __init__(self, start_year: float, stop_year: float = None, alloc=None, coverage: dict = None, capacity: dict = None):
         self.start_year = start_year
         self.stop_year = stop_year if stop_year else inf
 
@@ -94,7 +94,6 @@ class ProgramInstructions(object):
                     self.alloc[prog_name] = sc.dcp(spending)
                 elif spending is not None:
                     self.alloc[prog_name] = TimeSeries(t=self.start_year, vals=spending)
-
 
         self.capacity = sc.odict()  # Dict keyed by program name that stores a time series of capacities
         if capacity:
@@ -161,7 +160,7 @@ class ProgramSet(NamedItem):
 
         # Populations, parameters, and compartments - these are all the available ones printed when writing a progbook
         # They are all of the form {code_name:{'label':full_name, 'type':pop_type}}
-        self.pops = sc.dcp(data.pops) # ProjectData already stores dicts with 'label' and 'type' keys
+        self.pops = sc.dcp(data.pops)  # ProjectData already stores dicts with 'label' and 'type' keys
 
         # Get comps from framework
         self.comps = sc.odict()
@@ -169,13 +168,13 @@ class ProgramSet(NamedItem):
             if spec['is source'] == 'y' or spec['is sink'] == 'y' or spec['is junction'] == 'y':
                 continue
             else:
-                self.comps[spec.name] = {'label':spec['display name'],'type':spec['population type']}
+                self.comps[spec.name] = {'label': spec['display name'], 'type': spec['population type']}
 
         # Get pars from framework
         self.pars = sc.odict()
         for _, spec in framework.pars.iterrows():
             if spec['targetable'] == 'y':
-                self.pars[spec.name] = {'label':spec['display name'],'type':spec['population type']}
+                self.pars[spec.name] = {'label': spec['display name'], 'type': spec['population type']}
 
         self._pop_types = list(framework.pop_types.keys())
 
@@ -188,7 +187,6 @@ class ProgramSet(NamedItem):
         self._book = None
         self._formats = None
         self._references = None
-
 
     def __repr__(self):
         output = sc.prepr(self)
@@ -237,8 +235,7 @@ class ProgramSet(NamedItem):
 
         raise Exception('Could not find full name for quantity "%s" (n.b. this is case sensitive)' % (name))
 
-
-    def add_program(self, code_name:str, full_name:str) -> None:
+    def add_program(self, code_name: str, full_name: str) -> None:
         """
         Add a program to the ProgramSet
 
@@ -252,8 +249,7 @@ class ProgramSet(NamedItem):
             raise Exception('Program with name "%s" is already present in the ProgramSet' % (prog.name))
         self.programs[prog.name] = prog
 
-
-    def remove_program(self, name:str) -> None:
+    def remove_program(self, name: str) -> None:
         """
         Remove a program from the ProgramSet
 
@@ -270,7 +266,7 @@ class ProgramSet(NamedItem):
                 if (par, pop) in self.covouts and code_name in self.covouts.progs:
                     del self.covouts[(par, pop)].progs[code_name]
 
-    def add_pop(self, code_name: str, full_name: str, pop_type: str=None) -> None:
+    def add_pop(self, code_name: str, full_name: str, pop_type: str = None) -> None:
         """
         Add a population to the ``ProgramSet``
 
@@ -286,7 +282,7 @@ class ProgramSet(NamedItem):
         if pop_type is None:
             pop_type = self._pop_types[0]
 
-        self.pops[code_name] = {'label':full_name, 'type':pop_type}
+        self.pops[code_name] = {'label': full_name, 'type': pop_type}
 
     def remove_pop(self, name: str) -> None:
         """
@@ -310,7 +306,7 @@ class ProgramSet(NamedItem):
 
         del self.pops[code_name]
 
-    def add_comp(self, code_name: str, full_name: str, pop_type: str=None) -> None:
+    def add_comp(self, code_name: str, full_name: str, pop_type: str = None) -> None:
         """
         Add a compartment
 
@@ -324,7 +320,7 @@ class ProgramSet(NamedItem):
         if pop_type is None:
             pop_type = self._pop_types[0]
 
-        self.comps[code_name] = {'label':full_name, 'type':pop_type}
+        self.comps[code_name] = {'label': full_name, 'type': pop_type}
 
     def remove_comp(self, name: str) -> None:
         """
@@ -347,7 +343,7 @@ class ProgramSet(NamedItem):
                 prog.target_comps.remove(code_name)
         del self.comps[code_name]
 
-    def add_par(self, code_name: str, full_name: str, pop_type: str=None) -> None:
+    def add_par(self, code_name: str, full_name: str, pop_type: str = None) -> None:
         """
         Add a parameter
 
@@ -366,7 +362,7 @@ class ProgramSet(NamedItem):
         # add an impact parameter
         # a new impact parameter won't have any covouts associated with it, and no programs will be bound to it
         # So all we have to do is add it to the list
-        self.pars[code_name] = {'label':full_name, 'type':pop_type}
+        self.pars[code_name] = {'label': full_name, 'type': pop_type}
 
     def remove_par(self, name: str) -> None:
         """
@@ -456,7 +452,6 @@ class ProgramSet(NamedItem):
         :return: A :class:`ProgramSet`
 
         """
-
 
         framework, data = ProgramSet._normalize_inputs(framework, data, project)
 
@@ -740,7 +735,7 @@ class ProgramSet(NamedItem):
         transfer_names = set()
         for transfer in data.transfers:
             for pops in transfer.ts.keys():
-                transfer_names.add(('%s_%s_to_%s' % (transfer.code_name,pops[0],pops[1])).lower())
+                transfer_names.add(('%s_%s_to_%s' % (transfer.code_name, pops[0], pops[1])).lower())
 
         self.covouts = sc.odict()
 
@@ -749,7 +744,7 @@ class ProgramSet(NamedItem):
             if par_label.lower() in par_codenames:
                 par_name = par_codenames[par_label.lower()]  # Code name of the parameter we are working with
             elif par_label.lower() in transfer_names:
-                par_name = table[0][0].value.strip() # Preserve case
+                par_name = table[0][0].value.strip()  # Preserve case
             else:
                 raise Exception('Program name "%s" was not found in the framework parameters or in the databook transfers' % (table[0][0].value.strip()))
             headers = [x.value.strip() if sc.isstring(x.value) else x.value for x in table[0]]
@@ -824,7 +819,7 @@ class ProgramSet(NamedItem):
             current_row += 1
 
             applicable_covouts = {x.pop: x for x in self.covouts.values() if x.par == par_name}
-            applicable_pops = [x for x,v in self.pops.items() if v['type'] == par_spec['type']] # All populations with matching type
+            applicable_pops = [x for x, v in self.pops.items() if v['type'] == par_spec['type']]  # All populations with matching type
 
             for pop_name in applicable_pops:
 
@@ -911,7 +906,7 @@ class ProgramSet(NamedItem):
             errormsg = 'Please just supply a number of programs, not "%s"' % (type(progs))
             raise Exception(errormsg)
 
-        framework, data = ProgramSet._normalize_inputs(framework, data, project) # This step will fail if the framework and data cannot be resolved
+        framework, data = ProgramSet._normalize_inputs(framework, data, project)  # This step will fail if the framework and data cannot be resolved
 
         newps = ProgramSet(name=name, tvec=tvec, framework=framework, data=data)
         if not newps.pars:
@@ -971,11 +966,10 @@ class ProgramSet(NamedItem):
                 alloc[prog.name] = instructions.alloc[prog.name].interpolate(tvec)
 
         if instructions:
-            for prog_name in set(instructions.alloc.keys())-set(self.programs.keys()):
-                logger.warning('The instructions contain an overwrite for a program called "%s" but as this is not in the ProgramSet, it will have no effect',prog_name)
+            for prog_name in set(instructions.alloc.keys()) - set(self.programs.keys()):
+                logger.warning('The instructions contain an overwrite for a program called "%s" but as this is not in the ProgramSet, it will have no effect', prog_name)
 
         return alloc
-
 
     def get_capacities(self, tvec, dt, instructions=None) -> dict:
         """
@@ -1014,7 +1008,6 @@ class ProgramSet(NamedItem):
                     capacities[prog.name] *= dt
 
         return capacities
-
 
     def get_prop_coverage(self, tvec, capacities, num_eligible, instructions=None) -> dict:
         """
@@ -1097,6 +1090,7 @@ class ProgramSet(NamedItem):
             covout.sample()
         return new
 
+
 class Program(NamedItem):
     """
     Representation of a single program
@@ -1152,7 +1146,6 @@ class Program(NamedItem):
         self.saturation = self.saturation.sample(constant)
         self.coverage = self.coverage.sample(constant)
 
-
     def __repr__(self):
         output = sc.prepr(self)
         output += '          Program name: %s\n' % self.name
@@ -1162,7 +1155,7 @@ class Program(NamedItem):
         output += '\n'
         return output
 
-    def get_spend(self, year=None, total:bool=False) -> np.array:
+    def get_spend(self, year=None, total: bool = False) -> np.array:
         """
         Retrieve program spending
 
@@ -1223,7 +1216,6 @@ class Program(NamedItem):
         return capacity
 
     def get_prop_covered(self, tvec, capacity, eligible):
-
         """
         Return proportion of people covered
 
@@ -1254,6 +1246,7 @@ class Program(NamedItem):
             prop_covered = np.divide(capacity, eligible, out=np.ones_like(capacity), where=eligible > capacity)
 
         return prop_covered
+
 
 class Covout(object):
     """
@@ -1349,7 +1342,7 @@ class Covout(object):
 
         # First, sort the program dict by the magnitude of the outcome
         prog_tuple = [(k, v) for k, v in self.progs.items()]
-        prog_tuple = sorted(prog_tuple, key=lambda x: -abs(x[1]-self.baseline))
+        prog_tuple = sorted(prog_tuple, key=lambda x: -abs(x[1] - self.baseline))
         self._cached_progs = sc.odict()  # This list contains the perturbed/sampled values, in order
         for item in prog_tuple:
             self._cached_progs[item[0]] = item[1]

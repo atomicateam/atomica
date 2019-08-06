@@ -29,8 +29,10 @@ import pandas as pd
 # In this section, make changes to the Atomica module structure to enable pickle files
 # to be loaded at all
 
+
 class _Placeholder():
     pass
+
 
 # First, add any placeholder modules that have been subsequently removed
 atomica.structure = types.ModuleType('structure')  # Removed 'structure' module in 1.0.12 20181107
@@ -149,7 +151,7 @@ def migrate(proj):
             proj = m.upgrade(proj)
 
     proj.version = version  # Set project version to the current Atomica version
-    proj.gitinfo = gitinfo # Update gitinfo to current version
+    proj.gitinfo = gitinfo  # Update gitinfo to current version
     if proj._result_update_required:
         logger.warning('Caution: due to migration, project results may be different if re-run.')
     return proj
@@ -213,6 +215,7 @@ def all_progsets(proj):
         elif isinstance(result, Result) and result.model.progset is not None:
             yield result.model.progset
 
+
 def all_frameworks(proj):
     """ Helper generator to iterate over all frameworks in a project
 
@@ -236,6 +239,7 @@ def all_frameworks(proj):
                 yield r.framework
         elif isinstance(result, Result):
             yield result.framework
+
 
 @migration('1.0.5', '1.0.6', 'Simplify ParameterSet storage')
 def simplify_parset_storage(proj):
@@ -266,7 +270,7 @@ def add_model_version(proj):
 
 
 @migration('1.0.8', '1.0.9', 'Add currency and units to progset quantities')
-def add_model_version(proj):
+def add_currency_and_units(proj):
 
     def add_units(progset):
         # Add in the default units
@@ -299,9 +303,10 @@ def remove_target_pars(proj):
 
 
 @migration('1.0.10', '1.0.11', 'Add result update flag to Project')
-def remove_target_pars(proj):
+def add_result_update_flag(proj):
     proj._result_update_required = False
     return proj
+
 
 @migration('1.0.12', '1.0.13', 'Add timescale to parameters')
 def add_timescale(proj):
@@ -321,6 +326,7 @@ def add_timescale(proj):
                         raise Exception('Parameters must now have a single unit for all populations. However, the existing data has more than one unit type associated with Parameter "%s" so it is no longer valid.' % (spec.name))
 
     return proj
+
 
 @migration('1.0.13', '1.0.14', 'Parameters use TimeSeries internally')
 def parameter_use_timeseries(proj):
@@ -346,6 +352,7 @@ def parameter_use_timeseries(proj):
 
     return proj
 
+
 @migration('1.0.14', '1.0.15', 'Internal model tidying')
 def model_tidying(proj):
     for result in all_results(proj):
@@ -361,11 +368,12 @@ def model_tidying(proj):
                 del par.dependency
     return proj
 
+
 @migration('1.0.15', '1.0.16', 'Replace AtomicaSpreadsheet')
 def convert_spreadsheets(proj):
 
     def convert(placeholder):
-        new = sc.Spreadsheet(source=io.BytesIO(placeholder.data),filename=placeholder.filename)
+        new = sc.Spreadsheet(source=io.BytesIO(placeholder.data), filename=placeholder.filename)
         new.created = placeholder.load_date
         new.modified = placeholder.load_date
         return new
@@ -377,16 +385,18 @@ def convert_spreadsheets(proj):
 
     return proj
 
+
 @migration('1.0.16', '1.0.17', 'Rename capacity constraint')
-def model_tidying(proj):
+def rename_capacity_constraint(proj):
     for progset in all_progsets(proj):
         for prog in progset.programs.values():
             prog.capacity_constraint = prog.capacity
             del prog.capacity
     return proj
 
+
 @migration('1.0.27', '1.0.28', 'Rename link labels')
-def model_tidying(proj):
+def rename_link_labels(proj):
 
     # Normalize link labels - they should now always derive from their associated parameter
     for result in all_results(proj):
@@ -396,6 +406,7 @@ def model_tidying(proj):
         result.model._set_vars_by_pop()
     return proj
 
+
 @migration('1.0.30', '1.1.3', 'Replace scenarios')
 def replace_scenarios(proj):
     # This migration upgrades existing scenarios to match the latest definitions
@@ -404,20 +415,20 @@ def replace_scenarios(proj):
 
     new_scens = NDict()
 
-    for name,scen in proj.scens.items():
+    for name, scen in proj.scens.items():
 
         scen_name = scen.name
         active = scen.active
 
         try:
             parsetname = proj.parset(scen.parsetname).name
-        except:
+        except Exception:
             parsetname = proj.parsets[-1].name
 
-        if isinstance(scen,ParameterScenario):
-            new_scen = scen # No need to migrate parameter scenarios
+        if isinstance(scen, ParameterScenario):
+            new_scen = scen  # No need to migrate parameter scenarios
 
-        elif isinstance(scen,BudgetScenario):
+        elif isinstance(scen, BudgetScenario):
             # Convert budget scenario to instructions based on existing logic
             if scen.alloc_year is not None:
                 # If the alloc_year is prior to the program start year, then just use the spending value directly for all times
@@ -446,12 +457,12 @@ def replace_scenarios(proj):
 
             try:
                 progsetname = proj.progset(scen.progsetname).name
-            except:
+            except Exception:
                 progsetname = proj.parsets[-1].name
 
-            new_scen = atomica.BudgetScenario(name=scen_name,active=active,parsetname=parsetname,progsetname=progsetname,alloc=alloc,start_year=scen.start_year)
+            new_scen = atomica.BudgetScenario(name=scen_name, active=active, parsetname=parsetname, progsetname=progsetname, alloc=alloc, start_year=scen.start_year)
 
-        elif isinstance(scen,CoverageScenario):
+        elif isinstance(scen, CoverageScenario):
             coverage = sc.odict()
             for prog_name, val in scen.coverage.items():
                 if not isinstance(val, TimeSeries):
@@ -461,15 +472,16 @@ def replace_scenarios(proj):
 
             try:
                 progsetname = proj.progset(scen.progsetname).name
-            except:
+            except Exception:
                 progsetname = proj.parsets[-1].name
 
-            new_scen = atomica.CoverageScenario(name=scen_name,active=active,parsetname=parsetname,progsetname=progsetname,coverage=coverage,start_year=scen.start_year)
+            new_scen = atomica.CoverageScenario(name=scen_name, active=active, parsetname=parsetname, progsetname=progsetname, coverage=coverage, start_year=scen.start_year)
 
         new_scens.append(new_scen)
 
     proj.scens = new_scens
     return proj
+
 
 @migration('1.2.0', '1.3.0', 'Add population type')
 def add_pop_type(proj):
@@ -486,7 +498,7 @@ def add_pop_type(proj):
 
     if proj.data:
         for pop_spec in proj.data.pops.values():
-                pop_spec['type'] = FS.DEFAULT_POP_TYPE
+            pop_spec['type'] = FS.DEFAULT_POP_TYPE
 
         # Fix up TDVE types
         # Fix up transfers and interactions
@@ -498,23 +510,24 @@ def add_pop_type(proj):
             interaction.to_pop_type = FS.DEFAULT_POP_TYPE
 
     for parset in proj.parsets.values():
-        parset.pop_types = [pop['type'] for pop in proj.data.pops.values()] # If there are parsets without data, then we don't know what pop types to add. Project is essentially incomplete and considered unusable
+        parset.pop_types = [pop['type'] for pop in proj.data.pops.values()]  # If there are parsets without data, then we don't know what pop types to add. Project is essentially incomplete and considered unusable
 
     for progset in all_progsets(proj):
         for pop in progset.pops.keys():
-            progset.pops[pop] = {'label':progset.pops[pop], 'type':FS.DEFAULT_POP_TYPE}
+            progset.pops[pop] = {'label': progset.pops[pop], 'type': FS.DEFAULT_POP_TYPE}
 
         for comp in progset.comps.keys():
-            progset.comps[comp] = {'label':progset.comps[comp], 'type':FS.DEFAULT_POP_TYPE}
+            progset.comps[comp] = {'label': progset.comps[comp], 'type': FS.DEFAULT_POP_TYPE}
 
         for par in progset.pars.keys():
-            progset.pars[par] = {'label':progset.pars[par], 'type':FS.DEFAULT_POP_TYPE}
+            progset.pars[par] = {'label': progset.pars[par], 'type': FS.DEFAULT_POP_TYPE}
 
     for result in all_results(proj):
         for pop in result.model.pops:
             pop.type = FS.DEFAULT_POP_TYPE
-            
+
     return proj
+
 
 @migration('1.3.0', '1.4.0', 'Parameter can be derivative')
 def add_derivatives(proj):
@@ -525,6 +538,7 @@ def add_derivatives(proj):
             for par in pop.pars:
                 par.derivative = False
     return proj
+
 
 @migration('1.4.3', '1.5.0', 'Parameters with functions can be overwritten')
 def add_parset_disable_function(proj):
@@ -540,9 +554,10 @@ def add_parset_disable_function(proj):
                 par.skip_function = None
     return proj
 
+
 @migration('1.5.1', '1.5.2', 'OptimInstruction has separate adjustment and start years')
-def add_parset_disable_function(proj):
-    if hasattr(proj,'optims'):
+def separate_optiminstruction_years(proj):
+    if hasattr(proj, 'optims'):
         for optim in proj.optims.values():
             if 'adjustment_year' not in optim.json:
                 optim.json['adjustment_year'] = optim.json['start_year']
@@ -553,9 +568,9 @@ def add_parset_disable_function(proj):
 def add_parameter_interpolation_method(proj):
     for parset in proj.parsets.values():
         for par in parset.all_pars():
-            par._interpolation_method = 'pchip' # New projects will default to linear, but migrations use pchip to ensure results don't change
+            par._interpolation_method = 'pchip'  # New projects will default to linear, but migrations use pchip to ensure results don't change
     for scen in proj.scens.values():
-        if isinstance(scen,atomica.ParameterScenario):
+        if isinstance(scen, atomica.ParameterScenario):
             for par_name in scen.scenario_values.keys():
                 for pop_name in scen.scenario_values[par_name].keys():
                     if 'smooth_onset' in scen.scenario_values[par_name][pop_name]:
@@ -563,22 +578,23 @@ def add_parameter_interpolation_method(proj):
 
     return proj
 
+
 @migration('1.8.0', '1.9.0', 'OptimInstructions functionality moved to apps')
 def refactor_optiminstructions(proj):
-    if hasattr(proj,'optims'):
+    if hasattr(proj, 'optims'):
         delkeys = []
-        for k,v in proj.optims.items():
-            if isinstance(v,_Placeholder) and hasattr(v,'json'): # If it was previously an OptimInstructions
+        for k, v in proj.optims.items():
+            if isinstance(v, _Placeholder) and hasattr(v, 'json'):  # If it was previously an OptimInstructions
                 # This was a project from the FE, which stores the optimization JSON dicts in
-                if not hasattr(proj,'optim_jsons'):
+                if not hasattr(proj, 'optim_jsons'):
                     proj.optim_jsons = []
 
                 json = v.json
                 for prog_name in json['prog_spending'].keys():
                     spend = json['prog_spending'][prog_name]
                     try:
-                        prog_label = proj.progsets().programs[prog_name].label
-                    except:
+                        prog_label = proj.progsets[-1].programs[prog_name].label
+                    except Exception:
                         prog_label = prog_name
                     json['prog_spending'][prog_name] = {'min': spend[0], 'max': spend[1], 'label': prog_label}
                 proj.optim_jsons.append(json)
@@ -586,9 +602,10 @@ def refactor_optiminstructions(proj):
         for k in delkeys:
             del proj.optims[k]
     else:
-        proj.optims = atomica.NDict() # Make sure it's defined, even if it's empty
+        proj.optims = atomica.NDict()  # Make sure it's defined, even if it's empty
 
     return proj
+
 
 @migration('1.10.0', '1.11.0', 'TDVE stores headings to write internally')
 def add_internal_flags_to_tdve(proj):
@@ -606,7 +623,7 @@ def add_internal_flags_to_tdve(proj):
             tdc.write_assumption = True
             tdc.write_units = True
             tdc.write_uncertainty = True
-            if not hasattr(tdc,'from_pops'): # This was missed in the previous migration `add_pop_type` so add it in here
+            if not hasattr(tdc, 'from_pops'):  # This was missed in the previous migration `add_pop_type` so add it in here
                 # If the pop type is missing, then we must be using a legacy framework with only one pop type
                 tdc.from_pop_type = list(proj.framework.pop_types.keys())[0]
                 tdc.from_pops = list(proj.data.pops.keys())
@@ -627,7 +644,7 @@ def add_timed_attribute(proj):
         result.model.unlink()
 
         for pop in result.model.pops:
-            for i,comp in enumerate(pop.comps):
+            for i, comp in enumerate(pop.comps):
                 if comp.tag_birth:
                     comp.__class__ = atomica.SourceCompartment
                 elif comp.tag_dead:
@@ -639,6 +656,6 @@ def add_timed_attribute(proj):
                 del comp.tag_dead
                 del comp.is_junction
 
-        result.model.relink() # Make sure all of the references are updated to the new compartment instance - it has the same ID so it should be fine
+        result.model.relink()  # Make sure all of the references are updated to the new compartment instance - it has the same ID so it should be fine
 
     return proj

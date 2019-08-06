@@ -17,6 +17,7 @@ import numpy as np
 from .system import FrameworkSettings as FS
 from .system import logger
 
+
 def standard_formats(workbook):
     # Add standard formatting to a workbook and return the set of format objects
     # for use when writing within the workbook
@@ -91,7 +92,7 @@ def update_widths(width_dict: dict, column_index: int, contents: str) -> None:
         width_dict[column_index] = max(width_dict[column_index], len(contents))
 
 
-def transfer_comments(target:sc.Spreadsheet, comment_source:sc.Spreadsheet) -> None:
+def transfer_comments(target: sc.Spreadsheet, comment_source: sc.Spreadsheet) -> None:
     """
     Copy comments between spreadsheets
 
@@ -149,9 +150,9 @@ def read_tables(worksheet):
     for i, row in enumerate(worksheet.rows):
 
         # Skip any rows starting with '#ignore'
-        if len(row)==0 or (row[0].value and sc.isstring(row[0].value) and row[0].value.startswith('#ignore')):
+        if len(row) == 0 or (row[0].value and sc.isstring(row[0].value) and row[0].value.startswith('#ignore')):
             continue  # Move on to the next row if row skipping is marked True
-            
+
         # Find out whether we need to add the row to the buffer
         for cell in row:
             if cell.value:  # If the row has a non-empty cell, add the row to the buffer
@@ -171,6 +172,7 @@ def read_tables(worksheet):
         start_rows.append(start)
 
     return tables, start_rows
+
 
 class TimeDependentConnections(object):
     """
@@ -204,7 +206,7 @@ class TimeDependentConnections(object):
 
     """
 
-    def __init__(self, code_name:str, full_name:str, tvec, from_pops:list, to_pops:list, interpop_type:str, ts:dict=None, from_pop_type:str=None, to_pop_type:str=None):
+    def __init__(self, code_name: str, full_name: str, tvec, from_pops: list, to_pops: list, interpop_type: str, ts: dict = None, from_pop_type: str = None, to_pop_type: str = None):
         self.code_name = code_name
         self.full_name = full_name
         self.type = interpop_type
@@ -233,7 +235,7 @@ class TimeDependentConnections(object):
         return '<TDC %s "%s">' % (self.type.title(), self.code_name)
 
     @staticmethod
-    def from_tables(tables:list, interaction_type):
+    def from_tables(tables: list, interaction_type):
         """
         Instantiate based on list of tables
 
@@ -252,7 +254,7 @@ class TimeDependentConnections(object):
 
         from .utils import TimeSeries  # Import here to avoid circular reference
 
-        assert interaction_type in {'transfer','interaction'}, 'Unknown interaction type'
+        assert interaction_type in {'transfer', 'interaction'}, 'Unknown interaction type'
 
         # Read the name table
         code_name = tables[0][1][0].value
@@ -285,7 +287,7 @@ class TimeDependentConnections(object):
         # what times are present
         vals = [x.value for x in tables[2][0]]
         lowered_headings = [x.lower().strip() if sc.isstring(x) else x for x in vals]
-        offset = 3 # The column where time values normally start
+        offset = 3  # The column where time values normally start
 
         if 'units' in lowered_headings:
             units_index = lowered_headings.index('units')
@@ -293,8 +295,7 @@ class TimeDependentConnections(object):
             offset += 1
         else:
             units_index = None
-            write_units = None # If the Units column is missing, don't automatically suppress it if the user later adds some units
-
+            write_units = None  # If the Units column is missing, don't automatically suppress it if the user later adds some units
 
         if 'uncertainty' in lowered_headings:
             uncertainty_index = lowered_headings.index('uncertainty')
@@ -319,7 +320,7 @@ class TimeDependentConnections(object):
             write_assumption = None
             assumption_heading = None
 
-        if None in vals[offset:]: # This handles the case where an empty column is followed by comments
+        if None in vals[offset:]:  # This handles the case where an empty column is followed by comments
             t_end = offset + vals[offset:].index(None)
         else:
             t_end = len(vals)
@@ -385,13 +386,13 @@ class TimeDependentConnections(object):
 
         """
 
-        assert self.assumption_heading in {'Constant','Assumption'}, 'Unsupported assumption heading'
+        assert self.assumption_heading in {'Constant', 'Assumption'}, 'Unsupported assumption heading'
         write_units = self.write_units if self.write_units is not None else any((ts.units is not None for ts in self.ts.values()))
         write_uncertainty = self.write_uncertainty if self.write_uncertainty is not None else any((ts.sigma is not None for ts in self.ts.values()))
         write_assumption = self.write_assumption if self.write_assumption is not None else any((ts.assumption is not None for ts in self.ts.values()))
 
         if not references:
-            references = {x: x for x in self.from_pops+self.to_pops}  # Default null mapping for populations
+            references = {x: x for x in self.from_pops + self.to_pops}  # Default null mapping for populations
 
         # First, write the name entry table
         current_row = start_row
@@ -495,8 +496,8 @@ class TimeDependentConnections(object):
 
                     if self.write_assumption:
                         worksheet.write(current_row, constant_index, ts.assumption, format)
-                        worksheet.write_formula(current_row, constant_index+1, gate_content('OR', entry_cell), formats['center'], value='OR')
-                        update_widths(widths, constant_index+1, 'OR')
+                        worksheet.write_formula(current_row, constant_index + 1, gate_content('OR', entry_cell), formats['center'], value='OR')
+                        update_widths(widths, constant_index + 1, 'OR')
 
                 else:
                     worksheet.write_formula(current_row, 0, gate_content(references[from_pop], entry_cell), formats['center_bold'], value='...')
@@ -513,8 +514,8 @@ class TimeDependentConnections(object):
 
                     if self.write_assumption:
                         worksheet.write_blank(current_row, constant_index, '', format)
-                        worksheet.write_formula(current_row, constant_index+1, gate_content('OR', entry_cell), formats['center'], value='...')
-                        update_widths(widths, constant_index+1,  '...')
+                        worksheet.write_formula(current_row, constant_index + 1, gate_content('OR', entry_cell), formats['center'], value='...')
+                        update_widths(widths, constant_index + 1, '...')
 
                 # Write hyperlink - it's a bit convoluted because we can't read back the contents of the original cell to know
                 # whether it was originally Y or N
@@ -533,7 +534,7 @@ class TimeDependentConnections(object):
                         worksheet.write_blank(current_row, offset + idx, v, format)
                     else:
                         worksheet.write(current_row, offset + idx, v, format)
-                    widths[offset+idx] = max(widths[offset+idx],7) if offset+idx in widths else 7
+                    widths[offset + idx] = max(widths[offset + idx], 7) if offset + idx in widths else 7
 
                 if self.write_assumption:
                     # Conditional formatting for the assumption, depending on whether time-values were entered
@@ -549,7 +550,7 @@ class TimeDependentConnections(object):
 
         return current_row
 
-    def _write_pop_matrix(self, worksheet, start_row, formats, references:dict=None, boolean_choice=False, widths:dict=None):
+    def _write_pop_matrix(self, worksheet, start_row, formats, references: dict = None, boolean_choice=False, widths: dict = None):
         """
         Write a square matrix to Excel
 
@@ -574,7 +575,7 @@ class TimeDependentConnections(object):
         entries = self.ts
 
         if not references:
-            references = {x: x for x in self.from_pops+self.to_pops}  # This is a null-mapping that takes say 'adults'->'adults' thus simplifying the workflow. Otherwise, it's assumed a reference exists for every node
+            references = {x: x for x in self.from_pops + self.to_pops}  # This is a null-mapping that takes say 'adults'->'adults' thus simplifying the workflow. Otherwise, it's assumed a reference exists for every node
 
         table_references = {}
         values_written = {}
@@ -627,7 +628,6 @@ class TimeDependentConnections(object):
         return next_row, table_references, values_written
 
 
-
 class TimeDependentValuesEntry(object):
     """ Table for time-dependent data entry
 
@@ -660,7 +660,7 @@ class TimeDependentValuesEntry(object):
         self.name = name  #: Name for th quantity printed in Excel
         self.comment = comment  #: A comment that will be added in Excel
         self.tvec = [] if tvec is None else tvec  #: time axis (e.g. np.arange(2000,2019)) - all TimeSeries time values must exactly match one of the values here
-        self.ts = ts #: dict of :class:`TimeSeries` objects
+        self.ts = ts  # : dict of :class:`TimeSeries` objects
         self.allowed_units = [x.title() if x in FS.STANDARD_UNITS else x for x in allowed_units] if allowed_units is not None else None  # Otherwise, can be an odict with keys corresponding to ts - leave as None for no restriction
 
         self.assumption_heading = 'Constant'  #: Heading to use for assumption column
@@ -701,7 +701,6 @@ class TimeDependentValuesEntry(object):
         """
 
         from .utils import TimeSeries  # Import here to avoid circular reference
-
 
         # First, read the headings
         vals = [x.value for x in rows[0]]
@@ -814,7 +813,7 @@ class TimeDependentValuesEntry(object):
 
         """
 
-        assert self.assumption_heading in {'Constant','Assumption'}, 'Unsupported assumption heading'
+        assert self.assumption_heading in {'Constant', 'Assumption'}, 'Unsupported assumption heading'
 
         write_units = self.write_units if self.write_units is not None else any((ts.units is not None for ts in self.ts.values()))
         write_uncertainty = self.write_uncertainty if self.write_uncertainty is not None else any((ts.sigma is not None for ts in self.ts.values()))
@@ -894,7 +893,7 @@ class TimeDependentValuesEntry(object):
 
             if write_uncertainty:
                 if row_ts.sigma is None:
-                    worksheet.write(current_row, uncertainty_index, row_ts.sigma, formats['not_required']) # NB. For now, uncertainty is always optional
+                    worksheet.write(current_row, uncertainty_index, row_ts.sigma, formats['not_required'])  # NB. For now, uncertainty is always optional
                 else:
                     worksheet.write(current_row, uncertainty_index, row_ts.sigma, formats['not_required'])
 
@@ -906,8 +905,8 @@ class TimeDependentValuesEntry(object):
             if write_assumption:
                 worksheet.write(current_row, constant_index, row_ts.assumption, format)
                 if len(self.tvec):
-                    worksheet.write(current_row, constant_index+1, 'OR', formats['center'])
-                    update_widths(widths, constant_index+1, 'OR')
+                    worksheet.write(current_row, constant_index + 1, 'OR', formats['center'])
+                    update_widths(widths, constant_index + 1, 'OR')
 
             # Write the time values if they are present
             if len(self.tvec):
@@ -921,15 +920,15 @@ class TimeDependentValuesEntry(object):
 
                 for idx, v in enumerate(content):
                     if v is None:
-                        worksheet.write_blank(current_row, offset+idx, v, format)
+                        worksheet.write_blank(current_row, offset + idx, v, format)
                     else:
-                        worksheet.write(current_row, offset+idx, v, format)
-                    widths[offset+idx] = max(widths[offset+idx],7) if offset+idx in widths else 7
+                        worksheet.write(current_row, offset + idx, v, format)
+                    widths[offset + idx] = max(widths[offset + idx], 7) if offset + idx in widths else 7
 
                 if write_assumption:
                     # Conditional formatting for the assumption
                     # Do this here, because after the loop above, we have easy and clear access to the range of cells to include in the formula
-                    fcn_empty_times = 'COUNTIF(%s:%s,"<>" & "")>0' % (xlrc(current_row, offset), xlrc(current_row, offset + len(content)-1))
+                    fcn_empty_times = 'COUNTIF(%s:%s,"<>" & "")>0' % (xlrc(current_row, offset), xlrc(current_row, offset + len(content) - 1))
                     # Hatched out if the cell will be ignored
                     worksheet.conditional_format(xlrc(current_row, constant_index), {'type': 'formula', 'criteria': '=' + fcn_empty_times, 'format': formats['ignored']})
                     worksheet.conditional_format(xlrc(current_row, constant_index), {'type': 'formula', 'criteria': '=AND(%s,NOT(ISBLANK(%s)))' % (fcn_empty_times, xlrc(current_row, constant_index)), 'format': formats['ignored_warning']})
