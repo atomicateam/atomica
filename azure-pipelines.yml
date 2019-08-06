@@ -61,7 +61,7 @@ jobs:
         testResultsFiles: '**/flake8_junit.xml'
         testRunTitle: 'Publish flake8 results'
 
-- job: 'Build documentation'
+- job: 'docs'
   pool:
     vmImage: 'ubuntu-16.04'
   steps:
