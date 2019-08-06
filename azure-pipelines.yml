@@ -48,7 +48,7 @@ jobs:
       displayName: 'Select python version'
       inputs:
         versionSpec: '3.7'
-    - script: python -m pip install flake8
+    - script: python -m pip install flake8 flake8-junit-report
       displayName: 'Install flake8'
     - script: flake8 atomica tests --exit-zero --output-file flake8.txt
       # Note - using --exit-zero will cause flake8 'errors' to show up as 'errors' in Azure Pipelines
