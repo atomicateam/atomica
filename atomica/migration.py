@@ -270,7 +270,7 @@ def add_model_version(proj):
 
 
 @migration('1.0.8', '1.0.9', 'Add currency and units to progset quantities')
-def add_model_version(proj):
+def add_currency_and_units(proj):
 
     def add_units(progset):
         # Add in the default units
@@ -303,7 +303,7 @@ def remove_target_pars(proj):
 
 
 @migration('1.0.10', '1.0.11', 'Add result update flag to Project')
-def remove_target_pars(proj):
+def add_result_update_flag(proj):
     proj._result_update_required = False
     return proj
 
@@ -387,7 +387,7 @@ def convert_spreadsheets(proj):
 
 
 @migration('1.0.16', '1.0.17', 'Rename capacity constraint')
-def model_tidying(proj):
+def rename_capacity_constraint(proj):
     for progset in all_progsets(proj):
         for prog in progset.programs.values():
             prog.capacity_constraint = prog.capacity
@@ -396,7 +396,7 @@ def model_tidying(proj):
 
 
 @migration('1.0.27', '1.0.28', 'Rename link labels')
-def model_tidying(proj):
+def rename_link_labels(proj):
 
     # Normalize link labels - they should now always derive from their associated parameter
     for result in all_results(proj):
@@ -422,7 +422,7 @@ def replace_scenarios(proj):
 
         try:
             parsetname = proj.parset(scen.parsetname).name
-        except:
+        except Exception:
             parsetname = proj.parsets[-1].name
 
         if isinstance(scen, ParameterScenario):
@@ -457,7 +457,7 @@ def replace_scenarios(proj):
 
             try:
                 progsetname = proj.progset(scen.progsetname).name
-            except:
+            except Exception:
                 progsetname = proj.parsets[-1].name
 
             new_scen = atomica.BudgetScenario(name=scen_name, active=active, parsetname=parsetname, progsetname=progsetname, alloc=alloc, start_year=scen.start_year)
@@ -472,7 +472,7 @@ def replace_scenarios(proj):
 
             try:
                 progsetname = proj.progset(scen.progsetname).name
-            except:
+            except Exception:
                 progsetname = proj.parsets[-1].name
 
             new_scen = atomica.CoverageScenario(name=scen_name, active=active, parsetname=parsetname, progsetname=progsetname, coverage=coverage, start_year=scen.start_year)
@@ -556,7 +556,7 @@ def add_parset_disable_function(proj):
 
 
 @migration('1.5.1', '1.5.2', 'OptimInstruction has separate adjustment and start years')
-def add_parset_disable_function(proj):
+def separate_optiminstruction_years(proj):
     if hasattr(proj, 'optims'):
         for optim in proj.optims.values():
             if 'adjustment_year' not in optim.json:
@@ -593,8 +593,8 @@ def refactor_optiminstructions(proj):
                 for prog_name in json['prog_spending'].keys():
                     spend = json['prog_spending'][prog_name]
                     try:
-                        prog_label = proj.progsets().programs[prog_name].label
-                    except:
+                        prog_label = proj.progsets[-1].programs[prog_name].label
+                    except Exception:
                         prog_label = prog_name
                     json['prog_spending'][prog_name] = {'min': spend[0], 'max': spend[1], 'label': prog_label}
                 proj.optim_jsons.append(json)

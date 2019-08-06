@@ -1085,7 +1085,7 @@ def _objective_fcn(x, pickled_model, optimization, hard_constraints: list, basel
     try:
         model = pickle.loads(pickled_model)
         optimization.update_instructions(x, model.program_instructions)
-        constraint_penalty = optimization.constrain_instructions(model.program_instructions, hard_constraints)
+        optimization.constrain_instructions(model.program_instructions, hard_constraints)
         model.process()
     except FailedConstraint:
         return np.inf  # Return an objective of `np.inf` if the constraints could not be satisfied by ``x``
@@ -1096,7 +1096,9 @@ def _objective_fcn(x, pickled_model, optimization, hard_constraints: list, basel
     # The idea is to keep the optimization in a parameter regime where large corrections to the instructions
     # are not required. However, using ths constraint penalty directly can lead to it dominating the objective,
     # and with ASD's single-parameter stepping this prevents convergence. So needs some further work
-    #obj_val += 0.0 * constraint_penalty
+    #
+    # constaint_penalty = optimization.constrain_instructions(...)
+    # obj_val += 0.0 * constraint_penalty
 
     return obj_val
 

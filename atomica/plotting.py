@@ -265,7 +265,8 @@ class PlotData:
                     if not sc.isstring(f_stack_str):
                         continue
 
-                    def placeholder_pop(): return None
+                    def placeholder_pop():
+                        return None
                     placeholder_pop.name = 'None'
                     par = Parameter(pop=placeholder_pop, name=output_label)
                     fcn, dep_labels = parse_function(f_stack_str)
@@ -1651,9 +1652,9 @@ def _render_legend(ax, plot_type=None, handles=None) -> None:
 #    labels = [textwrap.fill(label, 16) for label in labels]
 
     if plot_type in ['stacked', 'proportion', 'bar']:
-        h = ax.legend(handles=handles[::-1], labels=labels[::-1], **legendsettings)
+        ax.legend(handles=handles[::-1], labels=labels[::-1], **legendsettings)
     else:
-        h = ax.legend(handles=handles, labels=labels, **legendsettings)
+        ax.legend(handles=handles, labels=labels, **legendsettings)
 
     box = ax.get_position()
     ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])

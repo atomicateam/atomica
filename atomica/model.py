@@ -234,16 +234,17 @@ class Compartment(Variable):
 
         outflow_probability = 0  # Outflow probability at this timestep
         for link in self.outlinks:
+            par = link.parameter
+            transition = par[ti]
 
-            if link.parameter.units == FS.QUANTITY_TYPE_DURATION:
-                x = 1.0 - np.exp(-1.0 / link.parameter[ti])
-                outflow_probability += 1 - (1 - link.parameter[ti]) ** self.dt  # A formula for converting from yearly fraction values to the dt equivalent.
-            elif link.parameter.units == FS.QUANTITY_TYPE_PROBABILITY:
-                outflow_probability += 1 - (1 - link.parameter[ti]) ** self.dt  # A formula for converting from yearly fraction values to the dt equivalent.
-            elif link.parameter.units == FS.QUANTITY_TYPE_NUMBER:
-                outflow_probability += link.parameter[ti] * self.dt / self[ti]
-            elif link.parameter.units == FS.QUANTITY_TYPE_PROPORTION:
-                outflow_probability += link.parameter[ti]
+            if par.units == FS.QUANTITY_TYPE_DURATION:
+                outflow_probability += min(1, self.dt / (transition * par.timescale))
+            elif par.units == FS.QUANTITY_TYPE_PROBABILITY:
+                outflow_probability += min(1, transition * (self.dt / par.timescale))
+            elif par.units == FS.QUANTITY_TYPE_NUMBER:
+                outflow_probability += par[ti] * self.dt / self[ti]
+            elif par.units == FS.QUANTITY_TYPE_PROPORTION:
+                outflow_probability += par[ti]
             else:
                 raise Exception('Unknown parameter units')
 
@@ -1847,7 +1848,7 @@ class Model(object):
         try:  # Migration, old projects didn't have a junction execution order or characteristic execution order
             self._junc_exec_order = [objs[x] for x in self._junc_exec_order]
             self._charac_exec_order = [objs[x] for x in self._charac_exec_order]
-        except:
+        except AttributeError:
             self._junc_exec_order = list()
             self._charac_exec_order = list()
 
@@ -2187,7 +2188,7 @@ class Model(object):
             else:
                 try:
                     par_label = self.framework.get_label(par.name)
-                except:  # Name lookup will fail for transfer parameters
+                except NotFoundError:  # Name lookup will fail for transfer parameters
                     par_label = par.name
                 raise Exception("Encountered unknown units '%s' for Parameter '%s' (%s) in Population %s" % (par.units, par.name, par_label, par.pop.name))
 

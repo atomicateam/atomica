@@ -49,7 +49,7 @@ def test_standard():
                       ('Treatment 2', 1.)])
 
     instructions = at.ProgramInstructions(alloc=alloc, start_year=2020)  # Instructions for default spending
-    adjustments = []
+    adjustments = list()
     adjustments.append(at.SpendingAdjustment('Treatment 1', 2020, 'abs', 0., 100.))
     adjustments.append(at.SpendingAdjustment('Treatment 2', 2020, 'abs', 0., 100.))
     measurables = at.MaximizeMeasurable('ch_all', [2020, np.inf])
@@ -216,6 +216,8 @@ def test_multiyear_fixed():
     t = optimized_result.model.t
     unoptimized_spending = unoptimized_result.model.progset.get_alloc(t, unoptimized_result.model.program_instructions)
     optimized_spending = optimized_result.model.progset.get_alloc(t, optimized_result.model.program_instructions)
+    print(unoptimized_spending)
+    print(optimized_spending)
 
     d = at.PlotData.programs(optimized_result)
     at.plot_series(d, plot_type='stacked')
@@ -257,6 +259,8 @@ def test_multiyear_relative():
     t = optimized_result.model.t
     unoptimized_spending = unoptimized_result.model.progset.get_alloc(t, unoptimized_result.model.program_instructions)
     optimized_spending = optimized_result.model.progset.get_alloc(t, optimized_result.model.program_instructions)
+    print(unoptimized_spending)
+    print(optimized_spending)
 
     d = at.PlotData.programs(optimized_result)
     at.plot_series(d, plot_type='stacked')
@@ -557,15 +561,14 @@ def test_cascade_multi_stage():
     adjustments = []
     adjustments.append(at.SpendingAdjustment('Treatment 1', 2020, 'abs', 0., 100.))
     adjustments.append(at.SpendingAdjustment('Treatment 2', 2020, 'abs', 0., 100.))
-    constraints = at.TotalSpendConstraint()  # Cap total spending in all years
 
     # CASCADE MEASURABLE
     measurables = at.MaximizeCascadeStage(None, [2017, 2018], pop_names='all', cascade_stage=['Number ever infected', 'Recovered'])  # NB. make sure the objective year is later than the program start year, otherwise no time for any changes
     # This is the same as the 'standard' example, just running the optimization and comparing the results
     optimization = at.Optimization(name='default', adjustments=adjustments, measurables=measurables)
-    unoptimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=instructions, result_name="baseline")
+    P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=instructions, result_name="baseline")
     optimized_instructions = at.optimize(P, optimization, parset=P.parsets["default"], progset=P.progsets['default'], instructions=instructions)
-    optimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=optimized_instructions, result_name="optimized")
+    P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=optimized_instructions, result_name="optimized")
 
 
 def test_cascade_conversions():

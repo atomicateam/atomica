@@ -879,8 +879,8 @@ class ProjectFramework(object):
                         # If a population aggregation includes a weighting interaction, then the 'to' population must match this parameter
                         if self.interactions.at[dep, 'to population type'] != par['population type']:
                             message = f'''
-                                The parameter '{par_name}' has population type '{par['population type']}' and 
-                                weights the interaction using '{dep}', which is defined as applying from 
+                                The parameter '{par_name}' has population type '{par['population type']}' and
+                                weights the interaction using '{dep}', which is defined as applying from
                                 type '{self.interactions.at[dep,'from population type']}' to type '{self.interactions.at[dep,'to population type']}'.
                                 If weighting a cross-type interaction, the 'to' population type in the interaction must match the parameter
                                 '''
@@ -892,9 +892,9 @@ class ProjectFramework(object):
                                 var = self.get_variable(dep2)[0]
                                 if var['population type'] != self.interactions.at[dep, 'from population type']:
                                     message = f'''
-                                        The parameter '{par_name}' has uses interaction weighting '{dep}', which is defined as applying from 
+                                        The parameter '{par_name}' has uses interaction weighting '{dep}', which is defined as applying from
                                         type '{self.interactions.at[dep,'from population type']}' to type '{self.interactions.at[dep,'to population type']}'.
-                                        If weighting a cross-type interaction, the quantity being averaged and the optional weighting quantity must 
+                                        If weighting a cross-type interaction, the quantity being averaged and the optional weighting quantity must
                                         belong to the 'from' population type. However, the parameter contains the quantity '{dep2}' which has
                                         population type '{var['population type']}'
                                         '''

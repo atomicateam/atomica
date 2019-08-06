@@ -134,7 +134,7 @@ def run_optimization(proj):
     measurables = at.MaximizeCascadeStage(None, 2020)
     constraints = at.TotalSpendConstraint()  # Cap total spending in all years
     optimization = at.Optimization(name='default', adjustments=adjustments, measurables=measurables, constraints=constraints, maxtime=10)  # Evaluate from 2020 to end of simulation
-    optimized_instructions = at.optimize(proj, optimization, parset=proj.parsets["default"], progset=proj.progsets['default'], instructions=instructions)
+    at.optimize(proj, optimization, parset=proj.parsets["default"], progset=proj.progsets['default'], instructions=instructions)
 
     return
 

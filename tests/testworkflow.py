@@ -14,18 +14,18 @@ np.seterr(all='raise')
 
 # test = "sir"
 test = "tb"
-#test = "tb_simple_dyn"
-#test = "tb_simple"
-#test = "hypertension"
+# test = "tb_simple_dyn"
+# test = "tb_simple"
+# test = "hypertension"
 # test = "hypertension_dyn"
-#test = "dt"
-#test = "udt"
-#test = "usdt"
+# test = "dt"
+# test = "udt"
+# test = "usdt"
 # test = "cervicalcancer"
-#test = "hiv"
-#test = "hiv_dyn"
+# test = "hiv"
+# test = "hiv_dyn"
 # test = "diabetes"
-#test = "service"
+# test = "service"
 
 torun = [
     # "loadframework",

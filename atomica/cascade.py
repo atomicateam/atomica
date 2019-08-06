@@ -498,11 +498,14 @@ def plot_multi_cascade(results=None, cascade=None, pops=None, year=None, data=No
     year = sc.promotetoarray(year)
 
     if (len(results) > 1 and len(year) > 1):
-        def label_fcn(result, t): return '%s (%s)' % (result.name, t)
+        def label_fcn(result, t):
+            return '%s (%s)' % (result.name, t)
     elif len(results) > 1:
-        def label_fcn(result, t): return '%s' % (result.name)
+        def label_fcn(result, t):
+            return '%s' % (result.name)
     else:
-        def label_fcn(result, t): return '%s' % (t)
+        def label_fcn(result, t):
+            return '%s' % (t)
 
     # Gather all of the cascade outputs and years
     cascade_vals = sc.odict()

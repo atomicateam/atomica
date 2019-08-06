@@ -64,7 +64,7 @@ class Result(NamedItem):
         """
         Flag whether programs were used or not
 
-        :return: ``True`` if a progset and program instructions were present. Note that programs will be considered active even if the 
+        :return: ``True`` if a progset and program instructions were present. Note that programs will be considered active even if the
                start/stop years in the instructions don't overlap the simulation years (so no overwrite actually took place).
         """
 

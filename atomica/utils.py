@@ -13,7 +13,6 @@ import sciris as sc
 import itertools
 import zlib
 import re
-import os
 import time
 
 
@@ -734,7 +733,7 @@ def fast_gitinfo(path):
                 t = time.gmtime(int(epoch))
                 gitdate = time.strftime("%Y-%m-%d %H:%M:%S UTC", t)
 
-    except:
+    except Exception:
         gitbranch = 'Git branch N/A'
         githash = 'Git hash N/A'
         gitdate = 'Git date N/A'

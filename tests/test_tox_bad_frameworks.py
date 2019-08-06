@@ -20,7 +20,7 @@ for f in os.listdir(fdir):
 @pytest.mark.parametrize('framework_file', framework_files)
 def test_bad_framework(framework_file):
     with pytest.raises(at.InvalidFramework):
-        F = at.ProjectFramework(fdir + framework_file)
+        at.ProjectFramework(fdir + framework_file)
 
 
 if __name__ == '__main__':

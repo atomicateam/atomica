@@ -299,7 +299,7 @@ class Project(NamedItem):
         else:
             try:
                 return self.parsets[key]
-            except:
+            except Exception:
                 sc.printv('Warning, parset "%s" not found!' % key, 1, verbose)
                 return None
 
@@ -312,7 +312,7 @@ class Project(NamedItem):
         else:
             try:
                 return self.progsets[key]
-            except:
+            except Exception:
                 sc.printv('Warning, progset "%s" not found!' % key, 1, verbose)
                 return None
 
@@ -325,7 +325,7 @@ class Project(NamedItem):
         else:
             try:
                 return self.scens[key]
-            except:
+            except Exception:
                 sc.printv('Warning, scenario "%s" not found!' % key, 1, verbose)
                 return None
 
@@ -338,7 +338,7 @@ class Project(NamedItem):
         else:
             try:
                 return self.optims[key]
-            except:
+            except Exception:
                 sc.printv('Warning, scenario "%s" not found!' % key, 1, verbose)
                 return None
 
@@ -353,7 +353,7 @@ class Project(NamedItem):
         else:
             try:
                 return self.scens[key]
-            except:
+            except Exception:
                 sc.printv('Warning, scenario "%s" not found!' % key, 1, verbose)
                 return None
 
@@ -361,7 +361,7 @@ class Project(NamedItem):
             key = -1
         try:
             return self.results[key]
-        except:
+        except Exception:
             return sc.printv('Warning, results "%s" not found!' % key, 1, verbose)  # Returns None
 
     #######################################################################################################

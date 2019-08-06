@@ -39,7 +39,7 @@ def _update_parset(parset, y_factors, pars_to_adjust):
             tokens = par_name.split('_from_')
             par = parset.transfers[tokens[0]][tokens[1]]
             par.y_factor[pop_name] = y_factors[i]
-            raise NotImplemented
+            raise NotImplementedError
 
 
 def _calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, project):
@@ -100,9 +100,9 @@ def _calculate_fitscore(y_obs, y_fit, metric="meansquare"):
 
 def _calc_meansquare(y_obs, y_fit):
     """
-    Calcs the RMS error. 
+    Calcs the RMS error.
 
-    Note: could also use implementation from sklearn in future ... 
+    Note: could also use implementation from sklearn in future ...
     """
     return np.sqrt(((y_fit - y_obs) ** 2).mean())
 
@@ -113,7 +113,7 @@ def _calc_fractional(y_obs, y_fit):
 
 def _calc_wape(y_obs, y_fit):
     """
-    Calculates the weighted absolute percentage error 
+    Calculates the weighted absolute percentage error
     """
     return abs(y_fit - y_obs) / (y_obs.mean() + calibration_settings['tolerance'])
 
@@ -218,7 +218,7 @@ def perform_autofit(project, parset, pars_to_adjust, output_quantities, max_time
             par = args['parset'].transfers[tokens[0]][tokens[1]]
             logger.debug("parset.transfers['{}']['{}'].y_factor['{}']={:.2f}".format(tokens[0], tokens[1], pop_name,
                                                                                      par.y_factor[pop_name]))
-            raise NotImplemented  # Transfers might be handled differently in Atomica
+            raise NotImplementedError  # Transfers might be handled differently in Atomica
 
     args['parset'].name = 'calibrated_' + args['parset'].name
 

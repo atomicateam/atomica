@@ -141,10 +141,10 @@ def test_combined_scenario():
 
     # Check the combined scenario would work for just parameters or just programs
     pars_only = at.CombinedScenario(name='Parameters only', scenario_values=scenario_values)
-    r2 = pars_only.run(project=P, parset=P.parsets['default'])
+    pars_only.run(project=P, parset=P.parsets['default'])
 
     progs_only = at.CombinedScenario(name='Programs only', instructions=instructions)
-    r3 = progs_only.run(project=P, parset=P.parsets['default'], progset=P.progsets['default'])
+    progs_only.run(project=P, parset=P.parsets['default'], progset=P.progsets['default'])
 
 
 def test_parameter_scenarios():

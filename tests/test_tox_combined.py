@@ -72,7 +72,7 @@ def test_combined_values():
 
 def test_combined_cascades():
     P = at.demo('combined')
-    sir_cascade = at.get_cascade_vals(P.results[0], 'sir_cascade')[0]
+    at.get_cascade_vals(P.results[0], 'sir_cascade')[0]
     udt_cascade = at.get_cascade_vals(P.results[0], 'udt_cascade')[0]
 
     # Check aggregation is correctly applied

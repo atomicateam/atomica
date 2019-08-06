@@ -3,13 +3,14 @@ from atomica import ProjectFramework
 import sciris as sc
 from atomica import InvalidCascade
 import os
+import pytest
 
 testdir = at.parent_dir()
 tmpdir = os.path.join(testdir, 'temp', '')
 
 try:
     os.makedirs(tmpdir)
-except:
+except FileExistsError:
     pass
 
 
@@ -29,16 +30,13 @@ def test_cascade_validate():
                 validate_cascade(F, cascade)
 
     F = ProjectFramework(at.LIBRARY_PATH + "tb_framework.xlsx")
-    try:
+
+    with pytest.raises(InvalidCascade):
         validate_cascade(F, None)  # Try running this on the command line to see the error message
-    except InvalidCascade:
-        print("Correctly raised invalid TB fallback cascade")
 
     for fname in ["framework_sir_badcascade1.xlsx", "framework_sir_badcascade2.xlsx"]:
-        try:
+        with pytest.raises(InvalidCascade):
             F = ProjectFramework(at.parent_dir() + fname)
-        except InvalidCascade:
-            print("Correctly raised invalid cascade for %s" % fname)
 
 
 def test_cascade_basic_tb():
@@ -135,14 +133,11 @@ def test_cascade_dynamic():
 
 
 def test_cascade_sir():
-    testdir = at.parent_dir()
-    tmpdir = os.path.join(testdir, 'temp', '')
 
     # Get a Result
     F = ProjectFramework(testdir + 'framework_sir_dynamic.xlsx')
     P = at.Project(name="test", framework=F, do_run=False)
     P.load_databook(databook_path=testdir + "databook_sir_dynamic.xlsx", make_default_parset=True, do_run=True)
-    result = P.results[0]
 
     # # Do a scenario to get a second set of results
     par_results = P.results[-1]

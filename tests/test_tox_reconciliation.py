@@ -46,12 +46,12 @@ def test_reconciliation(model):
     eval_range = [2018., 2020.]
     original_progset = P.progsets[0]
     parset = P.parsets[0]
-    reconciled_progset, progset_comparison, parameter_comparison = at.reconcile(project=P, parset=P.parsets[0], progset=original_progset, reconciliation_year=program_start_year, unit_cost_bounds=0.2, eval_range=eval_range)
+    reconciled_progset, progset_comparison, parameter_comparison = at.reconcile(project=P, parset=parset, progset=original_progset, reconciliation_year=program_start_year, unit_cost_bounds=0.2, eval_range=eval_range)
 
     instructions = at.ProgramInstructions(start_year=program_start_year)
-    parset_result = P.run_sim(parset=P.parsets[0], result_name='Parset')
-    original_result = P.run_sim(parset=P.parsets[0], progset=original_progset, progset_instructions=instructions, result_name='Original')
-    reconciled_result = P.run_sim(parset=P.parsets[0], progset=reconciled_progset, progset_instructions=instructions, result_name='Reconciled')
+    parset_result = P.run_sim(parset=parset, result_name='Parset')
+    original_result = P.run_sim(parset=parset, progset=original_progset, progset_instructions=instructions, result_name='Original')
+    reconciled_result = P.run_sim(parset=parset, progset=reconciled_progset, progset_instructions=instructions, result_name='Reconciled')
 
     print(progset_comparison)
     print(parameter_comparison)
