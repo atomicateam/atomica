@@ -207,7 +207,7 @@ class SpendingAdjustment(Adjustment):
 
         initialization = []
         for adjustable, t in zip(self.adjustables, self.t):
-            if adjustable.initial_value:
+            if adjustable.initial_value is not None:
                 initialization.append(adjustable.initial_value)
             else:
                 alloc = progset.get_alloc(t, instructions)
