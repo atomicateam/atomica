@@ -448,7 +448,7 @@ class ProjectFramework(object):
             for _, from_row in df.iterrows():  # For each row in the transition matrix
                 from_row.dropna(inplace=True)
                 from_comp = from_row.name
-                first_timed = None
+
                 for to_comp, par_names in from_row.iteritems():
                     for par_name in par_names.split(','):
                         par_name = par_name.strip()
@@ -460,10 +460,13 @@ class ProjectFramework(object):
                             raise InvalidFramework('Parameter "%s" belongs to pop type "%s" but it appears in the transition matrix for "%s"' % (par_name, pars[par_name], df.index.name))
 
                         if self.pars.at[par_name, 'timed'] == 'y':
-                            self.comps.at[from_comp, 'duration group'] = par_name
-                            if first_timed:
-                                raise InvalidFramework(f'A compartment can only have one timed outflow - e.g., Parameters {first_timed}" and "{par_name}" are both timed parameters, so they cannot both be associated with Compartment "{from_comp}"')
-                            elif self.comps.at[from_comp, 'is source'] == 'y' or self.comps.at[from_comp, 'is sink'] == 'y' or self.comps.at[from_comp, 'is junction'] == 'y':
+                            if self.comps.at[from_comp, 'duration group']:
+                                existing = {self.comps.at[from_comp, 'duration group']}
+                                raise InvalidFramework(f'A compartment can only have one timed outflow - e.g., Parameters "{existing}" and "{par_name}" are both timed parameters, so they cannot both be associated with Compartment "{from_comp}"')
+                            else:
+                                self.comps.at[from_comp, 'duration group'] = par_name
+
+                            if self.comps.at[from_comp, 'is source'] == 'y' or self.comps.at[from_comp, 'is sink'] == 'y' or self.comps.at[from_comp, 'is junction'] == 'y':
                                 raise InvalidFramework(f'Parameter "{par_name}" defines a timed outflow from Compartment "{from_comp}" but timed outflows cannot be applied to source, sink, or junction compartments')
                             elif par_name in set(df.loc[to_comp]):
                                 raise InvalidFramework(f'Compartment "{from_comp}" belongs to the duration group "{par_name}" but it flushes into "{to_comp}" which is a member of the same group. Flushing into the same duration group is not permitted')
