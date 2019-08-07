@@ -2063,7 +2063,7 @@ class Model(object):
             for par in pop.pars:
                 G.add_node(par.name)
                 for dep, dep_var in par.deps.items():
-                    if dep in par_derivative and (not (dep == par.name and par.derivative) or par_derivative[dep] != 'y'):  # Derivative parameters are allowed to refer to themselves directly, and derivative parameters are not considered dependencies
+                    if dep in par_derivative and par_derivative[dep] != 'y':  # Derivative parameters are allowed to refer to themselves directly, and derivative parameters are not considered dependencies - so just checking for derivatives should be enough
                         G.add_edge(dep, par.name)
                 if par.pop_aggregation:
                     G.add_edge(par.pop_aggregation[1],par.name)
