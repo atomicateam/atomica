@@ -2057,14 +2057,14 @@ class Model(object):
         # contains all parameters, which are used during initialization as well as in update_pars. However, we
         # could have update_pars only operate on the subset of the graph contributing to transitions, or to
         # dynamic programs or to program overwrites.
-        par_names = set(self.framework.pars.index)
+        par_derivative = self.framework.pars['is derivative'].to_dict()  # Store all parameter names in framework, as well as whether they are a derivative or not
         G = nx.DiGraph()
         for pop in self.pops:
             for par in pop.pars:
                 G.add_node(par.name)
-                for dep in par.deps.keys():
-                    if dep in par_names and not (dep == par.name and par.derivative): # Derivative parameters are allowed to refer to themselves directly
-                        G.add_edge(dep,par.name)
+                for dep, dep_var in par.deps.items():
+                    if dep in par_derivative and (not (dep == par.name and par.derivative) or par_derivative[dep] == 'y'):  # Derivative parameters are allowed to refer to themselves directly, and derivative parameters are not considered dependencies
+                        G.add_edge(dep, par.name)
                 if par.pop_aggregation:
                     G.add_edge(par.pop_aggregation[1],par.name)
         assert nx.dag.is_directed_acyclic_graph(G), 'There is a circular dependency in parameters, which is not permitted'

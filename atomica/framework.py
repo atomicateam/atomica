@@ -909,11 +909,16 @@ class ProjectFramework(object):
                         # formula can be caught immediately, and an even more specific error message displayed. We don't include self connections in the graph for this
                         # purpose, if a derivative refers to itself it can be computed any time and we can then simply check if the graph is acyclic to probe for indirect
                         # circular dependencies
-                        if dep == par_name:
-                            if self.pars.at[dep, 'is derivative'] != 'y':
-                                    raise InvalidFramework(f"Parameter '{par_name}' has a parameter function that refers to itself, but it is not marked as a derivative parameter. Circular references are only permitted if the parameter function is providing a derivative")
+                        if self.pars.at[dep, 'is derivative'] != 'y':
+                            if dep == par_name:
+                                raise InvalidFramework(f"Parameter '{par_name}' has a parameter function that refers to itself, but it is not marked as a derivative parameter. Circular references are only permitted if the parameter function is providing a derivative")
+                            else:
+                                G.add_edge(dep, par_name)  # Note directionality - we use par_name->dep for the dependency so that the topological ordering of the graph corresponds to the execution order
                         else:
-                            G.add_edge(dep, par_name)  # Note directionality - we use par_name->dep for the dependency so that the topological ordering of the graph corresponds to the execution order
+                            # If it's a derivative parameter, then the forward Euler step always updates the parameter's value at the next time index (ti+1). Therefore,
+                            # the parameter is not actually a dependency per-se, because there is no requirement to update it first (because it will have already been updated)
+                            # Thus, we can simply ignore it here
+                            pass
 
                         if self.pars.at[dep, 'population type'] != par['population type'] and not is_aggregation:  # Population types for the dependency and the parameter can only differ if it's an aggregation
                             raise InvalidFramework(cross_pop_message(par, 'parameter', dep))
