@@ -45,6 +45,16 @@ class BadInitialization(Exception):
 
     pass
 
+class ModelError(Exception):
+    """
+    Exception type for general model errors
+
+    This error gets raised for generic errors arising during integration
+
+    """
+
+    pass
+
 
 class Variable(object):
     """
@@ -246,7 +256,7 @@ class Compartment(Variable):
             elif par.units == FS.QUANTITY_TYPE_PROPORTION:
                 outflow_probability += par[ti]
             else:
-                raise Exception('Unknown parameter units')
+                raise ModelError('Unknown parameter units')
 
         remain_probability = 1 - outflow_probability
 
@@ -377,7 +387,7 @@ class JunctionCompartment(Compartment):
 
         if self.duration_group:
             if (isinstance(dest, TimedCompartment) and dest.parameter.name != self.duration_group) or (isinstance(dest, JunctionCompartment) and dest.duration_group != self.duration_group):
-                raise Exception('Mismatched junction duration groups - the framework has not been validated correctly')
+                raise ModelError('Mismatched junction duration groups - the framework has not been validated correctly')
             TimedLink.create(pop=self.pop, parameter=par, source=self, dest=dest)
         else:
             Link.create(pop=self.pop, parameter=par, source=self, dest=dest)
@@ -563,7 +573,7 @@ class SinkCompartment(Compartment):
 
         """
 
-        raise Exception('Sink compartments cannot have outflows')
+        raise ModelError('Sink compartments cannot have outflows')
 
     def update(self, ti: int) -> None:
         """
@@ -660,7 +670,7 @@ class TimedCompartment(Compartment):
         value = sc.promotetoarray(value)
 
         if ti.size > 1 or ti[0] != 0:
-            raise Exception('For safety, explicitly setting the compartment size for a TimedCompartment can currently only be done for the initial conditions. This requirement can be likely be relaxed if needed for a particular use case')
+            raise ModelError('For safety, explicitly setting the compartment size for a TimedCompartment can currently only be done for the initial conditions. This requirement can be likely be relaxed if needed for a particular use case')
         self._vals[:, ti] = value.reshape((1, -1)) / (self._vals.shape[0] * np.ones((self._vals.shape[0], 1)))
 
     def preallocate(self, tvec: np.array, dt: float) -> None:
@@ -1020,7 +1030,7 @@ class Parameter(Variable):
             for deps in self.deps.values():  # deps is {'dep_name':[dep_objects]}
                 for dep in deps:
                     if isinstance(dep, Link):
-                        raise Exception("A Parameter that depends on transition flow rates cannot be a dependency, it must be output only.")
+                        raise ModelError("A Parameter that depends on transition flow rates cannot be a dependency, it must be output only.")
                     elif isinstance(dep, Compartment) or isinstance(dep, Characteristic):
                         dep.set_dynamic()
                         self._is_dynamic = True
@@ -1029,7 +1039,7 @@ class Parameter(Variable):
                         if dep._is_dynamic or (progset and dep.name in progset.pars):
                             self._is_dynamic = True
                     else:
-                        raise Exception('Unexpected dependency type')
+                        raise ModelError('Unexpected dependency type')
 
         # If not dynamic, then we need to precompute the function because the value is required for a transition
         if not self._is_dynamic:
@@ -1094,7 +1104,7 @@ class Parameter(Variable):
 
         if ti is None:
             if self.derivative:
-                raise Exception('Cannot perform a vector update of a derivative parameter (these parameters intrinsically require integration to be computed)')
+                raise ModelError('Cannot perform a vector update of a derivative parameter (these parameters intrinsically require integration to be computed)')
             ti = np.arange(0, self.vals.size)  # This corresponds to every time point
 
         if self.skip_function:
@@ -1119,7 +1129,7 @@ class Parameter(Variable):
                 elif isinstance(dep, Link):
                     dep_vals[dep_name] += dep[ti] / dep.dt
                 else:
-                    raise Exception('Unhandled case')
+                    raise ModelError('Unhandled case')
 
         dep_vals['t'] = self.t[ti]
         dep_vals['dt'] = self.dt
@@ -1144,7 +1154,7 @@ class Parameter(Variable):
                 for link in self.links:
                     n += link.source[ti]  # Use the direct indexing because we don't know what type of compartment we are operating on
             else:
-                raise Exception('Cannot retrieve source popsize for a non-transition parameter')
+                raise ModelError('Cannot retrieve source popsize for a non-transition parameter')
             self._source_popsize_cache_time = ti
             self._source_popsize_cache_val = n
             return n
@@ -1854,7 +1864,7 @@ class Model(object):
         except AttributeError:
             self._junc_exec_order = list()
             self._charac_exec_order = list()
-            self._par_exec_order = [x.id for x in self._par_exec_order]
+            self._par_exec_order = list()
 
         # Set vars by pop
         self._set_vars_by_pop()
@@ -1885,7 +1895,7 @@ class Model(object):
             # but that would just be a side effect of not targeting anyone (division by 0 is treated as 100%)
             for prog in self.progset.programs.values():
                 if not self._program_cache['comps'][prog.name] and prog.name not in self._program_cache['prop_coverage']:
-                    raise Exception(f'Program "{prog.name}" does not target any compartments, but the program instructions did not specify coverage for this program. Programs without target compartments require their coverage to be explicitly specified in the instructions')
+                    raise ModelError(f'Program "{prog.name}" does not target any compartments, but the program instructions did not specify coverage for this program. Programs without target compartments require their coverage to be explicitly specified in the instructions')
 
         else:
             self.programs_active = False
@@ -1972,6 +1982,16 @@ class Model(object):
                         par.scale_factor = transfer_parameter.y_factor[pop_target] * transfer_parameter.meta_y_factor
                         par.vals = transfer_parameter.interpolate(tvec=self.t, pop_name=pop_target) * par.scale_factor
                         par.units = transfer_parameter.ts[pop_target].units.strip().split()[0].strip().lower()
+
+                        # Sampling might result in the parameter value going out of bounds, so make sure the transfer parameter values are constrained
+                        if par.units == FS.QUANTITY_TYPE_PROBABILITY:
+                            par.limits = [0,1]
+                        elif par.units == FS.QUANTITY_TYPE_NUMBER:
+                            par.limits = [0,None]
+                        else:
+                            raise ModelError('Unknown transfer parameter units')
+                        par.constrain()
+
                         pop.pars.append(par)
                         pop.par_lookup[par_name] = par
 
@@ -1986,11 +2006,10 @@ class Model(object):
         # Now that all object have been created, update _vars_by_pop() accordingly
         self._set_vars_by_pop()
 
-        # Set execution order
-        self._set_exec_order()
-
         # Flag dependencies for aggregated parameters prior to precomputing
-        for par in self._par_update_order:
+        # Note that all parameters have been instantiated and we can set_dynamic
+        # in any order, as long as we examine all parameters
+        for par in self.framework.pars.index:
             pars = self._vars_by_pop[par]
             if pars[0].pop_aggregation:
                 for var in self._vars_by_pop[pars[0].pop_aggregation[1]]:
@@ -1999,31 +2018,41 @@ class Model(object):
                     for var in self._vars_by_pop[pars[0].pop_aggregation[3]]:
                         var.set_dynamic(progset=self.progset)
 
+        # Set execution order - needs to be done _after_ pop aggregations have been flagged as dynamic
+        self._set_exec_order()
+
         # Insert parameter initial values and do any required precomputation
         for par_name in self._par_update_order:  # Iterate only over framework pars (parset.pars also includes characteristics)
+            if par_name not in parset.pars:
+                # This happens for transfer parameters that don't appear in parset.pars, but they have been updated already above
+                continue
+            elif par_name not in self._vars_by_pop:
+                # This happens if the parameter belongs to a pop type that isn't used in the databook
+                # and thus no instances of the parameter have been created
+                continue
+
             cascade_par = parset.pars[par_name]
-            if cascade_par.name in self._vars_by_pop:  # The parameter could be missing if it is defined in a population type that is not present in the simulation
-                pars = self._vars_by_pop[cascade_par.name]
-                for par in pars:
+            pars = self._vars_by_pop[cascade_par.name]
+            for par in pars:
 
-                    par.preallocate(self.t, self.dt)
-                    par.scale_factor = cascade_par.meta_y_factor  # Set meta scale factor regardless of whether a population-specific y-factor is also provided
+                par.preallocate(self.t, self.dt)
+                par.scale_factor = cascade_par.meta_y_factor  # Set meta scale factor regardless of whether a population-specific y-factor is also provided
 
-                    if par.pop.name in cascade_par.y_factor:
-                        par.scale_factor *= cascade_par.y_factor[par.pop.name]  # Add in population-specific scale factor
+                if par.pop.name in cascade_par.y_factor:
+                    par.scale_factor *= cascade_par.y_factor[par.pop.name]  # Add in population-specific scale factor
 
-                    if par.pop.name in cascade_par.skip_function:
-                        par.skip_function = cascade_par.skip_function[par.pop.name]  # Copy in any skipped evaluations
-                        if par.skip_function:
-                            assert cascade_par.has_values(par.pop.name), 'Parameter function was marked as being skipped for some of the simulation, but the ParameterSet has no values to use instead. If skipping, the ParameterSet must contain some values'
+                if par.pop.name in cascade_par.skip_function:
+                    par.skip_function = cascade_par.skip_function[par.pop.name]  # Copy in any skipped evaluations
+                    if par.skip_function:
+                        assert cascade_par.has_values(par.pop.name), 'Parameter function was marked as being skipped for some of the simulation, but the ParameterSet has no values to use instead. If skipping, the ParameterSet must contain some values'
 
-                    if cascade_par.has_values(par.pop.name):  # If the databook contains values, then insert them now
-                        par.vals = cascade_par.interpolate(tvec=self.t, pop_name=par.pop.name) * par.scale_factor
+                if cascade_par.has_values(par.pop.name):  # If the databook contains values, then insert them now
+                    par.vals = cascade_par.interpolate(tvec=self.t, pop_name=par.pop.name) * par.scale_factor
 
-                    if par.fcn_str and par._precompute:  # If the parameter is marked for precomputation, then insert it now
-                        par.update()
+                if par.fcn_str and par._precompute:  # If the parameter is marked for precomputation, then insert it now
+                    par.update()
 
-                    par.constrain()  # Sampling might result in the parameter value going out of bounds (or user might have entered bad values in the databook) so ensure they are clipped here
+                par.constrain()  # Sampling might result in the parameter value going out of bounds (or user might have entered bad values in the databook) so ensure they are clipped here
 
         # Finally, preallocate remaining quantities and initialize the compartments
         # Note that TimedLink preallocation depends on TimedCompartment preallocation
@@ -2057,15 +2086,29 @@ class Model(object):
         G = nx.DiGraph()
         for pop in self.pops:
             for par in pop.pars:
-                G.add_node(par.name)
+                if par.name not in G.nodes:
+                    G.add_node(par.name,keep=False)
                 for dep in par.deps.keys():
                     if dep in par_names:
                         G.add_edge(dep,par.name)
                 if par.pop_aggregation:
                     G.add_edge(par.pop_aggregation[1],par.name)
+
+                if par._is_dynamic or (self.progset and par.name in self.progset.pars):
+                    G.nodes[par.name]['keep'] = True
+
+        # # Now, all dynamic parameters and their ancestors
+        # for n1 in nx.dag.topological_sort(G):
+        #     if G.nodes[n1]['keep']:
+        #         for n2 in G.predecessors(n1):
+        #             G.nodes[n2]['keep'] = True
+
         assert nx.dag.is_directed_acyclic_graph(G), 'There is a circular dependency in parameters, which is not permitted'
+
         self._par_update_order = list(nx.dag.topological_sort(G))  # Topological sorting of the junction graph, which is a valid execution order
         # self._par_update_order = [x for x in self.framework.pars.index if x in self._vars_by_pop.keys()]
+        self._par_loop_test = [x for x in self._par_update_order if G.nodes[x]['keep']]
+
 
         # Set the parameter execution order - this is a list of only transition parameters, used when updating links
         # This is a flat list of parameters, but the order actually should not matter since all parameters should be
@@ -2213,7 +2256,7 @@ class Model(object):
                     par_label = self.framework.get_label(par.name)
                 except NotFoundError:  # Name lookup will fail for transfer parameters
                     par_label = par.name
-                raise Exception("Encountered unknown units '%s' for Parameter '%s' (%s) in Population %s" % (par.units, par.name, par_label, par.pop.name))
+                raise ModelError("Encountered unknown units '%s' for Parameter '%s' (%s) in Population %s" % (par.units, par.name, par_label, par.pop.name))
 
         # Adjust cached fraction outflows and convert them to number units
         for pop in self.pops:
@@ -2310,7 +2353,7 @@ class Model(object):
                     prop_coverage[k] = self.progset.programs[k].get_prop_covered(self.t[ti], self._program_cache['capacities'][k][ti], n)
             prog_vals = self.progset.get_outcomes(prop_coverage)
 
-        for par_name in self._par_update_order:
+        for par_name in self._par_loop_test:
             # TODO - We only really need to consider parameters that are dynamic, or that are targeted by programs
 
             # All of the parameters with this name, across populations.
@@ -2352,7 +2395,7 @@ class Model(object):
                 elif pars[0].pop_aggregation[0] in {'TGT_POP_AVG', 'TGT_POP_SUM'}:
                     pass
                 else:
-                    raise Exception("Unknown aggregation function '{0}'").format(pars[0].pop_aggregation[0])  # This should never happen, an error should be raised earlier
+                    raise ModelError("Unknown aggregation function '{0}'").format(pars[0].pop_aggregation[0])  # This should never happen, an error should be raised earlier
 
                 # If we are weighting by a variable, multiply the weights matrix accordingly
                 if len(pars[0].pop_aggregation) == 4:
