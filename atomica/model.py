@@ -1813,14 +1813,11 @@ class Model(object):
         # Drop this, it gets set by self._set_vars_by_pop()
         self._vars_by_pop = None
 
-        # Drop cache - this gets set inside `model.process()`
+        # Drop caches - these get set inside `model.process()`
         self._program_cache = None
-
-        # Preserve this, it is potentially a little expensive to compute so don't want
-        # to recompute them when unpickling during optimization
-        self._junc_exec_order = [x.id for x in self._junc_exec_order]
-        self._charac_exec_order = [x.id for x in self._charac_exec_order]
-        self._par_exec_order = [x.id for x in self._par_exec_order]
+        self._junc_exec_order = None
+        self._charac_exec_order = None
+        self._par_exec_order = None
 
     def relink(self) -> None:
         """
@@ -1845,16 +1842,6 @@ class Model(object):
         # Relink populations
         for pop in self.pops:
             pop.relink(objs)
-
-        # Relink execution order lists
-        try:  # Migration, old projects didn't have a junction execution order or characteristic execution order
-            self._junc_exec_order = [objs[x] for x in self._junc_exec_order]
-            self._charac_exec_order = [objs[x] for x in self._charac_exec_order]
-            self._par_exec_order = [x.id for x in self._par_exec_order]
-        except AttributeError:
-            self._junc_exec_order = list()
-            self._charac_exec_order = list()
-            self._par_exec_order = [x.id for x in self._par_exec_order]
 
         # Set vars by pop
         self._set_vars_by_pop()
@@ -1972,6 +1959,16 @@ class Model(object):
                         par.scale_factor = transfer_parameter.y_factor[pop_target] * transfer_parameter.meta_y_factor
                         par.vals = transfer_parameter.interpolate(tvec=self.t, pop_name=pop_target) * par.scale_factor
                         par.units = transfer_parameter.ts[pop_target].units.strip().split()[0].strip().lower()
+
+                        # Sampling might result in the parameter value going out of bounds, so make sure the transfer parameter values are constrained
+                        if par.units == FS.QUANTITY_TYPE_PROBABILITY:
+                            par.limits = [0,1]
+                        elif par.units == FS.QUANTITY_TYPE_NUMBER:
+                            par.limits = [0,None]
+                        else:
+                            raise ModelError('Unknown transfer parameter units')
+                        par.constrain()
+
                         pop.pars.append(par)
                         pop.par_lookup[par_name] = par
 
@@ -2001,29 +1998,36 @@ class Model(object):
 
         # Insert parameter initial values and do any required precomputation
         for par_name in self._par_update_order:  # Iterate only over framework pars (parset.pars also includes characteristics)
+            if par_name not in parset.pars:
+                # This happens for transfer parameters that don't appear in parset.pars, but they have been updated already above
+                continue
+            elif par_name not in self._vars_by_pop:
+                # This happens if the parameter belongs to a pop type that isn't used in the databook
+                # and thus no instances of the parameter have been created
+                continue
+
             cascade_par = parset.pars[par_name]
-            if cascade_par.name in self._vars_by_pop:  # The parameter could be missing if it is defined in a population type that is not present in the simulation
-                pars = self._vars_by_pop[cascade_par.name]
-                for par in pars:
+            pars = self._vars_by_pop[cascade_par.name]
+            for par in pars:
 
-                    par.preallocate(self.t, self.dt)
-                    par.scale_factor = cascade_par.meta_y_factor  # Set meta scale factor regardless of whether a population-specific y-factor is also provided
+                par.preallocate(self.t, self.dt)
+                par.scale_factor = cascade_par.meta_y_factor  # Set meta scale factor regardless of whether a population-specific y-factor is also provided
 
-                    if par.pop.name in cascade_par.y_factor:
-                        par.scale_factor *= cascade_par.y_factor[par.pop.name]  # Add in population-specific scale factor
+                if par.pop.name in cascade_par.y_factor:
+                    par.scale_factor *= cascade_par.y_factor[par.pop.name]  # Add in population-specific scale factor
 
-                    if par.pop.name in cascade_par.skip_function:
-                        par.skip_function = cascade_par.skip_function[par.pop.name]  # Copy in any skipped evaluations
-                        if par.skip_function:
-                            assert cascade_par.has_values(par.pop.name), 'Parameter function was marked as being skipped for some of the simulation, but the ParameterSet has no values to use instead. If skipping, the ParameterSet must contain some values'
+                if par.pop.name in cascade_par.skip_function:
+                    par.skip_function = cascade_par.skip_function[par.pop.name]  # Copy in any skipped evaluations
+                    if par.skip_function:
+                        assert cascade_par.has_values(par.pop.name), 'Parameter function was marked as being skipped for some of the simulation, but the ParameterSet has no values to use instead. If skipping, the ParameterSet must contain some values'
 
-                    if cascade_par.has_values(par.pop.name):  # If the databook contains values, then insert them now
-                        par.vals = cascade_par.interpolate(tvec=self.t, pop_name=par.pop.name) * par.scale_factor
+                if cascade_par.has_values(par.pop.name):  # If the databook contains values, then insert them now
+                    par.vals = cascade_par.interpolate(tvec=self.t, pop_name=par.pop.name) * par.scale_factor
 
-                    if par.fcn_str and par._precompute:  # If the parameter is marked for precomputation, then insert it now
-                        par.update()
+                if par.fcn_str and par._precompute:  # If the parameter is marked for precomputation, then insert it now
+                    par.update()
 
-                    par.constrain()  # Sampling might result in the parameter value going out of bounds (or user might have entered bad values in the databook) so ensure they are clipped here
+                par.constrain()  # Sampling might result in the parameter value going out of bounds (or user might have entered bad values in the databook) so ensure they are clipped here
 
         # Finally, preallocate remaining quantities and initialize the compartments
         # Note that TimedLink preallocation depends on TimedCompartment preallocation
@@ -2105,6 +2109,7 @@ class Model(object):
         """ Run the full model. """
 
         assert self._t_index == 0  # Only makes sense to process a simulation once, starting at ti=0 - this might be relaxed later on
+        self._set_exec_order()  # Set the execution order again in case the user has updated the parameters etc. It is critically important that this is correct during integration
         self._update_program_cache()
 
         # Initial flush of people in junctions
