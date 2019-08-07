@@ -1962,11 +1962,11 @@ class Model(object):
 
                         # Sampling might result in the parameter value going out of bounds, so make sure the transfer parameter values are constrained
                         if par.units == FS.QUANTITY_TYPE_PROBABILITY:
-                            par.limits = [0,1]
+                            par.limits = [0, 1]
                         elif par.units == FS.QUANTITY_TYPE_NUMBER:
-                            par.limits = [0,None]
+                            par.limits = [0, np.inf]
                         else:
-                            raise ModelError('Unknown transfer parameter units')
+                            raise Exception('Unknown transfer parameter units')
                         par.constrain()
 
                         pop.pars.append(par)
@@ -2063,7 +2063,7 @@ class Model(object):
             for par in pop.pars:
                 G.add_node(par.name)
                 for dep in par.deps.keys():
-                    if dep in par_names:
+                    if dep in par_names and not (dep == par.name and par.derivative): # Derivative parameters are allowed to refer to themselves directly
                         G.add_edge(dep,par.name)
                 if par.pop_aggregation:
                     G.add_edge(par.pop_aggregation[1],par.name)

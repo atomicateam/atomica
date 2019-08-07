@@ -423,15 +423,11 @@ class ProjectFramework(object):
         comps = self.comps['population type'].to_dict()  # Look up which pop type is associated with each compartment
         pars = self.pars['population type'].to_dict()  # Look up which pop type is associated with each parameter
 
-        pop_types = set()
         for i, df in enumerate(self.sheets['transitions']):
+            # If the population type isn't set (in the top left of the matrix) then assign the matrix to the first pop type
             cols = list(df.columns)
             if cols[0] is None or cols[0].lower().strip() == 'transition matrix':  # The template for single population type frameworks has 'Transition matrix' where the population type would normally go
                 cols[0] = self.pop_types.keys()[0]
-            if cols[0] in pop_types:
-                raise InvalidFramework('More than one transition matrix is assigned to the same population type. This can happen if multiple transition matrices are being assigned to the default population type')
-            else:
-                pop_types.add(cols[0])
                 df.columns = cols
             df = df.set_index(df.columns[0])
 
