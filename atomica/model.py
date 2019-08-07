@@ -2065,8 +2065,8 @@ class Model(object):
                 for dep, dep_var in par.deps.items():
                     if dep in par_derivative and par_derivative[dep] != 'y':  # Derivative parameters are allowed to refer to themselves directly, and derivative parameters are not considered dependencies - so just checking for derivatives should be enough
                         G.add_edge(dep, par.name)
-                if par.pop_aggregation:
-                    G.add_edge(par.pop_aggregation[1],par.name)
+                if par.pop_aggregation and par.pop_aggregation[1] in par_derivative:
+                    G.add_edge(par.pop_aggregation[1], par.name)
         assert nx.dag.is_directed_acyclic_graph(G), 'There is a circular dependency in parameters, which is not permitted'
         self._par_update_order = list(nx.dag.topological_sort(G))  # Topological sorting of the junction graph, which is a valid execution order
         # self._par_update_order = [x for x in self.framework.pars.index if x in self._vars_by_pop.keys()]
