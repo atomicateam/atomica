@@ -636,7 +636,7 @@ class Project(NamedItem):
 
         """
 
-        P = sc.loadobj(filepath,die=True)
+        P = sc.loadobj(filepath, die=True)
         assert isinstance(P, Project)
         return P
 

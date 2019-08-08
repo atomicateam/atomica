@@ -45,6 +45,7 @@ class BadInitialization(Exception):
 
     pass
 
+
 class ModelError(Exception):
     """
     Exception type for general model errors
@@ -1994,15 +1995,22 @@ class Model(object):
         # Flag dependencies for aggregated parameters prior to precomputing
         # Note that all parameters have been instantiated and we can set_dynamic
         # in any order, as long as we examine all parameters
-        for par in self.framework.pars.index:
-            pars = self._vars_by_pop[par]
+        for par_name in self.framework.pars.index:
+
+            if par_name not in self._vars_by_pop:
+                continue
+
+            pars = self._vars_by_pop[par_name]
+
             if pars[0].pop_aggregation:
                 # Make the parameter dynamic, because it needs to be computed during integration
                 for par in pars:
                     par.set_dynamic()
+
                 # Also make the variable being aggregated dynamic
                 for var in self._vars_by_pop[pars[0].pop_aggregation[1]]:
                     var.set_dynamic(progset=self.progset)
+
                 # If there is a weighting variable,
                 if len(pars[0].pop_aggregation) > 3:
                     for var in self._vars_by_pop[pars[0].pop_aggregation[3]]:
@@ -2012,13 +2020,9 @@ class Model(object):
         self._set_exec_order()
 
         # Insert parameter initial values and do any required precomputation
-        for par_name in self._exec_order['all_pars']:  # Iterate only over framework pars (parset.pars also includes characteristics)
+        for par_name in self._exec_order['all_pars']:
             if par_name not in parset.pars:
                 # This happens for transfer parameters that don't appear in parset.pars, but they have been updated already above
-                continue
-            elif par_name not in self._vars_by_pop:
-                # This happens if the parameter belongs to a pop type that isn't used in the databook
-                # and thus no instances of the parameter have been created
                 continue
 
             cascade_par = parset.pars[par_name]
@@ -2109,8 +2113,7 @@ class Model(object):
                     G.nodes[par.name]['keep'] = True
 
         assert nx.dag.is_directed_acyclic_graph(G), 'There is a circular dependency in parameters, which is not permitted'
-        exec_order['all_pars'] = list(nx.dag.topological_sort(G))  # Topological sorting of the junction graph, which is a valid execution order
-        # self._par_update_order = [x for x in self.framework.pars.index if x in self._vars_by_pop.keys()]
+        exec_order['all_pars'] = [x for x in nx.dag.topological_sort(G) if x in self._vars_by_pop]  # Not all parameters may exist depending on populations, so filter out only the ones that are actually instantiated in this Model
         exec_order['dynamic_pars'] = [x for x in exec_order['all_pars'] if G.nodes[x]['keep']]
 
 
