@@ -19,7 +19,7 @@ from collections import defaultdict
 import sciris as sc
 import numpy as np
 import matplotlib.pyplot as plt
-from .programs import ProgramSet
+from .programs import ProgramSet, ProgramInstructions
 from .parameters import Parameter as ParsetParameter
 from .parameters import ParameterSet as ParameterSet
 import math
@@ -2133,7 +2133,7 @@ class Model(object):
                 if isinstance(charac.denominator, Characteristic):
                     G.add_edge(charac.denominator, charac)  # Note directionality - the included characteristic needs to be added first
         assert nx.dag.is_directed_acyclic_graph(G), 'There is a circular dependency in characteristics, which is not permitted'
-        exec_order['characs'] = list(nx.dag.topological_sort(G))  # Topological sorting of the junction graph, which is a valid execution order
+        exec_order['characs'] = [c for c in nx.dag.topological_sort(G) if c._is_dynamic]  # Topological sorting of the junction graph, which is a valid execution order
 
         # Set the junction execution order
         G = nx.DiGraph()
@@ -2173,15 +2173,17 @@ class Model(object):
             self.update_links()
             self.update_junctions()
 
-        for pop in self.pops:
-
-            for par in pop.pars:
+        # Update postcompute parameters - note that it needs to be done in execution order
+        for par_name in self._exec_order['all_pars']:
+            for par in self._vars_by_pop[par_name]:
                 if par.fcn_str and not (par._is_dynamic or par._precompute):
                     par.update()
                     par.constrain()
 
+        # Clear characteristic internal storage and switch to dynamic computation to save space
+        for pop in self.pops:
             for charac in pop.characs:
-                charac._vals = None  # Wipe out characteristic vals to save space
+                charac._vals = None
 
         self._program_cache = None  # Drop the program cache afterwards to save space
 
@@ -2343,8 +2345,7 @@ class Model(object):
 
         # First, compute dependent characteristics, as parameters might depend on them
         for charac in self._exec_order['characs']:
-            if charac._is_dynamic:
-                charac.update(ti)
+            charac.update(ti)
 
         do_program_overwrite = self.programs_active and self.program_instructions.start_year <= self.t[ti] <= self.program_instructions.stop_year
 
@@ -2361,8 +2362,6 @@ class Model(object):
             prog_vals = self.progset.get_outcomes(prop_coverage)
 
         for par_name in self._exec_order['dynamic_pars']:
-            # TODO - We only really need to consider parameters that are dynamic, or that are targeted by programs
-
             # All of the parameters with this name, across populations.
             # There should be one for each population (these are Parameters, not Links).
             pars = self._vars_by_pop[par_name]
@@ -2428,15 +2427,34 @@ class Model(object):
                     par.constrain(ti)
 
 
-def run_model(settings, framework, parset, progset=None, program_instructions=None, name=None):
+def run_model(settings, framework, parset: ParameterSet, progset: ProgramSet = None, program_instructions: ProgramInstructions = None, name: str = None):
     """
-    Processes the TB epidemiological model.
-    Parset-based overwrites are generally done externally, so the parset is only used for model-building.
-    Progset-based overwrites take place internally and must be part of the processing step.
-    The instructions dictionary is usually passed in with progset to specify when the overwrites take place.
+    Build and process model
+
+    Running simulations is accomplished via the :class:`Model` object in two steps
+
+    1. The :class:`Model` object is build, and all variables are initialized
+    2. The integration is carried out
+
+    ``run_model`` serves as a wrapper for both of these steps, which are commonly performed
+    together. However, in some cases it may be desired to split the operations. For example
+
+    - In optimization, the same ``Model`` is used at each iteration, but with different instructions.
+      To save time, the model is built just once, and deep-copied after building but before processing
+    - Sometimes it may be required to make changes to the model's structure e.g. to implement exotic
+      cross-population interactions that cannot be expressed via the Excel inputs. In that case, it may
+      again be necessary
+
+    :param settings: Project settings defining simulation time span and time step
+    :param framework: A :class:`ProjectFramework` instance
+    :param parset: A :class:`ParameterSet` instance
+    :param progset: Optionally provide a :class:`ProgramSet` instance to use programs
+    :param program_instructions: Optional :class:`ProgramInstructions` instance. If ``progset`` is specified, then instructions must be provided
+    :param name: Optionally specify the name to assign to the output result
+    :return: A :class:`Result` object containing the processed model
+
     """
 
     m = Model(settings, framework, parset, progset, program_instructions)
     m.process()
-    # NOTE - the `model` object contains model.framework, model.progset, and model.program_instructions
     return Result(model=m, parset=parset, name=name)
