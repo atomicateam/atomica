@@ -120,7 +120,8 @@ def run_coverage_scenario(proj):
 
 
 def run_optimization(proj):
-    """ Run an optimization
+    """
+    Run an optimization
 
     This demo optimization will adjust spending on all programs optimize all programs with the last default cascade stage)
 
