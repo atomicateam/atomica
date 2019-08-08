@@ -790,6 +790,19 @@ class ProjectFramework(object):
             if par['is derivative'] == 'y' and par['databook page'] is None:
                 raise InvalidFramework('Parameter "%s" is marked "is derivative" but it does not have a databook page - it needs to appear in the databook so that an initial value can be provided.' % (par_name))
 
+            if par['timescale'] is None:
+                if par['format'] in {FS.QUANTITY_TYPE_DURATION}:
+                    # Durations should always have a timescale, assumed to be annual by default
+                    # This ensures the time units get printed in the databook, even for non-transition parameters
+                    self.pars.at[par_name, 'timescale'] = 1.0  # Assign default timescale for probability and duration (but not number, since a number might be absolute rather than annual for non-transition parameters)
+                elif self.transitions[par_name] and par['timescale'] is None and par['format'] in {FS.QUANTITY_TYPE_NUMBER, FS.QUANTITY_TYPE_PROBABILITY}:
+                    # For number and probability, non-transition parameters might not be be in units per time period, therefore having a timescale
+                    # is optional *unless* it is a transition parameter
+                    self.pars.at[par_name, 'timescale'] = 1.0
+                elif par['timescale'] is not None and par['format'] == FS.QUANTITY_TYPE_PROPORTION:
+                    # Proportion units should never have a timescale since they are time-invariant
+                    raise InvalidFramework('Parameter %s is in proportion units, therefore it cannot have a timescale entered for it' % par_name)
+
             if par['timed'] == 'y':
                 if par['format'] != FS.QUANTITY_TYPE_DURATION:
                     raise InvalidFramework(f'Parameter "{par_name}" is marked as driving a timed transition so the format needs to be "{FS.QUANTITY_TYPE_DURATION}"')
@@ -943,11 +956,6 @@ class ProjectFramework(object):
                 allowed_formats = {FS.QUANTITY_TYPE_NUMBER, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_DURATION, FS.QUANTITY_TYPE_PROPORTION}
                 if par['format'] not in allowed_formats:
                     raise InvalidFramework('Parameter %s is a transition parameter so format "%s is not allowed - it must be one of %s' % (par_name, par['format'], allowed_formats))
-
-                if par['timescale'] is None and par['format'] in {FS.QUANTITY_TYPE_NUMBER, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_DURATION}:
-                    self.pars.at[par_name, 'timescale'] = 1.0  # Default timescale - note that currently only transition parameters are allowed to have a timescale that is not None
-                elif par['timescale'] is not None and par['format'] == FS.QUANTITY_TYPE_PROPORTION:
-                    raise InvalidFramework('Parameter %s is in proportion units, therefore it cannot have a timescale entered for it' % par_name)
 
                 from_comps = [x[0] for x in self.transitions[par_name]]
                 to_comps = [x[1] for x in self.transitions[par_name]]
