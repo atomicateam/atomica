@@ -509,8 +509,14 @@ class PlotData:
                     # This would be the usage 99% of the time (esp. for DALYs that are interested in number of person-years)
                     if s.units == 'Number of people':
                         s.units = 'Number of person-years'
-                    else:
+                    elif s.units is not None:
                         s.units += ' years'
+                    else:
+                        # If the units are none, decide what to do. It probably makes sense just to do nothing and
+                        # leave the units blank, on the assumption that the user knows what they are doing if they
+                        # are working with dimensionless quantities. More commonly, the quantity wouldn't actually
+                        # be dimensionless, but it might not have had units entered e.g. parameter functions
+                        pass
 
             elif method == 'average':
                 s.tvec = (lower + upper) / 2.0
@@ -1285,12 +1291,12 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer=None, legend_
     # Calculate the units. As all bar patches are shown on the same axis, they are all expected to have the
     # same units. If they do not, the plot could be misleading
     units = list(set([x.unit_string for x in plotdata.series]))
-    if len(units) == 1:
+    if len(units) == 1 and units[0] is not None:
         if orientation == 'horizontal':
             ax.set_xlabel(units[0].capitalize())
         else:
             ax.set_ylabel(units[0].capitalize())
-    else:
+    elif len(units) > 1:
         logger.warning('Warning - bar plot quantities mix units, double check that output selection is correct')
 
     # Outer group labels are only displayed if there is more than one group

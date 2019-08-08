@@ -88,7 +88,7 @@ class Adjustable(object):
         self.upper_bound = upper_bound
         self.initial_value = initial_value
 
-    def get_hard_bounds(self, x0: float=None) -> tuple:
+    def get_hard_bounds(self, x0: float = None) -> tuple:
         """
         Return hard bounds for the adjustable
 

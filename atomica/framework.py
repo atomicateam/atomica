@@ -423,15 +423,11 @@ class ProjectFramework(object):
         comps = self.comps['population type'].to_dict()  # Look up which pop type is associated with each compartment
         pars = self.pars['population type'].to_dict()  # Look up which pop type is associated with each parameter
 
-        pop_types = set()
         for i, df in enumerate(self.sheets['transitions']):
+            # If the population type isn't set (in the top left of the matrix) then assign the matrix to the first pop type
             cols = list(df.columns)
             if cols[0] is None or cols[0].lower().strip() == 'transition matrix':  # The template for single population type frameworks has 'Transition matrix' where the population type would normally go
                 cols[0] = self.pop_types.keys()[0]
-            if cols[0] in pop_types:
-                raise InvalidFramework('More than one transition matrix is assigned to the same population type. This can happen if multiple transition matrices are being assigned to the default population type')
-            else:
-                pop_types.add(cols[0])
                 df.columns = cols
             df = df.set_index(df.columns[0])
 
@@ -452,7 +448,7 @@ class ProjectFramework(object):
             for _, from_row in df.iterrows():  # For each row in the transition matrix
                 from_row.dropna(inplace=True)
                 from_comp = from_row.name
-                first_timed = None
+
                 for to_comp, par_names in from_row.iteritems():
                     for par_name in par_names.split(','):
                         par_name = par_name.strip()
@@ -464,10 +460,13 @@ class ProjectFramework(object):
                             raise InvalidFramework('Parameter "%s" belongs to pop type "%s" but it appears in the transition matrix for "%s"' % (par_name, pars[par_name], df.index.name))
 
                         if self.pars.at[par_name, 'timed'] == 'y':
-                            self.comps.at[from_comp, 'duration group'] = par_name
-                            if first_timed:
-                                raise InvalidFramework(f'A compartment can only have one timed outflow - e.g., Parameters {first_timed}" and "{par_name}" are both timed parameters, so they cannot both be associated with Compartment "{from_comp}"')
-                            elif self.comps.at[from_comp, 'is source'] == 'y' or self.comps.at[from_comp, 'is sink'] == 'y' or self.comps.at[from_comp, 'is junction'] == 'y':
+                            if self.comps.at[from_comp, 'duration group']:
+                                existing = {self.comps.at[from_comp, 'duration group']}
+                                raise InvalidFramework(f'A compartment can only have one timed outflow - e.g., Parameters "{existing}" and "{par_name}" are both timed parameters, so they cannot both be associated with Compartment "{from_comp}"')
+                            else:
+                                self.comps.at[from_comp, 'duration group'] = par_name
+
+                            if self.comps.at[from_comp, 'is source'] == 'y' or self.comps.at[from_comp, 'is sink'] == 'y' or self.comps.at[from_comp, 'is junction'] == 'y':
                                 raise InvalidFramework(f'Parameter "{par_name}" defines a timed outflow from Compartment "{from_comp}" but timed outflows cannot be applied to source, sink, or junction compartments')
                             elif par_name in set(df.loc[to_comp]):
                                 raise InvalidFramework(f'Compartment "{from_comp}" belongs to the duration group "{par_name}" but it flushes into "{to_comp}" which is a member of the same group. Flushing into the same duration group is not permitted')
@@ -766,7 +765,7 @@ class ProjectFramework(object):
         self._process_transitions()
 
         # Now validate each parameter
-        G = nx.DiGraph() # Generate a dependency graph
+        G = nx.DiGraph()  # Generate a dependency graph
 
         def cross_pop_message(par, quantity_type, quantity_name):
             spec = self.get_variable(quantity_name)[0]
@@ -790,6 +789,19 @@ class ProjectFramework(object):
 
             if par['is derivative'] == 'y' and par['databook page'] is None:
                 raise InvalidFramework('Parameter "%s" is marked "is derivative" but it does not have a databook page - it needs to appear in the databook so that an initial value can be provided.' % (par_name))
+
+            if par['timescale'] is None:
+                if par['format'] in {FS.QUANTITY_TYPE_DURATION}:
+                    # Durations should always have a timescale, assumed to be annual by default
+                    # This ensures the time units get printed in the databook, even for non-transition parameters
+                    self.pars.at[par_name, 'timescale'] = 1.0  # Assign default timescale for probability and duration (but not number, since a number might be absolute rather than annual for non-transition parameters)
+                elif self.transitions[par_name] and par['timescale'] is None and par['format'] in {FS.QUANTITY_TYPE_NUMBER, FS.QUANTITY_TYPE_PROBABILITY}:
+                    # For number and probability, non-transition parameters might not be be in units per time period, therefore having a timescale
+                    # is optional *unless* it is a transition parameter
+                    self.pars.at[par_name, 'timescale'] = 1.0
+                elif par['timescale'] is not None and par['format'] == FS.QUANTITY_TYPE_PROPORTION:
+                    # Proportion units should never have a timescale since they are time-invariant
+                    raise InvalidFramework('Parameter %s is in proportion units, therefore it cannot have a timescale entered for it' % par_name)
 
             if par['timed'] == 'y':
                 if par['format'] != FS.QUANTITY_TYPE_DURATION:
@@ -910,11 +922,16 @@ class ProjectFramework(object):
                         # formula can be caught immediately, and an even more specific error message displayed. We don't include self connections in the graph for this
                         # purpose, if a derivative refers to itself it can be computed any time and we can then simply check if the graph is acyclic to probe for indirect
                         # circular dependencies
-                        if dep == par_name:
-                            if self.pars.at[dep, 'is derivative'] != 'y':
-                                    raise InvalidFramework(f"Parameter '{par_name}' has a parameter function that refers to itself, but it is not marked as a derivative parameter. Circular references are only permitted if the parameter function is providing a derivative")
+                        if self.pars.at[dep, 'is derivative'] != 'y':
+                            if dep == par_name:
+                                raise InvalidFramework(f"Parameter '{par_name}' has a parameter function that refers to itself, but it is not marked as a derivative parameter. Circular references are only permitted if the parameter function is providing a derivative")
+                            else:
+                                G.add_edge(dep, par_name)  # Note directionality - we use par_name->dep for the dependency so that the topological ordering of the graph corresponds to the execution order
                         else:
-                            G.add_edge(dep, par_name)  # Note directionality - we use par_name->dep for the dependency so that the topological ordering of the graph corresponds to the execution order
+                            # If it's a derivative parameter, then the forward Euler step always updates the parameter's value at the next time index (ti+1). Therefore,
+                            # the parameter is not actually a dependency per-se, because there is no requirement to update it first (because it will have already been updated)
+                            # Thus, we can simply ignore it here
+                            pass
 
                         if self.pars.at[dep, 'population type'] != par['population type'] and not is_aggregation:  # Population types for the dependency and the parameter can only differ if it's an aggregation
                             raise InvalidFramework(cross_pop_message(par, 'parameter', dep))
@@ -939,11 +956,6 @@ class ProjectFramework(object):
                 allowed_formats = {FS.QUANTITY_TYPE_NUMBER, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_DURATION, FS.QUANTITY_TYPE_PROPORTION}
                 if par['format'] not in allowed_formats:
                     raise InvalidFramework('Parameter %s is a transition parameter so format "%s is not allowed - it must be one of %s' % (par_name, par['format'], allowed_formats))
-
-                if par['timescale'] is None and par['format'] in {FS.QUANTITY_TYPE_NUMBER, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_DURATION}:
-                    self.pars.at[par_name, 'timescale'] = 1.0  # Default timescale - note that currently only transition parameters are allowed to have a timescale that is not None
-                elif par['timescale'] is not None and par['format'] == FS.QUANTITY_TYPE_PROPORTION:
-                    raise InvalidFramework('Parameter %s is in proportion units, therefore it cannot have a timescale entered for it' % par_name)
 
                 from_comps = [x[0] for x in self.transitions[par_name]]
                 to_comps = [x[1] for x in self.transitions[par_name]]

@@ -936,7 +936,7 @@ class Parameter(Variable):
         self.deps = dict()  #: Dict of dependencies containing lists of integration objects
         self._fcn = None  #: Internal cache for parsed parameter function (this will be dropped when pickled)
         self._precompute = False  #: If True, the parameter function will be computed in a vector operation prior to integration
-        self._is_dynamic = False  #: If True, this parameter will be updated during integration. Note that `precompute` and `dynamic` are mutually exclusive
+        self._is_dynamic = False  #: If True, this parameter has values that need to be updated or assigned during integration. Note that `precompute` and `dynamic` are mutually exclusive
         self.derivative = False  #: If True, the parameter function will be treated as a derivative and the value added on to the end
         self._dx = None  #: Internal cache for the value of the derivative at the current timestep
         self.skip_function = None  #: Can optionally be set to a (start,stop) tuple of times. Between these times, the parameter will not be updated so the parset value will be left unchanged
@@ -1023,7 +1023,9 @@ class Parameter(Variable):
             # dependencies have already been checked
             return
 
-        if self.pop_aggregation or self.derivative:  # Pop aggregations and derivatives are handled in `update_pars()` so must be done incrementally during integration
+        if self.pop_aggregation or self.derivative:
+            # Pop aggregations and derivatives are handled in `update_pars()` so we set the dynamic flag
+            # because the values are modified during integration
             self._is_dynamic = True
 
         if self.deps:  # If there are no dependencies, then we know that this is precompute-only
@@ -1790,10 +1792,7 @@ class Model(object):
         self._vars_by_pop = None  # Cache to look up lists of variables by name across populations
         self._pop_ids = sc.odict()  # Maps name of a population to its position index within populations list.
         self._program_cache = None  #: Cache program capacities and coverage for coverage scenarios
-        self._par_update_order = None  #: This is a list of all parameters code names in use in the model, in execution order
-        self._junc_exec_order = None  #: This is a list of ``JunctionCompartment`` objects in all populations in execution order (forward flow only)
-        self._par_exec_order = None  # : This is a list of all parameter objects with transitions that need to be updated
-        self._charac_exec_order = None  #: This is a list of ``Characteristic`` objects in all populations in execution order (forward dependencies only)
+        self._exec_order = None  #: Cache the dependency order of various quantities
 
         self.framework = sc.dcp(framework)  # Store a copy of the Framework used to generate this model
         self.framework.spreadsheet = None  # No need to keep the spreadsheet
@@ -1823,14 +1822,10 @@ class Model(object):
         # Drop this, it gets set by self._set_vars_by_pop()
         self._vars_by_pop = None
 
-        # Drop cache - this gets set inside `model.process()`
+        # Drop caches - these get set again inside `model.process()`
         self._program_cache = None
+        self._exec_order = None
 
-        # Preserve this, it is potentially a little expensive to compute so don't want
-        # to recompute them when unpickling during optimization
-        self._junc_exec_order = [x.id for x in self._junc_exec_order]
-        self._charac_exec_order = [x.id for x in self._charac_exec_order]
-        self._par_exec_order = [x.id for x in self._par_exec_order]
 
     def relink(self) -> None:
         """
@@ -1855,16 +1850,6 @@ class Model(object):
         # Relink populations
         for pop in self.pops:
             pop.relink(objs)
-
-        # Relink execution order lists
-        try:  # Migration, old projects didn't have a junction execution order or characteristic execution order
-            self._junc_exec_order = [objs[x] for x in self._junc_exec_order]
-            self._charac_exec_order = [objs[x] for x in self._charac_exec_order]
-            self._par_exec_order = [x.id for x in self._par_exec_order]
-        except AttributeError:
-            self._junc_exec_order = list()
-            self._charac_exec_order = list()
-            self._par_exec_order = list()
 
         # Set vars by pop
         self._set_vars_by_pop()
@@ -1985,11 +1970,11 @@ class Model(object):
 
                         # Sampling might result in the parameter value going out of bounds, so make sure the transfer parameter values are constrained
                         if par.units == FS.QUANTITY_TYPE_PROBABILITY:
-                            par.limits = [0,1]
+                            par.limits = [0, 1]
                         elif par.units == FS.QUANTITY_TYPE_NUMBER:
-                            par.limits = [0,None]
+                            par.limits = [0, np.inf]
                         else:
-                            raise ModelError('Unknown transfer parameter units')
+                            raise Exception('Unknown transfer parameter units')
                         par.constrain()
 
                         pop.pars.append(par)
@@ -2012,8 +1997,13 @@ class Model(object):
         for par in self.framework.pars.index:
             pars = self._vars_by_pop[par]
             if pars[0].pop_aggregation:
+                # Make the parameter dynamic, because it needs to be computed during integration
+                for par in pars:
+                    par.set_dynamic()
+                # Also make the variable being aggregated dynamic
                 for var in self._vars_by_pop[pars[0].pop_aggregation[1]]:
                     var.set_dynamic(progset=self.progset)
+                # If there is a weighting variable,
                 if len(pars[0].pop_aggregation) > 3:
                     for var in self._vars_by_pop[pars[0].pop_aggregation[3]]:
                         var.set_dynamic(progset=self.progset)
@@ -2022,7 +2012,7 @@ class Model(object):
         self._set_exec_order()
 
         # Insert parameter initial values and do any required precomputation
-        for par_name in self._par_update_order:  # Iterate only over framework pars (parset.pars also includes characteristics)
+        for par_name in self._exec_order['all_pars']:  # Iterate only over framework pars (parset.pars also includes characteristics)
             if par_name not in parset.pars:
                 # This happens for transfer parameters that don't appear in parset.pars, but they have been updated already above
                 continue
@@ -2046,11 +2036,12 @@ class Model(object):
                     if par.skip_function:
                         assert cascade_par.has_values(par.pop.name), 'Parameter function was marked as being skipped for some of the simulation, but the ParameterSet has no values to use instead. If skipping, the ParameterSet must contain some values'
 
-                if cascade_par.has_values(par.pop.name):  # If the databook contains values, then insert them now
-                    par.vals = cascade_par.interpolate(tvec=self.t, pop_name=par.pop.name) * par.scale_factor
-
-                if par.fcn_str and par._precompute:  # If the parameter is marked for precomputation, then insert it now
+                if par.fcn_str and par._precompute:
+                    # If the parameter is marked for precomputation, then insert it now
                     par.update()
+                elif cascade_par.has_values(par.pop.name):
+                    # If the databook contains values, then insert them now
+                    par.vals = cascade_par.interpolate(tvec=self.t, pop_name=par.pop.name) * par.scale_factor
 
                 par.constrain()  # Sampling might result in the parameter value going out of bounds (or user might have entered bad values in the databook) so ensure they are clipped here
 
@@ -2065,15 +2056,31 @@ class Model(object):
 
     def _set_exec_order(self):
         """
-        Set the execution order for parameters and junctions
+        Get the execution order
 
-        This method sets the list of parameters and junctions in execution order for use in ``Model.process()``.
-        It should be called after all parameters and their dependencies have been instantiated, as well as all
-        junctions and links. This method is called automatically as part of ``build()`` and should be called again
-        if the parameters or junctions are modified after building.
+        Some quantities, like parameters, characteristics, and junctions, have dependencies that
+        require them to be updated in a specific order. This method constructs directed
+        graphs of the dependencies and returns the topological ordering, which specifies the order
+        in which to update each quantity.
 
-        :return:
+        For parameters, we need to update them in dependency order in three places - when precomputing or
+        postcomputing, in which case we need all parameters, and during integration, in which case we only
+        work with the dynamic parameters.
+        which case we need to work with all parameters, and during integration, in which case we need to
+        work.
+
+        We also need to iterate over transition parameters when updating links, but actually this can be
+        done in any order. However, we cache the transition parameters into a flat list here so that
+        they can be efficiently iterated over.
+
+        Note that the parameter update order is calculated from the framework, which may be relevant if
+        the model structure is changed after building the model but before processing.
+
+        :return: Dict containing execution orders for ``'all_pars'``,``dynamic_pars``,``characs``,``junctions``
+
         """
+
+        exec_order = dict()
 
         # Set the parameter update order - this is a list of parameters names, in dependency order
         # The parameters may or may not exist in each population, but they are updated across populations
@@ -2082,42 +2089,39 @@ class Model(object):
         # contains all parameters, which are used during initialization as well as in update_pars. However, we
         # could have update_pars only operate on the subset of the graph contributing to transitions, or to
         # dynamic programs or to program overwrites.
-        par_names = set(self.framework.pars.index)
+        par_derivative = self.framework.pars['is derivative'].to_dict()  # Store all parameter names in framework, as well as whether they are a derivative or not
         G = nx.DiGraph()
+        G.add_nodes_from(par_derivative,keep=False)
         for pop in self.pops:
             for par in pop.pars:
-                if par.name not in G.nodes:
-                    G.add_node(par.name,keep=False)
-                for dep in par.deps.keys():
-                    if dep in par_names:
-                        G.add_edge(dep,par.name)
-                if par.pop_aggregation:
-                    G.add_edge(par.pop_aggregation[1],par.name)
+                for dep, dep_var in par.deps.items():
+                    if dep in par_derivative and par_derivative[dep] != 'y':
+                        # Derivative parameters are allowed to refer to themselves directly,
+                        # and derivative parameters are not considered dependencies - so we do
+                        # not need to add a dependency edge to the graph
+                        G.add_edge(dep, par.name)
+                if par.pop_aggregation and par.pop_aggregation[1] in par_derivative:
+                    G.add_edge(par.pop_aggregation[1], par.name)
 
                 if par._is_dynamic or (self.progset and par.name in self.progset.pars):
+                    # If the parameter is dynamic or appears in the progset, then we need to
+                    # include it in the list of parameters to iterate over in `update_pars`
                     G.nodes[par.name]['keep'] = True
 
-        # # Now, all dynamic parameters and their ancestors
-        # for n1 in nx.dag.topological_sort(G):
-        #     if G.nodes[n1]['keep']:
-        #         for n2 in G.predecessors(n1):
-        #             G.nodes[n2]['keep'] = True
-
         assert nx.dag.is_directed_acyclic_graph(G), 'There is a circular dependency in parameters, which is not permitted'
-
-        self._par_update_order = list(nx.dag.topological_sort(G))  # Topological sorting of the junction graph, which is a valid execution order
+        exec_order['all_pars'] = list(nx.dag.topological_sort(G))  # Topological sorting of the junction graph, which is a valid execution order
         # self._par_update_order = [x for x in self.framework.pars.index if x in self._vars_by_pop.keys()]
-        self._par_loop_test = [x for x in self._par_update_order if G.nodes[x]['keep']]
+        exec_order['dynamic_pars'] = [x for x in exec_order['all_pars'] if G.nodes[x]['keep']]
 
 
         # Set the parameter execution order - this is a list of only transition parameters, used when updating links
         # This is a flat list of parameters, but the order actually should not matter since all parameters should be
         # resolved at this point
-        self._par_exec_order = []
+        exec_order['transition_pars'] = []
         for pop in self.pops:
             for par in pop.pars:
                 if par.links and par.units != FS.QUANTITY_TYPE_PROPORTION:
-                    self._par_exec_order.append(par)
+                    exec_order['transition_pars'].append(par)
 
         # Set characteristic execution order - in cases where characteristics depend on each other
         G = nx.DiGraph()
@@ -2129,7 +2133,7 @@ class Model(object):
                 if isinstance(charac.denominator, Characteristic):
                     G.add_edge(charac.denominator, charac)  # Note directionality - the included characteristic needs to be added first
         assert nx.dag.is_directed_acyclic_graph(G), 'There is a circular dependency in characteristics, which is not permitted'
-        self._charac_exec_order = list(nx.dag.topological_sort(G))  # Topological sorting of the junction graph, which is a valid execution order
+        exec_order['characs'] = list(nx.dag.topological_sort(G))  # Topological sorting of the junction graph, which is a valid execution order
 
         # Set the junction execution order
         G = nx.DiGraph()
@@ -2142,12 +2146,15 @@ class Model(object):
                             G.add_edge(link.source, link.dest)
 
         assert nx.dag.is_directed_acyclic_graph(G), 'There is a cycle present where one junction has flows into another, which results in an infinite loop and is not permitted'
-        self._junc_exec_order = list(nx.dag.topological_sort(G))  # Topological sorting of the junction graph, which is a valid execution order
+        exec_order['junctions'] = list(nx.dag.topological_sort(G))  # Topological sorting of the junction graph, which is a valid execution order
+
+        self._exec_order = exec_order
 
     def process(self):
         """ Run the full model. """
 
         assert self._t_index == 0  # Only makes sense to process a simulation once, starting at ti=0 - this might be relaxed later on
+        self._set_exec_order()  # Set the execution order again in case the user has updated the parameters etc. It is critically important that this is correct during integration
         self._update_program_cache()
 
         # Initial flush of people in junctions
@@ -2190,7 +2197,7 @@ class Model(object):
         ti = self._t_index
 
         # First, populate all of the link values without any outflow constraints
-        for par in self._par_exec_order:
+        for par in self._exec_order['transition_pars']:
 
             transition = par.vals[ti]
 
@@ -2291,7 +2298,7 @@ class Model(object):
 
         """
 
-        for j in self._junc_exec_order:
+        for j in self._exec_order['junctions']:
             j.initial_flush()
 
     def update_junctions(self):
@@ -2306,7 +2313,7 @@ class Model(object):
         """
 
         ti = self._t_index  # The current simulation timestep, at time ti the inflow and outflow need to be balanced. `update_links()` sets the inflow but not the outflow, which is done here
-        for j in self._junc_exec_order:
+        for j in self._exec_order['junctions']:
             j.balance(ti)
 
     def update_pars(self):
@@ -2335,7 +2342,7 @@ class Model(object):
         ti = self._t_index
 
         # First, compute dependent characteristics, as parameters might depend on them
-        for charac in self._charac_exec_order:
+        for charac in self._exec_order['characs']:
             if charac._is_dynamic:
                 charac.update(ti)
 
@@ -2353,7 +2360,7 @@ class Model(object):
                     prop_coverage[k] = self.progset.programs[k].get_prop_covered(self.t[ti], self._program_cache['capacities'][k][ti], n)
             prog_vals = self.progset.get_outcomes(prop_coverage)
 
-        for par_name in self._par_loop_test:
+        for par_name in self._exec_order['dynamic_pars']:
             # TODO - We only really need to consider parameters that are dynamic, or that are targeted by programs
 
             # All of the parameters with this name, across populations.
