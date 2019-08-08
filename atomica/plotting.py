@@ -1285,12 +1285,12 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer=None, legend_
     # Calculate the units. As all bar patches are shown on the same axis, they are all expected to have the
     # same units. If they do not, the plot could be misleading
     units = list(set([x.unit_string for x in plotdata.series]))
-    if len(units) == 1:
+    if len(units) == 1 and units[0] is not None:
         if orientation == 'horizontal':
             ax.set_xlabel(units[0].capitalize())
         else:
             ax.set_ylabel(units[0].capitalize())
-    else:
+    elif len(units) > 1:
         logger.warning('Warning - bar plot quantities mix units, double check that output selection is correct')
 
     # Outer group labels are only displayed if there is more than one group
