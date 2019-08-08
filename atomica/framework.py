@@ -765,7 +765,7 @@ class ProjectFramework(object):
         self._process_transitions()
 
         # Now validate each parameter
-        G = nx.DiGraph() # Generate a dependency graph
+        G = nx.DiGraph()  # Generate a dependency graph
 
         def cross_pop_message(par, quantity_type, quantity_name):
             spec = self.get_variable(quantity_name)[0]

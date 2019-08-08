@@ -509,8 +509,14 @@ class PlotData:
                     # This would be the usage 99% of the time (esp. for DALYs that are interested in number of person-years)
                     if s.units == 'Number of people':
                         s.units = 'Number of person-years'
-                    else:
+                    elif s.units is not None:
                         s.units += ' years'
+                    else:
+                        # If the units are none, decide what to do. It probably makes sense just to do nothing and
+                        # leave the units blank, on the assumption that the user knows what they are doing if they
+                        # are working with dimensionless quantities. More commonly, the quantity wouldn't actually
+                        # be dimensionless, but it might not have had units entered e.g. parameter functions
+                        pass
 
             elif method == 'average':
                 s.tvec = (lower + upper) / 2.0
