@@ -76,11 +76,21 @@ jobs:
       displayName: 'Install documentation requirements'
     - script: sudo apt install pandoc -y
       displayName: 'Install pandoc'
-    - script: sphinx-build "docs" "docs/_build"
+    - script : git clone --depth 1 https://github.com/atomicateam/docs doc_repo
+      displayName: 'Clone docs repo'
+    - script : rm -rf doc_repo/$(Build.SourceBranch)
+      displayName: 'Remove existing content'
+    - script: sphinx-build "docs" "doc_repo/$(Build.SourceBranch)"
       displayName: 'Build documentation'
-    - publish: docs/_build
-      artifact: docs
-      displayName: 'Publish documentation'
+    - script: git -C doc_repo add .
+      displayName: 'Add new files'
+    - script: git -C doc_repo commit -m "Automatic update"
+      displayName: 'Commit files'
+    - script: git -C doc_repo push https://$(GithubToken)@github.com/atomicateam/docs
+      displayName: 'Push to site'
+#    - publish: docs/_build
+#      artifact: docs
+#      displayName: 'Publish documentation as Azure zip file'
 
 # TODO - Switch deployment over to Azure DevOps
 
