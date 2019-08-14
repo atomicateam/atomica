@@ -78,9 +78,9 @@ jobs:
       displayName: 'Install pandoc'
     - script : git clone --depth 1 https://github.com/atomicateam/docs doc_repo
       displayName: 'Clone docs repo'
-    - script : rm -rf doc_repo/$(Build.SourceBranch)
+    - script : rm -rf doc_repo/$(Build.SourceBranchName)
       displayName: 'Remove existing content'
-    - script: sphinx-build "docs" "doc_repo/$(Build.SourceBranch)"
+    - script: sphinx-build "docs" "doc_repo/$(Build.SourceBranchName)"
       displayName: 'Build documentation'
     - script: git -C doc_repo add .
       displayName: 'Add new files'
