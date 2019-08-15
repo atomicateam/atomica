@@ -248,13 +248,12 @@ class ProjectData(sc.prettyobj):
                     pages[databook_page].append((spec.name, order))
                     data.tdve[spec.name] = TimeDependentValuesEntry(full_name, data.tvec, allowed_units=[framework.get_databook_units(full_name)], comment=spec['guidance'])
                     data.tdve[spec.name].write_units = True
+                    data.tdve[spec.name].write_uncertainty = True
                     if obj_type == 'pars':
                         data.tdve[spec.name].write_assumption = True
                         if spec['timed'] == 'y':
                             data.tdve[spec.name].tvec = []  # If parameter is timed, don't show any years
                             data.tdve[spec.name].write_uncertainty = False  # Don't show uncertainty for timed parameters. In theory users could manually add the column and sample over it, but because the duration is rounded to the timestep, it's likely to have confusing stepped effects
-                        else:
-                            data.tdve[spec.name].write_uncertainty = True
                     data.tdve[spec.name].pop_type = pop_type
 
         # Now convert pages to full names and sort them into the correct order
