@@ -477,7 +477,8 @@ class ProjectData(sc.prettyobj):
                             assert ts.units is not None, '%s. Units missing for %s (%s)' % (location, tdve.name, name)
                             if ts.units.strip().lower() != framework_units.strip().lower():
                                 # If the units don't match the framework's 'databook' units, see if they at least match the standard unit (for legacy databooks)
-                                if 'format' in spec and spec['format'] is not None and ts.units.lower().strip() != spec['format'].lower().strip():
+                                # For compartments and characteristics, the units must match exactly
+                                if obj_type in ['comps','characs'] or ('format' in spec and spec['format'] is not None and ts.units.lower().strip() != spec['format'].lower().strip()):
                                     assert ts.units == framework_units, '%s. Unit "%s" for %s (%s) does not match the declared units from the Framework (expecting "%s")' % (location, ts.units, tdve.name, name, framework_units)
                             if obj_type == 'par' and spec['timed'] == 'y':
                                 assert not ts.has_time_data, '%s. Parameter %s (%s) is marked as a timed transition in the Framework, so it must have a constant value (i.e., the databook cannot contain time-dependent values for this parameter)' % (location, tdve.name, name)
