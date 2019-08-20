@@ -1,51 +1,118 @@
 jobs:
 
 - job: 'tox'
-
-  pool:
-    vmImage: 'ubuntu-16.04'
+  variables:
+    python.version: '3.7'
+    TOXENV: 'py37'
   strategy:
     matrix:
-      Python36:
-        python.version: '3.6'
-        TOXENV: 'py36'
-      Python37:
-        python.version: '3.7'
-        TOXENV: 'py37'
-
+      linux:
+        imageName: 'ubuntu-16.04'
+      mac:
+        imageName: 'macos-10.13'
+      windows:
+        imageName: 'windows-2019'
+  pool:
+    vmImage: $(imageName)
   steps:
-  - task: UsePythonVersion@0
-    displayName: 'Use Python $(python.version)'
-    inputs:
-      versionSpec: '$(python.version)'
+    - task: UsePythonVersion@0
+      displayName: 'Use Python $(python.version)'
+      inputs:
+        versionSpec: '$(python.version)'
 
-  - script: python -m pip install --upgrade pip && python -m pip install tox
-    displayName: 'Install Tox'
+    - script: python -m pip install --upgrade pip && python -m pip install tox
+      displayName: 'Install Tox'
 
-  - script: tox -e $(TOXENV)
-    displayName: 'Run Tox'
+    - script: tox -e $(TOXENV)
+      displayName: 'Run Tox tests'
 
-  - task: PublishTestResults@2
-    inputs:
-      testResultsFiles: '**/test-*.xml'
-      testRunTitle: 'Publish test results for Python $(python.version)'
-    condition: succeededOrFailed()
+    - task: PublishTestResults@2
+      inputs:
+        testResultsFiles: '**/test-*.xml'
+        testRunTitle: 'Publish test results for Python $(python.version)'
+      condition: succeededOrFailed()
 
-  - task: PublishCodeCoverageResults@1
-    inputs:
-      codeCoverageTool: Cobertura
-      summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/coverage.xml'
-      reportDirectory: '$(System.DefaultWorkingDirectory)/**/htmlcov'
+    - task: PublishCodeCoverageResults@1
+      inputs:
+        codeCoverageTool: Cobertura
+        summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/coverage.xml'
+        reportDirectory: '$(System.DefaultWorkingDirectory)/**/htmlcov'
 
-# TODO - Switch deployment over to Azure DevOps
+- job: 'flake8'
+  pool:
+    vmImage: 'ubuntu-16.04'
+  steps:
+    - task: UsePythonVersion@0
+      displayName: 'Select python version'
+      inputs:
+        versionSpec: '3.7'
+    - script: python -m pip install flake8 flake8-junit-report
+      displayName: 'Install flake8'
+    - script: flake8 atomica tests --exit-zero --output-file flake8.txt
+      # Note - using --exit-zero will cause flake8 'errors' to show up as 'errors' in Azure Pipelines
+      # but the test will have been considered to pass. Therefore, the overall tests suite will still
+      # be considered to be passing as long as tox runs, and flake8 errors are just guidance for style
+      displayName: 'Run flake8'
+    - script: flake8_junit flake8.txt flake8_junit.xml
+      displayName: 'Generate flake8 junit output'
+    - task: PublishTestResults@2
+      inputs:
+        testResultsFiles: '**/flake8_junit.xml'
+        testRunTitle: 'Publish flake8 results'
 
-#- job: 'deploy'
-#  dependsOn: 'tox'
-#  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
-#
-#  steps:
-#  - script: python setup.py build && python setup.py sdist
-#    displayName: 'Build distribution'
-#
-#  - script: twine -upload -u $(pypi.username) -p $(pypi.password) dist/*
-#    displayName: 'Upload using Twine'
+- job: 'docs'
+  condition: ne(variables['Build.Reason'], 'PullRequest') # Skip if it's a PR build
+  pool:
+    vmImage: 'ubuntu-16.04'
+  steps:
+    - task: UsePythonVersion@0
+      displayName: 'Select python version'
+      inputs:
+        versionSpec: '3.7'
+    - script: |
+        python setup.py develop
+        python -m pip install -r requirements.txt
+        sudo apt install pandoc -y
+      displayName: 'Install dependencies'
+    - script: |
+        mkdir doc_build
+        sphinx-build "docs" "doc_build/$(Build.SourceBranchName)"
+      displayName: 'Build documentation'
+    - script: |
+        git clone --depth 1 https://github.com/atomicateam/docs doc_repo
+        rm -rf doc_repo/$(Build.SourceBranchName)
+        mv doc_build/$(Build.SourceBranchName) doc_repo/$(Build.SourceBranchName)
+        git -C doc_repo config user.email ci@azurepipelines
+        git -C doc_repo config user.name "Azure Pipelines"
+        git -C doc_repo add .
+        git -C doc_repo commit -m "Automatic update"
+        git -C doc_repo push https://$(GithubToken)@github.com/atomicateam/docs
+      displayName: 'Publish site'
+#    - publish: docs/_build
+#      artifact: docs
+#      displayName: 'Publish documentation as Azure zip file'
+
+- job: 'deploy'
+  dependsOn: 'tox'
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
+  pool:
+    vmImage: 'ubuntu-16.04'
+  steps:
+    - task: UsePythonVersion@0
+      displayName: 'Select python version'
+      inputs:
+        versionSpec: '3.7'
+    - script: |
+        python -m pip install wheel
+        python -m pip install twine
+        python setup.py build
+        python setup.py sdist
+        python setup.py bdist_wheel
+      displayName: 'Build Atomica'
+    - task: TwineAuthenticate@1
+      displayName: 'Twine Authenticate'
+      inputs:
+        pythonUploadServiceConnection: pypi_atomica
+    - script: |
+        python -m twine upload -r "pypi_atomica" --config-file $(PYPIRC_PATH) dist/*
+      displayName: 'Upload to PyPI'
