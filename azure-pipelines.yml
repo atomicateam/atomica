@@ -73,11 +73,14 @@ jobs:
         python -m pip install -r requirements.txt
         sudo apt install pandoc -y
       displayName: 'Install dependencies'
-    - script: sphinx-build "docs" "doc_repo/$(Build.SourceBranchName)"
+    - script: |
+        mkdir doc_build
+        sphinx-build "docs" "doc_build/$(Build.SourceBranchName)"
       displayName: 'Build documentation'
     - script: |
         git clone --depth 1 https://github.com/atomicateam/docs doc_repo
         rm -rf doc_repo/$(Build.SourceBranchName)
+        mv doc_build/$(Build.SourceBranchName) doc_repo/$(Build.SourceBranchName)
         git -C doc_repo config user.email ci@azurepipelines
         git -C doc_repo config user.name "Azure Pipelines"
         git -C doc_repo add .
