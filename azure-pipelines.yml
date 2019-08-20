@@ -14,7 +14,6 @@ jobs:
         imageName: 'windows-2019'
   pool:
     vmImage: $(imageName)
-
   steps:
     - task: UsePythonVersion@0
       displayName: 'Use Python $(python.version)'
@@ -40,10 +39,8 @@ jobs:
         reportDirectory: '$(System.DefaultWorkingDirectory)/**/htmlcov'
 
 - job: 'flake8'
-
   pool:
     vmImage: 'ubuntu-16.04'
-
   steps:
     - task: UsePythonVersion@0
       displayName: 'Select python version'
@@ -64,10 +61,8 @@ jobs:
         testRunTitle: 'Publish flake8 results'
 
 - job: 'docs'
-
   pool:
     vmImage: 'ubuntu-16.04'
-
   steps:
     - task: UsePythonVersion@0
       displayName: 'Select python version'
@@ -97,25 +92,24 @@ jobs:
 - job: 'deploy'
   dependsOn: 'tox'
   condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
-
   pool:
     vmImage: 'ubuntu-16.04'
-
   steps:
     - task: UsePythonVersion@0
       displayName: 'Select python version'
       inputs:
         versionSpec: '3.7'
     - script: |
-       pip install wheel
-       pip install twine
-       python setup.py build
-       python setup.py sdist
-       python setup.py bdist_wheel
+        python -m pip install wheel
+        python -m pip install twine
+        python setup.py build
+        python setup.py sdist
+        python setup.py bdist_wheel
+      displayName: 'Build Atomica'
     - task: TwineAuthenticate@1
       displayName: 'Twine Authenticate'
       inputs:
-        # Name matches the service connection created on Azure
         pythonUploadServiceConnection: pypi_atomica
     - script: |
-        python -m twine upload -r "pypi_atomica" --config-file $(PYPIRC_PATH) dist/*.whl
+        python -m twine upload -r "pypi_atomica" --config-file $(PYPIRC_PATH) dist/*
+      displayName: 'Upload to PyPI'
