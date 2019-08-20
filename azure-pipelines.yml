@@ -14,7 +14,6 @@ jobs:
         imageName: 'windows-2019'
   pool:
     vmImage: $(imageName)
-
   steps:
     - task: UsePythonVersion@0
       displayName: 'Use Python $(python.version)'
@@ -38,7 +37,6 @@ jobs:
         codeCoverageTool: Cobertura
         summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/coverage.xml'
         reportDirectory: '$(System.DefaultWorkingDirectory)/**/htmlcov'
-
 
 - job: 'flake8'
   pool:
@@ -87,20 +85,31 @@ jobs:
         git -C doc_repo commit -m "Automatic update"
         git -C doc_repo push https://$(GithubToken)@github.com/atomicateam/docs
       displayName: 'Publish site'
-
 #    - publish: docs/_build
 #      artifact: docs
 #      displayName: 'Publish documentation as Azure zip file'
 
-# TODO - Switch deployment over to Azure DevOps
-
-#- job: 'deploy'
-#  dependsOn: 'tox'
-#  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
-#
-#  steps:
-#  - script: python setup.py build && python setup.py sdist
-#    displayName: 'Build distribution'
-#
-#  - script: twine -upload -u $(pypi.username) -p $(pypi.password) dist/*
-#    displayName: 'Upload using Twine'
+- job: 'deploy'
+  dependsOn: 'tox'
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
+  pool:
+    vmImage: 'ubuntu-16.04'
+  steps:
+    - task: UsePythonVersion@0
+      displayName: 'Select python version'
+      inputs:
+        versionSpec: '3.7'
+    - script: |
+        python -m pip install wheel
+        python -m pip install twine
+        python setup.py build
+        python setup.py sdist
+        python setup.py bdist_wheel
+      displayName: 'Build Atomica'
+    - task: TwineAuthenticate@1
+      displayName: 'Twine Authenticate'
+      inputs:
+        pythonUploadServiceConnection: pypi_atomica
+    - script: |
+        python -m twine upload -r "pypi_atomica" --config-file $(PYPIRC_PATH) dist/*
+      displayName: 'Upload to PyPI'
