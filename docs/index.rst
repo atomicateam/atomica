@@ -12,6 +12,7 @@ Atomica is a simulation engine for compartmental models. It can be used to simul
 
     general/index
     examples/index
+    tutorial/index
     library/index
     code_documentation
 
