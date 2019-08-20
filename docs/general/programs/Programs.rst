@@ -36,7 +36,7 @@ This information to specify targeting is entered on the *Program targeting* shee
 
 An example is shown below:
 
-.. image:: progbook_1.PNG
+.. image:: programs_progbook_1.png
 	:width: 700px
 
 Note that
@@ -51,14 +51,14 @@ The second program sheet defines quantities related to computing program coverag
 
 An example of this *spending data* sheet is shown below:
 
-.. image:: progbook_2.PNG
+.. image:: programs_progbook_2.png
 	:width: 600px
 
 Notice also that all values can be time-varying and can contain uncertainty. 
 
 Finally, the last program sheet - the *Program effects* sheet - defines the effect that each program has on model parameters. An example is shown below:
 
-.. image:: progbook_3.PNG
+.. image:: programs_progbook_3.png
 	:width: 900px
 
 This sheet contains a table for each parameter targeted by the ProgramSet. Typically, this is the set of programs that is marked as 'Targetable' in the framework, and is thus independent of whether any programs in the ProgramSet actually target the parameter. For each parameter, the program outcomes in each population are independent. Interactions between programs are covered in more detail below. In summary, the columns on the right specify the effect of each program on individuals reached by the program in isolation. If more than one program targets the parameter (i.e., if there is more than one program effect value in a single row) then the 'coverage interaction' column determines how many people are reached by more than one program, and the 'impact interaction' determines the effect of a combination of programs.  
