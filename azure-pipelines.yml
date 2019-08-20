@@ -61,6 +61,7 @@ jobs:
         testRunTitle: 'Publish flake8 results'
 
 - job: 'docs'
+  condition: ne(variables['Build.Reason'], 'PullRequest') # Skip if it's a PR build
   pool:
     vmImage: 'ubuntu-16.04'
   steps:
@@ -72,15 +73,17 @@ jobs:
         python setup.py develop
         python -m pip install -r requirements.txt
         sudo apt install pandoc -y
-    - script : |
-        git clone --depth 1 https://github.com/atomicateam/docs doc_repo
-        rm -rf doc_repo/$(Build.SourceBranchName)
-        git -C doc_repo config user.email ci@azurepipelines
-        git -C doc_repo config user.name "Azure Pipelines"
-      displayName: 'Clone and prepare repo'
-    - script: sphinx-build "docs" "doc_repo/$(Build.SourceBranchName)"
+      displayName: 'Install dependencies'
+    - script: |
+        mkdir doc_build
+        sphinx-build "docs" "doc_build/$(Build.SourceBranchName)"
       displayName: 'Build documentation'
     - script: |
+        git clone --depth 1 https://github.com/atomicateam/docs doc_repo
+        rm -rf doc_repo/$(Build.SourceBranchName)
+        mv doc_build/$(Build.SourceBranchName) doc_repo/$(Build.SourceBranchName)
+        git -C doc_repo config user.email ci@azurepipelines
+        git -C doc_repo config user.name "Azure Pipelines"
         git -C doc_repo add .
         git -C doc_repo commit -m "Automatic update"
         git -C doc_repo push https://$(GithubToken)@github.com/atomicateam/docs
