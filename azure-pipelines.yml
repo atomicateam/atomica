@@ -107,9 +107,9 @@ jobs:
         python setup.py bdist_wheel
       displayName: 'Build Atomica'
     - task: TwineAuthenticate@1
-      displayName: 'Twine Authenticate'
-      inputs:
-        pythonUploadServiceConnection: pypi_atomica
+      displayName: 'Twine Authenticate'
+      inputs:
+        pythonUploadServiceConnection: pypi_atomica
     - script: |
         python -m twine upload -r "pypi_atomica" --config-file $(PYPIRC_PATH) dist/*
       displayName: 'Upload to PyPI'
