@@ -61,6 +61,7 @@ jobs:
         testRunTitle: 'Publish flake8 results'
 
 - job: 'docs'
+  condition: ne(variables['Build.Reason'], 'PullRequest') # Skip if it's a PR build
   pool:
     vmImage: 'ubuntu-16.04'
   steps:
