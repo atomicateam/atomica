@@ -91,6 +91,6 @@ from .reconciliation import *
 from .optimization import *
 from .cascade import *
 from .results import *
-from .migration import *
+from .migration import migrations, register_migration
 from .utils import *
 from .system import *

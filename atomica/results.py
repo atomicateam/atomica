@@ -20,7 +20,7 @@ from .system import FrameworkSettings as FS
 from .system import logger, NotFoundError
 from .utils import NamedItem, evaluate_plot_string, nested_loop
 from .function_parser import parse_function
-
+from .version import version
 
 class Result(NamedItem):
     """
@@ -52,12 +52,19 @@ class Result(NamedItem):
         NamedItem.__init__(self, name)
 
         self.uid = sc.uuid()
+        self.version = version # Track versioning information for the result. This might change due to migration (whereas by convention, the model version does not)
 
         # The Result constructor is called in model.run_model and the Model is no longer returned.
         # The following should be the only reference to that instance so no need to dcp.
         self.model = model  # : A completed model run that serves as primary storage for the underlying values
         self.parset_name = parset.name if parset is not None else None  # : The name of the ParameterSet that was used for the simulation
         self.pop_names = [x.name for x in self.model.pops]  # : A list of the population names present. This gets frequently used, so it is saved as an actual output
+
+    def __setstate__(self, d):
+        from .migration import migrate
+        self.__dict__ = d
+        result = migrate(self)
+        self.__dict__ = result.__dict__
 
     @property
     def used_programs(self) -> bool:

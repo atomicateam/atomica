@@ -52,58 +52,71 @@ atomica.optimization.OptimInstructions = _Placeholder
 # The remaining code manages upgrading Project objects and their contents after they
 # have been unpickled and instantiated
 
-# This list stores all of the migrations that are possible
-available_migrations = []
-
+# This dict stores the migrations associated with each versioned class
+# We migrate projects and results separately because they might be stored
+# separately e.g. in a database
 
 class Migration:
     """ Class representation of a migration
 
     This class stores a migration function together with all required metadata. It would
     normally be instantiated using the `migration` decorator, which also registers the
-    migration by adding it to the `available_migrations` list
+    migration by adding it to the `migrations` list
 
     """
 
-    def __init__(self, original_version, new_version, description, fcn, date=None, changes_results=False):
+    def __init__(self, classname, original_version, new_version, description, fcn, date=None, update_required=False):
+        """
+
+        :param original_version:
+        :param new_version:
+        :param description:
+        :param fcn:
+        :param date:
+        :param update_required: Flag if dependent content in the object might change e.g. if redoing a calculation might produce different results
+        """
+        self.classname = classname
         self.original_version = original_version
         self.new_version = new_version
         self.description = description
-        self.changes_results = changes_results
+        self.update_required = update_required
         self.date = date
         self.fcn = fcn
 
-    def upgrade(self, proj):
-        logger.debug('MIGRATION: Upgrading %s -> %s (%s)' % (self.original_version, self.new_version, self.description))
-        proj = self.fcn(proj)  # Run the migration function
-        if proj is None:
+    def upgrade(self, obj):
+        logger.debug('MIGRATION: Upgrading %s %s -> %s (%s)' % (self.classname, self.original_version, self.new_version, self.description))
+        obj = self.fcn(obj)  # Run the migration function
+        if obj is None:
             raise Exception('Migration "%s" returned None, it is likely missing a return statement' % (str(self)))
-        proj.version = self.new_version  # Update the version
-        if self.changes_results:
-            proj._result_update_required = True
-        return proj
+        obj.version = self.new_version  # Update the version
+        if self.update_required:
+            obj._update_required = True
+        return obj
 
     def __repr__(self):
         return 'Migration(%s->%s)' % (self.original_version, self.new_version)
 
 
-def migration(original_version, new_version, description, date=None, changes_results=False):
+def register_migration(registry, classname, original_version, new_version, description, date=None, update_required=False):
     """ Decorator to register migration functions
 
     This decorator constructs a `Migration` object from a decorated migration function, and registers it
     in the module's list of migrations to be run when calling migrate()
 
+    :param registry: Dictionary storing {classname:[migrations]}
     :param original_version: Version string for the start version. Function will only run on projects whose version is <= this
     :param new_version: The resulting project is assigned this version
     :param description: A brief overview of the purpose of this migration
     :param date: Optionally specify the date when this migration was written
-    :param changes_results: Optionally flag that changes to model output may occur
+    :param update_required: Optionally flag that changes to model output may occur - the flag is stored in the object's `_update_required` attribute.
+                            Objects can optionally contain this attribute, so it's not necessary if the object is planned not to require
+                            such a flag.
     :return: None
 
     Example usage::
 
-        @migration('1.0.0', '1.0.1', 'Upgrade project', changes_results=True)
-        def update_project(proj):
+        @migration('Project','1.0.0', '1.0.1', 'Upgrade project', update_required=True)
+        def _update_project(proj):
             ...
             return proj
 
@@ -114,13 +127,20 @@ def migration(original_version, new_version, description, date=None, changes_res
     """
 
     def register(f):
-        available_migrations.append(Migration(original_version, new_version, description, fcn=f, date=date, changes_results=changes_results))
+        if classname not in registry:
+            registry[classname] = []
+        registry[classname].append(Migration(classname, original_version, new_version, description, fcn=f, date=date, update_required=update_required))
         return f
     return register
 
+migrations = dict() # Registry of migrations in Atomica
 
-def migrate(proj):
-    """ Update a project to the latest version
+def migration(*args, **kwargs):
+    # Wrapper decorator to bind register_migration to the migration registry in this module
+    return register_migration(migrations, *args, **kwargs)
+
+def migrate(obj, registry=migrations, version=version, gitinfo=gitinfo):
+    """ Update a object to the latest version
 
     Run all of the migrations in the list of available migrations. The migrations are run in ascending order, as long
     as the version is <= the migration's original version. This way, migrations don't need to be added if a version number
@@ -129,32 +149,46 @@ def migrate(proj):
 
     Typically, this function would not be called manually - it happens automatically as part of `Project.load()`.
 
-    Note that this function returns the updated Project object. Typically the migration functions will update a
-    project in-place, but this syntax allows migrations to replace parts of the project (or the entire project)
+    Note that this function returns the updated object. Typically the migration functions will update a
+    object in-place, but this syntax allows migrations to replace parts of the object (or the entire object)
     if that is ever necessary in the future. So do not rely on `migrate` having side-effects, make sure the
-    returned Project object is retained. In principle we could dcp() the Project to ensure that only the
+    returned object is retained. In principle we could dcp() the object to ensure that only the
     copy gets migrated, but at this point it does not appear worth the performance overhead (since migration at the
     moment is only ever called automatically).
 
-    :param proj: Project object to migrate
-    :return: Updated Project object
+    :param proj: object to migrate
+    :param version: The current version (in case this is reused in a separate module, defaults to Atomica's)
+    :param gitinfo: The gitinfo to update (in case this is reused in a separate module, defaults to Atomica's)
+    :return: Updated object
 
     """
 
-    migrations = sorted(available_migrations, key=lambda m: LooseVersion(m.original_version))
-    if sc.compareversions(proj.version, version) >= 0:
-        return proj
-    else:
-        logger.info('Migrating Project "%s" from %s->%s', proj.name, proj.version, version)
-    for m in migrations:  # Run the migrations in increasing version order
-        if sc.compareversions(proj.version, m.new_version) < 0:
-            proj = m.upgrade(proj)
+    if type(obj).__name__ not in registry:
+        return obj # If there are no migrations for the object, then return immediately
 
-    proj.version = version  # Set project version to the current Atomica version
-    proj.gitinfo = gitinfo  # Update gitinfo to current version
-    if proj._result_update_required:
-        logger.warning('Caution: due to migration, project results may be different if re-run.')
-    return proj
+    elif not hasattr(obj, 'version'):
+        # If the object has no version attribute, then add one with version 0. This is presumably
+        # because the original object didn't have a version, but now migrations for it are required.
+        # In that case, any object that doesn't have a version would require all migrations to be run.
+        # New objects would all have a version already. After any migrations are run, these values will
+        # then be updated to the current version
+        obj.version = '0.0.0'
+        obj.gitinfo = None
+
+    migrations_to_run = sorted(registry[type(obj).__name__], key=lambda m: LooseVersion(m.original_version))
+    if sc.compareversions(obj.version, version) >= 0:
+        return obj
+    else:
+        logger.info('Migrating %s "%s" from %s->%s', type(obj).__name__, obj.name, obj.version, version)
+    for m in migrations_to_run:  # Run the migrations in increasing version order
+        if sc.compareversions(obj.version, m.new_version) < 0:
+            obj = m.upgrade(obj)
+
+    obj.version = version  # Set object version to the current Atomica version
+    obj.gitinfo = gitinfo  # Update gitinfo to current version
+    if hasattr(obj, '_update_required') and obj._update_required:
+        logger.warning('Caution: due to migration, object may behave different if re-run.')
+    return obj
 
 
 def all_results(proj):
@@ -241,8 +275,8 @@ def all_frameworks(proj):
             yield result.framework
 
 
-@migration('1.0.5', '1.0.6', 'Simplify ParameterSet storage')
-def simplify_parset_storage(proj):
+@migration('Project','1.0.5', '1.0.6', 'Simplify ParameterSet storage')
+def _simplify_parset_storage(proj):
     # ParameterSets in 1.0.5 store the parameters keyed by the type e.g. 'cascade','comp'
     # In 1.0.6 they are flat
     for parset in proj.parsets.values():
@@ -255,9 +289,11 @@ def simplify_parset_storage(proj):
     return proj
 
 
-@migration('1.0.7', '1.0.8', 'Add version information to model/results')
-def add_model_version(proj):
-
+@migration('Project','1.0.7', '1.0.8', 'Add version information to model')
+def _add_model_version(proj):
+    # Note that this is a legacy update via the Project and therefore Results that
+    # are stored separately will not receive this migration. It is unlikely that any
+    # Results have been stored in this form though.
     def add_version(res, p):
         res.model.version = p.version
         res.model.gitinfo = p.gitinfo
@@ -269,8 +305,8 @@ def add_model_version(proj):
     return proj
 
 
-@migration('1.0.8', '1.0.9', 'Add currency and units to progset quantities')
-def add_currency_and_units(proj):
+@migration('Project','1.0.8', '1.0.9', 'Add currency and units to progset quantities')
+def _add_currency_and_units(proj):
 
     def add_units(progset):
         # Add in the default units
@@ -289,8 +325,8 @@ def add_currency_and_units(proj):
     return proj
 
 
-@migration('1.0.9', '1.0.10', 'Remove target_pars from Programs')
-def remove_target_pars(proj):
+@migration('Project','1.0.9', '1.0.10', 'Remove target_pars from Programs')
+def _remove_target_pars(proj):
 
     def remove_pars(progset):
         for program in progset.programs.values():
@@ -302,14 +338,14 @@ def remove_target_pars(proj):
     return proj
 
 
-@migration('1.0.10', '1.0.11', 'Add result update flag to Project')
-def add_result_update_flag(proj):
-    proj._result_update_required = False
+@migration('Project','1.0.10', '1.0.11', 'Add result update flag to Project')
+def _add_result_update_flag(proj):
+    proj._update_required = False
     return proj
 
 
-@migration('1.0.12', '1.0.13', 'Add timescale to parameters')
-def add_timescale(proj):
+@migration('Project','1.0.12', '1.0.13', 'Add timescale to parameters')
+def _add_timescale(proj):
     for _, spec in proj.framework.pars.iterrows():
         if proj.framework.transitions[spec.name]:
             proj.framework.pars.at[spec.name, 'timescale'] = 1.0  # Default timescale - note that currently only transition parameters are allowed to have a timescale that is not None
@@ -328,8 +364,8 @@ def add_timescale(proj):
     return proj
 
 
-@migration('1.0.13', '1.0.14', 'Parameters use TimeSeries internally')
-def parameter_use_timeseries(proj):
+@migration('Project','1.0.13', '1.0.14', 'Parameters use TimeSeries internally')
+def _parameter_use_timeseries(proj):
     for parset in proj.parsets.values():
         for par in parset.all_pars():
 
@@ -353,8 +389,8 @@ def parameter_use_timeseries(proj):
     return proj
 
 
-@migration('1.0.14', '1.0.15', 'Internal model tidying')
-def model_tidying(proj):
+@migration('Project','1.0.14', '1.0.15', 'Internal model tidying')
+def _model_tidying(proj):
     for result in all_results(proj):
         for pop in result.model.pops:
             for charac in pop.characs:
@@ -369,8 +405,8 @@ def model_tidying(proj):
     return proj
 
 
-@migration('1.0.15', '1.0.16', 'Replace AtomicaSpreadsheet')
-def convert_spreadsheets(proj):
+@migration('Project','1.0.15', '1.0.16', 'Replace AtomicaSpreadsheet')
+def _convert_spreadsheets(proj):
 
     def convert(placeholder):
         new = sc.Spreadsheet(source=io.BytesIO(placeholder.data), filename=placeholder.filename)
@@ -386,8 +422,8 @@ def convert_spreadsheets(proj):
     return proj
 
 
-@migration('1.0.16', '1.0.17', 'Rename capacity constraint')
-def rename_capacity_constraint(proj):
+@migration('Project','1.0.16', '1.0.17', 'Rename capacity constraint')
+def _rename_capacity_constraint(proj):
     for progset in all_progsets(proj):
         for prog in progset.programs.values():
             prog.capacity_constraint = prog.capacity
@@ -395,20 +431,17 @@ def rename_capacity_constraint(proj):
     return proj
 
 
-@migration('1.0.27', '1.0.28', 'Rename link labels')
-def rename_link_labels(proj):
-
-    # Normalize link labels - they should now always derive from their associated parameter
-    for result in all_results(proj):
-        for pop in result.model.pops:
-            for link in pop.links:
-                link.id = link.id[0:3] + (link.parameter.name + ':flow',)
-        result.model._set_vars_by_pop()
-    return proj
+@migration('Result','1.0.27', '1.0.28', 'Rename link labels')
+def _rename_link_labels(result):
+    for pop in result.model.pops:
+        for link in pop.links:
+            link.id = link.id[0:3] + (link.parameter.name + ':flow',)
+    result.model._set_vars_by_pop()
+    return result
 
 
-@migration('1.0.30', '1.1.3', 'Replace scenarios')
-def replace_scenarios(proj):
+@migration('Project','1.0.30', '1.1.3', 'Replace scenarios')
+def _replace_scenarios(proj):
     # This migration upgrades existing scenarios to match the latest definitions
     from .scenarios import ParameterScenario, BudgetScenario, CoverageScenario
     from .utils import NDict, TimeSeries
@@ -483,8 +516,8 @@ def replace_scenarios(proj):
     return proj
 
 
-@migration('1.2.0', '1.3.0', 'Add population type')
-def add_pop_type(proj):
+@migration('Project','1.2.0', '1.3.0', 'Add population type')
+def _add_pop_type(proj):
 
     for fw in all_frameworks(proj):
 
@@ -529,34 +562,39 @@ def add_pop_type(proj):
     return proj
 
 
-@migration('1.3.0', '1.4.0', 'Parameter can be derivative')
-def add_derivatives(proj):
+@migration('Project','1.3.0', '1.4.0', 'Parameter can be derivative')
+def _add_project_derivatives(proj):
     for fw in all_frameworks(proj):
         fw.pars['is derivative'] = 'n'
-    for result in all_results(proj):
-        for pop in result.model.pops:
-            for par in pop.pars:
-                par.derivative = False
     return proj
 
+@migration('Result','1.3.0', '1.4.0', 'Parameter can be derivative')
+def _add_result_derivatives(result):
+    for pop in result.model.pops:
+        for par in pop.pars:
+            par.derivative = False
+    return result
 
-@migration('1.4.3', '1.5.0', 'Parameters with functions can be overwritten')
-def add_parset_disable_function(proj):
 
+@migration('Project','1.4.3', '1.5.0', 'Parameters with functions can be overwritten')
+def _add_parset_disable_function(proj):
     # Add skip_function flag to parset Parameter instances
     for parset in proj.parsets.values():
         for par in parset.all_pars():
             par.skip_function = sc.odict.fromkeys(par.ts, None)
-
-    for result in all_results(proj):
-        for pop in result.model.pops:
-            for par in pop.pars:
-                par.skip_function = None
     return proj
 
 
-@migration('1.5.1', '1.5.2', 'OptimInstruction has separate adjustment and start years')
-def separate_optiminstruction_years(proj):
+@migration('Result','1.4.3', '1.5.0', 'Parameters with functions can be overwritten')
+def _result_add_skip_flag(result):
+    for pop in result.model.pops:
+        for par in pop.pars:
+            par.skip_function = None
+    return result
+
+
+@migration('Project','1.5.1', '1.5.2', 'OptimInstruction has separate adjustment and start years')
+def _separate_optiminstruction_years(proj):
     if hasattr(proj, 'optims'):
         for optim in proj.optims.values():
             if 'adjustment_year' not in optim.json:
@@ -564,8 +602,8 @@ def separate_optiminstruction_years(proj):
     return proj
 
 
-@migration('1.7.0', '1.8.0', 'Parameters store interpolation method, deprecate scenario smooth onset')
-def add_parameter_interpolation_method(proj):
+@migration('Project','1.7.0', '1.8.0', 'Parameters store interpolation method, deprecate scenario smooth onset')
+def _add_parameter_interpolation_method(proj):
     for parset in proj.parsets.values():
         for par in parset.all_pars():
             par._interpolation_method = 'pchip'  # New projects will default to linear, but migrations use pchip to ensure results don't change
@@ -575,12 +613,11 @@ def add_parameter_interpolation_method(proj):
                 for pop_name in scen.scenario_values[par_name].keys():
                     if 'smooth_onset' in scen.scenario_values[par_name][pop_name]:
                         logger.warning('Parameter scenario smooth onset is deprecated and will not be used')
-
     return proj
 
 
-@migration('1.8.0', '1.9.0', 'OptimInstructions functionality moved to apps')
-def refactor_optiminstructions(proj):
+@migration('Project','1.8.0', '1.9.0', 'OptimInstructions functionality moved to apps')
+def _refactor_optiminstructions(proj):
     if hasattr(proj, 'optims'):
         delkeys = []
         for k, v in proj.optims.items():
@@ -607,8 +644,8 @@ def refactor_optiminstructions(proj):
     return proj
 
 
-@migration('1.10.0', '1.11.0', 'TDVE stores headings to write internally')
-def add_internal_flags_to_tdve(proj):
+@migration('Project','1.10.0', '1.11.0', 'TDVE stores headings to write internally')
+def _add_internal_flags_to_tdve(proj):
     # This migration adds missing attributes to TDVE and TDC objects
     if proj.data:
         for tdve in proj.data.tdve.values():
@@ -632,30 +669,40 @@ def add_internal_flags_to_tdve(proj):
 
     return proj
 
-
-@migration('1.11.0', '1.12.0', 'Timed compartment updates')
-def add_timed_attribute(proj):
-
+@migration('Project','1.11.0', '1.12.0', 'Timed compartment updates')
+def _add_project_timed_attribute(proj):
     for fw in all_frameworks(proj):
         fw.pars['timed'] = 'n'
         fw.comps['duration group'] = None
-
-    for result in all_results(proj):
-        result.model.unlink()
-
-        for pop in result.model.pops:
-            for i, comp in enumerate(pop.comps):
-                if comp.tag_birth:
-                    comp.__class__ = atomica.SourceCompartment
-                elif comp.tag_dead:
-                    comp.__class__ = atomica.SinkCompartment
-                elif comp.is_junction:
-                    comp.__class__ = atomica.JunctionCompartment
-                    comp.duration_group = None
-                del comp.tag_birth
-                del comp.tag_dead
-                del comp.is_junction
-
-        result.model.relink()  # Make sure all of the references are updated to the new compartment instance - it has the same ID so it should be fine
-
     return proj
+
+@migration('Result', '1.11.0', '1.12.0', 'Timed compartment updates')
+def _add_result_timed_attribute(result):
+    result.model.unlink()
+    for pop in result.model.pops:
+        for i, comp in enumerate(pop.comps):
+            if comp.tag_birth:
+                comp.__class__ = atomica.SourceCompartment
+            elif comp.tag_dead:
+                comp.__class__ = atomica.SinkCompartment
+            elif comp.is_junction:
+                comp.__class__ = atomica.JunctionCompartment
+                comp.duration_group = None
+            del comp.tag_birth
+            del comp.tag_dead
+            del comp.is_junction
+        result.model.relink()  # Make sure all of the references are updated to the new compartment instance - it has the same ID so it should be fine
+    return result
+
+@migration('Project','1.14.0', '1.15.0', 'Refactor migration update flag')
+def _rename_update_field(proj):
+    if not hasattr(proj,'_result_update_required'):
+        proj._result_update_required = False
+    proj._update_required = proj._result_update_required
+    del proj._result_update_required
+    return proj
+
+@migration('Result','1.14.0', '1.15.0', 'Add result update flag')
+def _rename_update_field(result):
+    result._update_required = False
+    return result

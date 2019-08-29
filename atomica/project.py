@@ -123,7 +123,7 @@ class Project(NamedItem):
         self.progbook = None  # This will contain an sc.Spreadsheet when the user loads one
         self.settings = ProjectSettings(**kwargs)  # Global settings
 
-        self._result_update_required = False  # This flag is set to True by migration is the result objects contained in this Project are out of date due to a migration change
+        self._update_required = False  # This flag is set to True by migration is the result objects contained in this Project are out of date due to a migration change
 
         # Load project data, if available
         if framework and databook:
