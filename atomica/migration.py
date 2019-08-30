@@ -179,7 +179,11 @@ def migrate(obj, registry=migrations, version=version, gitinfo=gitinfo):
     if sc.compareversions(obj.version, version) >= 0:
         return obj
     else:
-        logger.info('Migrating %s "%s" from %s->%s', type(obj).__name__, obj.name, obj.version, version)
+        if hasattr(obj,'name'):
+            logger.info('Migrating %s "%s" from %s->%s', type(obj).__name__, obj.name, obj.version, version)
+        else:
+            logger.info('Migrating %s from %s->%s', type(obj).__name__, obj.version, version)
+
     for m in migrations_to_run:  # Run the migrations in increasing version order
         if sc.compareversions(obj.version, m.new_version) < 0:
             obj = m.upgrade(obj)
