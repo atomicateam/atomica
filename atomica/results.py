@@ -20,7 +20,7 @@ from .system import FrameworkSettings as FS
 from .system import logger, NotFoundError
 from .utils import NamedItem, evaluate_plot_string, nested_loop
 from .function_parser import parse_function
-from .version import version
+from .version import version, gitinfo
 
 class Result(NamedItem):
     """
@@ -53,6 +53,7 @@ class Result(NamedItem):
 
         self.uid = sc.uuid()
         self.version = version # Track versioning information for the result. This might change due to migration (whereas by convention, the model version does not)
+        self.gitinfo = gitinfo
 
         # The Result constructor is called in model.run_model and the Model is no longer returned.
         # The following should be the only reference to that instance so no need to dcp.

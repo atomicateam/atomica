@@ -24,12 +24,13 @@ import types
 import numpy as np
 import pandas as pd
 
+__all__ = ['migration', 'migrate', 'register_migration']
+
+
 # MODULE MIGRATIONS
 #
 # In this section, make changes to the Atomica module structure to enable pickle files
 # to be loaded at all
-
-
 class _Placeholder():
     pass
 
@@ -678,25 +679,23 @@ def _add_project_timed_attribute(proj):
     for fw in all_frameworks(proj):
         fw.pars['timed'] = 'n'
         fw.comps['duration group'] = None
-    return proj
 
-@migration('Result', '1.11.0', '1.12.0', 'Timed compartment updates')
-def _add_result_timed_attribute(result):
-    result.model.unlink()
-    for pop in result.model.pops:
-        for i, comp in enumerate(pop.comps):
-            if comp.tag_birth:
-                comp.__class__ = atomica.SourceCompartment
-            elif comp.tag_dead:
-                comp.__class__ = atomica.SinkCompartment
-            elif comp.is_junction:
-                comp.__class__ = atomica.JunctionCompartment
-                comp.duration_group = None
-            del comp.tag_birth
-            del comp.tag_dead
-            del comp.is_junction
-        result.model.relink()  # Make sure all of the references are updated to the new compartment instance - it has the same ID so it should be fine
-    return result
+    for result in all_results(proj):
+        result.model.unlink()
+        for pop in result.model.pops:
+            for i, comp in enumerate(pop.comps):
+                if comp.tag_birth:
+                    comp.__class__ = atomica.SourceCompartment
+                elif comp.tag_dead:
+                    comp.__class__ = atomica.SinkCompartment
+                elif comp.is_junction:
+                    comp.__class__ = atomica.JunctionCompartment
+                    comp.duration_group = None
+                del comp.tag_birth
+                del comp.tag_dead
+                del comp.is_junction
+            result.model.relink()  # Make sure all of the references are updated to the new compartment instance - it has the same ID so it should be fine
+    return proj
 
 @migration('Project','1.14.0', '1.15.0', 'Refactor migration update flag')
 def _rename_update_field(proj):
@@ -704,9 +703,7 @@ def _rename_update_field(proj):
         proj._result_update_required = False
     proj._update_required = proj._result_update_required
     del proj._result_update_required
-    return proj
 
-@migration('Result','1.14.0', '1.15.0', 'Add result update flag')
-def _rename_update_field(result):
-    result._update_required = False
-    return result
+    for result in all_results(proj):
+        result._update_required = False
+    return proj
