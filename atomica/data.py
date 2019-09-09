@@ -12,7 +12,7 @@ from .utils import TimeSeries
 import sciris as sc
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 import openpyxl
-from .excel import cell_require_string, standard_formats, read_tables, TimeDependentValuesEntry, TimeDependentConnections, apply_widths, update_widths, validate_category
+from .excel import cell_get_string, standard_formats, read_tables, TimeDependentValuesEntry, TimeDependentConnections, apply_widths, update_widths, validate_category
 import xlsxwriter as xw
 import io
 import numpy as np
@@ -795,31 +795,29 @@ class ProjectData(sc.prettyobj):
         assert len(tables) == 1, 'Population Definitions page should only contain one table'
 
         self.pops = sc.odict()
-        cell_require_string(tables[0][0][0])
-        cell_require_string(tables[0][0][1])
-        assert tables[0][0][0].value.strip().lower() == 'abbreviation'
-        assert tables[0][0][1].value.strip().lower() == 'full name'
+        assert cell_get_string(tables[0][0][0]).lower() == 'abbreviation'
+        assert cell_get_string(tables[0][0][1]).lower() == 'full name'
 
         # If pop typ column exists, check the heading is correct
         if len(tables[0][0]) > 2:
-            cell_require_string(tables[0][0][2])
-            assert tables[0][0][2].value.strip().lower() == 'population type'
+            assert cell_get_string(tables[0][0][2]).lower() == 'population type'
 
         for row in tables[0][1:]:
-            cell_require_string(row[0])
-            cell_require_string(row[1])
-            pop_name = row[0].value.strip()
+
+            pop_name = cell_get_string(row[0])
             assert len(pop_name) > 1, 'Population code name (abbreviation) "%s" is not valid - it must be at least two characters long' % (pop_name)
+
+            label = cell_get_string(row[1])
+            assert len(label) > 1, 'Population full name "%s" is not valid - it must be at least two characters long' % (label)
 
             if pop_name.lower() in FS.RESERVED_KEYWORDS:
                 raise Exception('Population name "%s" is a reserved keyword' % (pop_name.lower()))
 
             poptype = None
             if len(row) > 2 and row[2].value is not None:
-                cell_require_string(row[2])
-                poptype = row[2].value.strip()
+                poptype = cell_get_string(row[2])
 
-            self.pops[pop_name] = {'label': row[1].value.strip(), 'type': poptype}
+            self.pops[pop_name] = {'label': label, 'type': poptype}
 
     def _write_pops(self) -> None:
         """

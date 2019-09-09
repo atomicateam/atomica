@@ -260,14 +260,12 @@ class TimeDependentConnections(object):
         code_name = tables[0][1][0].value
         full_name = tables[0][1][1].value
         if len(tables[0][0]) > 2 and sc.isstring(tables[0][0][2].value) and tables[0][0][2].value.strip().lower() == 'from population type' and tables[0][1][2].value is not None:
-            cell_require_string(tables[0][1][2])
-            from_pop_type = tables[0][1][2].value.strip()
+            from_pop_type = cell_get_string(tables[0][1][2])
         else:
             from_pop_type = None
 
         if len(tables[0][0]) > 3 and sc.isstring(tables[0][0][3].value) and tables[0][0][3].value.strip().lower() == 'to population type' and tables[0][1][3].value is not None:
-            cell_require_string(tables[0][1][3])
-            to_pop_type = tables[0][1][3].value.strip()
+            to_pop_type = cell_get_string(tables[0][1][3])
         else:
             to_pop_type = None
 
@@ -935,19 +933,25 @@ class TimeDependentValuesEntry(object):
 
         return current_row + 2  # Add two so there is a blank line after this table
 
-
-def cell_require_string(cell) -> None:
+def cell_get_string(cell, allow_empty=False) -> str:
     """
-    Check that a cell contains a string
+    Return string value from cell
+
+    This function checks if a cell contains a string. If it does, the stripped value
+    will be returned. Otherwise, an informative error will be raised
+
+    Note that the string type is determined from the cell's value rather than
+    the openpyxl cell data type.
 
     :param cell: An openpyxl cell
-    :raises: :class:`Exception` with informative message if the cell value is not a string
-
+    :return: A string with the contents of the cell
     """
-
-    if not sc.isstring(cell.value):
+    if cell.value is None and allow_empty:
+        return None
+    elif not sc.isstring(cell.value):
         raise Exception('Cell %s needs to contain a string (i.e. not a number, date, or other cell type)' % cell.coordinate)
-
+    else:
+        return cell.value.strip()
 
 def cell_get_number(cell, dtype=float):
     """
