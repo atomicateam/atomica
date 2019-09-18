@@ -35,6 +35,7 @@ settings = dict()
 settings['legend_mode'] = 'together'  # Possible options are ['together','separate','none']
 settings['bar_width'] = 1.0  # Width of bars in plot_bars()
 settings['line_width'] = 3.0  # Width of bars in plot_bars()
+settings['dpi'] = 150 #average quality
 
 
 def save_figs(figs, path='.', prefix='', fnames=None) -> None:
@@ -85,7 +86,7 @@ def save_figs(figs, path='.', prefix='', fnames=None) -> None:
         if not fnames[i]:  # assert above means that i>0
             fnames[i] = fnames[i - 1] + '_legend'
         fname = prefix + fnames[i] + '.png'
-        fig.savefig(os.path.join(path, fname), bbox_inches='tight')
+        fig.savefig(os.path.join(path, fname), bbox_inches='tight', dpi=settings['dpi'])
         logger.info('Saved figure "%s"', fname)
 
 
@@ -1598,36 +1599,53 @@ def _turn_off_border(ax) -> None:
     ax.yaxis.set_ticks_position('left')
 
 
-def plot_legend(entries: dict, plot_type='patch', fig=None):
+def plot_legend(entries: dict, plot_type='patch', fig=None, legendsettings=None):
     """
     Render a new legend
 
     :param entries: Dict where key is the label and value is the colour e.g. `{'sus':'blue','vac':'red'}`
-    :param plot_type: can be 'patch' or 'line'
+    :param plot_type: can be 'patch' or 'line', or a list the same length as param_entries
     :param fig: Optionally takes in the figure to render the legend in. If not provided, a new figure will be created
+    :param legendsettings: settings for the layout of the legend. If not provided will default to appropriate values depending on whether the legend is separate or together with a plot
     :return: The matplotlib `Figure` object containing the legend
 
     """
+    if plot_type is None:
+        plot_type = 'line'
+
+    if isinstance(plot_type, list):
+        assert len(plot_type)==len(entries), 'If plot_type is a list, it must have the same number of entries as entries'
+        plot_types = plot_type
+    else:
+        plot_types = [plot_type for label in entries.keys()]
 
     h = []
     for label, color in entries.items():
+        labels = entries.keys()
+        i = labels.index(label)
+        plot_type = plot_types[i]
         if plot_type == 'patch':
             h.append(Patch(color=color, label=label))
+        elif plot_type == 'line':
+            h.append(Line2D([0], [0], linewidth = settings['line_width'], color=color, label=label))
+        elif plot_type == 'circle':
+            h.append(Line2D([0], [0], marker='o', linewidth=settings['line_width'], fillstyle='none', color=color, label=label))
         else:
-            h.append(Line2D([0], [0], color=color, label=label))
-
-    legendsettings = {'loc': 'center', 'bbox_to_anchor': None, 'frameon': False}  # Settings for separate legend
-
+            h.append(plot_type)
+            
     if fig is None:  # Draw in a new figure
         fig = sc.separatelegend(handles=h)
     else:
         existing_legend = fig.findobj(Legend)
         if existing_legend and existing_legend[0].parent is fig:  # If existing legend and this is a separate legend fig
             existing_legend[0].remove()  # Delete the old legend
+            if legendsettings is None:
+                legendsettings = {'loc': 'center', 'bbox_to_anchor': None, 'frameon': False}  # Settings for separate legend
             fig.legend(handles=h, **legendsettings)
         else:  # Drawing into an existing figure
             ax = fig.axes[0]
-            legendsettings = {'loc': 'center left', 'bbox_to_anchor': (1.05, 0.5), 'ncol': 1}
+            if legendsettings is None:
+                legendsettings = {'loc': 'center left', 'bbox_to_anchor': (1.05, 0.5), 'ncol': 1}
             if existing_legend:
                 existing_legend[0].remove()  # Delete the old legend
                 ax.legend(handles=h, **legendsettings)
