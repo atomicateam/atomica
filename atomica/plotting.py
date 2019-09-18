@@ -1629,7 +1629,7 @@ def plot_legend(entries: dict, plot_type='patch', fig=None, legendsettings=None)
         elif plot_type == 'line':
             h.append(Line2D([0], [0], linewidth = settings['line_width'], color=color, label=label))
         elif plot_type == 'circle':
-            h.append(Line2D([0], [0], marker='o', linewidth=settings['line_width'], fillstyle='none', color=color, label=label))
+            h.append(Line2D([0], [0], marker='o', linewidth=0, markeredgewidth = settings['line_width'], fillstyle='none', color=color, label=label))
         else:
             h.append(plot_type)
             
