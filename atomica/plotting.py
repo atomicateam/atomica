@@ -36,6 +36,7 @@ settings['legend_mode'] = 'together'  # Possible options are ['together','separa
 settings['bar_width'] = 1.0  # Width of bars in plot_bars()
 settings['line_width'] = 3.0  # Width of bars in plot_bars()
 settings['dpi'] = 150 #average quality
+settings['transparent'] = False
 
 
 def save_figs(figs, path='.', prefix='', fnames=None) -> None:
@@ -86,7 +87,7 @@ def save_figs(figs, path='.', prefix='', fnames=None) -> None:
         if not fnames[i]:  # assert above means that i>0
             fnames[i] = fnames[i - 1] + '_legend'
         fname = prefix + fnames[i] + '.png'
-        fig.savefig(os.path.join(path, fname), bbox_inches='tight', dpi=settings['dpi'])
+        fig.savefig(os.path.join(path, fname), bbox_inches='tight', dpi=settings['dpi'], transparent=settings['transparent'])
         logger.info('Saved figure "%s"', fname)
 
 
@@ -1634,7 +1635,7 @@ def plot_legend(entries: dict, plot_type='patch', fig=None, legendsettings=None)
             h.append(plot_type)
             
     if fig is None:  # Draw in a new figure
-        fig = sc.separatelegend(handles=h)
+        fig = sc.separatelegend(handles=h, legendsettings=legendsettings)
     else:
         existing_legend = fig.findobj(Legend)
         if existing_legend and existing_legend[0].parent is fig:  # If existing legend and this is a separate legend fig
