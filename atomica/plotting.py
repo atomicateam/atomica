@@ -86,8 +86,13 @@ def save_figs(figs, path='.', prefix='', fnames=None) -> None:
     for i, fig in enumerate(figs):
         if not fnames[i]:  # assert above means that i>0
             fnames[i] = fnames[i - 1] + '_legend'
+            legend = fig.findobj(Legend)[0]
+            fig.canvas.draw()
+            bbox = legend.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+        else:
+            bbox = 'tight'
         fname = prefix + fnames[i] + '.png'
-        fig.savefig(os.path.join(path, fname), bbox_inches='tight', dpi=settings['dpi'], transparent=settings['transparent'])
+        fig.savefig(os.path.join(path, fname), bbox_inches=bbox, dpi=settings['dpi'], transparent=settings['transparent'])
         logger.info('Saved figure "%s"', fname)
 
 
