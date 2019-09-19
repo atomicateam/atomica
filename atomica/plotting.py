@@ -501,8 +501,9 @@ class PlotData:
                 v2 = np.interp(t2, s.tvec, s.vals, left=np.nan, right=np.nan) # Return NaN outside bounds - it should never be valid to use extrapolated output values in time aggregation
                 vals[i] = np.trapz(y=v2/scale, x=t2)  # Note division by timescale here, which annualizes it
 
+            s.tvec = (lower + upper) / 2.0
+
             if method == 'integrate':
-                s.tvec = upper
                 s.vals = np.array(vals)
 
                 # If integrating the units might change
@@ -522,7 +523,6 @@ class PlotData:
                         s.units += ' years'
 
             elif method == 'average':
-                s.tvec = (lower + upper) / 2.0
                 s.vals = np.array(vals) / np.diff(t_bins/scale) # Divide by bin width if averaging within the bins
                 s.units = 'Average %s' % (s.units) # It will look odd to do 'Cumulative Average Number of people' but that's will accurately what the user has requested (combining aggregation and accumulation is permitted, but not likely to be necessary)
             else:
