@@ -1092,7 +1092,7 @@ class Ensemble(NamedItem):
 
         return fig
 
-    def plot_series(self, fig=None, style='quartile', results=None, outputs=None, pops=None):
+    def plot_series(self, fig=None, style='quartile', results=None, outputs=None, pops=None, legend=True):
         """
         Plot a time series with uncertainty
 
@@ -1156,7 +1156,8 @@ class Ensemble(NamedItem):
                 ax.set_ylabel(proposed_label)
 
         ax.set_xlabel('Year')
-        ax.legend()
+        if legend:
+            ax.legend()
         return fig
 
     def plot_bars(self, fig=None, years=None, results=None, outputs=None, pops=None, order=('years', 'results', 'outputs', 'pops'), horizontal=False, offset: float = None):
