@@ -1408,6 +1408,8 @@ class Ensemble(NamedItem):
 
         series_lookup = self._get_series()
 
+        figs = []
+
         # Put all the values in a DataFrame
         for pop in self.pops:
             dfs = []
@@ -1423,9 +1425,14 @@ class Ensemble(NamedItem):
 
             colors = sc.gridcolors(len(self.results))
             colormap = {x: y for x, y in zip(self.results, colors)}
-            pd.plotting.scatter_matrix(df, c=[colormap[x] for x in df['result'].values], diagonal='kde')
+            fig = plt.figure()
+            ax = plt.gca()
+            pd.plotting.scatter_matrix(df, ax=ax, c=[colormap[x] for x in df['result'].values], diagonal='kde')
             plt.suptitle(pop)
-
+            
+            figs.append(fig)
+        return figs
+    
 
 def _sample_and_map(proj, parset, progset, progset_instructions, result_names, mapping_function, max_attempts, **kwargs):
     """
