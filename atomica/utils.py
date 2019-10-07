@@ -706,7 +706,11 @@ def fast_gitinfo(path):
                 gitdir = os.path.join(curpath, '.git')
                 break
             else:
-                curpath, _ = os.path.split(curpath)
+                parent, _ = os.path.split(curpath)
+                if parent == curpath:
+                    curpath = None
+                else:
+                    curpath = parent
         else:
             raise Exception('Could not find .git directory')
 

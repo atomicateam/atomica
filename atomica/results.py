@@ -398,25 +398,6 @@ class Result(NamedItem):
         plt.title(this_plot['name'])
         return h
 
-    def budget(self, year=None):
-        """
-        Return budget at a given year
-
-        This will return the per-year spending rate taking into account
-        any budget scenarios that are present.
-
-        :param year: Optionally specify a time or array of times. Otherwise, use all times
-        :returns: A ``dict`` keyed by program name containing arrays of spending values
-
-        """
-
-        if self.model.progset is None:
-            return None
-        else:
-            if year is None:
-                year = self.t
-            return self.model.progset.get_alloc(year, self.model.program_instructions)
-
 
 def _filter_pops_by_output(result, output) -> list:
     """
