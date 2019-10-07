@@ -15,8 +15,7 @@ import openpyxl
 from openpyxl.comments import Comment
 import numpy as np
 from .system import FrameworkSettings as FS
-from .system import logger
-
+import pandas as pd
 
 def standard_formats(workbook):
     # Add standard formatting to a workbook and return the set of format objects
@@ -134,7 +133,14 @@ def transfer_comments(target: sc.Spreadsheet, comment_source: sc.Spreadsheet) ->
     target.load(f)
 
 
-def read_tables(worksheet):
+def read_tables(worksheet) -> tuple:
+    """
+    Read tables from sheet
+
+    :param worksheet: An openpyxl worksheet
+    :return: A tuple containing - A list of tables (which is a list of rows, terminated by an empty row in the original spreadsheet),
+             and a list of start row indices for each table read in
+    """
     # This function takes in a openpyxl worksheet, and returns tables
     # A table consists of a block of rows with any #ignore rows skipped
     # This function will start at the top of the worksheet, read rows into a buffer
@@ -172,6 +178,23 @@ def read_tables(worksheet):
         start_rows.append(start)
 
     return tables, start_rows
+
+def df_from_table(table, index=None) -> pd.DataFrame:
+    """
+    Convert a table to a dataframe
+
+    If a column is completely empty, it will be skipped
+    :param table: A single table read in using `at.excel.read_tables()`
+    :param index: A list of column headings to use as indices
+    :return: A dataframe
+    """
+    df = pd.DataFrame.from_records(table).applymap(lambda x: x.value.strip() if sc.isstring(x.value) else x.value)
+    df.dropna(axis=1, how='all', inplace=True)  # If a column is completely empty, including the header, ignore it. Helps avoid errors where blank cells are loaded by openpyxl due to extra non-value content
+    df.columns = df.iloc[0]
+    df = df[1:] # Remove duplicated first row
+    if index is not None:
+        df.set_index(index, inplace=True)
+    return df
 
 
 class TimeDependentConnections(object):
