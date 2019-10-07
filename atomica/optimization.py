@@ -200,7 +200,11 @@ class SpendingAdjustment(Adjustment):
         The initial values correspond to either
 
         - The explicitly specified initial spend
-        - The initial spend from the program set/instructions, clipped to the lower/upper bounds (if provided)
+        - The initial spend from the program set/instructions
+
+        Note that the initial spend is NOT clipped to any bounds. This is because the initial spend is in turn used to compute
+        relative spending constraints. If the initial spend is not consistent then an error will be subsequently raised
+        at that point.
 
         :param progset: The ``ProgramSet`` being used for the optimization
         :param instructions: The initial instructions
@@ -214,7 +218,7 @@ class SpendingAdjustment(Adjustment):
                 initialization.append(adjustable.initial_value)
             else:
                 alloc = progset.get_alloc(t, instructions)
-                initialization.append(np.clip(alloc[self.prog_name][0], adjustable.lower_bound, adjustable.upper_bound))  # The Adjustable's name corresponds to the name of the program being overwritten.
+                initialization.append(alloc[self.prog_name][0])  # The Adjustable's name corresponds to the name of the program being overwritten.
         return initialization
 
 

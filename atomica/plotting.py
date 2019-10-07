@@ -1208,21 +1208,21 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer=None, legend_
             if bar_pop[1] or bar_output[1]:
                 if bar_pop[1]:
                     if bar_output[1]:
-                        bar_label = '%s\n%s' % (bar_pop[1], bar_output[1])
+                        bar_label = '%s\n%s' % (plotdata.pops[bar_pop[1]], plotdata.outputs[bar_output[1]])
                     elif len(output_stacks) > 1 and len(set([x[0] for x in output_stacks])) > 1 and bar_output[0]:
-                        bar_label = '%s\n%s' % (bar_pop[1], bar_output[0])
+                        bar_label = '%s\n%s' % (plotdata.pops[bar_pop[1]], plotdata.outputs[bar_output[0]])
                     else:
-                        bar_label = bar_pop[1]
+                        bar_label = plotdata.pops[bar_pop[1]]
                 else:
                     if len(pop_stacks) > 1 and len(set([x[0] for x in pop_stacks])) > 1 and bar_pop[0]:
-                        bar_label = '%s\n%s' % (bar_pop[0], bar_output[1])
+                        bar_label = '%s\n%s' % (plotdata.pops[bar_pop[0]], plotdata.outputs[bar_output[1]])
                     else:
-                        bar_label = bar_output[1]
+                        bar_label = plotdata.outputs[bar_output[1]]
             else:
                 if color_by == 'outputs' and len(pop_stacks) > 1 and len(set([x[0] for x in pop_stacks])) > 1:
-                    bar_label = bar_pop[0]
+                    bar_label = plotdata.pops[bar_pop[0]]
                 elif color_by == 'pops' and len(output_stacks) > 1 and len(set([x[0] for x in output_stacks])) > 1:
-                    bar_label = bar_output[0]
+                    bar_label = plotdata.outputs[bar_output[0]]
                 else:
                     bar_label = ''
 
