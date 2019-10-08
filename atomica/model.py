@@ -1235,14 +1235,18 @@ class Link(Variable):
 
     def unlink(self):
         Variable.unlink(self)
-        self.parameter = self.parameter.id
+        if self.parameter is not None:
+            # Flush links have their values computed from a compartment rather than a parameter
+            # So it is possible to have a transition/Link without an associated parameter
+            self.parameter = self.parameter.id
         self.source = self.source.id
         self.dest = self.dest.id
 
     def relink(self, objs):
         # Given a dictionary of objects, restore the internal references
         Variable.relink(self, objs)
-        self.parameter = objs[self.parameter]
+        if self.parameter is not None:
+            self.parameter = objs[self.parameter]
         self.source = objs[self.source]
         self.dest = objs[self.dest]
 
