@@ -2413,7 +2413,9 @@ class Model(object):
                     weights *= vals.T
 
                 if pars[0].pop_aggregation[0] in {'SRC_POP_AVG', 'TGT_POP_AVG'}:
-                    weights /= np.sum(weights, axis=1, keepdims=1)  # Normalize the interaction
+                    norm = np.sum(weights, axis=1, keepdims=1)
+                    norm[norm == 0] = 1
+                    weights /= norm
                 par_vals = np.matmul(weights, par_vals)
 
                 for par, val in zip(pars, par_vals):
