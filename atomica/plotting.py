@@ -34,8 +34,9 @@ from .utils import format_duration, nested_loop
 settings = dict()
 settings['legend_mode'] = 'together'  # Possible options are ['together','separate','none']
 settings['bar_width'] = 1.0  # Width of bars in plot_bars()
-settings['line_width'] = 3.0  # Width of bars in plot_bars()
-settings['dpi'] = 150 #average quality
+settings['line_width'] = 3.0  # Width of lines in plot_series()
+settings['marker_edge_width'] = 3.0
+settings['dpi'] = 150  # average quality
 settings['transparent'] = False
 
 
@@ -274,6 +275,7 @@ class PlotData:
 
                     def placeholder_pop():
                         return None
+
                     placeholder_pop.name = 'None'
                     par = Parameter(pop=placeholder_pop, name=output_label)
                     fcn, dep_labels = parse_function(f_stack_str)
@@ -499,13 +501,13 @@ class PlotData:
             # We interpolate in time-aggregation because the time bins are independent of the step size. In contrast,
             # accumulation preserves the same time bins, so we don't need the interpolation step and instead go straight
             # to summation or trapezoidal integration
-            max_step = 0.5*min(np.diff(s.tvec)) # Subdivide for trapezoidal integration with at least 2 divisions per timestep. Could be a lot of memory for integrating daily timesteps over a full simulation, but unlikely to be prohibitive
+            max_step = 0.5 * min(np.diff(s.tvec))  # Subdivide for trapezoidal integration with at least 2 divisions per timestep. Could be a lot of memory for integrating daily timesteps over a full simulation, but unlikely to be prohibitive
             vals = np.full(lower.shape, fill_value=np.nan)
             for i, (l, u) in enumerate(zip(lower, upper)):
-                n = np.ceil((u - l) / max_step) + 1 # Add 1 so that in most cases, we can use the actual timestep values
-                t2 = np.linspace(l,u,int(n))
-                v2 = np.interp(t2, s.tvec, s.vals, left=np.nan, right=np.nan) # Return NaN outside bounds - it should never be valid to use extrapolated output values in time aggregation
-                vals[i] = np.trapz(y=v2/scale, x=t2)  # Note division by timescale here, which annualizes it
+                n = np.ceil((u - l) / max_step) + 1  # Add 1 so that in most cases, we can use the actual timestep values
+                t2 = np.linspace(l, u, int(n))
+                v2 = np.interp(t2, s.tvec, s.vals, left=np.nan, right=np.nan)  # Return NaN outside bounds - it should never be valid to use extrapolated output values in time aggregation
+                vals[i] = np.trapz(y=v2 / scale, x=t2)  # Note division by timescale here, which annualizes it
 
             if method == 'integrate':
                 s.tvec = upper
@@ -1580,7 +1582,7 @@ def _render_data(ax, data, series, baseline=None, filled=False) -> None:
     if filled:
         ax.scatter(t, y, marker='o', s=40, linewidths=1, facecolors=series.color, color='k')  # label='Data %s %s' % (name(pop,proj),name(output,proj)))
     else:
-        ax.scatter(t, y, marker='o', s=40, linewidths=3, facecolors='none', color=series.color)  # label='Data %s %s' % (name(pop,proj),name(output,proj)))
+        ax.scatter(t, y, marker='o', s=40, linewidths=settings['marker_edge_width'], facecolors='none', color=series.color)  # label='Data %s %s' % (name(pop,proj),name(output,proj)))
 
 
 def _apply_series_formatting(ax, plot_type) -> None:
@@ -1613,39 +1615,36 @@ def _turn_off_border(ax) -> None:
     ax.yaxis.set_ticks_position('left')
 
 
-def plot_legend(entries: dict, plot_type='patch', fig=None, legendsettings=None):
+def plot_legend(entries: dict, plot_type=None, fig=None, legendsettings: dict = None):
     """
     Render a new legend
 
     :param entries: Dict where key is the label and value is the colour e.g. `{'sus':'blue','vac':'red'}`
-    :param plot_type: can be 'patch' or 'line', or a list the same length as param_entries
+    :param plot_type: Optionally specify 'patch', 'line', 'circle', or a list the same length as param_entries containing these values
     :param fig: Optionally takes in the figure to render the legend in. If not provided, a new figure will be created
     :param legendsettings: settings for the layout of the legend. If not provided will default to appropriate values depending on whether the legend is separate or together with a plot
     :return: The matplotlib `Figure` object containing the legend
 
     """
+
     if plot_type is None:
         plot_type = 'line'
 
-    if isinstance(plot_type, list):
-        assert len(plot_type)==len(entries), 'If plot_type is a list, it must have the same number of values as there are entries in the legend (%s vs %s)'%(plot_type, entries)
-        plot_types = plot_type
-    else:
-        plot_types = [plot_type for label in entries.keys()]
+    plot_type = sc.promotetolist(plot_type)
+    if len(plot_type) == 1:
+        plot_type = plot_type * len(entries)
+    assert len(plot_type) == len(entries), 'If plot_type is a list, it must have the same number of values as there are entries in the legend (%s vs %s)' % (plot_type, entries)
 
     h = []
-    for label, color in entries.items():
-        labels = entries.keys()
-        i = labels.index(label)
-        plot_type = plot_types[i]
-        if plot_type == 'patch':
+    for (label, color), p_type in zip(entries.items(), plot_type):
+        if p_type == 'patch':
             h.append(Patch(color=color, label=label))
-        elif plot_type == 'line':
-            h.append(Line2D([0], [0], linewidth = settings['line_width'], color=color, label=label))
-        elif plot_type == 'circle':
-            h.append(Line2D([0], [0], marker='o', linewidth=0, markeredgewidth = settings['line_width'], fillstyle='none', color=color, label=label))
+        elif p_type == 'line':
+            h.append(Line2D([0], [0], linewidth=settings['line_width'], color=color, label=label))
+        elif p_type == 'circle':
+            h.append(Line2D([0], [0], marker='o', linewidth=0, markeredgewidth=settings['marker_edge_width'], fillstyle='none', color=color, label=label))
         else:
-            h.append(plot_type)
+            raise Exception(f'Unknown plot type "{p_type}"')
 
     if fig is None:  # Draw in a new figure
         fig = sc.separatelegend(handles=h, legendsettings=legendsettings)
@@ -1687,7 +1686,7 @@ def _render_legend(ax, plot_type=None, handles=None) -> None:
         labels = [h.get_label() for h in handles]
 
     legendsettings = {'loc': 'center left', 'bbox_to_anchor': (1.05, 0.5), 'ncol': 1, 'framealpha': 0}
-#    labels = [textwrap.fill(label, 16) for label in labels]
+    #    labels = [textwrap.fill(label, 16) for label in labels]
 
     if plot_type in ['stacked', 'proportion', 'bar']:
         ax.legend(handles=handles[::-1], labels=labels[::-1], **legendsettings)
