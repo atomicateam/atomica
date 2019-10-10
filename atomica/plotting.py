@@ -1628,7 +1628,7 @@ def plot_legend(entries: dict, plot_type='patch', fig=None, legendsettings=None)
         plot_type = 'line'
 
     if isinstance(plot_type, list):
-        assert len(plot_type)==len(entries), 'If plot_type is a list, it must have the same number of values as there are entries in the legend'
+        assert len(plot_type)==len(entries), 'If plot_type is a list, it must have the same number of values as there are entries in the legend (%s vs %s)'%(plot_type, entries)
         plot_types = plot_type
     else:
         plot_types = [plot_type for label in entries.keys()]
