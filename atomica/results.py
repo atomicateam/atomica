@@ -142,6 +142,33 @@ class Result(NamedItem):
 
         return self.model.progset.get_alloc(year, self.model.program_instructions)
 
+    def get_equivalent_alloc(self, year=None) -> dict:
+        """
+        Return minimal spending allocation for a given year based on the coverage
+
+        If the result was generated using programs, this method will return the spending
+        on all programs in the requested years.
+
+        :param year: Optionally specify a scalar or list/array of years to return budget values
+                     for. Otherwise, uses all simulation times
+        :return: Dictionary keyed by program name with arrays of spending values
+        """
+
+        if self.model.progset is None:
+            return None
+
+        if year is None:
+            year = self.t
+            
+        num_coverage = self.get_coverage(quantity='number', year=year)
+        equivalent_alloc = sc.odict()
+        for prog in num_coverage.keys():
+            uc = self.model.progset.programs[prog].unit_cost
+            uc_interp = np.interp(year, uc.t, uc.vals)
+            equivalent_alloc[prog] = uc_interp * num_coverage[prog]
+
+        return equivalent_alloc
+
     def get_coverage(self, quantity: str = 'fraction', year=None) -> dict:
         """
         Return program coverage
