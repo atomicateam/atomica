@@ -12,9 +12,11 @@ import openpyxl
 import pandas as pd
 import networkx as nx
 import sciris as sc
+import io
+import xlsxwriter as xw
 
 from .cascade import validate_cascade
-from .excel import read_tables, validate_category
+from .excel import read_tables, validate_category, standard_formats
 from .function_parser import parse_function
 from .system import NotFoundError, FrameworkSettings as FS
 from .system import logger
@@ -1238,6 +1240,77 @@ class ProjectFramework(object):
                 return units
 
         return FS.DEFAULT_SYMBOL_INAPPLICABLE
+
+    def to_spreadsheet(self) -> sc.Spreadsheet:
+        """
+        Return content as a Sciris Spreadsheet
+
+        This
+        :return: A :class:`sciris.Spreadsheet` instance
+
+        """
+
+        # Initialize the bytestream
+        f = io.BytesIO()
+
+        writer = pd.ExcelWriter(f, engine='xlsxwriter')
+        writer.book.set_properties({'category': 'atomica:framework'})
+        standard_formats(writer.book) # Apply formatting
+
+        for sheet_name, dfs in self.sheets.items():
+            if sheet_name == 'transitions':
+                # Need to regenerate the transitions based on the actual transitions present
+                df = pd.DataFrame(index=self.comps.index, columns=self.comps.index)
+                df.fillna('', inplace=True)
+                df.index.name = None
+
+                for par, pairs in self.transitions.items():
+                    for pair in pairs:
+                        if not df.at[pair[0], pair[1]]:
+                            df.at[pair[0], pair[1]] = par
+                        else:
+                            df.at[pair[0], pair[1]] += ', %s' % (par)
+
+                dfs = [df]
+
+            worksheet = writer.book.add_worksheet(sheet_name)
+            writer.sheets[sheet_name] = worksheet  # Need to add it to the ExcelWriter for it to behave properly
+
+            row = 0
+            for df in dfs:
+                if df.index.name or sheet_name == 'transitions':
+                    df.to_excel(writer, sheet_name, startcol=0, startrow=row, index=True)  # Write index if present
+                else:
+                    df.to_excel(writer, sheet_name, startcol=0, startrow=row, index=False)  # Write index if present
+
+                row += df.shape[0] + 2
+
+        # Close the workbook
+        writer.save()
+        writer.close()
+
+        # Dump the file content into a ScirisSpreadsheet
+        spreadsheet = sc.Spreadsheet(f)
+
+        # Return the spreadsheet
+        return spreadsheet
+
+
+
+    def save_new(self, fname) -> None:
+        """
+        Save regenerated framework to disk
+
+        Rather that saving the originally provided spreadsheet, this function writes a spreadsheet
+        based on the actual dataframes present. This allows programmatic modifications to
+        frameworks to be viewed in Excel.
+
+        :param fname: File name to write on disk
+
+        """
+
+        ss = self.to_spreadsheet()
+        ss.save(fname + '.xlsx' if not fname.endswith('.xlsx') else fname)
 
 
 def _sanitize_dataframe(df: pd.DataFrame, required_columns: list, defaults: dict, valid_content: dict, set_index: str = None) -> pd.DataFrame:

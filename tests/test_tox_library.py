@@ -142,7 +142,7 @@ def run_optimization(proj):
 
 def run_export(result, model):
     """
-    Test exporting a results
+    Test exporting results
 
     :param result:
     :param model:
@@ -154,6 +154,20 @@ def run_export(result, model):
     r2 = sc.dcp(result)
     r2.name = 'Copied'
     at.export_results([result, r2], tmpdir + model + '_multiple_export_test')  # Export single
+
+
+def run_regenerated_framework(proj):
+
+    r1 = at.run_model(proj.settings, proj.framework, proj.parsets[0], proj.progsets[0], at.ProgramInstructions(start_year=2020))
+
+    ss = proj.framework.to_spreadsheet()
+    f2 = at.ProjectFramework(ss)
+
+    r2 = at.run_model(proj.settings, f2, proj.parsets[0], proj.progsets[0], at.ProgramInstructions(start_year=2020))
+
+    for p1, p2 in zip(r1.model.pops, r2.model.pops):
+        for v1, v2 in zip(p1.pars + p1.comps + p1.characs + p1.links, p2.pars + p2.comps + p2.characs + p2.links):
+            assert np.all(v1.vals == v2.vals)
 
 
 # Testing optimizations and calibrations could be expensive
@@ -196,6 +210,10 @@ def test_model(model):
     res = P.run_sim(P.parsets[0], P.progsets[0], at.ProgramInstructions(start_year=2018))
     check_for_nans(res)
 
+    # Test re-saving the framework
+    run_regenerated_framework(P)
+
+    # Test exporting the model with progset results
     run_export(res, model)
 
     # Test a reconciliation

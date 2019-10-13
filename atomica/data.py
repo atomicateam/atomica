@@ -515,11 +515,11 @@ class ProjectData(sc.prettyobj):
                 assert ts.units is not None, 'Units are missing for transfer %s, %s->%s' % (tdc.full_name, to_pop, from_pop)
         return True
 
-    def to_spreadsheet(self):
+    def to_spreadsheet(self) -> sc.Spreadsheet:
         """
-        Return content as an :class:`AtomicaSpreadsheet`
+        Return content as a Sciris Spreadsheet
 
-        :return: An :class:`AtomicaSpreadsheet` instance
+        :return: A :class:`sciris.Spreadsheet` instance
 
         """
 
