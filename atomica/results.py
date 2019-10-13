@@ -160,12 +160,26 @@ class Result(NamedItem):
         if year is None:
             year = self.t
             
-        num_coverage = self.get_coverage(quantity='number', year=year)
+        prop_coverage = self.get_coverage(quantity='fraction', year=year)
+        num_eligible = self.get_coverage(quantity='eligible', year=year)
         equivalent_alloc = sc.odict()
-        for prog in num_coverage.keys():
-            uc = self.model.progset.programs[prog].unit_cost
-            uc_interp = np.interp(year, uc.t, uc.vals)
-            equivalent_alloc[prog] = uc_interp * num_coverage[prog]
+        for prog in prop_coverage.keys():
+            uc = self.model.progset.programs[prog].unit_cost.interpolate(year)
+            pc = sc.dcp(prop_coverage[prog])
+            
+            if self.model.progset.programs[prog].saturation.has_data:
+                sat = self.model.progset.programs[prog].saturation.interpolate(year)
+                
+                #If prop_covered is higher than the saturation then set it to nan (without the error that would happen from np.log)
+                pc[pc>=sat] = np.nan
+            
+                #invert the calculation on the proportional coverage to determine the necessary "costed" coverage
+                pc = -sat * np.log((sat - pc)/(sat + pc))/2.
+            
+            #multiply the proportion of naively costed coverage by the number of actually eligible people (catching the case where number covered would be higher than the number eligible)
+            num_costed_coverage = pc * num_eligible[prog]
+            
+            equivalent_alloc[prog] = uc * num_costed_coverage
 
         return equivalent_alloc
 
