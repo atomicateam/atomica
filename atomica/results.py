@@ -171,13 +171,13 @@ class Result(NamedItem):
             if self.model.progset.programs[prog].capacity_constraint.has_data:
                 cap = self.model.progset.programs[prog].capacity_constraint.interpolate(year)  
                 #If prop_covered is higher than the capacity constraint then set it to nan as it wouldn't be possible to reach that coverage
-                pc[pc>=cap] = np.nan
+                pc[pc * num_eligible[prog] >= cap] = np.nan
             
             if self.model.progset.programs[prog].saturation.has_data:
                 sat = self.model.progset.programs[prog].saturation.interpolate(year)
                 
                 #If prop_covered is higher than the saturation then set it to nan (without the error that would happen from np.log)
-                pc[pc>=sat] = np.nan
+                pc[pc >= sat] = np.nan
             
                 #invert the calculation on the proportional coverage to determine the necessary "costed" coverage
                 pc = -sat * np.log((sat - pc)/(sat + pc))/2.
