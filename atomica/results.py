@@ -162,10 +162,16 @@ class Result(NamedItem):
             
         prop_coverage = self.get_coverage(quantity='fraction', year=year)
         num_eligible = self.get_coverage(quantity='eligible', year=year)
+        
         equivalent_alloc = sc.odict()
         for prog in prop_coverage.keys():
             uc = self.model.progset.programs[prog].unit_cost.interpolate(year)
             pc = sc.dcp(prop_coverage[prog])
+            
+            if self.model.progset.programs[prog].capacity_constraint.has_data:
+                cap = self.model.progset.programs[prog].capacity_constraint.interpolate(year)  
+                #If prop_covered is higher than the capacity constraint then set it to nan as it wouldn't be possible to reach that coverage
+                pc[pc>=cap] = np.nan
             
             if self.model.progset.programs[prog].saturation.has_data:
                 sat = self.model.progset.programs[prog].saturation.interpolate(year)
