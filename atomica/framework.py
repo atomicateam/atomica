@@ -1260,25 +1260,29 @@ class ProjectFramework(object):
         for sheet_name, dfs in self.sheets.items():
             if sheet_name == 'transitions':
                 # Need to regenerate the transitions based on the actual transitions present
-                df = pd.DataFrame(index=self.comps.index, columns=self.comps.index)
-                df.fillna('', inplace=True)
-                df.index.name = None
+                dfs = []
+                for pop_type in self.comps['population type'].unique():
+                    matching_comps = self.comps.index[self.comps['population type'] == pop_type]
+                    df = pd.DataFrame(index=matching_comps, columns=matching_comps)
+                    df.fillna('', inplace=True)
+                    df.index.name = pop_type
 
-                for par, pairs in self.transitions.items():
-                    for pair in pairs:
-                        if not df.at[pair[0], pair[1]]:
-                            df.at[pair[0], pair[1]] = par
-                        else:
-                            df.at[pair[0], pair[1]] += ', %s' % (par)
+                    for par, pairs in self.transitions.items():
+                        for pair in pairs:
+                            if pair[0] in matching_comps:
+                                if not df.at[pair[0], pair[1]]:
+                                    df.at[pair[0], pair[1]] = par
+                                else:
+                                    df.at[pair[0], pair[1]] += ', %s' % (par)
 
-                dfs = [df]
+                    dfs.append(df)
 
             worksheet = writer.book.add_worksheet(sheet_name)
             writer.sheets[sheet_name] = worksheet  # Need to add it to the ExcelWriter for it to behave properly
 
             row = 0
             for df in dfs:
-                if df.index.name or sheet_name == 'transitions':
+                if df.index.name:
                     df.to_excel(writer, sheet_name, startcol=0, startrow=row, index=True)  # Write index if present
                 else:
                     df.to_excel(writer, sheet_name, startcol=0, startrow=row, index=False)  # Write index if present

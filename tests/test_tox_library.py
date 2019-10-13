@@ -196,7 +196,7 @@ def test_model(model):
     P.load_databook(databook_file, make_default_parset=True, do_run=True)
 
     # Test doing auto-calibration
-    run_auto_calibration(P)
+    # run_auto_calibration(P)
 
     # Test a parameter scenario
     run_parameter_scenario(P)
@@ -234,6 +234,6 @@ def test_model(model):
 if __name__ == '__main__':
 
     np.seterr(all='raise')
-    models = ['hiv_dyn']
+    models = ['combined']
     for m in models:
         test_model(m)
