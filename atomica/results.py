@@ -167,12 +167,7 @@ class Result(NamedItem):
         for prog in prop_coverage.keys():
             uc = self.model.progset.programs[prog].unit_cost.interpolate(year)
             pc = sc.dcp(prop_coverage[prog])
-            
-            if self.model.progset.programs[prog].capacity_constraint.has_data:
-                cap = self.model.progset.programs[prog].capacity_constraint.interpolate(year)  
-                #If prop_covered is higher than the capacity constraint then set it to nan as it wouldn't be possible to reach that coverage
-                pc[pc * num_eligible[prog] >= cap] = np.nan
-            
+                     
             if self.model.progset.programs[prog].saturation.has_data:
                 sat = self.model.progset.programs[prog].saturation.interpolate(year)
                 
@@ -181,6 +176,12 @@ class Result(NamedItem):
             
                 #invert the calculation on the proportional coverage to determine the necessary "costed" coverage
                 pc = -sat * np.log((sat - pc)/(sat + pc))/2.
+            
+            #Calculating the program coverage, capacity constraint is applied first, then saturation, so it needs to happen second when reversing the calculation
+            if self.model.progset.programs[prog].capacity_constraint.has_data:
+                cap = self.model.progset.programs[prog].capacity_constraint.interpolate(year)  
+                #If prop_covered is higher than the capacity constraint then set it to nan as it wouldn't be possible to reach that coverage
+                pc[pc * num_eligible[prog] >= cap] = np.nan
             
             #multiply the proportion of naively costed coverage by the number of actually eligible people (catching the case where number covered would be higher than the number eligible)
             num_costed_coverage = pc * num_eligible[prog]
