@@ -916,7 +916,7 @@ class TotalSpendConstraint(Constraint):
                 else:
                     return (x - x0_array_scaled) / dist
 
-            res = scipy.optimize.minimize(lambda x: np.linalg.norm(x - x0_array_scaled), x0_array_scaled, jac=jacfcn, bounds=bounds, constraints=LinearConstraint, options={'maxiter': 500})
+            res = scipy.optimize.minimize(lambda x: np.linalg.norm(x - x0_array_scaled), x0_array_scaled, jac=jacfcn, bounds=bounds, constraints=LinearConstraint, method='SLSQP', options={'ftol': 1e-5, 'maxiter': 1000})
 
             if not res['success']:
                 logger.warning('TotalSpendConstraint failed - rejecting proposed parameters')
