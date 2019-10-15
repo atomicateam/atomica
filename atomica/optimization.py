@@ -897,17 +897,17 @@ class TotalSpendConstraint(Constraint):
 
         for t, total_spend in hard_constraints['total_spend'].items():
 
+            total_spend = sc.promotetoarray(total_spend).ravel()[0] # Make sure total spend is a scalar
             x0 = sc.odict()  # Order matters here
             bounds = []
             progs = hard_constraints['programs'][t]  # Programs eligible for constraining at this time
-            LinearConstraint = [{'type': 'eq', 'fun': lambda x: np.sum(x) - total_spend, 'jac': lambda x: np.ones(x.shape)}]  # Constrain spend
 
             for prog in progs:
                 x0[prog] = instructions.alloc[prog].get(t)
-                bounds.append(hard_constraints['bounds'][t][prog])
-
+                bound = hard_constraints['bounds'][t][prog]
+                bounds.append((bound[0]/total_spend, bound[1]/total_spend))
             x0_array = np.array(x0.values()).ravel()
-            x0_array_scaled = x0_array / sum(x0_array) * total_spend  # Multiplicative rescaling to match the total spend
+            x0_array_scaled = x0_array / sum(x0_array)
 
             def jacfcn(x):
                 dist = np.linalg.norm(x - x0_array_scaled)
@@ -916,15 +916,32 @@ class TotalSpendConstraint(Constraint):
                 else:
                     return (x - x0_array_scaled) / dist
 
-            res = scipy.optimize.minimize(lambda x: np.linalg.norm(x - x0_array_scaled), x0_array_scaled, jac=jacfcn, bounds=bounds, constraints=LinearConstraint, options={'maxiter': 500})
+            # If x0_array_scaled satisfies all of the individual constraints, then we don't actually need to adjust the spending
+            # at all. So first, check whether any of the individual constraints are being violated, if everything is OK,
+            # then insert x0_array_scaled straight into the instructions
+            for v, (low, high) in zip(x0_array_scaled, bounds):
+                if v < low or v > high:
+                    break
+            else:
+                for name, val in zip(x0.keys(), x0_array_scaled):
+                    instructions.alloc[name].insert(t, val*total_spend)
+                continue
+
+            LinearConstraint = [{'type': 'eq', 'fun': lambda x: np.sum(x) - 1, 'jac': lambda x: np.ones(x.shape)}]  # Constrain spend
+            res = scipy.optimize.minimize(lambda x: np.linalg.norm(x - x0_array_scaled), x0_array_scaled, jac=jacfcn, bounds=bounds, constraints=LinearConstraint, method='SLSQP', options={'ftol': 1e-5, 'maxiter': 1000})
 
             if not res['success']:
                 logger.warning('TotalSpendConstraint failed - rejecting proposed parameters')
                 raise FailedConstraint()
             else:
-                penalty += np.linalg.norm(res['x'] - x0_array)  # Penalty is the distance between the unconstrained budget and the constrained budget
+                # TODO - disable this check for performance later on - this is just double checking to make check sure the constraint worked
+                for v, (low, high) in zip(res['x'], bounds):
+                    if v < low or v > high:
+                        raise Exception('Rescaling algorithm did not return a valid result')
+
+                penalty += total_spend*np.linalg.norm(res['x']*total_spend - x0_array*total_spend)  # Penalty is the distance between the unconstrained budget and the constrained budget
                 for name, val in zip(x0.keys(), res['x']):
-                    instructions.alloc[name].insert(t, val)
+                    instructions.alloc[name].insert(t, val*total_spend)
         return penalty
 
 
