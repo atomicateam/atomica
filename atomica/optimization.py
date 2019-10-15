@@ -916,6 +916,17 @@ class TotalSpendConstraint(Constraint):
                 else:
                     return (x - x0_array_scaled) / dist
 
+            # If x0_array_scaled satisfies all of the individual constraints, then we don't actually need to adjust the spending
+            # at all. So first, check whether any of the individual constraints are being violated
+            for v, (low, high) in zip(x0_array_scaled, bounds):
+                if v < low or v > high:
+                    break
+            else:
+                # If all of the individual constraints are satisfied, apply x0_array_scaled as the constrained allocation
+                for name, val in zip(x0.keys(), x0_array_scaled):
+                    instructions.alloc[name].insert(t, val)
+                return 0.0
+
             res = scipy.optimize.minimize(lambda x: np.linalg.norm(x - x0_array_scaled), x0_array_scaled, jac=jacfcn, bounds=bounds, constraints=LinearConstraint, method='SLSQP', options={'ftol': 1e-5, 'maxiter': 1000})
 
             if not res['success']:
