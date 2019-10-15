@@ -329,7 +329,11 @@ class Result(NamedItem):
                     d[('Parameters', pop.name, par.name, gl(par.name))] = par.vals
             for link in pop.links:
                 # Sum over duplicate links and annualize flow rate
-                par_label = gl(link.parameter.name)
+                if link.parameter is None:
+                    par_label = '-'
+                else:
+                    par_label = gl(link.parameter.name)
+
                 if par_label == '-':
                     link_label = par_label
                 else:
