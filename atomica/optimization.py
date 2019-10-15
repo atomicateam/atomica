@@ -925,7 +925,7 @@ class TotalSpendConstraint(Constraint):
             else:
                 for name, val in zip(x0.keys(), x0_array_scaled):
                     instructions.alloc[name].insert(t, val*total_spend)
-                return 0.0
+                continue
 
             LinearConstraint = [{'type': 'eq', 'fun': lambda x: np.sum(x) - 1, 'jac': lambda x: np.ones(x.shape)}]  # Constrain spend
             res = scipy.optimize.minimize(lambda x: np.linalg.norm(x - x0_array_scaled), x0_array_scaled, jac=jacfcn, bounds=bounds, constraints=LinearConstraint, method='SLSQP', options={'ftol': 1e-5, 'maxiter': 1000})
