@@ -708,7 +708,8 @@ class Constraint(object):
 
         :param instructions: The ``ProgramInstructions`` instance to constrain (in place)
         :param hard_constraints: The hard constraint returned by ``get_hard_constraint``
-        :return: A numeric penalty value. Return `np.inf` if constraint could not be satisfied
+        :return: A numeric penalty value. Return `np.inf` if constraint penalty could not be computed
+        :raises: :class:`FailedConstraint` if the instructions could not be constrained
 
         """
 
