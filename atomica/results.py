@@ -142,6 +142,54 @@ class Result(NamedItem):
 
         return self.model.progset.get_alloc(year, self.model.program_instructions)
 
+    def get_equivalent_alloc(self, year=None) -> dict:
+        """
+        Return minimal spending allocation for a given year based on the coverage
+
+        If the result was generated using programs, this method will return the spending
+        on all programs in the requested years.
+
+        :param year: Optionally specify a scalar or list/array of years to return budget values
+                     for. Otherwise, uses all simulation times
+        :return: Dictionary keyed by program name with arrays of spending values
+        """
+
+        if self.model.progset is None:
+            return None
+
+        if year is None:
+            year = self.t
+            
+        prop_coverage = self.get_coverage(quantity='fraction', year=year)
+        num_eligible = self.get_coverage(quantity='eligible', year=year)
+        
+        equivalent_alloc = sc.odict()
+        for prog in prop_coverage.keys():
+            uc = self.model.progset.programs[prog].unit_cost.interpolate(year)
+            pc = sc.dcp(prop_coverage[prog])
+                     
+            if self.model.progset.programs[prog].saturation.has_data:
+                sat = self.model.progset.programs[prog].saturation.interpolate(year)
+                
+                #If prop_covered is higher than the saturation then set it to nan (without the error that would happen from np.log)
+                pc[pc >= sat] = np.nan
+            
+                #invert the calculation on the proportional coverage to determine the necessary "costed" coverage
+                pc = -sat * np.log((sat - pc)/(sat + pc))/2.
+            
+            #Calculating the program coverage, capacity constraint is applied first, then saturation, so it needs to happen second when reversing the calculation
+            if self.model.progset.programs[prog].capacity_constraint.has_data:
+                cap = self.model.progset.programs[prog].capacity_constraint.interpolate(year)  
+                #If prop_covered is higher than the capacity constraint then set it to nan as it wouldn't be possible to reach that coverage
+                pc[pc * num_eligible[prog] >= cap] = np.nan
+            
+            #multiply the proportion of naively costed coverage by the number of actually eligible people (catching the case where number covered would be higher than the number eligible)
+            num_costed_coverage = pc * num_eligible[prog]
+            
+            equivalent_alloc[prog] = uc * num_costed_coverage
+
+        return equivalent_alloc
+
     def get_coverage(self, quantity: str = 'fraction', year=None) -> dict:
         """
         Return program coverage
