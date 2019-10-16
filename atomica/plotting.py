@@ -731,7 +731,7 @@ class PlotData:
 
         outputs = _expand_dict(outputs)
 
-        assert quantity in ['spending', 'coverage_number', 'coverage_eligible', 'coverage_fraction', 'coverage_capacity']
+        assert quantity in ['spending', 'equivalent spending', 'coverage_number', 'coverage_eligible', 'coverage_fraction', 'coverage_capacity']
         # Make a new PlotData instance
         # We are using __new__ because this method is to be formally considered an alternate constructor and
         # thus bears responsibility for ensuring this new instance is initialized correctly
@@ -743,6 +743,10 @@ class PlotData:
 
             if quantity == 'spending':
                 all_vals = result.get_alloc()
+                units = result.model.progset.currency
+                timescales = dict.fromkeys(all_vals, 1.0)
+            elif quantity == 'equivalent spending':
+                all_vals = result.get_equivalent_alloc()
                 units = result.model.progset.currency
                 timescales = dict.fromkeys(all_vals, 1.0)
             elif quantity in {'coverage_capacity', 'coverage_number'}:
