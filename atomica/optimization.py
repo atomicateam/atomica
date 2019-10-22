@@ -288,7 +288,7 @@ class PairedLinearSpendingAdjustment(Adjustment):
     def __init__(self, prog_names, t):
         Adjustment.__init__(self, name=None)
         assert len(prog_names) == 2, 'PairedLinearSpendingAdjustment needs exactly two program names'
-        self.prog_names = prog_names
+        self.prog_name = prog_names  # Store names in the attribute 'prog_name' so that TotalSpendConstraint picks this up
         self.t = t  # [t_start,t_stop] for when to start/stop ramping
         self.adjustables = [Adjustable('ramp', initial_value=0.0)]
 
@@ -298,12 +298,12 @@ class PairedLinearSpendingAdjustment(Adjustment):
         tspan = (self.t[1] - self.t[0])
 
         if gradient < 0:  # We are transferring money from program 2 to program 1
-            available = -instructions.alloc[self.prog_names[1]].get(self.t[0])
+            available = -instructions.alloc[self.prog_name[1]].get(self.t[0])
             max_gradient = float(available) / tspan
             if gradient < max_gradient:
                 gradient = max_gradient
         else:
-            available = instructions.alloc[self.prog_names[0]].get(self.t[0])
+            available = instructions.alloc[self.prog_name[0]].get(self.t[0])
             max_gradient = float(available) / tspan
             if gradient > max_gradient:
                 gradient = max_gradient
@@ -311,12 +311,12 @@ class PairedLinearSpendingAdjustment(Adjustment):
         funding_change = gradient * tspan  # Amount transferred from program 1 to program 2
 
         # This does not change the amount of funds allocated in the initial year
-        for prog in self.prog_names:
+        for prog in self.prog_name:
             instructions.alloc[prog].insert(self.t[0], instructions.alloc[prog].interpolate(self.t[0])[0])
             instructions.alloc[prog].remove_between(self.t)
 
-        instructions.alloc[self.prog_names[0]].insert(self.t[1], instructions.alloc[self.prog_names[0]].get(self.t[0]) - funding_change)
-        instructions.alloc[self.prog_names[1]].insert(self.t[1], instructions.alloc[self.prog_names[1]].get(self.t[0]) + funding_change)
+        instructions.alloc[self.prog_name[0]].insert(self.t[1], instructions.alloc[self.prog_name[0]].get(self.t[0]) - funding_change)
+        instructions.alloc[self.prog_name[1]].insert(self.t[1], instructions.alloc[self.prog_name[1]].get(self.t[0]) + funding_change)
 
 
 class Measurable(object):
