@@ -803,10 +803,12 @@ class PlotData:
             plotdata.outputs[key] = results[0].model.progset.programs[key].label if key in results[0].model.progset.programs else key
 
         if t_bins is not None:
-            if quantity in ['spending', 'coverage_number']:
+            if quantity in {'spending', 'equivalent_spending', 'coverage_number'}:
                 plotdata._time_aggregate(t_bins, 'integrate')
-            elif quantity in ['coverage_eligible', 'coverage_fraction']:
+            elif quantity in {'coverage_eligible', 'coverage_fraction'}:
                 plotdata._time_aggregate(t_bins, 'average')
+            else:
+                raise Exception('Unknown quantity type for aggregation')
 
         if accumulate is not None:
             plotdata._accumulate(accumulate)
