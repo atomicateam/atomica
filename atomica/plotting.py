@@ -769,7 +769,7 @@ class PlotData:
 
             for output in outputs:  # For each final output
                 if isinstance(output, dict):  # If this is an aggregation over programs
-                    if quantity == 'spending':
+                    if quantity in ['spending', 'equivalent_spending']:
                         output_name = list(output.keys())[0]  # This is the aggregated name
                         labels = output[output_name]  # These are the quantities being aggregated
 

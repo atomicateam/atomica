@@ -187,6 +187,9 @@ class Result(NamedItem):
             num_costed_coverage = pc * num_eligible[prog]
             
             equivalent_alloc[prog] = uc * num_costed_coverage
+            
+            if self.model.progset.programs[prog].coverage.units == 'people/year': #it's a one-off program, need to multiply by the time step to annualize spending
+                equivalent_alloc[prog] /= self.dt
 
         return equivalent_alloc
 
