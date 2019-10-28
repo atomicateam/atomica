@@ -2116,7 +2116,7 @@ class Model(object):
                         # and derivative parameters are not considered dependencies - so we do
                         # not need to add a dependency edge to the graph
                         G.add_edge(dep, par.name)
-                if par.pop_aggregation and par.pop_aggregation[1] in par_derivative:
+                if par.pop_aggregation and par.pop_aggregation[1] in par_derivative and par_derivative[par.pop_aggregation[1]] != 'y':
                     G.add_edge(par.pop_aggregation[1], par.name)
 
                 if par._is_dynamic or (self.progset and par.name in self.progset.pars):
@@ -2124,7 +2124,12 @@ class Model(object):
                     # include it in the list of parameters to iterate over in `update_pars`
                     G.nodes[par.name]['keep'] = True
 
-        assert nx.dag.is_directed_acyclic_graph(G), 'There is a circular dependency in parameters, which is not permitted'
+        if not nx.dag.is_directed_acyclic_graph(G):
+            message = 'Circular dependencies in parameters:'
+            for cycle in nx.simple_cycles(G):
+                message += '\n - ' + ' -> '.join(cycle)
+            raise Exception(message)
+
         exec_order['all_pars'] = [x for x in nx.dag.topological_sort(G) if x in self._vars_by_pop]  # Not all parameters may exist depending on populations, so filter out only the ones that are actually instantiated in this Model
         exec_order['dynamic_pars'] = [x for x in exec_order['all_pars'] if G.nodes[x]['keep']]
 
