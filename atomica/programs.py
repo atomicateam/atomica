@@ -87,7 +87,7 @@ class ProgramInstructions(object):
         self.alloc = sc.odict()
         if isinstance(alloc, ProgramSet):
             for prog in alloc.programs.values():
-                self.alloc[prog.name] = TimeSeries(t=self.start_year, vals=prog.spend_data.interpolate(self.start_year))
+                self.alloc[prog.name] = TimeSeries(t=self.start_year, vals=prog.spend_data.interpolate(self.start_year, method='previous'))
         elif alloc:
             for prog_name, spending in alloc.items():
                 if isinstance(spending, TimeSeries) and spending.has_data:
@@ -971,7 +971,7 @@ class ProgramSet(NamedItem):
             if instructions is None or prog.name not in instructions.alloc:
                 alloc[prog.name] = prog.get_spend(tvec)
             else:
-                alloc[prog.name] = instructions.alloc[prog.name].interpolate(tvec)
+                alloc[prog.name] = instructions.alloc[prog.name].interpolate(tvec, method='previous')
 
         if instructions:
             for prog_name in set(instructions.alloc.keys()) - set(self.programs.keys()):
@@ -1010,7 +1010,7 @@ class ProgramSet(NamedItem):
                 # Note that prog.get_capacity() returns capacity in units of people
                 capacities[prog.name] = prog.get_capacity(tvec=tvec, dt=dt, spending=spending)
             else:
-                capacities[prog.name] = instructions.capacity[prog.name].interpolate(tvec)
+                capacities[prog.name] = instructions.capacity[prog.name].interpolate(tvec, method='previous')
                 # Capacity overwrites are input in units of people/year so convert to units of people here
                 if '/year' not in prog.unit_cost.units:
                     capacities[prog.name] *= dt
@@ -1048,7 +1048,7 @@ class ProgramSet(NamedItem):
             if instructions is None or prog.name not in instructions.coverage:
                 prop_coverage[prog.name] = prog.get_prop_covered(tvec, capacities[prog.name], num_eligible[prog.name])
             else:
-                prop_coverage[prog.name] = instructions.coverage[prog.name].interpolate(tvec)
+                prop_coverage[prog.name] = instructions.coverage[prog.name].interpolate(tvec, method='previous')
                 prop_coverage[prog.name] = minimum(prop_coverage[prog.name], 1.)
         return prop_coverage
 
@@ -1174,9 +1174,9 @@ class Program(NamedItem):
         """
 
         if total:
-            return self.spend_data.interpolate(year) + self.baseline_spend.interpolate(year)
+            return self.spend_data.interpolate(year, method='previous') + self.baseline_spend.interpolate(year, method='previous')
         else:
-            return self.spend_data.interpolate(year)
+            return self.spend_data.interpolate(year, method='previous')
 
     def get_capacity(self, tvec, spending, dt):
         """
@@ -1206,7 +1206,7 @@ class Program(NamedItem):
         # Validate inputs
         spending = sc.promotetoarray(spending)
 
-        unit_cost = self.unit_cost.interpolate(tvec)
+        unit_cost = self.unit_cost.interpolate(tvec, method='previous')
         if '/year' not in self.unit_cost.units:
             # The spending is $/year, and the /year gets eliminated if the unit cost is also per year. If that's not the case, then
             # we need to multiply the spending by the timestep to get the correct units
@@ -1215,7 +1215,7 @@ class Program(NamedItem):
         capacity = spending / unit_cost
 
         if self.capacity_constraint.has_data:
-            capacity_constraint = self.capacity_constraint.interpolate(tvec)
+            capacity_constraint = self.capacity_constraint.interpolate(tvec, method='previous')
             if '/year' in self.capacity_constraint.units:
                 # The capacity_constraint constraint is applied to a number of people. If it is /year, then it must be multiplied by the timestep first
                 capacity_constraint *= dt
@@ -1246,7 +1246,7 @@ class Program(NamedItem):
         if self.saturation.has_data:
             # If the coverage denominator (eligible) is 0, then we need to use the saturation value
             prop_covered = np.divide(capacity, eligible, out=np.full(capacity.shape, np.inf), where=eligible != 0)
-            saturation = self.saturation.interpolate(tvec)
+            saturation = self.saturation.interpolate(tvec, method='previous')
             prop_covered = 2 * saturation / (1 + exp(-2 * prop_covered / saturation)) - saturation
             prop_covered = minimum(prop_covered, 1.)  # Ensure that coverage doesn't go above 1 (if saturation is < 1)
         else:

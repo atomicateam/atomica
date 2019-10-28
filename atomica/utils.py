@@ -462,7 +462,7 @@ class TimeSeries(object):
             - Otherwise, the specified interpolation method will be used
 
         :param t2: float, list, or array, with times
-        :param method: A string 'linear', 'pchip' or 'stepped' OR a callable item that returns an Interpolator
+        :param method: A string 'linear', 'pchip' or 'previous' OR a callable item that returns an Interpolator
         :return: array the same length as t2, with interpolated values
 
         """

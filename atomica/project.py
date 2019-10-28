@@ -54,18 +54,37 @@ class ProjectSettings(object):
         return output
 
     @property
-    def tvec(self):
-        return np.arange(self.sim_start, self.sim_end + self.sim_dt / 2, self.sim_dt)
+    def tvec(self) -> np.ndarray:
+        """
+        Return simulation time vector
 
-    def update_time_vector(self, start=None, end=None, dt=None):
-        """ Calculate time vector. """
+        This method uses `linspace` rather than `arange` to avoid accumulating numerical errors that prevent
+        integer years aligning exactly.
+
+        :return: Array of simulation times
+
+        """
+
+        return np.linspace(self.sim_start, self.sim_end, (self.sim_end-self.sim_start)/self.sim_dt + 1)
+
+    def update_time_vector(self, start: float = None, end: float = None, dt: float = None) -> None:
+        """
+        Update the project simulation times
+
+        :param start: Optionally provide new start year (e.g. '2018')
+        :param end: Optionally provide new end year (e.g. '2035')
+        :param dt: Optionally provide new step size, in years (e.g. '0.25' for quarterly steps
+        
+        """
+
         if start is not None:
             self.sim_start = start
+
         if end is not None:
             self.sim_end = end
+
         if dt is not None:
             self.sim_dt = dt
-        return None
 
 
 class Project(NamedItem):

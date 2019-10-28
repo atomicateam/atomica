@@ -392,19 +392,19 @@ class PlotData:
 
         # Handle time aggregation
         if t_bins is not None:
-            self._time_aggregate(t_bins, time_aggregation)
+            self.time_aggregate(t_bins, time_aggregation)
 
         if accumulate is not None:
-            self._accumulate(accumulate)
+            self.accumulate(accumulate)
 
-    def _accumulate(self, accumulation_method) -> None:
+    def accumulate(self, accumulation_method) -> None:
         """
-        Internal method to accumulate values over time
+        Accumulate values over time
 
         Accumulation methods are
 
         :param accumulation_method: Select whether to add or integrate. Supported methods are:
-                                    - 'sum' : runs `cumsum` on all quantities - should not be used if units are flow rates (so will check for '/year').
+                                    - 'sum' : runs `cumsum` on all quantities - should not be used if units are flow rates (so will check for a timescale).
                                               Summation should be used for compartment-based quantities, such as DALYs
                                     - 'integrate' : integrate using trapezoidal rule, assuming initial value of 0
                                             Note that here there is no concept of 'dt' because we might have non-uniform time aggregation bins
@@ -443,21 +443,33 @@ class PlotData:
 
             self.outputs[s.output] = 'Cumulative ' + self.outputs[s.output]
 
-    def _time_aggregate(self, t_bins, time_aggregation=None) -> None:
+    def time_aggregate(self, t_bins, time_aggregation=None, interpolation_method=None) -> None:
         """
-        Internal method for time aggregation
+        Aggregate values over time
 
         Note that *accumulation* is a running total, whereas *aggregation* refers to binning. The two can be
-        both be applied (with aggregation occuring prior to accumulation).
+        both be applied (aggregation should be performed prior to accumulation).
+
+        Normally, aggregation is performed when constructing a `PlotData` instance and this method does not need
+        to be manually called. However, in rare cases, it may be necessary to explicitly set the interpolation method.
+        Specifically, the interpolation method needs to match the underlying assumption for parameter values. For
+        parameter scenarios, this may require that the 'previous' method is used (to match the assumption in the parameter overwrite)
+        rather than relying on the standard assumption that databook quantities can be interpolated directly.
 
         :param t_bins: Vector of bin edges OR a scalar bin size, which will be automatically expanded to a vector of bin edges
         :param time_aggregation: can be 'sum' or 'average'. Note that for quantities that have a timescale, 'sum' behaves like integration
                                  so flow parameters in number units will be adjusted accordingly (e.g. a parameter in units of 'people/day'
                                  aggregated over a 1 year period will display as the equivalent number of people that year)
+        :param interpolation_method: Assumption on how the quantity behaves in between timesteps - in general, 'linear' should be suitable for
+                                     most dynamic quantities, while 'previous' should be used for spending and other program-related quantities.
 
         """
 
         assert time_aggregation in [None, 'integrate', 'average']
+        assert interpolation_method in [None, 'linear', 'previous']
+
+        if interpolation_method is None:
+            interpolation_method = 'linear'
 
         if not hasattr(t_bins, '__len__'):
             # If a scalar bin is provided, then it is
@@ -506,8 +518,12 @@ class PlotData:
             for i, (l, u) in enumerate(zip(lower, upper)):
                 n = np.ceil((u - l) / max_step) + 1  # Add 1 so that in most cases, we can use the actual timestep values
                 t2 = np.linspace(l, u, int(n))
-                v2 = np.interp(t2, s.tvec, s.vals, left=np.nan, right=np.nan)  # Return NaN outside bounds - it should never be valid to use extrapolated output values in time aggregation
-                vals[i] = np.trapz(y=v2 / scale, x=t2)  # Note division by timescale here, which annualizes it
+                if interpolation_method == 'linear':
+                    v2 = np.interp(t2, s.tvec, s.vals, left=np.nan, right=np.nan)  # Return NaN outside bounds - it should never be valid to use extrapolated output values in time aggregation
+                    vals[i] = np.trapz(y=v2 / scale, x=t2)  # Note division by timescale here, which annualizes it
+                elif interpolation_method == 'previous':
+                    v2 = scipy.interpolate.interp1d(s.tvec, s.vals, kind='previous', copy=False, assume_sorted=True, bounds_error=False, fill_value=(np.nan, np.nan))(t2)
+                    vals[i] = sum(v2[:-1]/scale * np.diff(t2))
 
             s.tvec = (lower + upper) / 2.0
 
@@ -804,14 +820,14 @@ class PlotData:
 
         if t_bins is not None:
             if quantity in {'spending', 'equivalent_spending', 'coverage_number'}:
-                plotdata._time_aggregate(t_bins, 'integrate')
+                plotdata.time_aggregate(t_bins, 'integrate', interpolation_method='previous')
             elif quantity in {'coverage_eligible', 'coverage_fraction'}:
-                plotdata._time_aggregate(t_bins, 'average')
+                plotdata.time_aggregate(t_bins, 'average', interpolation_method='previous')
             else:
                 raise Exception('Unknown quantity type for aggregation')
 
         if accumulate is not None:
-            plotdata._accumulate(accumulate)
+            plotdata.accumulate(accumulate)
 
         return plotdata
 
