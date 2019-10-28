@@ -230,11 +230,19 @@ class Compartment(Variable):
     @property
     def outflow(self):
         # Return the outflow at each timestep - for a junction, this is equal to the number
-        # of people that were in the junction
+        # of people that were in the junction. Use this function to return values at all times
         x = np.zeros(self.t.shape)
         if self.outlinks:
             for link in self.outlinks:
                 x += link.vals
+        return x
+
+    def inflow(self, ti):
+        # Return junction inflow at each timestep - for a junction, is is equal to the outflow and equal
+        # to the number of people that were/are in the junction. Unlike outflow() this function takes in
+        x = 0.0
+        for link in self.inlinks:
+            x += link[ti]
         return x
 
     def expected_duration(self, ti=None):
@@ -2364,7 +2372,11 @@ class Model(object):
                 else:
                     n = 0.0
                     for comp in comp_list:
-                        n += comp[ti]
+                        if isinstance(comp, JunctionCompartment):
+                            n += comp.inflow(ti)
+                        else:
+                            n += comp[ti]
+
                     prop_coverage[k] = self.progset.programs[k].get_prop_covered(self.t[ti], self._program_cache['capacities'][k][ti], n)
             prog_vals = self.progset.get_outcomes(prop_coverage)
 
