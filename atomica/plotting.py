@@ -509,8 +509,9 @@ class PlotData:
                 v2 = np.interp(t2, s.tvec, s.vals, left=np.nan, right=np.nan)  # Return NaN outside bounds - it should never be valid to use extrapolated output values in time aggregation
                 vals[i] = np.trapz(y=v2 / scale, x=t2)  # Note division by timescale here, which annualizes it
 
+            s.tvec = (lower + upper) / 2.0
+
             if method == 'integrate':
-                s.tvec = upper
                 s.vals = np.array(vals)
 
                 # If integrating the units might change
@@ -536,9 +537,8 @@ class PlotData:
                         pass
 
             elif method == 'average':
-                s.tvec = (lower + upper) / 2.0
-                s.vals = np.array(vals) / np.diff(t_bins / scale)  # Divide by bin width if averaging within the bins
-                s.units = 'Average %s' % (s.units)  # It will look odd to do 'Cumulative Average Number of people' but that's will accurately what the user has requested (combining aggregation and accumulation is permitted, but not likely to be necessary)
+                s.vals = np.array(vals) / np.diff(t_bins/scale) # Divide by bin width if averaging within the bins
+                s.units = 'Average %s' % (s.units) # It will look odd to do 'Cumulative Average Number of people' but that's will accurately what the user has requested (combining aggregation and accumulation is permitted, but not likely to be necessary)
             else:
                 raise Exception('Unknown time aggregation type "%s"' % (time_aggregation))
 
@@ -769,7 +769,7 @@ class PlotData:
 
             for output in outputs:  # For each final output
                 if isinstance(output, dict):  # If this is an aggregation over programs
-                    if quantity == 'spending':
+                    if quantity in ['spending', 'equivalent_spending']:
                         output_name = list(output.keys())[0]  # This is the aggregated name
                         labels = output[output_name]  # These are the quantities being aggregated
 
@@ -803,10 +803,12 @@ class PlotData:
             plotdata.outputs[key] = results[0].model.progset.programs[key].label if key in results[0].model.progset.programs else key
 
         if t_bins is not None:
-            if quantity in ['spending', 'coverage_number']:
+            if quantity in {'spending', 'equivalent_spending', 'coverage_number'}:
                 plotdata._time_aggregate(t_bins, 'integrate')
-            elif quantity in ['coverage_eligible', 'coverage_fraction']:
+            elif quantity in {'coverage_eligible', 'coverage_fraction'}:
                 plotdata._time_aggregate(t_bins, 'average')
+            else:
+                raise Exception('Unknown quantity type for aggregation')
 
         if accumulate is not None:
             plotdata._accumulate(accumulate)
