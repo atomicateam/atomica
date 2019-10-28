@@ -466,7 +466,7 @@ class ProgramSet(NamedItem):
         validate_category(workbook, 'atomica:progbook')
 
         # Load individual sheets
-        self._read_targeting(workbook['Program targeting'])
+        self._read_targeting(workbook['Program targeting'], framework=framework)
         self._read_spending(workbook['Spending data'], _allow_missing_data=_allow_missing_data)
         self._read_effects(workbook['Program effects'], framework=framework, data=data)
 
@@ -509,7 +509,7 @@ class ProgramSet(NamedItem):
         ss.save(full_path)
         return full_path
 
-    def _read_targeting(self, sheet) -> None:
+    def _read_targeting(self, sheet, framework) -> None:
         # This function reads a targeting sheet and instantiates all of the programs with appropriate targets, putting them
         # into `self.programs`
         tables, start_rows = read_tables(sheet)  # NB. only the first table will be read, so there can be other tables for comments on the first page
@@ -555,11 +555,18 @@ class ProgramSet(NamedItem):
             for i in range(comp_start_idx, len(headers)):
                 if row[i].value and sc.isstring(row[i].value) and row[i].value.lower().strip() == 'y':
                     if comp_idx[i] not in comp_codenames:
-                        message = 'There was a mismatch between the compartments in the databook and the compartments in the Framework file'
-                        message += '\nThe program book contains compartment "%s", while the Framework contains: %s' % (comp_idx[i], [str(x) for x in comp_codenames.keys()])
-                        raise Exception(message)
-
-                    target_comps.append(comp_codenames[comp_idx[i]])  # Append the pop's codename
+                        if comp_idx[i] in set(framework.comps['display name'].str.lower().str.strip()):
+                            # It's a valid compartment of some sort (not actually targetable - for use with coverage scenarios only)
+                            logger.warning(f'Compartment "{comp_idx[i]}" is a non-standard compartment that cannot be targeted. The ProgramSet can be used with coverage scenarios only')
+                            spec = framework.comps.loc[framework.comps['display name'].str.lower().str.strip() == comp_idx[i]]
+                            self.add_comp(code_name=spec.index[0], full_name=spec['display name'][0], pop_type=spec['population type'][0])
+                            target_comps.append(spec.index[0])  # Append the pop's codename
+                        else:
+                            message = 'There was a mismatch between the compartments in the databook and the compartments in the Framework file'
+                            message += '\nThe program book contains compartment "%s", while the Framework contains: %s' % (comp_idx[i], [str(x) for x in comp_codenames.keys()])
+                            raise Exception(message)
+                    else:
+                        target_comps.append(comp_codenames[comp_idx[i]])  # Append the pop's codename
 
             short_name = row[0].value.strip()
             if short_name.lower() == 'all':
