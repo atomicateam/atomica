@@ -81,7 +81,7 @@ class ProjectFramework(object):
             self.sheets[sheet_title] = list()
             for table in tables:
                 # Get a dataframe
-                df = pd.DataFrame.from_records(table).applymap(lambda x: x.value.strip() if sc.isstring(x.value) else x.value)
+                df = pd.DataFrame.from_records(table).applymap(lambda x: x.value.strip() if x.data_type == 's' else x.value)
                 df.dropna(axis=1, how='all', inplace=True)  # If a column is completely empty, including the header, ignore it. Helps avoid errors where blank cells are loaded by openpyxl due to extra non-value content
 
                 if sheet_title == 'cascades':

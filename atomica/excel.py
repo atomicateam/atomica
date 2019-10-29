@@ -156,7 +156,7 @@ def read_tables(worksheet) -> tuple:
     for i, row in enumerate(worksheet.rows):
 
         # Skip any rows starting with '#ignore'
-        if len(row) == 0 or (row[0].value and sc.isstring(row[0].value) and row[0].value.startswith('#ignore')):
+        if len(row) == 0 or (row[0].data_type == 's' and row[0].value.startswith('#ignore')):
             continue  # Move on to the next row if row skipping is marked True
 
         # Find out whether we need to add the row to the buffer
@@ -188,7 +188,7 @@ def df_from_table(table, index=None) -> pd.DataFrame:
     :param index: A list of column headings to use as indices
     :return: A dataframe
     """
-    df = pd.DataFrame.from_records(table).applymap(lambda x: x.value.strip() if sc.isstring(x.value) else x.value)
+    df = pd.DataFrame.from_records(table).applymap(lambda x: x.value.strip() if x.data_type == 's' else x.value)
     df.dropna(axis=1, how='all', inplace=True)  # If a column is completely empty, including the header, ignore it. Helps avoid errors where blank cells are loaded by openpyxl due to extra non-value content
     df.columns = df.iloc[0]
     df = df[1:] # Remove duplicated first row
