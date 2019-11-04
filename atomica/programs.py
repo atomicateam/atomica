@@ -1007,7 +1007,7 @@ class ProgramSet(NamedItem):
         return capacities
 
 
-    def get_prop_coverage(self, tvec, capacities, num_eligible, instructions=None) -> dict:
+    def get_prop_coverage(self, tvec, capacities: dict, num_eligible: dict, dt: float, instructions=None) -> dict:
         """
         Return fractional coverage
 
@@ -1023,11 +1023,12 @@ class ProgramSet(NamedItem):
         - instructions can override the coverage (for coverage scenarios)
         - Programs can contain saturation constraints
 
-        :param tvec: array of times (in years) - this is required to interpolate time-varying saturation values
+        :param tvec: scalar year, or array of years - this is required to interpolate time-varying saturation values
         :param capacities: dict of program coverages, should match the available programs (typically the output of ``ProgramSet.get_capacities()``)
                            Note that since the capacity and eligible compartment sizes are being compared here,
                            the capacity needs to be in units of 'people' (not 'people/year') at this point
         :param num_eligible: dict of number of people covered by each program, computed externally and with one entry for each program
+        :param dt: simulation timestep
         :param instructions: optionally specify instructions, which can supply a coverage overwrite
         :return: Dict like ``{prog_name: np.array()}`` with fractional coverage values (dimensionless)
 
@@ -1039,7 +1040,13 @@ class ProgramSet(NamedItem):
                 prop_coverage[prog.name] = prog.get_prop_covered(tvec, capacities[prog.name], num_eligible[prog.name])
             else:
                 prop_coverage[prog.name] = instructions.coverage[prog.name].interpolate(tvec)
+                if prog.is_one_off:
+                    # Scale by dt beforehand, so that a timestep coverage of 1 can be achieved with an annual coverage
+                    # greater than 1 - that is, the number of people covered in a year relative to the CURRENT
+                    # compartment size
+                    prop_coverage[prog.name] *= dt
                 prop_coverage[prog.name] = minimum(prop_coverage[prog.name], 1.)
+
         return prop_coverage
 
     def get_outcomes(self, prop_coverage: dict) -> dict:
@@ -1124,6 +1131,26 @@ class Program(NamedItem):
         self.capacity_constraint = TimeSeries(units='people/year')  #: TimeSeries with capacity constraint for the program
         self.saturation = TimeSeries(units=FS.DEFAULT_SYMBOL_INAPPLICABLE)  #: TimeSeries with saturation constraint that is applied to fractional coverage
         self.coverage = TimeSeries(units='people/year')  #: TimeSeries with capacity of program - optional - if not supplied, cost function is assumed to be linear
+
+    @property
+    def is_one_off(self) -> bool:
+        """
+        Flag for one-off programs
+
+        A one-off program is a program where the cost is incurred once, per person impacted. For example, a treatment
+        program where after treatment the person is no longer eligible for treatment. In contrast, a non-one-off program
+        (a continuous program) is one where a person reached by the program remains eligible - for example, ART. In addition,
+        one-off programs are typically linked to transition parameters, while continuous programs are typically linked to
+        non-transition parameters.
+
+        Whether a program is one-off or not depends on whether the unit cost is specified as
+        - Cost per person (one-off)
+        - Cost per person per year (continuous)
+
+        :return: True if program is a one-off program
+
+        """
+        return '/year' not in self.unit_cost.units
 
     def sample(self, constant: bool) -> None:
         """
@@ -1224,7 +1251,8 @@ class Program(NamedItem):
 
         :param tvec:  An array of times
         :param capacity: An array of number of people covered (e.g. the output of ``Program.get_capacity()``)
-                         This should be in units of 'people', rather than 'people/year'
+                         This should be in units of 'people', rather than 'people/year' although it may be a
+                         timestep-sensitive value if the capacity follows from a timestep-adjusted spend.
         :param eligible: The number of people eligible for the program (computed from a model object or a Result)
         :return: The fractional coverage (used to compute outcomes)
 

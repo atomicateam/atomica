@@ -1164,6 +1164,8 @@ class Model(object):
             self._program_cache['prop_coverage'] = dict()
             for prog_name, coverage_ts in self.program_instructions.coverage.items():
                 self._program_cache['prop_coverage'][prog_name] = coverage_ts.interpolate(self.t)
+                if self.progset.programs[prog_name].is_one_off:
+                    self._program_cache['prop_coverage'][prog_name] *= self.dt
 
         else:
             self.programs_active = False
@@ -1567,8 +1569,14 @@ class Model(object):
                             par._dx = prog_vals[(par.name, par.pop.name)] # For derivative parameters, overwrite the derivative rather than the value
                         else:
                             par.vals[ti] = prog_vals[(par.name, par.pop.name)]
+
                         if par.units == FS.QUANTITY_TYPE_NUMBER:
                             par.vals[ti] *= par.source_popsize(ti) / self.dt  # The outcome in the progbook is per person reached, which is a timestep specific value. Thus, need to annualize here
+                        elif par.units == FS.QUANTITY_TYPE_PROBABILITY:
+                            # Continuous programs generally should not target number or probability parameters
+                            # We apply a factor of dt here regardless of the parameter's timescale. This is because the dt factor here
+                            # matches the factor of dt used to divide the annual spending into timestep spending
+                            par.vals[ti] /= self.dt
 
             # Handle parameters that aggregate over populations and use interactions in these functions.
             if pars[0].pop_aggregation:
