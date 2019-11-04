@@ -17,24 +17,24 @@ def test_program_coverage_calculation():
 
     P.settings.update_time_vector(start=2019, end=2020, dt=0.25)
     ins = at.ProgramInstructions(start_year=2019)
-    # res = P.run_sim(parset=0,progset=0, progset_instructions=ins)
-    #
-    # # Check the resulting calculations
-    # assert res.get_variable('txrate1')[0].vals[0] == 0.8 # At this timestep, should have ANNUALIZED probability of 0.8
-    # assert res.get_variable('txrate2')[0].vals[0] == 80 # At this timestep, should have ANNUALIZED flow rate of 80
-    #
-    # assert res.get_variable('txrate1:flow')[0].vals[0] == 20 # At this timestep, should have timestep flow of 20
-    # assert res.get_variable('txrate2:flow')[0].vals[0] == 20 # At this timestep, should have timestep flow of 20
-    #
-    # # With 80 people eligible, funding to cover 20 people at this timestep, the coverage should be 25%
-    # # and we should continue to move 20 people. The annualized probability is now 1
-    # assert res.get_variable('txrate1')[0].vals[1] == 1  # At this timestep, should have ANNUALIZED probability of 1
-    # assert res.get_variable('txrate2')[0].vals[1] == 80  # At this timestep, should have ANNUALIZED flow rate of 80
-    #
-    # assert res.get_variable('txrate1:flow')[0].vals[1] == 20 # At this timestep, should have timestep flow of 20
-    # assert res.get_variable('txrate2:flow')[0].vals[1] == 20 # At this timestep, should have timestep flow of 20
-    #
-    # assert res.get_variable('prop_art')[0].vals[0] == 0.5 # Parameter value should correspond to 50% coverage
+    res = P.run_sim(parset=0,progset=0, progset_instructions=ins)
+
+    # Check the resulting calculations
+    assert res.get_variable('txrate1')[0].vals[0] == 0.8 # At this timestep, should have ANNUALIZED probability of 0.8
+    assert res.get_variable('txrate2')[0].vals[0] == 80 # At this timestep, should have ANNUALIZED flow rate of 80
+
+    assert res.get_variable('txrate1:flow')[0].vals[0] == 20 # At this timestep, should have timestep flow of 20
+    assert res.get_variable('txrate2:flow')[0].vals[0] == 20 # At this timestep, should have timestep flow of 20
+
+    # With 80 people eligible, funding to cover 20 people at this timestep, the coverage should be 25%
+    # and we should continue to move 20 people. The annualized probability is now 1
+    assert res.get_variable('txrate1')[0].vals[1] == 1  # At this timestep, should have ANNUALIZED probability of 1
+    assert res.get_variable('txrate2')[0].vals[1] == 80  # At this timestep, should have ANNUALIZED flow rate of 80
+
+    assert res.get_variable('txrate1:flow')[0].vals[1] == 20 # At this timestep, should have timestep flow of 20
+    assert res.get_variable('txrate2:flow')[0].vals[1] == 20 # At this timestep, should have timestep flow of 20
+
+    assert res.get_variable('prop_art')[0].vals[0] == 0.5 # Parameter value should correspond to 50% coverage
 
     # Test applying an overwrite
     ins2 = at.ProgramInstructions(start_year=2019, coverage={'tx_prob':0.5,'tx_num':0.5,'art':0.4})
