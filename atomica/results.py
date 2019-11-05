@@ -201,11 +201,15 @@ class Result(NamedItem):
         values. All coverage quantities are accessible via the :class:`Result` object
         because the compartment sizes and thus eligible people are known.
 
+        **Caution** - capacity and number covered are returned in units of 'people/year'. They need to be
+        accumulated by integration rather than summation.
+
         :param quantity: One of
             - 'capacity' - Program capacity in units of 'people/year' (for all types of programs)
             - 'eligible' - The number of people eligible for the program (coverage denominator) in units of 'people'
             - 'fraction' - ``capacity/eligible``, the fraction coverage (maximum value is 1.0) - this quantity is dimensionless
             - 'number' - The number of people covered (``fraction*eligible``) returned in units of 'people/year'
+
         :param year: Optionally specify a scalar or list/array of years to return budget values
                      for. Otherwise, uses all simulation times
         :return: Requested values in dictionary ``{prog_name:value}`` in requested years

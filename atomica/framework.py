@@ -824,7 +824,7 @@ class ProjectFramework(object):
                 # With a timestep of 0.25, the maximum timestep probability of 1 corresponds to an annual probability of 4. Allowing the annual probability to exceed 1 for the purpose of
                 # flow rate calculations impacts dynamics, because capping the value is a non-invertible process. If the annual probability is capped during calculations, then a timestep
                 # probability of 0.3 and 1.0 will both have an annual probability of 1.
-                logger.warning('Parameter "%s" is in probability units and a maximum value of "1" has been entered. Probabilities in the framework should generally not be limited to "1" because it is only the timestep-specific probability that is capped at 1')
+                logger.warning(f'Parameter "{par_name}" is in probability units and a maximum value of "1" has been entered. Probabilities in the framework should generally not be limited to "1" because it is only the timestep-specific probability that is capped at 1')
 
             if par['function'] is None:
                 # In order to have a value, a transition parameter must either be
