@@ -17,12 +17,6 @@ for f in os.listdir(at.LIBRARY_PATH):
         models.append(f.replace('_framework.xlsx', ''))
 
 
-def check_for_nans(result):
-    for pop in result.model.pops:
-        for var in pop.pars + pop.comps + pop.characs + pop.links:
-            assert np.all(np.isfinite(var.vals)), 'NaNs detected'
-
-
 def run_auto_calibration(proj):
     """ Run an automatic calibration
 
@@ -63,7 +57,8 @@ def run_parameter_scenario(proj):
     scvalues[spec.name][pop_name]["y"] = par.interpolate(scvalues[spec.name][pop_name]["t"], pop_name) * np.array([1, 1.5]).ravel()
     scen = proj.make_scenario(which='parameter', name="Test", scenario_values=scvalues)
     res = scen.run(proj, proj.parsets["default"])
-    check_for_nans(res)
+    if res.check_for_nans():
+        raise Exception('NaNs detected')
     return
 
 
@@ -95,7 +90,8 @@ def run_budget_scenario(proj):
     instructions = at.ProgramInstructions(start_year=2018, alloc=doubled_budget)
     scen = at.CombinedScenario(name='Doubled budget', instructions=instructions)
     res = scen.run(proj, parset='default', progset='default')
-    check_for_nans(res)
+    if res.check_for_nans():
+        raise Exception('NaNs detected')
 
     return
 
@@ -114,7 +110,8 @@ def run_coverage_scenario(proj):
     instructions = at.ProgramInstructions(start_year=2018, coverage=half_coverage)
     scen = at.CombinedScenario(name='Doubled budget', instructions=instructions)
     res = scen.run(proj, parset='default', progset='default')
-    check_for_nans(res)
+    if res.check_for_nans():
+        raise Exception('NaNs detected')
 
     return
 
@@ -208,7 +205,8 @@ def test_model(model):
     # Test loading the progbook and doing a basic run
     P.load_progbook(progbook_file)
     res = P.run_sim(P.parsets[0], P.progsets[0], at.ProgramInstructions(start_year=2018))
-    check_for_nans(res)
+    if res.check_for_nans():
+        raise Exception('NaNs detected')
 
     # Test re-saving the framework
     run_regenerated_framework(P)
