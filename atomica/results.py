@@ -122,6 +122,24 @@ class Result(NamedItem):
 
         return [x.label for x in self.model.pops]
 
+    def check_for_nans(self, verbose=True) -> bool:
+        """
+        Check if any NaNs/Infs are present
+
+        :param verbose: Print NaN/Inf quantities
+        :return: True if any quantities contain NaNs/Infs
+        """
+
+        nans_present = False
+
+        for pop in self.model.pops:
+            for var in pop.pars + pop.comps + pop.characs + pop.links:
+                if not np.all(np.isfinite(var.vals)):
+                    nans_present = True
+                    if verbose:
+                        print(f'NaNs detected in {var.name} ({pop.name})')
+        return nans_present
+
     def get_alloc(self, year=None) -> dict:
         """
         Return spending allocation
