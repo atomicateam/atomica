@@ -257,7 +257,7 @@ class Result(NamedItem):
             # as-is without doing any annualization
             prop_coverage = self.model.progset.get_prop_coverage(tvec=self.t, capacities=capacities, num_eligible=num_eligible, dt=self.dt, instructions=self.model.program_instructions)
 
-            if quantity == 'fraction':
+            if quantity in {'fraction', 'annual_fraction'}:
                 output = prop_coverage
             elif quantity == 'eligible':
                 output = num_eligible
@@ -266,10 +266,10 @@ class Result(NamedItem):
             else:
                 raise Exception('Unknown coverage type requested')
 
-        if quantity in {'capacity', 'number'}:
+        if quantity in {'capacity', 'number', 'annual_fraction'}:
             # Return capacity and number coverage as 'people/year' rather than 'people'
             for prog in output.keys():
-                if '/year' not in self.model.progset.programs[prog].unit_cost.units:
+                if self.model.progset.programs[prog].is_one_off:
                     output[prog] /= self.dt
 
         if year is not None:
