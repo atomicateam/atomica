@@ -93,6 +93,7 @@ def save_figs(figs, path='.', prefix='', fnames=None) -> None:
         else:
             bbox = 'tight'
         fname = prefix + fnames[i] + '.png'
+        fname = sc.sanitizefilename(fname) #parameters may have inappropriate characters
         fig.savefig(os.path.join(path, fname), bbox_inches=bbox, dpi=settings['dpi'], transparent=settings['transparent'])
         logger.info('Saved figure "%s"', fname)
 
