@@ -2243,7 +2243,7 @@ class Model(object):
                 # greater than 1 simply implies that the mean duration is less than the timescale in question, and we need to retain that value
                 # to be able to correctly convert between timescales. The subsequent call to min() then ensures that the fraction moved never
                 # exceeds 1.0 once operating on the timestep level
-                converted_frac = min(1, transition * (self.dt / par.timescale))
+                converted_frac = transition * (self.dt / par.timescale)
                 for link in par.links:
                     link._cache = converted_frac
 
@@ -2269,7 +2269,7 @@ class Model(object):
 
             # Convert from duration to equivalent probability
             elif par.units == FS.QUANTITY_TYPE_DURATION:
-                converted_frac = min(1, self.dt / (transition * par.timescale))
+                converted_frac = self.dt / (transition * par.timescale)
                 for link in par.links:
                     link._cache = converted_frac
 
