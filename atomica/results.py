@@ -234,6 +234,8 @@ class Result(NamedItem):
 
         """
 
+        from .model import JunctionCompartment
+
         if self.model.progset is None:
             return None
 
@@ -247,10 +249,17 @@ class Result(NamedItem):
             for prog in self.model.progset.programs.values():  # For each program
                 for pop_name in prog.target_pops:
                     for comp_name in prog.target_comps:
-                        if prog.name not in num_eligible:
-                            num_eligible[prog.name] = self.get_variable(comp_name, pop_name)[0].vals.copy()
+                        comp = self.get_variable(comp_name, pop_name)[0]
+
+                        if isinstance(comp, JunctionCompartment):
+                            vals = comp.outflow
                         else:
-                            num_eligible[prog.name] += self.get_variable(comp_name, pop_name)[0].vals
+                            vals = comp.vals
+
+                        if prog.name not in num_eligible:
+                            num_eligible[prog.name] = vals.copy()
+                        else:
+                            num_eligible[prog.name] += vals
 
             # Note that `ProgramSet.get_prop_coverage()` takes in capacity in units of 'people' which matches
             # the units of 'num_eligible' so we therefore use the returned value from `ProgramSet.get_capacities()`
