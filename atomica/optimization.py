@@ -330,11 +330,11 @@ class SpendingPackageAdjustment(Adjustment):
         #now that the scaled fractions total to 1 and don't violate any constraints, update the spending on each program
         total_spending = adjustable_values[-1] #last on the list
         for pn, prog_name in enumerate(self.prog_name):
-            this_prog_spend = scaled_fracs[pn] * total_spending
+            this_prog_spend = [scaled_fracs[pn] * total_spending]
             if prog_name not in instructions.alloc:
                 instructions.alloc[prog_name] = TimeSeries(t=self.t, vals=this_prog_spend)
             else:
-                instructions.alloc[prog_name].insert(self.t, this_prog_spend)
+                instructions.alloc[prog_name].insert(t=self.t, v=this_prog_spend)
 
 class PairedLinearSpendingAdjustment(Adjustment):
     """

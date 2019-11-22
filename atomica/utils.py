@@ -302,7 +302,7 @@ class TimeSeries(object):
 
     def insert(self, t, v) -> None:
         """
-        Insert a value at a particular time
+        Insert a value or list of at a particular time
 
         If the value already exists in the ``TimeSeries``, it will be overwritten/updated.
         The arrays are internally sorted by time value, and this order will be maintained.
@@ -311,21 +311,25 @@ class TimeSeries(object):
         :param v: Value to insert. If ``None``, this function will return immediately without doing anything
 
         """
-
-        if v is None:  # Can't cast a None to a float, just skip it
-            return
-
-        v = float(v)  # Convert input to float
-
-        if t is None:
-            self.assumption = v
-        elif t in self.t:
-            idx = self.t.index(t)
-            self.vals[idx] = v
+        if isinstance(t, list):
+            assert isinstance(v, list) and len(t) == len(v), 'Cannot insert non-matching lengths or types  of time and values %s and %s'%(t, v)
+            for ti, vi in zip(t, v):
+                self.insert(ti, vi)        
         else:
-            idx = bisect(self.t, t)
-            self.t.insert(idx, t)
-            self.vals.insert(idx, v)
+            if v is None:  # Can't cast a None to a float, just skip it
+                return
+    
+            v = float(v)  # Convert input to float
+    
+            if t is None:
+                self.assumption = v
+            elif t in self.t:
+                idx = self.t.index(t)
+                self.vals[idx] = v
+            else:
+                idx = bisect(self.t, t)
+                self.t.insert(idx, t)
+                self.vals.insert(idx, v)
 
     def get(self, t) -> float:
         """
