@@ -318,10 +318,10 @@ class SpendingPackageAdjustment(Adjustment):
         #just progressively add or subtract the difference to the first program in the list - this is perhaps a bit biased as an algorithm and could be improved,
         #but if it produces a suboptimal outcome then an adjustment should exist to improve on it!
         pn = 0
-        while difference != 0.:
+        while difference != 0. and pn<len(scaled_fracs):
 #            print (adjustable_values)
 #            print ('>',pn, ' -> ',scaled_fracs, ' Diff: ', difference)
-#            print ('Constraints: ', self.min_props[pn][-1], ' to ', self.max_props[pn][-1])
+#            print ('Constraints: ', self.min_props[pn], ' to ', self.max_props[pn])
             scaled_fracs[pn] = max(self.min_props[pn], min(self.max_props[pn], scaled_fracs[pn] + difference))
             difference = 1. - sum(scaled_fracs)
             pn += 1
@@ -1315,7 +1315,7 @@ def optimize(project, optimization, parset: ParameterSet, progset: ProgramSet, i
     # initialization used when minimizing spending)
     initial_objective = _objective_fcn(x0, **args)
     if not np.isfinite(initial_objective):
-        raise InvalidInitialConditions('Optimization cannot begin because the objective function was NaN/Inf for the specified initialization')
+        raise InvalidInitialConditions('Optimization cannot begin because the objective function was %s for the specified initialization'%(initial_objective))
 
     if optimization.method == 'asd':
         optim_args = {
