@@ -318,14 +318,18 @@ class SpendingPackageAdjustment(Adjustment):
         #just progressively add or subtract the difference to the first program in the list - this is perhaps a bit biased as an algorithm and could be improved,
         #but if it produces a suboptimal outcome then an adjustment should exist to improve on it!
         pn = 0
-        while difference != 0. and pn<len(scaled_fracs):
-#            print (adjustable_values)
-#            print ('>',pn, ' -> ',scaled_fracs, ' Diff: ', difference)
-#            print ('Constraints: ', self.min_props[pn], ' to ', self.max_props[pn])
+        while not sc.approx(difference, 0.):
+#            if pn == len(scaled_fracs):
+#                print (adjustable_values)
+#                print ('>',pn, ' -> ',scaled_fracs, ' Diff: ', difference)
+#                print ('Constraints: ', self.min_props[pn], ' to ', self.max_props[pn])
+#                raise Exception()
             scaled_fracs[pn] = max(self.min_props[pn], min(self.max_props[pn], scaled_fracs[pn] + difference))
             difference = 1. - sum(scaled_fracs)
             pn += 1
-        assert sum(scaled_fracs) == 1., 'Need to fix the algorithm if not!'
+        if difference != 0.: #e.g. if it's some trivial non-zero tiny fraction, let's not care if we're violating a constraint...
+            scaled_fracs[-1]+=difference
+        assert sc.approx(sum(scaled_fracs),1.), 'Need to fix the algorithm if not (difference %s)!'%(difference)
         
         #now that the scaled fractions total to 1 and don't violate any constraints, update the spending on each program
         total_spending = adjustable_values[-1] #last on the list
