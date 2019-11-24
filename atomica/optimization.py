@@ -276,7 +276,8 @@ class ExponentialSpendingAdjustment(Adjustment):
 
 
 class SpendingPackageAdjustment(Adjustment):
-    """Adjustment package example which would modify e.g. MDR short and MDR standard with a total spending and then a fraction to be spend on each of them"""
+    """
+    Adjustment package example which would modify e.g. MDR short and MDR standard with a total spending and then a fraction to be spend on each of them"""
 
     def __init__(self, package_name, t, prog_names, initial_spends, min_props = None, max_props = None,
                  min_total_spend=0., max_total_spend=np.inf):
@@ -306,10 +307,8 @@ class SpendingPackageAdjustment(Adjustment):
         self.adjustables.append(Adjustable('package_spend', initial_value=sum(initial_spends), lower_bound=min_total_spend, upper_bound=max_total_spend))
     
     def update_instructions(self, adjustable_values, instructions):
-        #TODO establish if this is supposed to take in arrays for adjustable_values??!
         naive_frac_total = sum(adjustable_values[:-1])
         scaled_fracs = [av/naive_frac_total for av in adjustable_values[:-1]] #an array with a sum of 1, scaling all fractions
-#        print ('~> ', scaled_fracs)
         
         #rescale anything violating a lower bound
         scaled_fracs = [max(self.min_props[pn], min(self.max_props[pn], val)) for pn, val in enumerate(scaled_fracs)]
@@ -319,11 +318,6 @@ class SpendingPackageAdjustment(Adjustment):
         #but if it produces a suboptimal outcome then an adjustment should exist to improve on it!
         pn = 0
         while not sc.approx(difference, 0.):
-#            if pn == len(scaled_fracs):
-#                print (adjustable_values)
-#                print ('>',pn, ' -> ',scaled_fracs, ' Diff: ', difference)
-#                print ('Constraints: ', self.min_props[pn], ' to ', self.max_props[pn])
-#                raise Exception()
             scaled_fracs[pn] = max(self.min_props[pn], min(self.max_props[pn], scaled_fracs[pn] + difference))
             difference = 1. - sum(scaled_fracs)
             pn += 1
