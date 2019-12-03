@@ -639,6 +639,10 @@ def _programs_to_df(results, prog_name, tvals):
             vals = PlotData.programs(result, outputs=prog_name, quantity='spending').interpolate(tvals)
             vals.series[0].vals[~programs_active] = np.nan
             data[(prog_name, result.name, 'Spending ($/year)')] = vals.series[0].vals
+            
+            vals = PlotData.programs(result, outputs=prog_name, quantity='equivalent_spending').interpolate(tvals)
+            vals.series[0].vals[~programs_active] = np.nan
+            data[(prog_name, result.name, 'Equivalent spending ($/year)')] = vals.series[0].vals
 
             vals = PlotData.programs(result, outputs=prog_name, quantity='coverage_number').interpolate(tvals)
             vals.series[0].vals[~programs_active] = np.nan
