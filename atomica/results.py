@@ -248,9 +248,15 @@ class Result(NamedItem):
                 for pop_name in prog.target_pops:
                     for comp_name in prog.target_comps:
                         if prog.name not in num_eligible:
-                            num_eligible[prog.name] = self.get_variable(comp_name, pop_name)[0].vals.copy()
+                            if not self.get_variable(comp_name, pop_name)[0].vals.any():
+                                num_eligible[prog.name] = self.get_variable(comp_name, pop_name)[0].outflow.copy()
+                            else:
+                                num_eligible[prog.name] = self.get_variable(comp_name, pop_name)[0].vals.copy()
                         else:
-                            num_eligible[prog.name] += self.get_variable(comp_name, pop_name)[0].vals
+                            if not self.get_variable(comp_name, pop_name)[0].vals.any():
+                                num_eligible[prog.name] = self.get_variable(comp_name, pop_name)[0].outflow
+                            else:
+                                num_eligible[prog.name] = self.get_variable(comp_name, pop_name)[0].vals
 
             # Note that `ProgramSet.get_prop_coverage()` takes in capacity in units of 'people' which matches
             # the units of 'num_eligible' so we therefore use the returned value from `ProgramSet.get_capacities()`
