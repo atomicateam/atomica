@@ -3,15 +3,17 @@
 
 from setuptools import setup, find_packages
 import os
+import runpy
 
 cwd = os.path.abspath(os.path.dirname(__file__))
 
 # Read version
-with open(os.path.join(cwd,'atomica','version.py'), 'r') as f:
-    version = [x.split('=')[1].replace('"','').strip() for x in f if x.startswith('version =')][0]
+version_path = os.path.join(cwd, 'atomica', 'version.py')
+version = runpy.run_path(version_path)['version']
 
 # Read README.md for description
-with open(os.path.join(cwd,'README.md'), 'r') as f:
+readme_path = os.path.join(cwd,'README.md')
+with open(readme_path, 'r') as f:
     long_description = f.read()
 
 CLASSIFIERS = [
