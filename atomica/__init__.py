@@ -78,6 +78,12 @@ except:
 # Finally, set default output level to INFO
 logger.setLevel('INFO')
 
+# Check scipy version
+import scipy
+import sciris as sc
+if sc.compareversions(scipy.__version__, '1.2.1') < 0:
+    raise Exception(f'Atomica requires Scipy 1.2.1 or later - installed version is {scipy.__version__}')
+
 # Increase Framework performance by not calling garbage collection all the time
 import pandas as pd
 pd.set_option('mode.chained_assignment', None)
