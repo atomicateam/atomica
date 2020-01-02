@@ -707,3 +707,8 @@ def _rename_update_field(proj):
     for result in all_results(proj):
         result._update_required = False
     return proj
+
+@migration('Project','1.16.0', '1.17.0', 'Add sim end year validation to project settings')
+def _refactor_settings_storage(proj):
+    proj.settings = atomica.ProjectSettings(**proj.settings.__dict__)
+    return proj
