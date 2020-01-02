@@ -41,17 +41,43 @@ import logging
 
 
 class ProjectSettings(object):
-    def __init__(self, sim_start=None, sim_end=None, sim_dt=None):
-
-        self.sim_start = sim_start if sim_start is not None else 2000.0
-        self.sim_end = sim_end if sim_end is not None else 2035.0
-        self.sim_dt = sim_dt if sim_dt is not None else 0.25
-        logger.debug("Initialized project settings.")
+    def __init__(self, sim_start=2000, sim_end=2035, sim_dt=0.25):
+        self._sim_start = sim_start
+        self._sim_dt = sim_dt
+        self._sim_end = 0.0
+        self.update_time_vector(end=sim_end)
 
     def __repr__(self):
         """ Print object """
         output = sc.prepr(self)
         return output
+
+    @property
+    def sim_start(self):
+        return self._sim_start
+
+    @property
+    def sim_end(self):
+        return self._sim_end
+
+    @property
+    def sim_dt(self):
+        return self._sim_dt
+
+    @sim_start.setter
+    def sim_start(self, sim_start):
+        self._sim_start = sim_start
+
+    @sim_end.setter
+    def sim_end(self, sim_end):
+        self._sim_end = self.sim_start + np.ceil((sim_end-self.sim_start)/self.sim_dt)*self.sim_dt
+        if sim_end != self._sim_end:
+            logger.warn(f'Changing sim end from {sim_end} to {self._sim_end} ({(self._sim_end-self._sim_start)/self._sim_dt:.0f} timesteps)')
+
+    @sim_dt.setter
+    def sim_dt(self, sim_dt):
+        self._sim_dt = sim_dt
+        self.sim_end = self.sim_end # Call the setter function to change sim_end if it is no longer valid
 
     @property
     def tvec(self) -> np.ndarray:
@@ -65,7 +91,7 @@ class ProjectSettings(object):
 
         """
 
-        return np.linspace(self.sim_start, self.sim_end, (self.sim_end-self.sim_start)/self.sim_dt + 1)
+        return np.linspace(self.sim_start, self.sim_end, int((self.sim_end-self.sim_start)/self.sim_dt) + 1)
 
     def update_time_vector(self, start: float = None, end: float = None, dt: float = None) -> None:
         """
