@@ -101,6 +101,12 @@ class ProjectFramework(object):
         if name is not None:
             self.name = name
 
+    def __setstate__(self, d):
+        from .migration import migrate
+        self.__dict__ = d
+        framework = migrate(self)
+        self.__dict__ = framework.__dict__
+
     @property
     def name(self) -> str:
         """
