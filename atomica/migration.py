@@ -26,6 +26,7 @@ import pandas as pd
 
 __all__ = ['migration', 'migrate', 'register_migration']
 
+SKIP_MIGRATION = False # Global migration flag to disable migration
 
 # MODULE MIGRATIONS
 #
@@ -175,6 +176,10 @@ def migrate(obj, registry=migrations, version=version, gitinfo=gitinfo):
         # then be updated to the current version
         obj.version = '0.0.0'
         obj.gitinfo = None
+
+    if SKIP_MIGRATION:
+        print("Skipping migration")
+        return obj # If migration is disabled then don't make any changes EXCEPT to add in version and gitinfo which may otherwise be hard to catch
 
     migrations_to_run = sorted(registry[type(obj).__name__], key=lambda m: LooseVersion(m.original_version))
     if sc.compareversions(obj.version, version) >= 0:
@@ -708,6 +713,16 @@ def _rename_update_field(proj):
     for result in all_results(proj):
         result._update_required = False
     return proj
+
+@migration('Project','1.15.0', '1.16.0', 'Projects may change due to uncapped probabilities')
+def _refactor_settings_storage(proj):
+    proj._update_required = True
+    return proj
+
+@migration('Result','1.15.0', '1.16.0', 'Results may change due to uncapped probabilities')
+def _refactor_settings_storage(result):
+    result._update_required = True
+    return result
 
 @migration('Project','1.16.0', '1.17.0', 'Add sim end year validation to project settings')
 def _refactor_settings_storage(proj):
