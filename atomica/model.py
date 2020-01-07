@@ -1092,7 +1092,7 @@ class Model(object):
         # as a record of which specific version of the code was used to generate the results
         self.version = version
         self.gitinfo = sc.dcp(gitinfo)
-        self.created = sc.now()
+        self.created = sc.now(utc=True)
 
         self.pops = list()  # List of population groups that this model subdivides into.
         self.interactions = sc.odict()

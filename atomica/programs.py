@@ -8,6 +8,7 @@ set of programs, respectively.
 """
 
 import io
+from datetime import timezone
 
 import numpy as np
 import openpyxl
@@ -180,8 +181,8 @@ class ProgramSet(NamedItem):
         self._pop_types = list(framework.pop_types.keys())
 
         # Metadata
-        self.created = sc.now()
-        self.modified = sc.now()
+        self.created = sc.now(utc=True)
+        self.modified = sc.now(utc=True)
         self.currency = '$'  # The symbol for currency that will be used in the progbook
 
         # Internal caches
@@ -194,8 +195,8 @@ class ProgramSet(NamedItem):
         output = sc.prepr(self)
         output += '    Program set name: %s\n' % self.name
         output += '            Programs: %s\n' % [prog for prog in self.programs]
-        output += '        Date created: %s\n' % sc.getdate(self.created)
-        output += '       Date modified: %s\n' % sc.getdate(self.modified)
+        output += '        Date created: %s\n' % sc.getdate(self.created.replace(tzinfo=timezone.utc).astimezone(tz=None),dateformat = '%Y-%b-%d %H:%M:%S %Z')
+        output += '       Date modified: %s\n' % sc.getdate(self.modified.replace(tzinfo=timezone.utc).astimezone(tz=None),dateformat = '%Y-%b-%d %H:%M:%S %Z')
         output += '============================================================\n'
         return output
 

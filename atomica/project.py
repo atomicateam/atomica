@@ -18,26 +18,27 @@ In addition, a project contains:
 
 """
 
-from .version import version, gitinfo
+import logging
+from datetime import timezone
+
+import numpy as np
+import tqdm
+
+import sciris as sc
 from .calibration import perform_autofit
 from .data import ProjectData
 from .framework import ProjectFramework
-from .model import run_model
-from .parameters import ParameterSet
-
-from .programs import ProgramSet, ProgramInstructions
-from .scenarios import Scenario, ParameterScenario, CombinedScenario, BudgetScenario, CoverageScenario
-from .optimization import Optimization, optimize, InvalidInitialConditions
-from .system import logger
-from .cascade import sanitize_cascade
-from .utils import NDict, evaluate_plot_string, NamedItem, TimeSeries
-from .plotting import PlotData, plot_series
-from .results import Result
 from .migration import migrate
-import sciris as sc
-import numpy as np
-import tqdm
-import logging
+from .model import run_model
+from .optimization import Optimization, optimize, InvalidInitialConditions
+from .parameters import ParameterSet
+from .plotting import PlotData, plot_series
+from .programs import ProgramSet
+from .results import Result
+from .scenarios import Scenario, ParameterScenario, CombinedScenario, BudgetScenario, CoverageScenario
+from .system import logger
+from .utils import NDict, evaluate_plot_string, NamedItem
+from .version import version, gitinfo
 
 class ProjectSettings(object):
     def __init__(self, sim_start=None, sim_end=None, sim_dt=None):
@@ -148,8 +149,8 @@ class Project(NamedItem):
         output += '      Results sets: %i\n' % len(self.results)
         output += '\n'
         output += '   Atomica version: %s\n' % self.version
-        output += '      Date created: %s\n' % sc.getdate(self.created)
-        output += '     Date modified: %s\n' % sc.getdate(self.modified)
+        output += '      Date created: %s\n' % sc.getdate(self.created.replace(tzinfo=timezone.utc).astimezone(tz=None),dateformat = '%Y-%b-%d %H:%M:%S %Z')
+        output += '     Date modified: %s\n' % sc.getdate(self.modified.replace(tzinfo=timezone.utc).astimezone(tz=None),dateformat = '%Y-%b-%d %H:%M:%S %Z')
 #        output += '  Datasheet loaded: %s\n' % sc.getdate(self.databookloaddate)
         output += '        Git branch: %s\n' % self.gitinfo['branch']
         output += '          Git hash: %s\n' % self.gitinfo['hash']
@@ -211,7 +212,7 @@ class Project(NamedItem):
         self.data = data
         self.data.validate(self.framework)  # Make sure the data is suitable for use in the Project (as opposed to just manipulating the databook)
         self.databook = sc.dcp(databook_spreadsheet)  # Actually a shallow copy is fine here because sc.Spreadsheet contains no mutable properties
-        self.modified = sc.now()
+        self.modified = sc.now(utc=True)
         self.settings.update_time_vector(start=self.data.start_year)  # Align sim start year with data start year.
 
         if not (self.framework.comps['is source'] == 'y').any():
