@@ -33,8 +33,8 @@ class NamedItem():
         if name is None:
             name = '<unnamed>'
         self.name = name
-        self.created = sc.now()
-        self.modified = sc.now()
+        self.created = sc.now(utc=True)
+        self.modified = sc.now(utc=True)
 
     def copy(self, name=None):
         x = sc.dcp(self)
@@ -65,7 +65,7 @@ class NDict(sc.odict):
         # If it is a NamedItem, then synchronize the name of the object with the specified string key
         if sc.isstring(key) and isinstance(item, NamedItem):
             item.name = key
-            item.modified = sc.now()
+            item.modified = sc.now(utc=True)
         return None
 
     def append(self, value):

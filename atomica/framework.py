@@ -44,8 +44,8 @@ class ProjectFramework(object):
         self.uid = sc.uuid()  #: Unique identifier
         self.version = version  #: Current Atomica version
         self.gitinfo = sc.dcp(gitinfo)  #: Atomica Git version information, if being run in a Git repository
-        self.created = sc.now()  #: Creation time
-        self.modified = sc.now()  #: Last modified time
+        self.created = sc.now(utc=True)  #: Creation time
+        self.modified = sc.now(utc=True)  #: Last modified time
 
         # Load Framework from disk
         self.sheets = sc.odict()  #: Stores a dict of Pandas dataframes organized by sheet from the Excel file
