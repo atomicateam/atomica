@@ -7,11 +7,11 @@ import os
 cwd = os.path.abspath(os.path.dirname(__file__))
 
 # Read version
-with open(os.path.join(cwd,'atomica','version.py'), 'r') as f:
-    version = [x.split('=')[1].replace('"','').strip() for x in f if x.startswith('version =')][0]
+with open(os.path.join(cwd, 'atomica', 'version.py'), 'r') as f:
+    version = [x.split('=')[1].replace('"', '').strip() for x in f if x.startswith('version =')][0]
 
 # Read README.md for description
-with open(os.path.join(cwd,'README.md'), 'r') as f:
+with open(os.path.join(cwd, 'README.md'), 'r') as f:
     long_description = f.read()
 
 CLASSIFIERS = [
@@ -34,7 +34,7 @@ setup(
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://atomica.tools',
-    keywords=['dynamic','compartment','optimization', 'disease'],
+    keywords=['dynamic', 'compartment', 'optimization', 'disease'],
     platforms=['OS Independent'],
     classifiers=CLASSIFIERS,
     packages=find_packages(),

@@ -11,6 +11,9 @@ import numpy as np
 import scipy.interpolate
 import sciris as sc
 import itertools
+import zlib
+import re
+import time
 
 
 def parent_dir():
@@ -19,7 +22,7 @@ def parent_dir():
 
 
 class NamedItem():
-    def __init__(self, name:str=None):
+    def __init__(self, name: str = None):
         """
         NamedItem constructor
 
@@ -30,8 +33,8 @@ class NamedItem():
         if name is None:
             name = '<unnamed>'
         self.name = name
-        self.created = sc.now()
-        self.modified = sc.now()
+        self.created = sc.now(utc=True)
+        self.modified = sc.now(utc=True)
 
     def copy(self, name=None):
         x = sc.dcp(self)
@@ -62,7 +65,7 @@ class NDict(sc.odict):
         # If it is a NamedItem, then synchronize the name of the object with the specified string key
         if sc.isstring(key) and isinstance(item, NamedItem):
             item.name = key
-            item.modified = sc.now()
+            item.modified = sc.now(utc=True)
         return None
 
     def append(self, value):
@@ -299,7 +302,7 @@ class TimeSeries(object):
 
     def insert(self, t, v) -> None:
         """
-        Insert a value at a particular time
+        Insert a value or list of at a particular time
 
         If the value already exists in the ``TimeSeries``, it will be overwritten/updated.
         The arrays are internally sorted by time value, and this order will be maintained.
@@ -308,21 +311,25 @@ class TimeSeries(object):
         :param v: Value to insert. If ``None``, this function will return immediately without doing anything
 
         """
-
-        if v is None:  # Can't cast a None to a float, just skip it
-            return
-
-        v = float(v)  # Convert input to float
-
-        if t is None:
-            self.assumption = v
-        elif t in self.t:
-            idx = self.t.index(t)
-            self.vals[idx] = v
+        if isinstance(t, list):
+            assert isinstance(v, list) and len(t) == len(v), 'Cannot insert non-matching lengths or types  of time and values %s and %s'%(t, v)
+            for ti, vi in zip(t, v):
+                self.insert(ti, vi)        
         else:
-            idx = bisect(self.t, t)
-            self.t.insert(idx, t)
-            self.vals.insert(idx, v)
+            if v is None:  # Can't cast a None to a float, just skip it
+                return
+    
+            v = float(v)  # Convert input to float
+    
+            if t is None:
+                self.assumption = v
+            elif t in self.t:
+                idx = self.t.index(t)
+                self.vals[idx] = v
+            else:
+                idx = bisect(self.t, t)
+                self.t.insert(idx, t)
+                self.vals.insert(idx, v)
 
     def get(self, t) -> float:
         """
@@ -390,7 +397,7 @@ class TimeSeries(object):
         else:
             raise Exception('Item not found')
 
-    def remove_before(self,t_remove) -> None:
+    def remove_before(self, t_remove) -> None:
         """
         Remove times from start
 
@@ -459,7 +466,7 @@ class TimeSeries(object):
             - Otherwise, the specified interpolation method will be used
 
         :param t2: float, list, or array, with times
-        :param method: A string 'linear', 'pchip' or 'stepped' OR a callable item that returns an Interpolator
+        :param method: A string 'linear', 'pchip' or 'previous' OR a callable item that returns an Interpolator
         :return: array the same length as t2, with interpolated values
 
         """
@@ -501,7 +508,7 @@ class TimeSeries(object):
 
         # Otherwise, `method` is a callable (class instance e.g. `scipy.interpolate.PchipInterpolator` or generating function) that
         # produces a callable function representation of the interpolation. This function is then called with the new time points
-        interpolator = method(t1,v1,**kwargs)
+        interpolator = method(t1, v1, **kwargs)
         return interpolator(t2)
 
     def sample(self, constant=True):
@@ -528,17 +535,18 @@ class TimeSeries(object):
 
             if constant:
                 # Use the same delta for all data points
-                new.vals = [v+delta for v in new.vals]
+                new.vals = [v + delta for v in new.vals]
             else:
                 # Sample again for each data point
                 for i, (v, delta) in enumerate(zip(new.vals, self.sigma * np.random.randn(len(new.vals)))):
-                    new.vals[i] = v+delta
+                    new.vals[i] = v + delta
 
         # Sampling flag only needs to be set if the TimeSeries had data to change
         if new.has_data:
             new._sampled = True
 
         return new
+
 
 def evaluate_plot_string(plot_string: str):
     """
@@ -671,7 +679,7 @@ def nested_loop(inputs, loop_order):
 
     """
 
-    loop_order = list(loop_order) # Convert to list, in case loop order was passed in as a generator e.g. from map()
+    loop_order = list(loop_order)  # Convert to list, in case loop order was passed in as a generator e.g. from map()
     inputs = [inputs[i] for i in loop_order]
     iterator = itertools.product(*inputs)  # This is in the loop order
     for item in iterator:
@@ -679,3 +687,64 @@ def nested_loop(inputs, loop_order):
         for i in range(len(item)):
             out[loop_order[i]] = item[i]
         yield out
+
+
+def fast_gitinfo(path):
+    """
+    Retrieve git info
+
+    This function reads git branch and commit information from a .git directory.
+    Given a path, it will check for a `.git` directory. If the path doesn't contain
+    that directory, it will search parent directories for `.git` until it finds one.
+    Then, the current information will be parsed.
+
+    :param path: A folder either containing a ``.git`` directory, or with a parent that contains a ``.git`` directory
+
+    """
+
+    try:
+        # First, get the .git directory
+        curpath = os.path.abspath(path)
+        while curpath:
+            if os.path.exists(os.path.join(curpath, '.git')):
+                gitdir = os.path.join(curpath, '.git')
+                break
+            else:
+                parent, _ = os.path.split(curpath)
+                if parent == curpath:
+                    curpath = None
+                else:
+                    curpath = parent
+        else:
+            raise Exception('Could not find .git directory')
+
+        # Then, get the branch and commit
+        with open(os.path.join(gitdir, 'HEAD'), 'r') as f1:
+            ref = f1.read()
+            if ref.startswith('ref:'):
+                refdir = ref.split(' ')[1].strip()  # The path to the file with the commit
+                gitbranch = refdir.replace('refs/heads/', '')  # / is always used (not os.sep)
+                with open(os.path.join(gitdir, refdir), 'r') as f2:
+                    githash = f2.read().strip()  # The hash of the commit
+            else:
+                gitbranch = 'Detached head (no branch)'
+                githash = ref.strip()
+
+        # Now read the time from the commit
+        compressed_contents = open(os.path.join(gitdir, 'objects', githash[0:2], githash[2:]), 'rb').read()
+        decompressed_contents = zlib.decompress(compressed_contents).decode()
+        for line in decompressed_contents.split('\n'):
+            if line.startswith('author'):
+                _re_actor_epoch = re.compile(r'^.+? (.*) (\d+) ([+-]\d+).*$')
+                m = _re_actor_epoch.search(line)
+                actor, epoch, offset = m.groups()
+                t = time.gmtime(int(epoch))
+                gitdate = time.strftime("%Y-%m-%d %H:%M:%S UTC", t)
+
+    except Exception:
+        gitbranch = 'Git branch N/A'
+        githash = 'Git hash N/A'
+        gitdate = 'Git date N/A'
+
+    output = {'branch': gitbranch, 'hash': githash, 'date': gitdate}  # Assemble outupt
+    return output

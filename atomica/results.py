@@ -20,7 +20,7 @@ from .system import FrameworkSettings as FS
 from .system import logger, NotFoundError
 from .utils import NamedItem, evaluate_plot_string, nested_loop
 from .function_parser import parse_function
-
+from .version import version, gitinfo
 
 class Result(NamedItem):
     """
@@ -52,19 +52,27 @@ class Result(NamedItem):
         NamedItem.__init__(self, name)
 
         self.uid = sc.uuid()
+        self.version = version # Track versioning information for the result. This might change due to migration (whereas by convention, the model version does not)
+        self.gitinfo = gitinfo
 
         # The Result constructor is called in model.run_model and the Model is no longer returned.
         # The following should be the only reference to that instance so no need to dcp.
-        self.model = model #: A completed model run that serves as primary storage for the underlying values
-        self.parset_name = parset.name if parset is not None else None #: The name of the ParameterSet that was used for the simulation
-        self.pop_names = [x.name for x in self.model.pops] #: A list of the population names present. This gets frequently used, so it is saved as an actual output
+        self.model = model  # : A completed model run that serves as primary storage for the underlying values
+        self.parset_name = parset.name if parset is not None else None  # : The name of the ParameterSet that was used for the simulation
+        self.pop_names = [x.name for x in self.model.pops]  # : A list of the population names present. This gets frequently used, so it is saved as an actual output
+
+    def __setstate__(self, d):
+        from .migration import migrate
+        self.__dict__ = d
+        result = migrate(self)
+        self.__dict__ = result.__dict__
 
     @property
     def used_programs(self) -> bool:
         """
         Flag whether programs were used or not
-        
-        :return: ``True`` if a progset and program instructions were present. Note that programs will be considered active even if the 
+
+        :return: ``True`` if a progset and program instructions were present. Note that programs will be considered active even if the
                start/stop years in the instructions don't overlap the simulation years (so no overwrite actually took place).
         """
 
@@ -114,10 +122,31 @@ class Result(NamedItem):
 
         return [x.label for x in self.model.pops]
 
-    def get_alloc(self,year=None) -> dict:
+    def check_for_nans(self, verbose=True) -> bool:
+        """
+        Check if any NaNs/Infs are present
+
+        :param verbose: Print NaN/Inf quantities
+        :return: True if any quantities contain NaNs/Infs
+        """
+
+        nans_present = False
+
+        for pop in self.model.pops:
+            for var in pop.pars + pop.comps + pop.characs + pop.links:
+                if not np.all(np.isfinite(var.vals)):
+                    nans_present = True
+                    if verbose:
+                        print(f'NaNs detected in {var.name} ({pop.name})')
+        return nans_present
+
+    def get_alloc(self, year=None) -> dict:
         """
         Return spending allocation
-        If the result was generated using programs, this method
+
+        If the result was generated using programs, this method will return the spending
+        on all programs in the requested years.
+
         :param year: Optionally specify a scalar or list/array of years to return budget values
                      for. Otherwise, uses all simulation times
         :return: Dictionary keyed by program name with arrays of spending values
@@ -131,6 +160,57 @@ class Result(NamedItem):
 
         return self.model.progset.get_alloc(year, self.model.program_instructions)
 
+    def get_equivalent_alloc(self, year=None) -> dict:
+        """
+        Return minimal spending allocation for a given year based on the coverage
+
+        If the result was generated using programs, this method will return the spending
+        on all programs in the requested years.
+
+        :param year: Optionally specify a scalar or list/array of years to return budget values
+                     for. Otherwise, uses all simulation times
+        :return: Dictionary keyed by program name with arrays of spending values
+        """
+
+        if self.model.progset is None:
+            return None
+
+        if year is None:
+            year = self.t
+            
+        prop_coverage = self.get_coverage(quantity='fraction', year=year)
+        num_eligible = self.get_coverage(quantity='eligible', year=year)
+        
+        equivalent_alloc = sc.odict()
+        for prog in prop_coverage.keys():
+            uc = self.model.progset.programs[prog].unit_cost.interpolate(year)
+            pc = sc.dcp(prop_coverage[prog])
+                     
+            if self.model.progset.programs[prog].saturation.has_data:
+                sat = self.model.progset.programs[prog].saturation.interpolate(year)
+                
+                #If prop_covered is higher than the saturation then set it to nan (without the error that would happen from np.log)
+                pc[pc >= sat] = np.nan
+            
+                #invert the calculation on the proportional coverage to determine the necessary "costed" coverage
+                pc = -sat * np.log((sat - pc)/(sat + pc))/2.
+            
+            #Calculating the program coverage, capacity constraint is applied first, then saturation, so it needs to happen second when reversing the calculation
+            if self.model.progset.programs[prog].capacity_constraint.has_data:
+                cap = self.model.progset.programs[prog].capacity_constraint.interpolate(year)  
+                #If prop_covered is higher than the capacity constraint then set it to nan as it wouldn't be possible to reach that coverage
+                pc[pc * num_eligible[prog] >= cap] = np.nan
+            
+            #multiply the proportion of naively costed coverage by the number of actually eligible people (catching the case where number covered would be higher than the number eligible)
+            num_costed_coverage = pc * num_eligible[prog]
+            
+            equivalent_alloc[prog] = uc * num_costed_coverage
+            
+            if '/year' in self.model.progset.programs[prog].coverage.units: #it's a one-off program, need to multiply by the time step to annualize spending
+                equivalent_alloc[prog] /= self.dt
+
+        return equivalent_alloc
+
     def get_coverage(self, quantity: str = 'fraction', year=None) -> dict:
         """
         Return program coverage
@@ -139,16 +219,22 @@ class Result(NamedItem):
         values. All coverage quantities are accessible via the :class:`Result` object
         because the compartment sizes and thus eligible people are known.
 
+        **Caution** - capacity and number covered are returned in units of 'people/year'. They need to be
+        accumulated by integration rather than summation.
+
         :param quantity: One of
             - 'capacity' - Program capacity in units of 'people/year' (for all types of programs)
             - 'eligible' - The number of people eligible for the program (coverage denominator) in units of 'people'
             - 'fraction' - ``capacity/eligible``, the fraction coverage (maximum value is 1.0) - this quantity is dimensionless
             - 'number' - The number of people covered (``fraction*eligible``) returned in units of 'people/year'
+
         :param year: Optionally specify a scalar or list/array of years to return budget values
                      for. Otherwise, uses all simulation times
         :return: Requested values in dictionary ``{prog_name:value}`` in requested years
 
         """
+
+        from .model import JunctionCompartment
 
         if self.model.progset is None:
             return None
@@ -163,17 +249,24 @@ class Result(NamedItem):
             for prog in self.model.progset.programs.values():  # For each program
                 for pop_name in prog.target_pops:
                     for comp_name in prog.target_comps:
-                        if prog.name not in num_eligible:
-                            num_eligible[prog.name] = self.get_variable(comp_name, pop_name)[0].vals.copy()
+                        comp = self.get_variable(comp_name, pop_name)[0]
+
+                        if isinstance(comp, JunctionCompartment):
+                            vals = comp.outflow
                         else:
-                            num_eligible[prog.name] += self.get_variable(comp_name, pop_name)[0].vals
+                            vals = comp.vals
+
+                        if prog.name not in num_eligible:
+                            num_eligible[prog.name] = vals.copy()
+                        else:
+                            num_eligible[prog.name] += vals
 
             # Note that `ProgramSet.get_prop_coverage()` takes in capacity in units of 'people' which matches
             # the units of 'num_eligible' so we therefore use the returned value from `ProgramSet.get_capacities()`
             # as-is without doing any annualization
-            prop_coverage = self.model.progset.get_prop_coverage(tvec=self.t, capacities=capacities, num_eligible=num_eligible, instructions=self.model.program_instructions)
+            prop_coverage = self.model.progset.get_prop_coverage(tvec=self.t, capacities=capacities, num_eligible=num_eligible, dt=self.dt, instructions=self.model.program_instructions)
 
-            if quantity == 'fraction':
+            if quantity in {'fraction', 'annual_fraction'}:
                 output = prop_coverage
             elif quantity == 'eligible':
                 output = num_eligible
@@ -182,10 +275,10 @@ class Result(NamedItem):
             else:
                 raise Exception('Unknown coverage type requested')
 
-        if quantity in {'capacity', 'number'}:
+        if quantity in {'capacity', 'number', 'annual_fraction'}:
             # Return capacity and number coverage as 'people/year' rather than 'people'
             for prog in output.keys():
-                if '/year' not in self.model.progset.programs[prog].unit_cost.units:
+                if self.model.progset.programs[prog].is_one_off:
                     output[prog] /= self.dt
 
         if year is not None:
@@ -197,7 +290,7 @@ class Result(NamedItem):
     # Convenience methods to list available comps, characs, pars, and links
     # The population name is required because different populations could have
     # different contents
-    def comp_names(self, pop_name:str) -> list:
+    def comp_names(self, pop_name: str) -> list:
         """
         Return compartment names within a population
 
@@ -208,7 +301,7 @@ class Result(NamedItem):
 
         return sorted(self.model.get_pop(pop_name).comp_lookup.keys())
 
-    def charac_names(self, pop_name:str) -> list:
+    def charac_names(self, pop_name: str) -> list:
         """
         Return list of characteristic names
 
@@ -222,7 +315,7 @@ class Result(NamedItem):
 
         return sorted(self.model.get_pop(pop_name).charac_lookup.keys())
 
-    def par_names(self, pop_name:str) -> list:
+    def par_names(self, pop_name: str) -> list:
         """
         Return list of parameter names
 
@@ -236,7 +329,7 @@ class Result(NamedItem):
 
         return sorted(self.model.get_pop(pop_name).par_lookup.keys())
 
-    def link_names(self, pop_name:str) -> list:
+    def link_names(self, pop_name: str) -> list:
         """
         Return list of link names
 
@@ -259,7 +352,7 @@ class Result(NamedItem):
         output = sc.prepr(self)
         return output
 
-    def get_variable(self, name:str,  pops:str=None) -> list:
+    def get_variable(self, name: str, pops: str = None) -> list:
         """
         Retrieve integration objects
 
@@ -310,7 +403,7 @@ class Result(NamedItem):
 
         for pop in self.model.pops:
             for comp in pop.comps:
-                d[('Compartments', pop.name, comp.name,gl(comp.name))] = comp.vals
+                d[('Compartments', pop.name, comp.name, gl(comp.name))] = comp.vals
             for charac in pop.characs:
                 d[('Characteristics', pop.name, charac.name, gl(charac.name))] = charac.vals
             for par in pop.pars:
@@ -318,13 +411,17 @@ class Result(NamedItem):
                     d[('Parameters', pop.name, par.name, gl(par.name))] = par.vals
             for link in pop.links:
                 # Sum over duplicate links and annualize flow rate
-                par_label = gl(link.parameter.name)
+                if link.parameter is None:
+                    par_label = '-'
+                else:
+                    par_label = gl(link.parameter.name)
+
                 if par_label == '-':
                     link_label = par_label
                 else:
                     link_label = '%s (flow)' % (par_label)
 
-                key = ('Flow rates', pop.name, link.name,  link_label)
+                key = ('Flow rates', pop.name, link.name, link_label)
                 if key not in d:
                     d[key] = np.zeros(self.t.shape)
                 d[key] += link.vals / self.dt
@@ -361,7 +458,7 @@ class Result(NamedItem):
         assert not (plot_name and plot_group), 'When plotting a Result, you can specify the plot name or plot group, but not both'
 
         df = self.framework.sheets['plots'][0]
-        df = df.dropna(subset=['name','quantities']) # Remove any plots that are missing names or quantities
+        df = df.dropna(subset=['name', 'quantities'])  # Remove any plots that are missing names or quantities
 
         if plot_group is None and plot_name is None:
             for plot_name in df['name']:
@@ -380,33 +477,15 @@ class Result(NamedItem):
         # Going via Result.get_variable() means that it will automatically
         # work correctly for flow rate syntax as well
         if not pops:
-            pops = _filter_pops_by_output(self,quantities)
+            pops = _filter_pops_by_output(self, quantities)
 
         d = PlotData(self, outputs=quantities, pops=pops, project=project)
         h = plot_series(d, axis='pops', data=(project.data if project is not None else None))
         plt.title(this_plot['name'])
         return h
 
-    def budget(self, year=None):
-        """
-        Return budget at a given year
 
-        This will return the per-year spending rate taking into account
-        any budget scenarios that are present.
-
-        :param year: Optionally specify a time or array of times. Otherwise, use all times
-        :returns: A ``dict`` keyed by program name containing arrays of spending values
-
-        """
-
-        if self.model.progset is None:
-            return None
-        else:
-            if year is None:
-                year = self.t
-            return self.model.progset.get_alloc(year, self.model.program_instructions)
-
-def _filter_pops_by_output(result,output) -> list:
+def _filter_pops_by_output(result, output) -> list:
     """
     Helper function for plotting quantities
 
@@ -503,7 +582,7 @@ def export_results(results, filename=None, output_ordering=('output', 'result', 
         for _, spec in plots_available.iterrows():
             if 'type' in spec and spec['type'] == 'bar':
                 continue  # For now, don't do bars - not implemented yet
-            plot_df.append(_output_to_df(results, output_name=spec['name'], output=evaluate_plot_string(spec['quantities']),tvals=new_tvals))
+            plot_df.append(_output_to_df(results, output_name=spec['name'], output=evaluate_plot_string(spec['quantities']), tvals=new_tvals))
         _write_df(writer, formats, 'Plot data', pd.concat(plot_df), output_ordering)
 
     # Write cascades into separate sheets
@@ -569,6 +648,10 @@ def _programs_to_df(results, prog_name, tvals):
             vals = PlotData.programs(result, outputs=prog_name, quantity='spending').interpolate(tvals)
             vals.series[0].vals[~programs_active] = np.nan
             data[(prog_name, result.name, 'Spending ($/year)')] = vals.series[0].vals
+            
+            vals = PlotData.programs(result, outputs=prog_name, quantity='equivalent_spending').interpolate(tvals)
+            vals.series[0].vals[~programs_active] = np.nan
+            data[(prog_name, result.name, 'Equivalent spending ($/year)')] = vals.series[0].vals
 
             vals = PlotData.programs(result, outputs=prog_name, quantity='coverage_number').interpolate(tvals)
             vals.series[0].vals[~programs_active] = np.nan
@@ -651,7 +734,7 @@ def _output_to_df(results, output_name: str, output, tvals) -> pd.DataFrame:
 
     from .plotting import PlotData
 
-    pops = _filter_pops_by_output(results[0],output)
+    pops = _filter_pops_by_output(results[0], output)
     pop_labels = {x: y for x, y in zip(results[0].pop_names, results[0].pop_labels) if x in pops}
     data = dict()
 
@@ -666,12 +749,12 @@ def _output_to_df(results, output_name: str, output, tvals) -> pd.DataFrame:
     # Check results[0].model.pops[0].comps[0].units just in case someone changes it later on
     if popdata.series[0].units in {FS.QUANTITY_TYPE_NUMBER, results[0].model.pops[0].comps[0].units}:
         # Number units, can use summation
-        popdata = PlotData(results, outputs=output, pops={'total':pops}, pop_aggregation='sum')
+        popdata = PlotData(results, outputs=output, pops={'total': pops}, pop_aggregation='sum')
         popdata.interpolate(tvals)
         for result in popdata.results:
             data[(output_name, popdata.results[result], 'Total (sum)')] = popdata[result, popdata.pops[0], popdata.outputs[0]].vals
-    elif popdata.series[0].units in {FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION,FS.QUANTITY_TYPE_PROBABILITY}:
-        popdata = PlotData(results, outputs=output, pops={'total':pops}, pop_aggregation='weighted')
+    elif popdata.series[0].units in {FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY}:
+        popdata = PlotData(results, outputs=output, pops={'total': pops}, pop_aggregation='weighted')
         popdata.interpolate(tvals)
         for result in popdata.results:
             data[(output_name, popdata.results[result], 'Total (weighted average)')] = popdata[result, popdata.pops[0], popdata.outputs[0]].vals
@@ -760,8 +843,7 @@ class Ensemble(NamedItem):
 
     """
 
-
-    def __init__(self, mapping_function=None, name:str=None, baseline_results=None,**kwargs):
+    def __init__(self, mapping_function=None, name: str = None, baseline_results=None, **kwargs):
 
         NamedItem.__init__(self, name)
         self.mapping_function = mapping_function  #: This function gets called by :meth:`Ensemble.add_sample`
@@ -769,9 +851,9 @@ class Ensemble(NamedItem):
         self.baseline = None  #: A single PlotData instance with reference values (i.e. outcome without sampling)
 
         if baseline_results:
-            self.set_baseline(baseline_results,**kwargs)
+            self.set_baseline(baseline_results, **kwargs)
 
-    def run_sims(self,proj, parset, progset=None, progset_instructions=None, result_names=None, n_samples: int = 1, parallel=False, max_attempts=None) -> None:
+    def run_sims(self, proj, parset, progset=None, progset_instructions=None, result_names=None, n_samples: int = 1, parallel=False, max_attempts=None) -> None:
         """
         Run and store sampled simulations
 
@@ -798,13 +880,13 @@ class Ensemble(NamedItem):
 
         """
 
-        self.samples = [] # Drop the old samples
+        self.samples = []  # Drop the old samples
 
         if parallel:
             # NB. The calling code must be wrapped in a 'if __name__ == '__main__'
             # Currently not passing in any extra kwargs but that should be easy to add if/when required
             # (main reason for deferring implementation is so as to have suitable test code when developing)
-            self.samples = sc.parallelize(_sample_and_map, iterarg=n_samples, kwargs={'mapping_function':self.mapping_function,'max_attempts':max_attempts,'proj':proj, 'parset':parset, 'progset':progset,'progset_instructions':progset_instructions,'result_names':result_names})
+            self.samples = sc.parallelize(_sample_and_map, iterarg=n_samples, kwargs={'mapping_function': self.mapping_function, 'max_attempts': max_attempts, 'proj': proj, 'parset': parset, 'progset': progset, 'progset_instructions': progset_instructions, 'result_names': result_names})
         else:
             original_level = logger.getEffectiveLevel()
             logger.setLevel(logging.WARNING)  # Never print debug messages inside the sampling loop - note that depending on the platform, this may apply within `sc.parallelize`
@@ -818,7 +900,7 @@ class Ensemble(NamedItem):
                 sample = _sample_and_map(mapping_function=self.mapping_function, proj=proj, parset=parset, progset=progset, progset_instructions=progset_instructions, result_names=result_names, max_attempts=max_attempts)
                 self.samples.append(sample)
 
-            logger.setLevel(original_level) # Reset the logger
+            logger.setLevel(original_level)  # Reset the logger
 
         # Finally, set the colours for the first sample
         self.samples[0].set_colors(pops=self.samples[0].pops, outputs=self.samples[0].outputs)
@@ -1081,7 +1163,7 @@ class Ensemble(NamedItem):
 
         return fig
 
-    def plot_series(self, fig=None, style='quartile', results=None, outputs=None, pops=None):
+    def plot_series(self, fig=None, style='quartile', results=None, outputs=None, pops=None, legend=True):
         """
         Plot a time series with uncertainty
 
@@ -1118,23 +1200,23 @@ class Ensemble(NamedItem):
 
                     if self.baseline:
                         baseline_series = self.baseline[result, pop, output]
-                        plt.plot(baseline_series.tvec, baseline_series.vals,color=baseline_series.color, label='%s: %s-%s-%s (baseline)' % (self.name, result, pop, output))[0]
+                        plt.plot(baseline_series.tvec, baseline_series.vals, color=baseline_series.color, label='%s: %s-%s-%s (baseline)' % (self.name, result, pop, output))[0]
                     else:
-                        plt.plot(these_series[0].tvec, np.mean(vals, axis=0), color=these_series[0].color, linestyle='dashed',label='%s: %s-%s-%s (mean)' % (self.name, result, pop, output))[0]
+                        plt.plot(these_series[0].tvec, np.mean(vals, axis=0), color=these_series[0].color, linestyle='dashed', label='%s: %s-%s-%s (mean)' % (self.name, result, pop, output))[0]
 
                     if style == 'samples':
                         for series in these_series:
                             plt.plot(series.tvec, series.vals, color=series.color, alpha=0.05)
 
                     elif style == 'quartile':
-                        ax.fill_between(these_series[0].tvec, np.quantile(vals, 0.25, axis=0),np.quantile(vals, 0.75, axis=0), alpha=0.15, color=these_series[0].color)
+                        ax.fill_between(these_series[0].tvec, np.quantile(vals, 0.25, axis=0), np.quantile(vals, 0.75, axis=0), alpha=0.15, color=these_series[0].color)
                     elif style == 'ci':
-                        ax.fill_between(these_series[0].tvec, np.quantile(vals, 0.025, axis=0),np.quantile(vals, 0.975, axis=0), alpha=0.15, color=these_series[0].color)
+                        ax.fill_between(these_series[0].tvec, np.quantile(vals, 0.025, axis=0), np.quantile(vals, 0.975, axis=0), alpha=0.15, color=these_series[0].color)
                     elif style == 'std':
                         if self.baseline:
-                            ax.fill_between(baseline_series.tvec, baseline_series.vals - np.std(vals, axis=0),baseline_series.vals + np.std(vals, axis=0), alpha=0.15, color=baseline_series.color)
+                            ax.fill_between(baseline_series.tvec, baseline_series.vals - np.std(vals, axis=0), baseline_series.vals + np.std(vals, axis=0), alpha=0.15, color=baseline_series.color)
                         else:
-                            ax.fill_between(these_series[0].tvec, np.mean(vals, axis=0) - np.std(vals, axis=0),np.mean(vals, axis=0) + np.std(vals, axis=0), alpha=0.15, color=these_series[0].color)
+                            ax.fill_between(these_series[0].tvec, np.mean(vals, axis=0) - np.std(vals, axis=0), np.mean(vals, axis=0) + np.std(vals, axis=0), alpha=0.15, color=these_series[0].color)
                     else:
                         raise Exception('Unknown style')
 
@@ -1145,10 +1227,11 @@ class Ensemble(NamedItem):
                 ax.set_ylabel(proposed_label)
 
         ax.set_xlabel('Year')
-        ax.legend()
+        if legend:
+            ax.legend()
         return fig
 
-    def plot_bars(self, fig=None, years=None, results=None, outputs=None, pops=None, order=('years','results','outputs','pops'), horizontal=False, offset:float =None):
+    def plot_bars(self, fig=None, years=None, results=None, outputs=None, pops=None, order=('years', 'results', 'outputs', 'pops'), horizontal=False, offset: float = None):
         """
         Render a bar plot
 
@@ -1189,9 +1272,9 @@ class Ensemble(NamedItem):
         else:
             ax = fig.axes[0]
             if horizontal:
-                offset = np.floor(max(ax.get_ylim()))+1
+                offset = np.floor(max(ax.get_ylim())) + 1
             else:
-                offset = np.floor(max(ax.get_xlim()))+1
+                offset = np.floor(max(ax.get_xlim())) + 1
 
         series_lookup = self._get_series()
 
@@ -1199,8 +1282,8 @@ class Ensemble(NamedItem):
         baselines = []
         labels = []
 
-        base_order = ('years','results','outputs','pops')
-        for year, result, output, pop in nested_loop([years,results,outputs,pops],map(base_order.index,order)):
+        base_order = ('years', 'results', 'outputs', 'pops')
+        for year, result, output, pop in nested_loop([years, results, outputs, pops], map(base_order.index, order)):
 
             if year is None:
                 vals = np.array([x.vals[0] for x in series_lookup[result, pop, output]])
@@ -1222,13 +1305,13 @@ class Ensemble(NamedItem):
 
         locations = offset + np.arange(len(x))
         sample_array = np.vstack(x).T
-        sample_errors = np.std(sample_array,axis=0)
+        sample_errors = np.std(sample_array, axis=0)
 
-        for location,baseline, error,label in zip(locations, baselines, sample_errors, labels):
+        for location, baseline, error, label in zip(locations, baselines, sample_errors, labels):
             if horizontal:
-                ax.barh(location, baseline, xerr=error, capsize=10,label=label, height=0.5)
+                ax.barh(location, baseline, xerr=error, capsize=10, label=label, height=0.5)
             else:
-                ax.bar(location, baseline, yerr=error, capsize=10,label=label, width=0.5)
+                ax.bar(location, baseline, yerr=error, capsize=10, label=label, width=0.5)
 
         ax.legend()
 
@@ -1250,7 +1333,6 @@ class Ensemble(NamedItem):
             ax.set_xticks([])
 
         return fig
-
 
     def boxplot(self, fig=None, years=None, results=None, outputs=None, pops=None):
         """
@@ -1313,12 +1395,11 @@ class Ensemble(NamedItem):
                             labels.append('%s: %s-%s-%s (%g)' % (self.name, result, pop, output, year))
                         x.append(vals.ravel())
 
-
         locations = offset + np.arange(len(x))
 
         # TODO - force matplotlib>=3.1 to address this
         import matplotlib
-        if sc.compareversions(matplotlib.__version__,'3.1') < 0:
+        if sc.compareversions(matplotlib.__version__, '3.1') < 0:
             plt.boxplot(np.vstack(x).T, positions=locations, manage_xticks=False)
         else:
             plt.boxplot(np.vstack(x).T, positions=locations, manage_ticks=False)
@@ -1378,7 +1459,7 @@ class Ensemble(NamedItem):
                         records.append((year, result, output, pop, 'Q1', np.quantile(vals, 0.25)))
                         records.append((year, result, output, pop, 'Q3', np.quantile(vals, 0.75)))
 
-                df = pd.DataFrame.from_records(records,columns=['year', 'result', 'output', 'pop', 'quantity', 'value'])
+                df = pd.DataFrame.from_records(records, columns=['year', 'result', 'output', 'pop', 'quantity', 'value'])
                 df = df.set_index(['year', 'result', 'output', 'pop', 'quantity'])
                 return df
 
@@ -1398,6 +1479,8 @@ class Ensemble(NamedItem):
 
         series_lookup = self._get_series()
 
+        figs = []
+
         # Put all the values in a DataFrame
         for pop in self.pops:
             dfs = []
@@ -1413,9 +1496,14 @@ class Ensemble(NamedItem):
 
             colors = sc.gridcolors(len(self.results))
             colormap = {x: y for x, y in zip(self.results, colors)}
-            pd.plotting.scatter_matrix(df, c=[colormap[x] for x in df['result'].values], diagonal='kde')
+            fig = plt.figure()
+            ax = plt.gca()
+            pd.plotting.scatter_matrix(df, ax=ax, c=[colormap[x] for x in df['result'].values], diagonal='kde')
             plt.suptitle(pop)
-
+            
+            figs.append(fig)
+        return figs
+    
 
 def _sample_and_map(proj, parset, progset, progset_instructions, result_names, mapping_function, max_attempts, **kwargs):
     """
@@ -1429,7 +1517,7 @@ def _sample_and_map(proj, parset, progset, progset_instructions, result_names, m
     """
 
     # First, get a single sample (could have multiple results if multiple instructions)
-    results = proj.run_sampled_sims(n_samples=1,parset=parset, progset=progset, progset_instructions=progset_instructions, result_names=result_names, max_attempts=max_attempts)
+    results = proj.run_sampled_sims(n_samples=1, parset=parset, progset=progset, progset_instructions=progset_instructions, result_names=result_names, max_attempts=max_attempts)
 
     # Then convert it to a plotdata via the mapping function
     plotdata = mapping_function(results[0], **kwargs)

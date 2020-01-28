@@ -12,7 +12,7 @@ from .utils import TimeSeries
 import sciris as sc
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 import openpyxl
-from .excel import cell_require_string, standard_formats, read_tables, TimeDependentValuesEntry, TimeDependentConnections, apply_widths, update_widths, validate_category
+from .excel import cell_get_string, standard_formats, read_tables, TimeDependentValuesEntry, TimeDependentConnections, apply_widths, update_widths, validate_category
 import xlsxwriter as xw
 import io
 import numpy as np
@@ -43,10 +43,6 @@ class ProjectData(sc.prettyobj):
     """
 
     def __init__(self, framework):
-        # This is just an overview of the structure of ProjectData
-        # There are two pathways to a ProjectData
-        # - Could load an existing one, with ProjectData.from_spreadsheet()
-        # - Could make a new one, with ProjectData.new()
         self.pops = sc.odict()  #: This is an odict mapping code_name:{'label':full_name, 'type':pop_type}
         self.transfers = list()  #: This stores a list of :class:`TimeDependentConnections` instances for transfers
         self.interpops = list()  #: This stores a list of :class:`TimeDependentConnections` instances for interactions
@@ -55,7 +51,7 @@ class ProjectData(sc.prettyobj):
         self.tdve_pages = sc.odict()  #: This is an odict mapping worksheet name to an (ordered) list of TDVE code names appearing on that sheet
 
         # Internal storage used with methods while writing
-        self._pop_types = list(framework.pop_types.keys()) #: Store set of valid population types from framework
+        self._pop_types = list(framework.pop_types.keys())  # : Store set of valid population types from framework
         self._formats = None  #: Temporary storage for the Excel formatting while writing a databook
         self._book = None  #: Temporary storage for the workbook while writing a databook
         self._references = None  #: Temporary storage for cell references while writing a databook
@@ -210,11 +206,11 @@ class ProjectData(sc.prettyobj):
 
         if sc.isnumber(pops):
             for i in range(0, pops):
-                new_pops['pop_%d' % (i)] = {'label':'Population %d' % (i),'type':default_pop_type}
+                new_pops['pop_%d' % (i)] = {'label': 'Population %d' % (i), 'type': default_pop_type}
         else:
             for code_name, spec in pops.items():
                 if sc.isstring(spec):
-                    new_pops[code_name] = {'label':spec,'type':default_pop_type}
+                    new_pops[code_name] = {'label': spec, 'type': default_pop_type}
                 else:
                     new_pops[code_name] = spec
 
@@ -224,11 +220,11 @@ class ProjectData(sc.prettyobj):
         new_transfers = sc.odict()
         if sc.isnumber(transfers):
             for i in range(0, transfers):
-                new_transfers['transfer_%d' % (i)] = {'label':'Population %d' % (i),'type':default_pop_type}
+                new_transfers['transfer_%d' % (i)] = {'label': 'Transfer %d' % (i), 'type': default_pop_type}
         else:
             for code_name, spec in transfers.items():
                 if sc.isstring(spec):
-                    new_transfers[code_name] = {'label':spec,'type':default_pop_type}
+                    new_transfers[code_name] = {'label': spec, 'type': default_pop_type}
                 else:
                     new_transfers[code_name] = spec
 
@@ -237,7 +233,7 @@ class ProjectData(sc.prettyobj):
         data.tvec = sc.promotetoarray(tvec)
         pages = defaultdict(list)  # This will store {sheet_name:(code_name,databook_order)} which will then get sorted further
 
-        for df in [framework.comps, framework.characs, framework.pars]:
+        for obj_type, df in zip(['comps', 'characs', 'pars'], [framework.comps, framework.characs, framework.pars]):
             for _, spec in df.iterrows():
                 databook_page = spec.get('databook page')
                 if databook_page is not None:
@@ -250,10 +246,14 @@ class ProjectData(sc.prettyobj):
                     else:
                         order = databook_order
                     pages[databook_page].append((spec.name, order))
-                    data.tdve[spec.name] = TimeDependentValuesEntry(full_name, tvec, allowed_units=[framework.get_databook_units(full_name)], comment=spec['guidance'])
+                    data.tdve[spec.name] = TimeDependentValuesEntry(full_name, data.tvec, allowed_units=[framework.get_databook_units(full_name)], comment=spec['guidance'])
                     data.tdve[spec.name].write_units = True
-                    data.tdve[spec.name].write_assumption = True
                     data.tdve[spec.name].write_uncertainty = True
+                    if obj_type == 'pars':
+                        data.tdve[spec.name].write_assumption = True
+                        if spec['timed'] == 'y':
+                            data.tdve[spec.name].tvec = []  # If parameter is timed, don't show any years
+                            data.tdve[spec.name].write_uncertainty = False  # Don't show uncertainty for timed parameters. In theory users could manually add the column and sample over it, but because the duration is rounded to the timestep, it's likely to have confusing stepped effects
                     data.tdve[spec.name].pop_type = pop_type
 
         # Now convert pages to full names and sort them into the correct order
@@ -267,10 +267,10 @@ class ProjectData(sc.prettyobj):
 
         # Now, proceed to add pops, transfers, and interactions
         for code_name, spec in new_pops.items():
-            data.add_pop(code_name, spec['label'],pop_type=spec['type'])
+            data.add_pop(code_name, spec['label'], pop_type=spec['type'])
 
         for code_name, spec in new_transfers.items():
-            data.add_transfer(code_name, spec['label'],pop_type=spec['type'])
+            data.add_transfer(code_name, spec['label'], pop_type=spec['type'])
 
         for _, spec in framework.interactions.iterrows():
             interpop = data.add_interaction(spec.name, spec['display name'], from_pop_type=spec['from population type'], to_pop_type=spec['to population type'])
@@ -390,7 +390,7 @@ class ProjectData(sc.prettyobj):
                     tdve.comment = spec['guidance']
 
                     if code_name in self.tdve:
-                        raise Exception('A TDVE table for "%s" (%s) appears more than once in the databook. The first table was on sheet "%s" and the first duplicate table is on sheet "%s" starting on row %d' % (tdve.name, code_name, [k for k,v in self.tdve_pages.items() if code_name in v][0], sheet.title, start_row))
+                        raise Exception('A TDVE table for "%s" (%s) appears more than once in the databook. The first table was on sheet "%s" and the first duplicate table is on sheet "%s" starting on row %d' % (tdve.name, code_name, [k for k, v in self.tdve_pages.items() if code_name in v][0], sheet.title, start_row))
 
                     self.tdve[code_name] = tdve
                     # Store the TDVE on the page it was actually on, rather than the one in the framework. Then, if users move anything around, the change will persist
@@ -438,65 +438,67 @@ class ProjectData(sc.prettyobj):
         for pop in self.pops.values():
             if pop['type'] is None:
                 pop['type'] = self._pop_types[0]
-            assert pop['type'] in self._pop_types, 'Error in population "%s": population type "%s" not found in framework. If the framework defines a non-default population type, then it must be explicitly specified in databooks and program books.' % (pop['label'],pop['type'])
+            assert pop['type'] in self._pop_types, 'Error in population "%s": population type "%s" not found in framework. If the framework defines a non-default population type, then it must be explicitly specified in databooks and program books.' % (pop['label'], pop['type'])
 
-        for df in [framework.comps, framework.characs, framework.pars]:
-            for _, spec in df.iterrows():
-
-                if spec.name in self.pops:
-                    raise Exception('Code name "%s" has been used for both a population and a framework quantity - population names must be unique' % (spec.name))
+        for obj_type, df in zip(['comps', 'characs', 'pars'], [framework.comps, framework.characs, framework.pars]):
+            for spec_name, spec in zip(df.index, df.to_dict(orient='records')):
+                if spec_name in self.pops:
+                    raise Exception('Code name "%s" has been used for both a population and a framework quantity - population names must be unique' % (spec_name))
 
                 if spec['databook page'] is not None:
-                    if spec.name not in self.tdve:
+                    if spec_name not in self.tdve:
                         if spec['default value'] is None:
-                            raise Exception('The databook did not contain a required TDVE table named "%s" (code name "%s")' % (spec['display name'], spec.name))
+                            raise Exception('The databook did not contain a required TDVE table named "%s" (code name "%s")' % (spec['display name'], spec_name))
                         else:
-                            logger.warning('TDVE table "%s" (code name "%s") is missing from the databook. Using default values from the framework' % (spec['display name'], spec.name))
-                            units = framework.get_databook_units(spec.name)
-                            self.tdve[spec.name] = TimeDependentValuesEntry(spec['display name'], self.tvec.copy(), allowed_units=[units], comment=spec['guidance'])
+                            logger.warning('TDVE table "%s" (code name "%s") is missing from the databook. Using default values from the framework' % (spec['display name'], spec_name))
+                            units = framework.get_databook_units(spec_name)
+                            self.tdve[spec_name] = TimeDependentValuesEntry(spec['display name'], self.tvec.copy(), allowed_units=[units], comment=spec['guidance'])
                             for pop in self.pops.keys():
-                                self.tdve[spec.name].ts[pop] = TimeSeries(assumption=spec['default value'],units=units)
+                                self.tdve[spec_name].ts[pop] = TimeSeries(assumption=spec['default value'], units=units)
                             tdve_page = framework.sheets['databook pages'][0][framework.sheets['databook pages'][0]['datasheet code name'] == spec['databook page']]['datasheet title'].values[0]
                             if tdve_page in self.tdve_pages:
-                                self.tdve_pages[tdve_page].append(spec.name)
+                                self.tdve_pages[tdve_page].append(spec_name)
                             else:
-                                self.tdve_pages[tdve_page] = [spec.name]
+                                self.tdve_pages[tdve_page] = [spec_name]
                     else:
-                        framework_units = framework.get_databook_units(spec.name)  # Get the expected databook units
-                        tdve = self.tdve[spec.name]
-                        tdve_sheet = self.get_tdve_page(spec.name)
+                        framework_units = framework.get_databook_units(spec_name)  # Get the expected databook units
+                        tdve = self.tdve[spec_name]
+                        tdve_sheet = self.get_tdve_page(spec_name)
                         location = 'Error in TDVE table "%s" on sheet "%s"' % (tdve.name, tdve_sheet)
                         assert tdve.pop_type in self._pop_types, '%s. Population type "%s" did not match any in the framework' % (location, tdve.pop_type)
 
-                        required_pops = [x for x,y in self.pops.items() if y['type'] == tdve.pop_type] # The TDVE should contain values for all populations of that type, otherwise cannot construct the ParameterSet. Check that these populations are all present
+                        required_pops = [x for x, y in self.pops.items() if y['type'] == tdve.pop_type]  # The TDVE should contain values for all populations of that type, otherwise cannot construct the ParameterSet. Check that these populations are all present
                         missing_pops = set(required_pops).difference(tdve.ts.keys())
                         if missing_pops:
-                            raise Exception("%s. The following populations were not supplied but are required: %s" % (location,missing_pops))
+                            raise Exception("%s. The following populations were not supplied but are required: %s" % (location, missing_pops))
 
-                        for name, ts in self.tdve[spec.name].ts.items():
+                        for name, ts in self.tdve[spec_name].ts.items():
                             assert ts.has_data, '%s. Data values missing for %s (%s)' % (location, tdve.name, name)
                             assert ts.units is not None, '%s. Units missing for %s (%s)' % (location, tdve.name, name)
                             if ts.units.strip().lower() != framework_units.strip().lower():
                                 # If the units don't match the framework's 'databook' units, see if they at least match the standard unit (for legacy databooks)
-                                if 'format' in spec and spec['format'] is not None and ts.units.lower().strip() != spec['format'].lower().strip():
+                                # For compartments and characteristics, the units must match exactly
+                                if obj_type in ['comps','characs'] or ('format' in spec and spec['format'] is not None and ts.units.lower().strip() != spec['format'].lower().strip()):
                                     assert ts.units == framework_units, '%s. Unit "%s" for %s (%s) does not match the declared units from the Framework (expecting "%s")' % (location, ts.units, tdve.name, name, framework_units)
+                            if obj_type == 'par' and spec['timed'] == 'y':
+                                assert not ts.has_time_data, '%s. Parameter %s (%s) is marked as a timed transition in the Framework, so it must have a constant value (i.e., the databook cannot contain time-dependent values for this parameter)' % (location, tdve.name, name)
 
         for tdc in self.interpops + self.transfers:
             if tdc.from_pop_type is None:  # Supply default pop type
                 tdc.from_pop_type = self._pop_types[0]
-            assert tdc.from_pop_type in self._pop_types, 'Error in transfer/interaction "%s": from population type "%s" not found in framework. If the framework defines a non-default population type, then it must be explicitly specified in databooks and program books.' % (tdc.full_name,tdc.from_pop_type)
+            assert tdc.from_pop_type in self._pop_types, 'Error in transfer/interaction "%s": from population type "%s" not found in framework. If the framework defines a non-default population type, then it must be explicitly specified in databooks and program books.' % (tdc.full_name, tdc.from_pop_type)
             if tdc.to_pop_type is None:  # Supply default pop type
                 tdc.to_pop_type = self._pop_types[0]
-            assert tdc.to_pop_type in self._pop_types, 'Error in transfer/interaction "%s": to population type "%s" not found in framework. If the framework defines a non-default population type, then it must be explicitly specified in databooks and program books.' % (tdc.full_name,tdc.to_pop_type)
+            assert tdc.to_pop_type in self._pop_types, 'Error in transfer/interaction "%s": to population type "%s" not found in framework. If the framework defines a non-default population type, then it must be explicitly specified in databooks and program books.' % (tdc.full_name, tdc.to_pop_type)
 
         for _, spec in framework.interactions.iterrows():
             for tdc in self.interpops:
                 if tdc.code_name == spec.name:
                     for (from_pop, to_pop), ts in tdc.ts.items():
                         assert to_pop in self.pops, 'Population "%s" in "%s" not recognized. Should be one of: %s' % (to_pop, spec.name, self.pops.keys())
-                        assert self.pops[to_pop]['type'] == tdc.to_pop_type, 'Interaction "%s" has to-population type "%s", but contains Population "%s", which is type "%s"' % (tdc.full_name,tdc.to_pop_type,to_pop,self.pops[to_pop]['type'])
+                        assert self.pops[to_pop]['type'] == tdc.to_pop_type, 'Interaction "%s" has to-population type "%s", but contains Population "%s", which is type "%s"' % (tdc.full_name, tdc.to_pop_type, to_pop, self.pops[to_pop]['type'])
                         assert from_pop in self.pops, 'Population "%s" in "%s" not recognized. Should be one of: %s' % (from_pop, spec.name, self.pops.keys())
-                        assert self.pops[from_pop]['type'] == tdc.from_pop_type, 'Interaction "%s" has from-population type "%s", but contains Population "%s", which is type "%s"' % (tdc.full_name,tdc.from_pop_type,from_pop,self.pops[from_pop]['type'])
+                        assert self.pops[from_pop]['type'] == tdc.from_pop_type, 'Interaction "%s" has from-population type "%s", but contains Population "%s", which is type "%s"' % (tdc.full_name, tdc.from_pop_type, from_pop, self.pops[from_pop]['type'])
                         assert ts.has_data, 'Data values missing for interaction %s, %s->%s' % (spec.name, to_pop, from_pop)
                         assert ts.units.lower().title() == FS.DEFAULT_SYMBOL_INAPPLICABLE.lower().title(), 'Units error in interaction %s, %s->%s. Interaction units must be "N.A."' % (spec.name, to_pop, from_pop)
                     break
@@ -513,11 +515,11 @@ class ProjectData(sc.prettyobj):
                 assert ts.units is not None, 'Units are missing for transfer %s, %s->%s' % (tdc.full_name, to_pop, from_pop)
         return True
 
-    def to_spreadsheet(self):
+    def to_spreadsheet(self) -> sc.Spreadsheet:
         """
-        Return content as an :class:`AtomicaSpreadsheet`
+        Return content as a Sciris Spreadsheet
 
-        :return: An :class:`AtomicaSpreadsheet` instance
+        :return: A :class:`sciris.Spreadsheet` instance
 
         """
 
@@ -564,7 +566,7 @@ class ProjectData(sc.prettyobj):
         ss = self.to_spreadsheet()
         ss.save(fname + '.xlsx' if not fname.endswith('.xlsx') else fname)
 
-    def add_pop(self, code_name:str, full_name:str, pop_type:str=None) -> None:
+    def add_pop(self, code_name: str, full_name: str, pop_type: str = None) -> None:
         """
         Add a population
 
@@ -588,7 +590,7 @@ class ProjectData(sc.prettyobj):
         if code_name.lower() in FS.RESERVED_KEYWORDS:
             raise Exception('Population name "%s" is a reserved keyword' % (code_name.lower()))
 
-        self.pops[code_name] = {'label':full_name,'type':pop_type}
+        self.pops[code_name] = {'label': full_name, 'type': pop_type}
 
         for interaction in self.transfers + self.interpops:
             if interaction.from_pop_type == pop_type:
@@ -603,7 +605,7 @@ class ProjectData(sc.prettyobj):
             if tdve.pop_type == pop_type:
                 tdve.ts[code_name] = TimeSeries(units=tdve.allowed_units[0])
 
-    def rename_pop(self, existing_code_name:str, new_code_name:str, new_full_name:str) -> None:
+    def rename_pop(self, existing_code_name: str, new_code_name: str, new_full_name: str) -> None:
         """
         Rename a population
 
@@ -667,7 +669,7 @@ class ProjectData(sc.prettyobj):
                 if k == pop_name:
                     del tdve.ts[k]
 
-    def add_transfer(self, code_name:str, full_name:str, pop_type:str=None) -> TimeDependentConnections:
+    def add_transfer(self, code_name: str, full_name: str, pop_type: str = None) -> TimeDependentConnections:
         """
         Add a new empty transfer
 
@@ -683,11 +685,10 @@ class ProjectData(sc.prettyobj):
 
         assert pop_type in self._pop_types, 'Population type %s not found in framework' % (pop_type)
 
-
         for transfer in self.transfers:
             assert code_name != transfer.code_name, 'Transfer with name "%s" already exists' % (code_name)
 
-        pop_names = [name for name,pop_spec in self.pops.items() if pop_spec['type'] == pop_type]
+        pop_names = [name for name, pop_spec in self.pops.items() if pop_spec['type'] == pop_type]
 
         # Here, need to list all relevant populations
         new_transfer = TimeDependentConnections(code_name, full_name, self.tvec, from_pops=pop_names, to_pops=pop_names, interpop_type='transfer', ts=None, from_pop_type=pop_type, to_pop_type=pop_type)
@@ -735,7 +736,7 @@ class ProjectData(sc.prettyobj):
         del self.transfers[idx]
 
     # NB. Differences in the model will only happen if the model knows what to do with the new interaction
-    def add_interaction(self, code_name:str, full_name:str, from_pop_type:str=None, to_pop_type:str=None) -> TimeDependentConnections:
+    def add_interaction(self, code_name: str, full_name: str, from_pop_type: str = None, to_pop_type: str = None) -> TimeDependentConnections:
         """
         Add a new empty interaction
 
@@ -763,8 +764,8 @@ class ProjectData(sc.prettyobj):
         for interaction in self.interpops:
             assert code_name != interaction.code_name, 'Interaction with name "%s" already exists' % (code_name)
 
-        from_pops = [name for name,pop_spec in self.pops.items() if pop_spec['type'] == from_pop_type]
-        to_pops = [name for name,pop_spec in self.pops.items() if pop_spec['type'] == to_pop_type]
+        from_pops = [name for name, pop_spec in self.pops.items() if pop_spec['type'] == from_pop_type]
+        to_pops = [name for name, pop_spec in self.pops.items() if pop_spec['type'] == to_pop_type]
         interpop = TimeDependentConnections(code_name, full_name, self.tvec, from_pops=from_pops, to_pops=to_pops, interpop_type='interaction', ts=None, from_pop_type=from_pop_type, to_pop_type=to_pop_type)
         interpop.write_units = True
         interpop.write_assumption = True
@@ -794,31 +795,29 @@ class ProjectData(sc.prettyobj):
         assert len(tables) == 1, 'Population Definitions page should only contain one table'
 
         self.pops = sc.odict()
-        cell_require_string(tables[0][0][0])
-        cell_require_string(tables[0][0][1])
-        assert tables[0][0][0].value.strip().lower() == 'abbreviation'
-        assert tables[0][0][1].value.strip().lower() == 'full name'
+        assert cell_get_string(tables[0][0][0]).lower() == 'abbreviation'
+        assert cell_get_string(tables[0][0][1]).lower() == 'full name'
 
         # If pop typ column exists, check the heading is correct
         if len(tables[0][0]) > 2:
-            cell_require_string(tables[0][0][2])
-            assert tables[0][0][2].value.strip().lower() == 'population type'
+            assert cell_get_string(tables[0][0][2]).lower() == 'population type'
 
         for row in tables[0][1:]:
-            cell_require_string(row[0])
-            cell_require_string(row[1])
-            pop_name = row[0].value.strip()
+
+            pop_name = cell_get_string(row[0])
             assert len(pop_name) > 1, 'Population code name (abbreviation) "%s" is not valid - it must be at least two characters long' % (pop_name)
+
+            label = cell_get_string(row[1])
+            assert len(label) > 1, 'Population full name "%s" is not valid - it must be at least two characters long' % (label)
 
             if pop_name.lower() in FS.RESERVED_KEYWORDS:
                 raise Exception('Population name "%s" is a reserved keyword' % (pop_name.lower()))
 
             poptype = None
             if len(row) > 2 and row[2].value is not None:
-                cell_require_string(row[2])
-                poptype = row[2].value.strip()
+                poptype = cell_get_string(row[2])
 
-            self.pops[pop_name] = {'label': row[1].value.strip(),'type':poptype}
+            self.pops[pop_name] = {'label': label, 'type': poptype}
 
     def _write_pops(self) -> None:
         """
@@ -922,7 +921,6 @@ class ProjectData(sc.prettyobj):
         in the Framework.
 
         """
-
 
         for sheet_name, code_names in self.tdve_pages.items():
             sheet = self._book.add_worksheet(sheet_name)

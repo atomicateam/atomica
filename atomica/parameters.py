@@ -14,6 +14,7 @@ import sciris as sc
 from .utils import NamedItem, TimeSeries
 import scipy.interpolate
 
+
 class Parameter(NamedItem):
     """
     Class to hold one set of parameter values disaggregated by populations.
@@ -25,10 +26,10 @@ class Parameter(NamedItem):
 
     def __init__(self, name: str, ts: dict):
         NamedItem.__init__(self, name)
-        self.ts = ts #: Population-specific data is stored in TimeSeries within this dict, keyed by population name
-        self.y_factor = sc.odict.fromkeys(self.ts,1.0) #: Calibration scale factors for the parameter in each population
-        self.meta_y_factor = 1.0 #: Calibration scale factor for all populations
-        self.skip_function = sc.odict.fromkeys(self.ts,None) #: This can be a range of years [start,stop] between which the parameter function will not be evaluated
+        self.ts = ts  # : Population-specific data is stored in TimeSeries within this dict, keyed by population name
+        self.y_factor = sc.odict.fromkeys(self.ts, 1.0)  # : Calibration scale factors for the parameter in each population
+        self.meta_y_factor = 1.0  # : Calibration scale factor for all populations
+        self.skip_function = sc.odict.fromkeys(self.ts, None)  # : This can be a range of years [start,stop] between which the parameter function will not be evaluated
         self._interpolation_method = 'linear'  #: Fallback interpolation method. It is _strongly_ recommended not to change this, but to call ``Parameter.smooth()` instead
 
     @property
@@ -41,7 +42,6 @@ class Parameter(NamedItem):
         """
 
         return self.ts.keys()
-
 
     def has_values(self, pop_name: str) -> bool:
         """
@@ -85,7 +85,7 @@ class Parameter(NamedItem):
 
         return self.ts[pop_name].interpolate(tvec, method=self._interpolation_method)
 
-    def sample(self,constant:bool) -> None:
+    def sample(self, constant: bool) -> None:
         """
         Perturb parameter based on uncertainties
 
@@ -97,10 +97,10 @@ class Parameter(NamedItem):
 
         """
 
-        for k,ts in self.ts.items():
+        for k, ts in self.ts.items():
             self.ts[k] = ts.sample(constant)
 
-    def smooth(self,tvec,method='smoothinterp', pop_names=None,**kwargs):
+    def smooth(self, tvec, method='smoothinterp', pop_names=None, **kwargs):
         """
         Smooth the parameter's time values
 
@@ -140,22 +140,22 @@ class Parameter(NamedItem):
         if sc.isstring(method):
             if method == 'smoothinterp':
                 # Generating function for smooth-interp interpolator
-                def smoothinterp(x1,y1,**kwargs):
+                def smoothinterp(x1, y1, **kwargs):
                     def fcn(x2):
-                        return sc.smoothinterp(x2,x1,y1,**kwargs)
+                        return sc.smoothinterp(x2, x1, y1, **kwargs)
                     return fcn
                 method = smoothinterp
-            elif method in ['pchip','linear','previous']:
+            elif method in ['pchip', 'linear', 'previous']:
                 pass
             else:
                 raise Exception('Unknown smoothing method')
 
         for pop in pop_names:
             ts = self.ts[pop]
-            v2 = ts.interpolate(tvec,method=method,**kwargs)
-            ts.remove_between((min(tvec),max(tvec)))
-            for t,v in zip(tvec,v2):
-                ts.insert(t,v)
+            v2 = ts.interpolate(tvec, method=method, **kwargs)
+            ts.remove_between((min(tvec), max(tvec)))
+            for t, v in zip(tvec, v2):
+                ts.insert(t, v)
 
 
 class ParameterSet(NamedItem):
@@ -183,21 +183,22 @@ class ParameterSet(NamedItem):
     def __init__(self, framework, data, name="default"):
         NamedItem.__init__(self, name)
 
-        self.pop_names = data.pops.keys() #: List of all population code names contained in the ``ParameterSet``
-        self.pop_labels = [pop["label"] for pop in data.pops.values()] #: List of corresponding full names for populations
-        self.pop_types = [pop['type'] for pop in data.pops.values()] #: List of corresponding population types
+        self.pop_names = data.pops.keys()  # : List of all population code names contained in the ``ParameterSet``
+        self.pop_labels = [pop["label"] for pop in data.pops.values()]  # : List of corresponding full names for populations
+        self.pop_types = [pop['type'] for pop in data.pops.values()]  # : List of corresponding population types
 
-        self.pars = sc.odict() #: Stores the Parameter instances contained by this ParameterSet associated with framework comps, characs, and parameters
-        self.transfers = sc.odict() #: Stores the Parameter instances contained by this ParameterSet associated with databook transfers, keyed by source population
-        self.interactions = sc.odict() #: Stores the Parameter instances contained by this ParameterSet associated with framework interactions, keyed by source population
+        self.pars = sc.odict()  # : Stores the Parameter instances contained by this ParameterSet associated with framework comps, characs, and parameters
+        self.transfers = sc.odict()  # : Stores the Parameter instances contained by this ParameterSet associated with databook transfers, keyed by source population
+        self.interactions = sc.odict()  # : Stores the Parameter instances contained by this ParameterSet associated with framework interactions, keyed by source population
 
         # Instantiate all quantities that appear in the databook (compartments, characteristics, parameters)
         for name, tdve in data.tdve.items():
             units = framework.get_databook_units(name).strip().lower()
-            for pop_name, ts in tdve.ts.items(): # The TDVE has already been validated to contain any required populations (although it might also contain extra ones)
+            for pop_name, ts in tdve.ts.items():  # The TDVE has already been validated to contain any required populations (although it might also contain extra ones)
                 if units != ts.units.strip().lower():
-                    raise Exception('The units entered in the databook do not match the units entered in the framework')
-            self.pars[name] = Parameter(name,sc.odict({k: v.copy() for k, v in tdve.ts.items() if k in self.pop_names})) # Keep only valid populations (discard any extra ones here)
+                    message = f'The units for quantity "{framework.get_label(name)}" in the databook do not match the units in the framework. Expecting "{units}" but the databook contained "{ts.units.strip().lower()}"'
+                    raise Exception(message)
+            self.pars[name] = Parameter(name, sc.odict({k: v.copy() for k, v in tdve.ts.items() if k in self.pop_names}))  # Keep only valid populations (discard any extra ones here)
 
         # Instantiate parameters not in the databook
         for _, spec in framework.pars.iterrows():
@@ -226,7 +227,7 @@ class ParameterSet(NamedItem):
             for pop_link, ts in tdc.ts.items():
                 ts_dict[pop_link[0]][pop_link[1]] = ts.copy()
 
-            for source_pop,ts in ts_dict.items():
+            for source_pop, ts in ts_dict.items():
                 item_storage[name][source_pop] = Parameter(name + "_from_" + source_pop, sc.dcp(ts))
 
     def all_pars(self):
@@ -246,7 +247,7 @@ class ParameterSet(NamedItem):
             for par in obj.values():
                 yield par
 
-    def sample(self,constant=True):
+    def sample(self, constant=True):
         """
         Return a sampled copy of the ParameterSet
 

@@ -38,14 +38,15 @@ import sciris as sc
 import numpy as np
 import tqdm
 import logging
+from datetime import timezone
+
 
 class ProjectSettings(object):
-    def __init__(self, sim_start=None, sim_end=None, sim_dt=None):
-
-        self.sim_start = sim_start if sim_start is not None else 2000.0
-        self.sim_end = sim_end if sim_end is not None else 2035.0
-        self.sim_dt = sim_dt if sim_dt is not None else 0.25
-        logger.debug("Initialized project settings.")
+    def __init__(self, sim_start=2000, sim_end=2035, sim_dt=0.25):
+        self._sim_start = sim_start
+        self._sim_dt = sim_dt
+        self._sim_end = 0.0
+        self.update_time_vector(end=sim_end)
 
     def __repr__(self):
         """ Print object """
@@ -53,18 +54,64 @@ class ProjectSettings(object):
         return output
 
     @property
-    def tvec(self):
-        return np.arange(self.sim_start, self.sim_end + self.sim_dt / 2, self.sim_dt)
+    def sim_start(self):
+        return self._sim_start
 
-    def update_time_vector(self, start=None, end=None, dt=None):
-        """ Calculate time vector. """
+    @property
+    def sim_end(self):
+        return self._sim_end
+
+    @property
+    def sim_dt(self):
+        return self._sim_dt
+
+    @sim_start.setter
+    def sim_start(self, sim_start):
+        self._sim_start = sim_start
+
+    @sim_end.setter
+    def sim_end(self, sim_end):
+        self._sim_end = self.sim_start + np.ceil((sim_end-self.sim_start)/self.sim_dt)*self.sim_dt
+        if sim_end != self._sim_end:
+            logger.warn(f'Changing sim end from {sim_end} to {self._sim_end} ({(self._sim_end-self._sim_start)/self._sim_dt:.0f} timesteps)')
+
+    @sim_dt.setter
+    def sim_dt(self, sim_dt):
+        self._sim_dt = sim_dt
+        self.sim_end = self.sim_end # Call the setter function to change sim_end if it is no longer valid
+
+    @property
+    def tvec(self) -> np.ndarray:
+        """
+        Return simulation time vector
+
+        This method uses `linspace` rather than `arange` to avoid accumulating numerical errors that prevent
+        integer years aligning exactly.
+
+        :return: Array of simulation times
+
+        """
+
+        return np.linspace(self.sim_start, self.sim_end, int((self.sim_end-self.sim_start)/self.sim_dt) + 1)
+
+    def update_time_vector(self, start: float = None, end: float = None, dt: float = None) -> None:
+        """
+        Update the project simulation times
+
+        :param start: Optionally provide new start year (e.g. '2018')
+        :param end: Optionally provide new end year (e.g. '2035')
+        :param dt: Optionally provide new step size, in years (e.g. '0.25' for quarterly steps
+        
+        """
+
         if start is not None:
             self.sim_start = start
+
         if end is not None:
             self.sim_end = end
+
         if dt is not None:
             self.sim_dt = dt
-        return None
 
 
 class Project(NamedItem):
@@ -122,7 +169,7 @@ class Project(NamedItem):
         self.progbook = None  # This will contain an sc.Spreadsheet when the user loads one
         self.settings = ProjectSettings(**kwargs)  # Global settings
 
-        self._result_update_required = False  # This flag is set to True by migration is the result objects contained in this Project are out of date due to a migration change
+        self._update_required = False  # This flag is set to True by migration is the result objects contained in this Project are out of date due to a migration change
 
         # Load project data, if available
         if framework and databook:
@@ -148,8 +195,8 @@ class Project(NamedItem):
         output += '      Results sets: %i\n' % len(self.results)
         output += '\n'
         output += '   Atomica version: %s\n' % self.version
-        output += '      Date created: %s\n' % sc.getdate(self.created)
-        output += '     Date modified: %s\n' % sc.getdate(self.modified)
+        output += '      Date created: %s\n' % sc.getdate(self.created.replace(tzinfo=timezone.utc).astimezone(tz=None),dateformat = '%Y-%b-%d %H:%M:%S %Z')
+        output += '     Date modified: %s\n' % sc.getdate(self.modified.replace(tzinfo=timezone.utc).astimezone(tz=None),dateformat = '%Y-%b-%d %H:%M:%S %Z')
 #        output += '  Datasheet loaded: %s\n' % sc.getdate(self.databookloaddate)
         output += '        Git branch: %s\n' % self.gitinfo['branch']
         output += '          Git hash: %s\n' % self.gitinfo['hash']
@@ -204,14 +251,14 @@ class Project(NamedItem):
 
         # If there are existing progsets, make sure the new data is consistent with them
         if self.progsets:
-            data_pops = set((x,y['label']) for x,y in data.pops.items())
+            data_pops = set((x, y['label']) for x, y in data.pops.items())
             for progset in self.progsets.values():
-                assert data_pops == set((x,y['label']) for x,y in progset.pops.items()), 'Existing progsets exist with populations that do not match the new databook'
+                assert data_pops == set((x, y['label']) for x, y in progset.pops.items()), 'Existing progsets exist with populations that do not match the new databook'
 
         self.data = data
         self.data.validate(self.framework)  # Make sure the data is suitable for use in the Project (as opposed to just manipulating the databook)
         self.databook = sc.dcp(databook_spreadsheet)  # Actually a shallow copy is fine here because sc.Spreadsheet contains no mutable properties
-        self.modified = sc.now()
+        self.modified = sc.now(utc=True)
         self.settings.update_time_vector(start=self.data.start_year)  # Align sim start year with data start year.
 
         if not (self.framework.comps['is source'] == 'y').any():
@@ -280,7 +327,7 @@ class Project(NamedItem):
 
         """
 
-        types = {'parameter': ParameterScenario,'budget': BudgetScenario,'coverage': CoverageScenario,'combined': CombinedScenario}
+        types = {'parameter': ParameterScenario, 'budget': BudgetScenario, 'coverage': CoverageScenario, 'combined': CombinedScenario}
         scenario = types[which](**kwargs)
         self.scens.append(scenario)
         return scenario
@@ -298,7 +345,7 @@ class Project(NamedItem):
         else:
             try:
                 return self.parsets[key]
-            except:
+            except Exception:
                 sc.printv('Warning, parset "%s" not found!' % key, 1, verbose)
                 return None
 
@@ -311,7 +358,7 @@ class Project(NamedItem):
         else:
             try:
                 return self.progsets[key]
-            except:
+            except Exception:
                 sc.printv('Warning, progset "%s" not found!' % key, 1, verbose)
                 return None
 
@@ -324,7 +371,7 @@ class Project(NamedItem):
         else:
             try:
                 return self.scens[key]
-            except:
+            except Exception:
                 sc.printv('Warning, scenario "%s" not found!' % key, 1, verbose)
                 return None
 
@@ -337,7 +384,7 @@ class Project(NamedItem):
         else:
             try:
                 return self.optims[key]
-            except:
+            except Exception:
                 sc.printv('Warning, scenario "%s" not found!' % key, 1, verbose)
                 return None
 
@@ -352,7 +399,7 @@ class Project(NamedItem):
         else:
             try:
                 return self.scens[key]
-            except:
+            except Exception:
                 sc.printv('Warning, scenario "%s" not found!' % key, 1, verbose)
                 return None
 
@@ -360,7 +407,7 @@ class Project(NamedItem):
             key = -1
         try:
             return self.results[key]
-        except:
+        except Exception:
             return sc.printv('Warning, results "%s" not found!' % key, 1, verbose)  # Returns None
 
     #######################################################################################################
@@ -398,7 +445,7 @@ class Project(NamedItem):
         """ Modify the project settings, e.g. the simulation time vector. """
         self.settings.update_time_vector(start=sim_start, end=sim_end, dt=sim_dt)
 
-    def run_sim(self, parset=None, progset=None, progset_instructions=None, store_results=False, result_name:str=None):
+    def run_sim(self, parset=None, progset=None, progset_instructions=None, store_results=False, result_name: str = None):
         """
         Run a single simulation
 
@@ -434,13 +481,13 @@ class Project(NamedItem):
         tm = sc.tic()
         result = run_model(settings=self.settings, framework=self.framework, parset=parset, progset=progset,
                            program_instructions=progset_instructions, name=result_name)
-        logger.info('Elapsed time for running "%s": %ss',self.name,sc.sigfig(sc.toc(tm,output=True),3))
+        logger.info('Elapsed time for running "%s": %ss', self.name, sc.sigfig(sc.toc(tm, output=True), 3))
         if store_results:
             self.results.append(result)
 
         return result
 
-    def run_sampled_sims(self,parset,progset=None,progset_instructions=None, result_names=None, n_samples:int =1,parallel=False, max_attempts=None) -> list:
+    def run_sampled_sims(self, parset, progset=None, progset_instructions=None, result_names=None, n_samples: int = 1, parallel=False, max_attempts=None) -> list:
         """
         Run sampled simulations
 
@@ -489,13 +536,13 @@ class Project(NamedItem):
             assert(len(result_names) == 1 and not progset) or (len(progset_instructions) == len(result_names)), "Number of result names must match number of instructions"
 
         original_level = logger.getEffectiveLevel()
-        logger.setLevel(logging.WARNING) # Never print debug messages inside the sampling loop - note that depending on the platform, this may apply within `sc.parallelize`
+        logger.setLevel(logging.WARNING)  # Never print debug messages inside the sampling loop - note that depending on the platform, this may apply within `sc.parallelize`
 
         if n_samples == 1:
             results = [_run_sampled_sim(self, parset, progset, progset_instructions, result_names, max_attempts=max_attempts)]
         elif parallel:
             # NB. The calling code must be wrapped in a 'if __name__ == '__main__' if on Windows
-            results = sc.parallelize(_run_sampled_sim, iterarg=n_samples, kwargs={'proj':self, 'parset':parset, 'progset':progset, 'progset_instructions':progset_instructions, 'result_names':result_names, 'max_attempts':max_attempts})
+            results = sc.parallelize(_run_sampled_sim, iterarg=n_samples, kwargs={'proj': self, 'parset': parset, 'progset': progset, 'progset_instructions': progset_instructions, 'result_names': result_names, 'max_attempts': max_attempts})
         else:
             if original_level <= logging.INFO:
                 # Print the progress bar if the logging level was INFO or lower
@@ -503,7 +550,7 @@ class Project(NamedItem):
             else:
                 results = [_run_sampled_sim(self, parset, progset, progset_instructions, result_names, max_attempts=max_attempts) for _ in range(n_samples)]
 
-        logger.setLevel(original_level) # Reset the logger
+        logger.setLevel(original_level)  # Reset the logger
 
         return results
 
@@ -562,7 +609,7 @@ class Project(NamedItem):
 
         return new_parset
 
-    def run_scenarios(self, store_results:bool = True) -> list:
+    def run_scenarios(self, store_results: bool = True) -> list:
         """
         Run all active scenarios
 
@@ -604,7 +651,7 @@ class Project(NamedItem):
         results = [unoptimized_result, optimized_result]
         return results
 
-    def save(self, filename:str =None, folder:str =None) -> str:
+    def save(self, filename: str = None, folder: str = None) -> str:
         """
         Save binary project file
 
@@ -635,7 +682,7 @@ class Project(NamedItem):
 
         """
 
-        P = sc.loadobj(filepath)
+        P = sc.loadobj(filepath, die=True)
         assert isinstance(P, Project)
         return P
 
@@ -645,7 +692,7 @@ class Project(NamedItem):
         self.__dict__ = P.__dict__
 
 
-def _run_sampled_sim(proj, parset, progset, progset_instructions:list, result_names:list, max_attempts:int =None):
+def _run_sampled_sim(proj, parset, progset, progset_instructions: list, result_names: list, max_attempts: int = None):
     """
     Internal function to run simulation with sampling
 

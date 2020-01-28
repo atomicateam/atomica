@@ -114,3 +114,7 @@ vueapp
 
 # VIM
 *.sw*
+
+# flake8
+flake8.txt
+flake8_junit.xml

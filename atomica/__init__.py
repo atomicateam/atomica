@@ -67,13 +67,10 @@ if not any([isinstance(h, logging.StreamHandler) and not isinstance(h, logging.F
 
 from .version import version as __version__, versiondate as __versiondate__
 logger.critical('Atomica %s (%s) -- (c) the Atomica development team' % (__version__, __versiondate__))  # Log with the highest level
+from .version import gitinfo as __gitinfo__
+if __gitinfo__['branch'] != 'N/A':
+    logger.critical('git branch: %s (%s)' % (__gitinfo__['branch'], __gitinfo__['hash'][0:8]))
 logger.critical(datetime.now())
-
-try:
-    from .version import gitinfo as __gitinfo__
-    logger.critical('git branch: %s (%s)' % (__gitinfo__['branch'], _gitinfo__['hash']))
-except:
-    pass
 
 # Finally, set default output level to INFO
 logger.setLevel('INFO')
@@ -100,6 +97,6 @@ from .reconciliation import *
 from .optimization import *
 from .cascade import *
 from .results import *
-from .migration import *
+from .migration import migrations, register_migration
 from .utils import *
 from .system import *
