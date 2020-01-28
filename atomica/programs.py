@@ -8,6 +8,7 @@ set of programs, respectively.
 """
 
 import io
+from datetime import timezone
 
 import numpy as np
 import openpyxl
@@ -80,21 +81,20 @@ class ProgramInstructions(object):
 
     """
 
-    def __init__(self, start_year:float, stop_year:float=None, alloc=None, coverage:dict=None, capacity:dict=None):
+    def __init__(self, start_year: float, stop_year: float = None, alloc=None, coverage: dict = None, capacity: dict = None):
         self.start_year = start_year
         self.stop_year = stop_year if stop_year else inf
 
         self.alloc = sc.odict()
         if isinstance(alloc, ProgramSet):
             for prog in alloc.programs.values():
-                self.alloc[prog.name] = TimeSeries(t=self.start_year, vals=prog.spend_data.interpolate(self.start_year))
+                self.alloc[prog.name] = TimeSeries(t=self.start_year, vals=prog.spend_data.interpolate(self.start_year, method='previous'))
         elif alloc:
             for prog_name, spending in alloc.items():
                 if isinstance(spending, TimeSeries) and spending.has_data:
                     self.alloc[prog_name] = sc.dcp(spending)
                 elif spending is not None:
                     self.alloc[prog_name] = TimeSeries(t=self.start_year, vals=spending)
-
 
         self.capacity = sc.odict()  # Dict keyed by program name that stores a time series of capacities
         if capacity:
@@ -161,7 +161,7 @@ class ProgramSet(NamedItem):
 
         # Populations, parameters, and compartments - these are all the available ones printed when writing a progbook
         # They are all of the form {code_name:{'label':full_name, 'type':pop_type}}
-        self.pops = sc.dcp(data.pops) # ProjectData already stores dicts with 'label' and 'type' keys
+        self.pops = sc.dcp(data.pops)  # ProjectData already stores dicts with 'label' and 'type' keys
 
         # Get comps from framework
         self.comps = sc.odict()
@@ -169,19 +169,19 @@ class ProgramSet(NamedItem):
             if spec['is source'] == 'y' or spec['is sink'] == 'y' or spec['is junction'] == 'y':
                 continue
             else:
-                self.comps[spec.name] = {'label':spec['display name'],'type':spec['population type']}
+                self.comps[spec.name] = {'label': spec['display name'], 'type': spec['population type']}
 
         # Get pars from framework
         self.pars = sc.odict()
         for _, spec in framework.pars.iterrows():
             if spec['targetable'] == 'y':
-                self.pars[spec.name] = {'label':spec['display name'],'type':spec['population type']}
+                self.pars[spec.name] = {'label': spec['display name'], 'type': spec['population type']}
 
         self._pop_types = list(framework.pop_types.keys())
 
         # Metadata
-        self.created = sc.now()
-        self.modified = sc.now()
+        self.created = sc.now(utc=True)
+        self.modified = sc.now(utc=True)
         self.currency = '$'  # The symbol for currency that will be used in the progbook
 
         # Internal caches
@@ -189,13 +189,12 @@ class ProgramSet(NamedItem):
         self._formats = None
         self._references = None
 
-
     def __repr__(self):
         output = sc.prepr(self)
         output += '    Program set name: %s\n' % self.name
         output += '            Programs: %s\n' % [prog for prog in self.programs]
-        output += '        Date created: %s\n' % sc.getdate(self.created)
-        output += '       Date modified: %s\n' % sc.getdate(self.modified)
+        output += '        Date created: %s\n' % sc.getdate(self.created.replace(tzinfo=timezone.utc).astimezone(tz=None),dateformat = '%Y-%b-%d %H:%M:%S %Z')
+        output += '       Date modified: %s\n' % sc.getdate(self.modified.replace(tzinfo=timezone.utc).astimezone(tz=None),dateformat = '%Y-%b-%d %H:%M:%S %Z')
         output += '============================================================\n'
         return output
 
@@ -237,8 +236,7 @@ class ProgramSet(NamedItem):
 
         raise Exception('Could not find full name for quantity "%s" (n.b. this is case sensitive)' % (name))
 
-
-    def add_program(self, code_name:str, full_name:str) -> None:
+    def add_program(self, code_name: str, full_name: str) -> None:
         """
         Add a program to the ProgramSet
 
@@ -252,8 +250,7 @@ class ProgramSet(NamedItem):
             raise Exception('Program with name "%s" is already present in the ProgramSet' % (prog.name))
         self.programs[prog.name] = prog
 
-
-    def remove_program(self, name:str) -> None:
+    def remove_program(self, name: str) -> None:
         """
         Remove a program from the ProgramSet
 
@@ -270,7 +267,7 @@ class ProgramSet(NamedItem):
                 if (par, pop) in self.covouts and code_name in self.covouts.progs:
                     del self.covouts[(par, pop)].progs[code_name]
 
-    def add_pop(self, code_name: str, full_name: str, pop_type: str=None) -> None:
+    def add_pop(self, code_name: str, full_name: str, pop_type: str = None) -> None:
         """
         Add a population to the ``ProgramSet``
 
@@ -286,7 +283,7 @@ class ProgramSet(NamedItem):
         if pop_type is None:
             pop_type = self._pop_types[0]
 
-        self.pops[code_name] = {'label':full_name, 'type':pop_type}
+        self.pops[code_name] = {'label': full_name, 'type': pop_type}
 
     def remove_pop(self, name: str) -> None:
         """
@@ -310,7 +307,7 @@ class ProgramSet(NamedItem):
 
         del self.pops[code_name]
 
-    def add_comp(self, code_name: str, full_name: str, pop_type: str=None) -> None:
+    def add_comp(self, code_name: str, full_name: str, pop_type: str = None) -> None:
         """
         Add a compartment
 
@@ -324,7 +321,7 @@ class ProgramSet(NamedItem):
         if pop_type is None:
             pop_type = self._pop_types[0]
 
-        self.comps[code_name] = {'label':full_name, 'type':pop_type}
+        self.comps[code_name] = {'label': full_name, 'type': pop_type}
 
     def remove_comp(self, name: str) -> None:
         """
@@ -347,7 +344,7 @@ class ProgramSet(NamedItem):
                 prog.target_comps.remove(code_name)
         del self.comps[code_name]
 
-    def add_par(self, code_name: str, full_name: str, pop_type: str=None) -> None:
+    def add_par(self, code_name: str, full_name: str, pop_type: str = None) -> None:
         """
         Add a parameter
 
@@ -366,7 +363,7 @@ class ProgramSet(NamedItem):
         # add an impact parameter
         # a new impact parameter won't have any covouts associated with it, and no programs will be bound to it
         # So all we have to do is add it to the list
-        self.pars[code_name] = {'label':full_name, 'type':pop_type}
+        self.pars[code_name] = {'label': full_name, 'type': pop_type}
 
     def remove_par(self, name: str) -> None:
         """
@@ -457,7 +454,6 @@ class ProgramSet(NamedItem):
 
         """
 
-
         framework, data = ProgramSet._normalize_inputs(framework, data, project)
 
         # Populate the available pops, comps, and pars based on the framework and data provided at this step
@@ -471,7 +467,7 @@ class ProgramSet(NamedItem):
         validate_category(workbook, 'atomica:progbook')
 
         # Load individual sheets
-        self._read_targeting(workbook['Program targeting'])
+        self._read_targeting(workbook['Program targeting'], framework=framework)
         self._read_spending(workbook['Spending data'], _allow_missing_data=_allow_missing_data)
         self._read_effects(workbook['Program effects'], framework=framework, data=data)
 
@@ -514,7 +510,7 @@ class ProgramSet(NamedItem):
         ss.save(full_path)
         return full_path
 
-    def _read_targeting(self, sheet) -> None:
+    def _read_targeting(self, sheet, framework) -> None:
         # This function reads a targeting sheet and instantiates all of the programs with appropriate targets, putting them
         # into `self.programs`
         tables, start_rows = read_tables(sheet)  # NB. only the first table will be read, so there can be other tables for comments on the first page
@@ -560,11 +556,18 @@ class ProgramSet(NamedItem):
             for i in range(comp_start_idx, len(headers)):
                 if row[i].value and sc.isstring(row[i].value) and row[i].value.lower().strip() == 'y':
                     if comp_idx[i] not in comp_codenames:
-                        message = 'There was a mismatch between the compartments in the databook and the compartments in the Framework file'
-                        message += '\nThe program book contains compartment "%s", while the Framework contains: %s' % (comp_idx[i], [str(x) for x in comp_codenames.keys()])
-                        raise Exception(message)
-
-                    target_comps.append(comp_codenames[comp_idx[i]])  # Append the pop's codename
+                        if comp_idx[i] in set(framework.comps['display name'].str.lower().str.strip()):
+                            # It's a valid compartment of some sort (not actually targetable - for use with coverage scenarios only)
+                            logger.warning(f'Compartment "{comp_idx[i]}" is a non-standard compartment that cannot be targeted. The ProgramSet can be used with coverage scenarios only')
+                            spec = framework.comps.loc[framework.comps['display name'].str.lower().str.strip() == comp_idx[i]]
+                            self.add_comp(code_name=spec.index[0], full_name=spec['display name'][0], pop_type=spec['population type'][0])
+                            target_comps.append(spec.index[0])  # Append the pop's codename
+                        else:
+                            message = 'There was a mismatch between the compartments in the databook and the compartments in the Framework file'
+                            message += '\nThe program book contains compartment "%s", while the Framework contains: %s' % (comp_idx[i], [str(x) for x in comp_codenames.keys()])
+                            raise Exception(message)
+                    else:
+                        target_comps.append(comp_codenames[comp_idx[i]])  # Append the pop's codename
 
             short_name = row[0].value.strip()
             if short_name.lower() == 'all':
@@ -740,7 +743,7 @@ class ProgramSet(NamedItem):
         transfer_names = set()
         for transfer in data.transfers:
             for pops in transfer.ts.keys():
-                transfer_names.add(('%s_%s_to_%s' % (transfer.code_name,pops[0],pops[1])).lower())
+                transfer_names.add(('%s_%s_to_%s' % (transfer.code_name, pops[0], pops[1])).lower())
 
         self.covouts = sc.odict()
 
@@ -749,7 +752,7 @@ class ProgramSet(NamedItem):
             if par_label.lower() in par_codenames:
                 par_name = par_codenames[par_label.lower()]  # Code name of the parameter we are working with
             elif par_label.lower() in transfer_names:
-                par_name = table[0][0].value.strip() # Preserve case
+                par_name = table[0][0].value.strip()  # Preserve case
             else:
                 raise Exception('Program name "%s" was not found in the framework parameters or in the databook transfers' % (table[0][0].value.strip()))
             headers = [x.value.strip() if sc.isstring(x.value) else x.value for x in table[0]]
@@ -824,7 +827,7 @@ class ProgramSet(NamedItem):
             current_row += 1
 
             applicable_covouts = {x.pop: x for x in self.covouts.values() if x.par == par_name}
-            applicable_pops = [x for x,v in self.pops.items() if v['type'] == par_spec['type']] # All populations with matching type
+            applicable_pops = [x for x, v in self.pops.items() if v['type'] == par_spec['type']]  # All populations with matching type
 
             for pop_name in applicable_pops:
 
@@ -904,11 +907,14 @@ class ProgramSet(NamedItem):
                 progs['Prog %i' % (p + 1)] = 'Program %i' % (p + 1)
         elif isinstance(progs, dict):  # will also match odict
             pass
+        elif progs is None:
+            errormsg = 'When creating a ProgramSet, the programs cannot be None - it can either be a number of programs, or a dict with code names and full names'
+            raise Exception(errormsg)
         else:
             errormsg = 'Please just supply a number of programs, not "%s"' % (type(progs))
             raise Exception(errormsg)
 
-        framework, data = ProgramSet._normalize_inputs(framework, data, project) # This step will fail if the framework and data cannot be resolved
+        framework, data = ProgramSet._normalize_inputs(framework, data, project)  # This step will fail if the framework and data cannot be resolved
 
         newps = ProgramSet(name=name, tvec=tvec, framework=framework, data=data)
         if not newps.pars:
@@ -928,9 +934,15 @@ class ProgramSet(NamedItem):
         """
 
         for prog in self.programs.values():
-            if not prog.target_comps:
+            if not prog.target_comps and self.comps:
+                # If there are no compartments, then it's fine not to target any compartments - it should be obvious that only coverage scenarios are possible
+                # If there are compartments, then the same is true, but it's also possible (or even probable) that the user accidentally didn't target any compartments
+                # Therefore, in this case, raise an error - if a user wants to just do coverage scenarios, then they can still target the compartments anyway
                 raise Exception('Program "%s" does not target any compartments' % (prog.name))
             if not prog.target_pops:
+                # If the user is using parameters only, they will still have to define a population. And that population must be targeted in order
+                # to provide any program outcome values. Thus, the program should generally target the population even if there are no compartments,
+                # so we raise an error if no populations are targeted
                 raise Exception('Program "%s" does not target any populations' % (prog.name))
 
     #######################################################################################################
@@ -959,14 +971,13 @@ class ProgramSet(NamedItem):
             if instructions is None or prog.name not in instructions.alloc:
                 alloc[prog.name] = prog.get_spend(tvec)
             else:
-                alloc[prog.name] = instructions.alloc[prog.name].interpolate(tvec)
+                alloc[prog.name] = instructions.alloc[prog.name].interpolate(tvec, method='previous')
 
         if instructions:
-            for prog_name in set(instructions.alloc.keys())-set(self.programs.keys()):
-                logger.warning('The instructions contain an overwrite for a program called "%s" but as this is not in the ProgramSet, it will have no effect',prog_name)
+            for prog_name in set(instructions.alloc.keys()) - set(self.programs.keys()):
+                logger.warning('The instructions contain an overwrite for a program called "%s" but as this is not in the ProgramSet, it will have no effect', prog_name)
 
         return alloc
-
 
     def get_capacities(self, tvec, dt, instructions=None) -> dict:
         """
@@ -999,15 +1010,14 @@ class ProgramSet(NamedItem):
                 # Note that prog.get_capacity() returns capacity in units of people
                 capacities[prog.name] = prog.get_capacity(tvec=tvec, dt=dt, spending=spending)
             else:
-                capacities[prog.name] = instructions.capacity[prog.name].interpolate(tvec)
+                capacities[prog.name] = instructions.capacity[prog.name].interpolate(tvec, method='previous')
                 # Capacity overwrites are input in units of people/year so convert to units of people here
                 if '/year' not in prog.unit_cost.units:
                     capacities[prog.name] *= dt
 
         return capacities
 
-
-    def get_prop_coverage(self, tvec, capacities, num_eligible, instructions=None) -> dict:
+    def get_prop_coverage(self, tvec, capacities: dict, num_eligible: dict, dt: float, instructions=None) -> dict:
         """
         Return fractional coverage
 
@@ -1023,11 +1033,12 @@ class ProgramSet(NamedItem):
         - instructions can override the coverage (for coverage scenarios)
         - Programs can contain saturation constraints
 
-        :param tvec: array of times (in years) - this is required to interpolate time-varying saturation values
+        :param tvec: scalar year, or array of years - this is required to interpolate time-varying saturation values
         :param capacities: dict of program coverages, should match the available programs (typically the output of ``ProgramSet.get_capacities()``)
                            Note that since the capacity and eligible compartment sizes are being compared here,
                            the capacity needs to be in units of 'people' (not 'people/year') at this point
         :param num_eligible: dict of number of people covered by each program, computed externally and with one entry for each program
+        :param dt: simulation timestep
         :param instructions: optionally specify instructions, which can supply a coverage overwrite
         :return: Dict like ``{prog_name: np.array()}`` with fractional coverage values (dimensionless)
 
@@ -1038,8 +1049,14 @@ class ProgramSet(NamedItem):
             if instructions is None or prog.name not in instructions.coverage:
                 prop_coverage[prog.name] = prog.get_prop_covered(tvec, capacities[prog.name], num_eligible[prog.name])
             else:
-                prop_coverage[prog.name] = instructions.coverage[prog.name].interpolate(tvec)
+                prop_coverage[prog.name] = instructions.coverage[prog.name].interpolate(tvec, method='previous')
+                if prog.is_one_off:
+                    # Scale by dt beforehand, so that a timestep coverage of 1 can be achieved with an annual coverage
+                    # greater than 1 - that is, the number of people covered in a year relative to the CURRENT
+                    # compartment size
+                    prop_coverage[prog.name] *= dt
                 prop_coverage[prog.name] = minimum(prop_coverage[prog.name], 1.)
+
         return prop_coverage
 
     def get_outcomes(self, prop_coverage: dict) -> dict:
@@ -1088,6 +1105,7 @@ class ProgramSet(NamedItem):
             covout.sample()
         return new
 
+
 class Program(NamedItem):
     """
     Representation of a single program
@@ -1125,6 +1143,26 @@ class Program(NamedItem):
         self.saturation = TimeSeries(units=FS.DEFAULT_SYMBOL_INAPPLICABLE)  #: TimeSeries with saturation constraint that is applied to fractional coverage
         self.coverage = TimeSeries(units='people/year')  #: TimeSeries with capacity of program - optional - if not supplied, cost function is assumed to be linear
 
+    @property
+    def is_one_off(self) -> bool:
+        """
+        Flag for one-off programs
+
+        A one-off program is a program where the cost is incurred once, per person impacted. For example, a treatment
+        program where after treatment the person is no longer eligible for treatment. In contrast, a non-one-off program
+        (a continuous program) is one where a person reached by the program remains eligible - for example, ART. In addition,
+        one-off programs are typically linked to transition parameters, while continuous programs are typically linked to
+        non-transition parameters.
+
+        Whether a program is one-off or not depends on whether the unit cost is specified as
+        - Cost per person (one-off)
+        - Cost per person per year (continuous)
+
+        :return: True if program is a one-off program
+
+        """
+        return '/year' not in self.unit_cost.units
+
     def sample(self, constant: bool) -> None:
         """
         Perturb program values based on uncertainties
@@ -1143,7 +1181,6 @@ class Program(NamedItem):
         self.saturation = self.saturation.sample(constant)
         self.coverage = self.coverage.sample(constant)
 
-
     def __repr__(self):
         output = sc.prepr(self)
         output += '          Program name: %s\n' % self.name
@@ -1153,7 +1190,7 @@ class Program(NamedItem):
         output += '\n'
         return output
 
-    def get_spend(self, year=None, total:bool=False) -> np.array:
+    def get_spend(self, year=None, total: bool = False) -> np.array:
         """
         Retrieve program spending
 
@@ -1164,9 +1201,9 @@ class Program(NamedItem):
         """
 
         if total:
-            return self.spend_data.interpolate(year) + self.baseline_spend.interpolate(year)
+            return self.spend_data.interpolate(year, method='previous') + self.baseline_spend.interpolate(year, method='previous')
         else:
-            return self.spend_data.interpolate(year)
+            return self.spend_data.interpolate(year, method='previous')
 
     def get_capacity(self, tvec, spending, dt):
         """
@@ -1196,7 +1233,7 @@ class Program(NamedItem):
         # Validate inputs
         spending = sc.promotetoarray(spending)
 
-        unit_cost = self.unit_cost.interpolate(tvec)
+        unit_cost = self.unit_cost.interpolate(tvec, method='previous')
         if '/year' not in self.unit_cost.units:
             # The spending is $/year, and the /year gets eliminated if the unit cost is also per year. If that's not the case, then
             # we need to multiply the spending by the timestep to get the correct units
@@ -1205,7 +1242,7 @@ class Program(NamedItem):
         capacity = spending / unit_cost
 
         if self.capacity_constraint.has_data:
-            capacity_constraint = self.capacity_constraint.interpolate(tvec)
+            capacity_constraint = self.capacity_constraint.interpolate(tvec, method='previous')
             if '/year' in self.capacity_constraint.units:
                 # The capacity_constraint constraint is applied to a number of people. If it is /year, then it must be multiplied by the timestep first
                 capacity_constraint *= dt
@@ -1214,7 +1251,6 @@ class Program(NamedItem):
         return capacity
 
     def get_prop_covered(self, tvec, capacity, eligible):
-
         """
         Return proportion of people covered
 
@@ -1224,7 +1260,8 @@ class Program(NamedItem):
 
         :param tvec:  An array of times
         :param capacity: An array of number of people covered (e.g. the output of ``Program.get_capacity()``)
-                         This should be in units of 'people', rather than 'people/year'
+                         This should be in units of 'people', rather than 'people/year' although it may be a
+                         timestep-sensitive value if the capacity follows from a timestep-adjusted spend.
         :param eligible: The number of people eligible for the program (computed from a model object or a Result)
         :return: The fractional coverage (used to compute outcomes)
 
@@ -1237,7 +1274,7 @@ class Program(NamedItem):
         if self.saturation.has_data:
             # If the coverage denominator (eligible) is 0, then we need to use the saturation value
             prop_covered = np.divide(capacity, eligible, out=np.full(capacity.shape, np.inf), where=eligible != 0)
-            saturation = self.saturation.interpolate(tvec)
+            saturation = self.saturation.interpolate(tvec, method='previous')
             prop_covered = 2 * saturation / (1 + exp(-2 * prop_covered / saturation)) - saturation
             prop_covered = minimum(prop_covered, 1.)  # Ensure that coverage doesn't go above 1 (if saturation is < 1)
         else:
@@ -1245,6 +1282,7 @@ class Program(NamedItem):
             prop_covered = np.divide(capacity, eligible, out=np.ones_like(capacity), where=eligible > capacity)
 
         return prop_covered
+
 
 class Covout(object):
     """
@@ -1340,7 +1378,7 @@ class Covout(object):
 
         # First, sort the program dict by the magnitude of the outcome
         prog_tuple = [(k, v) for k, v in self.progs.items()]
-        prog_tuple = sorted(prog_tuple, key=lambda x: -abs(x[1]-self.baseline))
+        prog_tuple = sorted(prog_tuple, key=lambda x: -abs(x[1] - self.baseline))
         self._cached_progs = sc.odict()  # This list contains the perturbed/sampled values, in order
         for item in prog_tuple:
             self._cached_progs[item[0]] = item[1]

@@ -78,7 +78,7 @@ class InvalidCascade(Exception):
     pass
 
 
-def plot_cascade(results=None, cascade=None, pops=None, year=None, data=None, show_table:bool =None):
+def plot_cascade(results=None, cascade=None, pops=None, year=None, data=None, show_table: bool = None):
     """
     Plot single or multiple cascade plot
 
@@ -109,7 +109,8 @@ def plot_cascade(results=None, cascade=None, pops=None, year=None, data=None, sh
         output = (fig, table)
     return output  # Either fig or (fig,table)
 
-def sanitize_cascade(framework, cascade, fallback_used:bool =False) -> tuple:
+
+def sanitize_cascade(framework, cascade, fallback_used: bool = False) -> tuple:
     """
     Normalize cascade inputs
 
@@ -173,9 +174,10 @@ def sanitize_cascade(framework, cascade, fallback_used:bool =False) -> tuple:
 
     pop_type = validate_cascade(framework, cascade_dict, fallback_used=fallback_used)  # Check that the requested cascade dictionary is valid
 
-    return cascade_name,cascade_dict, pop_type
+    return cascade_name, cascade_dict, pop_type
 
-def sanitize_pops(pops,pop_source,pop_type) -> dict:
+
+def sanitize_pops(pops, pop_source, pop_type) -> dict:
     """
     Sanitize input populations
 
@@ -200,29 +202,29 @@ def sanitize_pops(pops,pop_source,pop_type) -> dict:
     """
 
     # Retrieve a list mapping result names to labels
-    if isinstance(pop_source,Result):
-        available = [(x.name,x.label,x.type) for x in pop_source.model.pops]
-    elif isinstance(pop_source,ProjectData):
-        available = [(x,y['label'],y['type']) for x,y in pop_source.pops.items()]
+    if isinstance(pop_source, Result):
+        available = [(x.name, x.label, x.type) for x in pop_source.model.pops]
+    elif isinstance(pop_source, ProjectData):
+        available = [(x, y['label'], y['type']) for x, y in pop_source.pops.items()]
     else:
         raise Exception("Unrecognized source for pop names - must be a Result or a ProjectData instance")
 
     def sanitize_name(name):
         name = name.strip()
-        for x,y,ptype in available:
+        for x, y, ptype in available:
             if x == name or y == name:
                 if ptype != pop_type:
                     raise Exception(f'Requested population "{x}" has type "{ptype}" but requested cascade is for "{pop_type}"')
-                return x,y
+                return x, y
         raise Exception('Name "%s" not found' % (name))
 
     if pops in [None, 'all', 'All', 'aggregate', 'total']:
         # If populations are an aggregation for all pops, then set the dict appropriately
-        pops = {'Entire population': [x[0] for x in available if x[2]==pop_type]}
+        pops = {'Entire population': [x[0] for x in available if x[2] == pop_type]}
         if not pops['Entire population']:
             raise Exception('No populations with the requested type were found')
 
-    elif isinstance(pops,list) or sc.isstring(pops):
+    elif isinstance(pops, list) or sc.isstring(pops):
         # If it's a list or string, convert it to a dict
         if sc.isstring(pops):
             pops = sc.promotetolist(pops)
@@ -232,14 +234,15 @@ def sanitize_pops(pops,pop_source,pop_type) -> dict:
         if len(code_names) > 1:
             pops = {'Selected populations': code_names}
         else:
-            pops = {sanitize_name(code_names[0])[1]:[code_names[0]]}
+            pops = {sanitize_name(code_names[0])[1]: [code_names[0]]}
 
-    assert isinstance(pops,dict) # At this point, it should be a dictionary
+    assert isinstance(pops, dict)  # At this point, it should be a dictionary
     assert len(pops) == 1, 'Aggregation must evaluate to only one output population'
 
-    return sc.odict(pops) # Make sure an odict gets returned rather than a dict
+    return sc.odict(pops)  # Make sure an odict gets returned rather than a dict
 
-def validate_cascade(framework, cascade, cascade_name=None, fallback_used:bool =False) -> str:
+
+def validate_cascade(framework, cascade, cascade_name=None, fallback_used: bool = False) -> str:
     """
     Check if a cascade is valid
 
@@ -256,8 +259,8 @@ def validate_cascade(framework, cascade, cascade_name=None, fallback_used:bool =
 
     """
 
-    if not isinstance(cascade,dict):
-        sanitize_cascade(framework, cascade, fallback_used=fallback_used) # This will result in a call to validate_cascade()
+    if not isinstance(cascade, dict):
+        sanitize_cascade(framework, cascade, fallback_used=fallback_used)  # This will result in a call to validate_cascade()
         return True
     else:
         cascade_dict = cascade
@@ -274,8 +277,8 @@ def validate_cascade(framework, cascade, cascade_name=None, fallback_used:bool =
     comps = framework.comps
     for stage in expanded.values():
         for comp in stage:
-            pop_types.add(comps.at[comp,'population type'])
-    if len(pop_types)>1:
+            pop_types.add(comps.at[comp, 'population type'])
+    if len(pop_types) > 1:
         if fallback_used:
             raise Exception('The framework defines multiple population types and has characteristics spanning population types. Therefore, a default fallback cascade cannot be automatically constructed. You will need to explicitly define a cascade in the framework file')
         else:
@@ -305,7 +308,8 @@ def validate_cascade(framework, cascade, cascade_name=None, fallback_used:bool =
 
             raise InvalidCascade(message)
 
-    return list(pop_types)[0] # Return the population type
+    return list(pop_types)[0]  # Return the population type
+
 
 def plot_single_cascade_series(result=None, cascade=None, pops=None, data=None) -> list:
     """
@@ -335,7 +339,7 @@ def plot_single_cascade_series(result=None, cascade=None, pops=None, data=None) 
 
     assert isinstance(result, Result), 'Input must be a single Result object'
 
-    cascade_name, cascade_dict, pop_type = sanitize_cascade(result.framework,cascade)
+    cascade_name, cascade_dict, pop_type = sanitize_cascade(result.framework, cascade)
     pops = sanitize_pops(pops, result, pop_type)
     d = PlotData(result, outputs=cascade_dict, pops=pops)
     d.set_colors(outputs=d.outputs)
@@ -353,6 +357,7 @@ def plot_single_cascade_series(result=None, cascade=None, pops=None, data=None) 
                 ax.scatter(t[flt], vals[flt], marker='o', s=40, linewidths=1, facecolors=color, color='k', zorder=100)
 
     return figs
+
 
 def plot_single_cascade(result=None, cascade=None, pops=None, year=None, data=None, title=False):
     """
@@ -374,7 +379,7 @@ def plot_single_cascade(result=None, cascade=None, pops=None, year=None, data=No
     diffcolor = (0.85, 0.89, 1.00)  # (0.74, 0.82, 1.00) # Original: (0.93,0.93,0.93)
     losscolor = (0, 0, 0)  # (0.8,0.2,0.2)
 
-    cascade_name, cascade_dict, pop_type = sanitize_cascade(result.framework,cascade)
+    cascade_name, cascade_dict, pop_type = sanitize_cascade(result.framework, cascade)
     pops = sanitize_pops(pops, result, pop_type)
 
     if not year:
@@ -456,6 +461,7 @@ def plot_single_cascade(result=None, cascade=None, pops=None, year=None, data=No
 
     return fig
 
+
 def plot_multi_cascade(results=None, cascade=None, pops=None, year=None, data=None, show_table=None):
     """"
     Plot cascade for multiple results
@@ -484,7 +490,7 @@ def plot_multi_cascade(results=None, cascade=None, pops=None, year=None, data=No
     elif isinstance(results, NDict):
         results = list(results)
 
-    cascade_name, cascade_dict, pop_type = sanitize_cascade(results[0].framework,cascade)
+    cascade_name, cascade_dict, pop_type = sanitize_cascade(results[0].framework, cascade)
     pops = sanitize_pops(pops, results[0], pop_type)
 
     if not year:
@@ -492,11 +498,14 @@ def plot_multi_cascade(results=None, cascade=None, pops=None, year=None, data=No
     year = sc.promotetoarray(year)
 
     if (len(results) > 1 and len(year) > 1):
-        def label_fcn(result, t): return '%s (%s)' % (result.name, t)
+        def label_fcn(result, t):
+            return '%s (%s)' % (result.name, t)
     elif len(results) > 1:
-        def label_fcn(result, t): return '%s' % (result.name)
+        def label_fcn(result, t):
+            return '%s' % (result.name)
     else:
-        def label_fcn(result, t): return '%s' % (t)
+        def label_fcn(result, t):
+            return '%s' % (t)
 
     # Gather all of the cascade outputs and years
     cascade_vals = sc.odict()
@@ -560,6 +569,7 @@ def plot_multi_cascade(results=None, cascade=None, pops=None, year=None, data=No
         table = {'text': cell_text, 'rowlabels': row_labels, 'collabels': col_labels}
         return fig, table
 
+
 def get_cascade_vals(result, cascade, pops=None, year=None) -> tuple:
     """
     Get values for a cascade
@@ -581,7 +591,7 @@ def get_cascade_vals(result, cascade, pops=None, year=None) -> tuple:
 
     # Sanitize the cascade inputs
     _, cascade_dict, pop_type = sanitize_cascade(result.framework, cascade)
-    pops = sanitize_pops(pops, result, pop_type) # Get list representation since we don't care about the name of the aggregated pop
+    pops = sanitize_pops(pops, result, pop_type)  # Get list representation since we don't care about the name of the aggregated pop
 
     if year is None:
         d = PlotData(result, outputs=cascade_dict, pops=pops)
@@ -600,7 +610,8 @@ def get_cascade_vals(result, cascade, pops=None, year=None) -> tuple:
 
     return cascade_vals, t
 
-def cascade_summary(source_data,year:float,pops=None,cascade=0) -> None:
+
+def cascade_summary(source_data, year: float, pops=None, cascade=0) -> None:
     """
     Print summary of cascade
 
@@ -624,21 +635,20 @@ def cascade_summary(source_data,year:float,pops=None,cascade=0) -> None:
     # A Result may also contain more than one cascade, hence we take in the 'cascade' argument to select which one
 
     # CascadeEnsemble cannot specify which cascade (pre-defined in the Ensemble)
-    if isinstance(source_data,CascadeEnsemble):
-        vals, uncertainty, t = source_data.get_vals(pop=pops,years=year)
+    if isinstance(source_data, CascadeEnsemble):
+        vals, uncertainty, t = source_data.get_vals(pop=pops, years=year)
         for result in vals.keys():
-            print('Result: %s - %g' % (result,year))
+            print('Result: %s - %g' % (result, year))
             baseline = vals[result][0][0]
             for stage in vals[result].keys():
                 v = vals[result][stage][0]
                 u = uncertainty[result][stage][0]
-                print('%s - %s ± %s (%s%% ± %s%%)' % (stage, np.round(v), sc.sigfig(u,2), sc.sigfig(100*v/baseline,2),sc.sigfig(100*u/baseline,2)))
+                print('%s - %s ± %s (%s%% ± %s%%)' % (stage, np.round(v), sc.sigfig(u, 2), sc.sigfig(100 * v / baseline, 2), sc.sigfig(100 * u / baseline, 2)))
     else:
         # Convert to list of results, check all names are unique
         source_data = sc.promotetolist(source_data)
         if len(set([x.name for x in source_data])) != len(source_data):
             raise Exception('If passing in multiple Results, they must have different names')
-
 
         for result in source_data:
 
@@ -648,9 +658,9 @@ def cascade_summary(source_data,year:float,pops=None,cascade=0) -> None:
             for i in reversed(range(len(percentage))):
                 percentage[i] /= percentage[0]
 
-            print('Result: %s - %g' % (result.name,year))
+            print('Result: %s - %g' % (result.name, year))
             for k in absolute.keys():
-                print('%s - %.0f (%s%%)' % (k,np.round(absolute[k][0]),sc.sigfig(percentage[k][0]*100,2)))
+                print('%s - %.0f (%s%%)' % (k, np.round(absolute[k][0]), sc.sigfig(percentage[k][0] * 100, 2)))
 
 
 def get_cascade_data(data, framework, cascade, pops=None, year=None):
@@ -689,7 +699,7 @@ def get_cascade_data(data, framework, cascade, pops=None, year=None):
     """
 
     _, cascade_dict, pop_type = sanitize_cascade(framework, cascade)
-    pops = sanitize_pops(pops, data, pop_type)[0] # Get list representation since we don't care about the name of the aggregated pop
+    pops = sanitize_pops(pops, data, pop_type)[0]  # Get list representation since we don't care about the name of the aggregated pop
 
     if year is not None:
         t = sc.promotetoarray(year)  # Output times are guaranteed to be
@@ -736,6 +746,7 @@ def get_cascade_data(data, framework, cascade, pops=None, year=None):
 
     return cascade_data, t
 
+
 class CascadeEnsemble(Ensemble):
     """
     Ensemble for cascade plots
@@ -769,27 +780,27 @@ class CascadeEnsemble(Ensemble):
 
     """
 
-    def __init__(self,framework, cascade, years=None, baseline_results=None, pops=None):
+    def __init__(self, framework, cascade, years=None, baseline_results=None, pops=None):
 
         if years is not None:
             years = sc.promotetoarray(years)
 
-        if isinstance(cascade,dict):
+        if isinstance(cascade, dict):
             cascade_name = None
             cascade_dict = cascade
         else:
-            cascade_name, cascade_dict, pop_type = sanitize_cascade(framework,cascade)
+            cascade_name, cascade_dict, pop_type = sanitize_cascade(framework, cascade)
 
         if not cascade_name:
             cascade_name = 'Cascade'
 
-        mapfun = functools.partial(_cascade_ensemble_mapping,cascade_dict=cascade_dict,years=years, pops=pops)
+        mapfun = functools.partial(_cascade_ensemble_mapping, cascade_dict=cascade_dict, years=years, pops=pops)
 
         # Perform normal Ensemble initialization using the cascade mapping function defined above
         # (with the closure for the requested cascade, pops, and years)
         super().__init__(name=cascade_name, mapping_function=mapfun, baseline_results=baseline_results)
 
-    def get_vals(self,pop=None,years=None) -> tuple:
+    def get_vals(self, pop=None, years=None) -> tuple:
         """
         Return cascade values and uncertainty
 
@@ -833,7 +844,7 @@ class CascadeEnsemble(Ensemble):
         for result in self.results:
 
             vals[result] = sc.odict()
-            uncertainty[result] =sc.odict()
+            uncertainty[result] = sc.odict()
 
             for stage in self.outputs:
 
@@ -848,8 +859,7 @@ class CascadeEnsemble(Ensemble):
 
         return (vals, uncertainty, self.tvec[years_idx].copy())
 
-
-    def plot_multi_cascade(self,pop=None,years=None):
+    def plot_multi_cascade(self, pop=None, years=None):
         """
         Plot multi-cascade with uncertainties
 
@@ -883,25 +893,25 @@ class CascadeEnsemble(Ensemble):
                 years = self.tvec
         years = sc.promotetoarray(years)
 
-        assert not (len(years) > 1 and len(self.results)>1), "If multiple results are present, can only plot one year at a time"
+        assert not (len(years) > 1 and len(self.results) > 1), "If multiple results are present, can only plot one year at a time"
         fig, ax = plt.subplots()
 
         if pop is None:
-            pop = self.pops[0] # Use first population
+            pop = self.pops[0]  # Use first population
 
         # Iterate over bar groups
         # A bar group is for a single year-result combination but contains multiple outputs
-        n_colors = len(years)*len(self.results) # Offset to apply to each bar
-        n_stages = len(self.outputs) # Number of stages being plotted
+        n_colors = len(years) * len(self.results)  # Offset to apply to each bar
+        n_stages = len(self.outputs)  # Number of stages being plotted
         series_lookup = self._get_series()
 
-        w = 1 # bar width
-        g1 = 0.1 # gap between bars
-        g2 = 1 # gap between stages
-        stage_width = n_colors*(w+g1)+w+g2
+        w = 1  # bar width
+        g1 = 0.1  # gap between bars
+        g2 = 1  # gap between stages
+        stage_width = n_colors * (w + g1) + w + g2
 
-        base_positions = np.arange(n_stages)*stage_width
-        n_rendered = 0 # Track the offset for bars rendered
+        base_positions = np.arange(n_stages) * stage_width
+        n_rendered = 0  # Track the offset for bars rendered
 
         for year in years:
             year_idx = list(self.tvec).index(year)
@@ -916,25 +926,26 @@ class CascadeEnsemble(Ensemble):
                 stage_vals = np.vstack(stage_vals).T
 
                 if self.baseline:
-                    baseline_vals = np.array([self.baseline[result,pop,x].vals[year_idx] for x in self.outputs])
+                    baseline_vals = np.array([self.baseline[result, pop, x].vals[year_idx] for x in self.outputs])
                 else:
-                    baseline_vals = np.mean(stage_vals,axis=0)
+                    baseline_vals = np.mean(stage_vals, axis=0)
 
-                label = '%s - %g' % (result,year)
-                ax.bar(base_positions+n_rendered*(w+g1), baseline_vals, yerr=np.std(stage_vals,axis=0), capsize=10,label=label, width=w)
+                label = '%s - %g' % (result, year)
+                ax.bar(base_positions + n_rendered * (w + g1), baseline_vals, yerr=np.std(stage_vals, axis=0), capsize=10, label=label, width=w)
                 n_rendered += 1
 
         ax.legend()
-        ax.set_xticks(base_positions + (n_colors-1)*(w+g1)/2)
+        ax.set_xticks(base_positions + (n_colors - 1) * (w + g1) / 2)
         ax.set_xticklabels(self.outputs)
         return fig
+
 
 def _cascade_ensemble_mapping(results, cascade_dict, years, pops):
     # This mapping function returns PlotData for the cascade
     # It's a closure containing the cascade, years, and pops requested
     # It's a separate function so it can be pickled and parallelized
     from .plotting import PlotData
-    d = PlotData(results,outputs=cascade_dict,pops=pops)
+    d = PlotData(results, outputs=cascade_dict, pops=pops)
     if years is not None:
         d.interpolate(years)
     return d
