@@ -218,11 +218,12 @@ def read_dataframes(worksheet, merge=False) -> list:
             if not any_values and v:
                 any_values = True
             row_values.append(v)
-        if not any_values and not merge:
+        if not any_values and buffer and not merge:
             tables.append(buffer)
             buffer = []
         elif any_values:
             buffer.append(row_values)
+
     if buffer:
         tables.append(buffer)
 
@@ -235,37 +236,6 @@ def read_dataframes(worksheet, merge=False) -> list:
         dfs.append(df)
     return dfs
     
-
-
-
-    for i, row in enumerate(worksheet.rows):
-
-        # Skip any rows starting with '#ignore'
-        if len(row) == 0 or (row[0].data_type == 's' and row[0].value.startswith('#ignore')):
-            continue  # Move on to the next row if row skipping is marked True
-
-        # Find out whether we need to add the row to the buffer
-        for cell in row:
-            if cell.value:  # If the row has a non-empty cell, add the row to the buffer
-                if not buffer:
-                    start = i + 1  # Excel rows are indexed starting at 1
-                buffer.append(row)
-                break
-        else:  # If the row was empty, then yield the buffer and flag that it should be cleared at the next iteration
-            if buffer:
-                tables.append(buffer)  # Only append the buffer if it is not empty
-                start_rows.append(start)
-            buffer = []
-
-    # After the last row, if the buffer has some un-flushed contents, then yield it
-    if buffer:
-        tables.append(buffer)
-        start_rows.append(start)
-
-
-
-
-
 
 class TimeDependentConnections(object):
     """
