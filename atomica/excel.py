@@ -331,16 +331,16 @@ class TimeDependentConnections(object):
         for header_cell, value_cell in zip(tables[0][0], tables[0][1]):
             if header_cell.value is None:
                 continue
-            header = cell_get_string(header_cell).strip()
+            header = cell_get_string(header_cell)
             lowered_header = header.lower()
             if lowered_header == 'abbreviation':
-                code_name = cell_get_string(value_cell).strip()
+                code_name = cell_get_string(value_cell)
             elif lowered_header == 'full name':
-                full_name = cell_get_string(value_cell).strip()
+                full_name = cell_get_string(value_cell)
             elif lowered_header == 'from population type':
-                from_pop_type = cell_get_string(value_cell).strip()
+                from_pop_type = cell_get_string(value_cell, True)
             elif lowered_header == 'to population type':
-                to_pop_type = cell_get_string(value_cell).strip()
+                to_pop_type = cell_get_string(value_cell, True)
             else:
                 attributes[header] = value_cell.value
 
@@ -362,7 +362,7 @@ class TimeDependentConnections(object):
         for row in tables[1][1:]:
             from_pops.append(row[0].value)
 
-        # Instatiate it
+        # Instantiate it
         tdc = TimeDependentConnections(code_name, full_name, None, from_pops=from_pops, to_pops=to_pops, interpop_type=interaction_type, from_pop_type=from_pop_type, to_pop_type=to_pop_type)
         tdc.attributes = attributes
 
