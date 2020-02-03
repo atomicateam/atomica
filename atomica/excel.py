@@ -229,7 +229,7 @@ class TimeDependentConnections(object):
 
     """
 
-    def __init__(self, code_name: str, full_name: str, from_pops: list, to_pops: list, interpop_type: str, tvec: np.array = None, ts: dict = None, from_pop_type: str = None, to_pop_type: str = None):
+    def __init__(self, code_name: str, full_name: str, tvec:np.array, from_pops: list, to_pops: list, interpop_type: str, ts: dict = None, from_pop_type: str = None, to_pop_type: str = None):
         self.code_name = code_name
         self.full_name = full_name
         self.type = interpop_type
@@ -323,7 +323,7 @@ class TimeDependentConnections(object):
             from_pops.append(row[0].value)
 
         # Instatiate it
-        tdc = TimeDependentConnections(code_name, full_name, from_pops=from_pops, to_pops=to_pops, interpop_type=interaction_type, from_pop_type=from_pop_type, to_pop_type=to_pop_type)
+        tdc = TimeDependentConnections(code_name, full_name, None, from_pops=from_pops, to_pops=to_pops, interpop_type=interaction_type, from_pop_type=from_pop_type, to_pop_type=to_pop_type)
         tdc.attributes = attributes
 
         # Read the time series table
