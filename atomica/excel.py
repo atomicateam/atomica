@@ -177,45 +177,94 @@ def read_tables(worksheet) -> tuple:
         tables.append(buffer)
         start_rows.append(start)
 
-    def value_test(worksheet):
-        tables = []
-        for row in worksheet.rows:
-            if len(row) > 0 and (row[0].data_type == 's' and row[0].value.startswith('#ignore')):
-                continue
-
-            buffer = []
-            any_values = False
-            for i, cell in enumerate(row):
-                v = cell.value
-                if cell.data_type == 's':
-                    v = v.strip()
-                if not any_values and v:
-                    any_values = True
-                r.append(v)
-            x.append(r)
-        return x
-
-
-
-    print(worksheet.title)
     return tables, start_rows
 
-def df_from_table(table, index=None) -> pd.DataFrame:
-    """
-    Convert a table to a dataframe
 
-    If a column is completely empty, it will be skipped
-    :param table: A single table read in using `at.excel.read_tables()`
-    :param index: A list of column headings to use as indices
-    :return: A dataframe
+def read_dataframes(worksheet, merge=False) -> list:
     """
-    df = pd.DataFrame.from_records(table).applymap(lambda x: x.value.strip() if x.data_type == 's' else x.value)
-    df.dropna(axis=1, how='all', inplace=True)  # If a column is completely empty, including the header, ignore it. Helps avoid errors where blank cells are loaded by openpyxl due to extra non-value content
-    df.columns = df.iloc[0]
-    df = df[1:] # Remove duplicated first row
-    if index is not None:
-        df.set_index(index, inplace=True)
-    return df
+    Read dataframes from sheet
+
+    This function operates similarly to ``read_tables`` except it returns Dataframes instead of
+    cells. This enables the dataframes to be constructed more quickly, at the expense of being
+    able to track the cell references and row numbers. These are shown for databooks (via ``read_tables``)
+    but not for frameworks (which go via ``read_dataframes``)
+
+
+    :param worksheet: An openpyxl worksheet
+    :param merge: If False (default) then blank rows will be used to split the dataframes. If True, only one
+                  DataFrame will be returned
+    :return: A list of DataFrames
+
+    """
+    # This function takes in a openpyxl worksheet, and returns tables
+    # A table consists of a block of rows with any #ignore rows skipped
+    # This function will start at the top of the worksheet, read rows into a buffer
+    # until it gets to the first entirely empty row
+    # And then returns the contents of that buffer as a table. So a table is a list of openpyxl rows
+    # This function continues until it has exhausted all of the rows in the sheet
+    tables = []
+    buffer = []
+    for row in worksheet.rows:
+        if len(row) > 0 and (row[0].data_type == 's' and row[0].value.startswith('#ignore')):
+            continue
+
+        row_values = []
+        any_values = False
+
+        for cell in row:
+            v = cell.value
+            if cell.data_type in {'s','str'}:
+                v = v.strip()
+            if not any_values and v:
+                any_values = True
+            row_values.append(v)
+        if not any_values and not merge:
+            tables.append(buffer)
+            buffer = []
+        elif any_values:
+            buffer.append(row_values)
+    if buffer:
+        tables.append(buffer)
+
+    dfs = []
+    for table in tables:
+        df = pd.DataFrame.from_records(table)
+        df.dropna(axis=1, how='all', inplace=True)
+        df.columns = df.iloc[0]
+        df = df[1:]
+        dfs.append(df)
+    return dfs
+    
+
+
+
+    for i, row in enumerate(worksheet.rows):
+
+        # Skip any rows starting with '#ignore'
+        if len(row) == 0 or (row[0].data_type == 's' and row[0].value.startswith('#ignore')):
+            continue  # Move on to the next row if row skipping is marked True
+
+        # Find out whether we need to add the row to the buffer
+        for cell in row:
+            if cell.value:  # If the row has a non-empty cell, add the row to the buffer
+                if not buffer:
+                    start = i + 1  # Excel rows are indexed starting at 1
+                buffer.append(row)
+                break
+        else:  # If the row was empty, then yield the buffer and flag that it should be cleared at the next iteration
+            if buffer:
+                tables.append(buffer)  # Only append the buffer if it is not empty
+                start_rows.append(start)
+            buffer = []
+
+    # After the last row, if the buffer has some un-flushed contents, then yield it
+    if buffer:
+        tables.append(buffer)
+        start_rows.append(start)
+
+
+
+
 
 
 class TimeDependentConnections(object):
