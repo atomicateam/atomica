@@ -684,7 +684,11 @@ class TimeDependentValuesEntry(object):
         self.ts = ts  # : dict of :class:`TimeSeries` objects
         self.allowed_units = [x.title() if x in FS.STANDARD_UNITS else x for x in allowed_units] if allowed_units is not None else None  # Otherwise, can be an odict with keys corresponding to ts - leave as None for no restriction
 
+        self.attributes = {}  #: Dictionary containing extra attributes to write along with each TimeSeries object.
+                              #  Keys are attribute name, values can be either a scalar or a dict keyed by the same keys as self.ts. Compared to units, uncertainty etc.
+                              #  attributes are store in the TDVE rather than in the TimeSeries
         self.assumption_heading = 'Constant'  #: Heading to use for assumption column
+
         self.write_units = None  #: Write a column for units (if None, units will be written if any of the TimeSeries have units)
         self.write_uncertainty = None  #: Write a column for units (if None, units will be written if any of the TimeSeries have uncertainty)
         self.write_assumption = None  #: Write a column for units (if None, units will be written if any of the TimeSeries have an assumption)
@@ -723,98 +727,77 @@ class TimeDependentValuesEntry(object):
 
         from .utils import TimeSeries  # Import here to avoid circular reference
 
-        # First, read the headings
-        vals = [x.value for x in rows[0]]
-
-        if vals[0] is None:
+        # Retrieve the name
+        name = rows[0][0].value
+        if name is None:
             raise Exception('The name of the table is missing. This can also happen if extra rows have been added without a "#ignore" entry in the first column')
-        elif not sc.isstring(vals[0]):
+        elif not sc.isstring(name):
             raise Exception('In cell %s of the spreadsheet, the name of the quantity assigned to this table needs to be a string' % rows[0][0].coordinate)
-        name = vals[0].strip()
+        name = name.strip()  # The name needs to be written back in a case sensitive form
 
         tdve = TimeDependentValuesEntry(name)
 
-        lowered_headings = [x.lower().strip() if sc.isstring(x) else x for x in vals]
+        # Read the headings
+        headings = {}
+        times = {}
+        for i, cell in enumerate(rows[0]):
+            v = cell.value
+            if i == 0 or v is None:
+                continue
+            elif cell.data_type in {'s','str'}:
+                headings[v.lower().strip()] = i
+            elif cell.data_type == 'n':
+                times[v] = i
+            else:
+                raise Exception('Unknown data type in cell %s of the spreadsheet - quantity must be a string or a number' % rows[0][0].coordinate)
+        tdve.tvec = np.array(sorted(times),dtype=float)
 
-        # We can optionally have units, uncertainty, and constant
-        # nb. finding the index means this is robust to extra empty
-        # columns, a user adding one of the these fields to a single table on a page
-        # might introduce a blank column to all of the other TDVE elements on the page too
-        # so the code below should be able to deal with this
-        offset = 1  # This is the column where the time values start
-
-        if 'units' in lowered_headings:
-            units_index = lowered_headings.index('units')
-            tdve.write_units = True
-            offset += 1
-        else:
-            units_index = None
-
-        if 'uncertainty' in lowered_headings:
-            uncertainty_index = lowered_headings.index('uncertainty')
-            tdve.write_uncertainty = True
-            offset += 1
-        else:
-            uncertainty_index = None
-
-        if 'constant' in lowered_headings:
-            constant_index = lowered_headings.index('constant')
-            tdve.write_assumption = True
-            tdve.assumption_heading = 'Constant'
-            offset += 2
-        elif 'assumption' in lowered_headings:
-            constant_index = lowered_headings.index('assumption')
+        # Validate and process headings
+        if not times and 'constant' not in headings:
+            raise Exception('Could not find an assumption or time-specific value - all tables must contain at least one of these values')
+        tdve.write_units = True if 'units' in headings else None
+        tdve.write_uncertainty = True if 'uncertainty' in headings else None
+        tdve.write_assumption = True if 'constant' in headings else None
+        if 'assumption' in headings:
             tdve.write_assumption = True
             tdve.assumption_heading = 'Assumption'
-            offset += 2
-        else:
-            constant_index = None
-
-        if None in vals[offset:]:
-            t_end = offset + vals[offset:].index(None)
-        else:
-            t_end = len(vals)
-        tvec = np.array(vals[offset:t_end], dtype=float)
+        attributes = {x for x in headings if x not in {'units','uncertainty','constant','assumption'}} # Get remaining attributes
+        for attribute in attributes:
+            tdve.attributes[attribute] = {}
         ts_entries = sc.odict()
 
-        # For each TimeSeries that we will instantiate
         for row in rows[1:]:
-            vals = [x.value for x in row]
-            if not sc.isstring(vals[0]):
+            if not row[0].data_type in {'s','str'}:
                 raise Exception('In cell %s of the spreadsheet, the name of the entry was expected to be a string, but it was not. The left-most column is expected to be a name. If you are certain the value is correct, add an single quote character at the start of the cell to ensure it remains as text' % row[0].coordinate)
-            series_name = vals[0].strip()
+            series_name = row[0].value.strip()
 
-            if units_index is not None and vals[units_index]:
-                assert sc.isstring(vals[units_index]), "The 'units' quantity needs to be specified as text e.g. 'probability'"
-                units = vals[units_index]
+            if 'units' in headings:
+                units = cell_get_string(row[headings['units']], allow_empty=True)
                 if units.lower().strip() in FS.STANDARD_UNITS:
                     units = units.lower().strip()  # Only lower and strip units if they are standard units
             else:
                 units = None
-
             ts = TimeSeries(units=units)
 
-            if uncertainty_index is not None:
-                ts.sigma = cell_get_number(row[uncertainty_index])
+            if 'uncertainty' in headings:
+                ts.sigma = cell_get_number(row[headings['uncertainty']])
             else:
                 ts.sigma = None
 
-            if constant_index is not None:
-                ts.assumption = cell_get_number(row[constant_index])
+            if 'constant' in headings:
+                ts.assumption = cell_get_number(row[headings['constant']])
+            elif 'assumption' in headings:
+                ts.assumption = cell_get_number(row[headings['assumption']])
             else:
                 ts.assumption = None
 
-            if constant_index is not None and tvec.size:
-                assert sc.isstring(vals[offset - 1]) and vals[offset - 1].strip().lower() == 'or', 'Error with validating row in TDVE table "%s" (did not find the text "OR" in the expected place)' % (name)  # Check row is as expected
+            for attribute in attributes:
+                tdve.attributes[attribute][series_name] = row[headings[attribute]].value
 
-            data_cells = row[offset:t_end]
-
-            for t, cell in zip(tvec, data_cells):
-                if np.isfinite(t):  # Ignore any times that are NaN - this happens if the cell was empty and casted to a float
-                    ts.insert(t, cell_get_number(cell))  # If cell_get_number returns None, this gets handled accordingly by ts.insert()
+            for t, idx in times.items():
+                ts.insert(t, cell_get_number(row[idx]))  # If cell_get_number returns None, this gets handled accordingly by ts.insert()
             ts_entries[series_name] = ts
 
-        tdve.tvec = tvec[np.isfinite(tvec)]  # Remove empty entries from the array
         tdve.ts = ts_entries
         return tdve
 
