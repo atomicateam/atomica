@@ -177,6 +177,27 @@ def read_tables(worksheet) -> tuple:
         tables.append(buffer)
         start_rows.append(start)
 
+    def value_test(worksheet):
+        tables = []
+        for row in worksheet.rows:
+            if len(row) > 0 and (row[0].data_type == 's' and row[0].value.startswith('#ignore')):
+                continue
+
+            buffer = []
+            any_values = False
+            for i, cell in enumerate(row):
+                v = cell.value
+                if cell.data_type == 's':
+                    v = v.strip()
+                if not any_values and v:
+                    any_values = True
+                r.append(v)
+            x.append(r)
+        return x
+
+
+
+    print(worksheet.title)
     return tables, start_rows
 
 def df_from_table(table, index=None) -> pd.DataFrame:
