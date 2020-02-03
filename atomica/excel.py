@@ -17,6 +17,7 @@ import numpy as np
 from .system import FrameworkSettings as FS
 import pandas as pd
 
+
 def standard_formats(workbook):
     # Add standard formatting to a workbook and return the set of format objects
     # for use when writing within the workbook
@@ -213,7 +214,7 @@ def read_dataframes(worksheet, merge=False) -> list:
 
         for cell in row:
             v = cell.value
-            if cell.data_type in {'s','str'}:
+            if cell.data_type in {'s', 'str'}:
                 v = v.strip()
             if not any_values and v:
                 any_values = True
@@ -235,7 +236,7 @@ def read_dataframes(worksheet, merge=False) -> list:
         df = df[1:]
         dfs.append(df)
     return dfs
-    
+
 
 class TimeDependentConnections(object):
     """
@@ -269,7 +270,7 @@ class TimeDependentConnections(object):
 
     """
 
-    def __init__(self, code_name: str, full_name: str, tvec:np.array, from_pops: list, to_pops: list, interpop_type: str, ts: dict = None, from_pop_type: str = None, to_pop_type: str = None):
+    def __init__(self, code_name: str, full_name: str, tvec: np.array, from_pops: list, to_pops: list, interpop_type: str, ts: dict = None, from_pop_type: str = None, to_pop_type: str = None):
         self.code_name = code_name
         self.full_name = full_name
         self.type = interpop_type
@@ -369,12 +370,12 @@ class TimeDependentConnections(object):
         # Read the time series table
         headings = {}
         times = {}
-        known_headings = {'from population','to population', 'units', 'uncertainty', 'constant', 'assumption'}
+        known_headings = {'from population', 'to population', 'units', 'uncertainty', 'constant', 'assumption'}
         for i, cell in enumerate(tables[2][0]):
             v = cell.value
             if i == 0 or v is None:
                 continue
-            elif cell.data_type in {'s','str'}:
+            elif cell.data_type in {'s', 'str'}:
                 v = v.strip()
                 if v.lower() in known_headings:
                     headings[v.lower()] = i
@@ -384,7 +385,7 @@ class TimeDependentConnections(object):
                 times[v] = i
             else:
                 raise Exception('Unknown data type in cell %s of the spreadsheet - quantity must be a string or a number' % cell.coordinate)
-        tdc.tvec = np.array(sorted(times),dtype=float)
+        tdc.tvec = np.array(sorted(times), dtype=float)
 
         # Validate and process headings
         if not times and 'constant' not in headings:
@@ -468,25 +469,25 @@ class TimeDependentConnections(object):
         column = 0
         worksheet.write(current_row, column, 'Abbreviation', formats["center_bold"])
         update_widths(widths, column, 'Abbreviation')
-        worksheet.write(current_row+1, column, self.code_name)
+        worksheet.write(current_row + 1, column, self.code_name)
         update_widths(widths, column, self.code_name)
 
         column += 1
         worksheet.write(current_row, column, 'Full Name', formats["center_bold"])
         update_widths(widths, column, 'Full Name')
-        worksheet.write(current_row+1, column, self.full_name)
+        worksheet.write(current_row + 1, column, self.full_name)
         update_widths(widths, column, self.full_name)
 
         column += 1
         worksheet.write(current_row, column, 'From population type', formats["center_bold"])
         update_widths(widths, column, 'From population type')
-        worksheet.write(current_row+1, column, self.from_pop_type)
+        worksheet.write(current_row + 1, column, self.from_pop_type)
         update_widths(widths, column, self.from_pop_type)
 
         column += 1
         worksheet.write(current_row, column, 'To population type', formats["center_bold"])
         update_widths(widths, column, 'To population type')
-        worksheet.write(current_row+1, column, self.to_pop_type)
+        worksheet.write(current_row + 1, column, self.to_pop_type)
         update_widths(widths, column, self.to_pop_type)
 
         for attribute, value in self.attributes.items():
@@ -756,7 +757,7 @@ class TimeDependentValuesEntry(object):
 
     """
 
-    def __init__(self, name, tvec: np.array = None, ts=None, allowed_units:list = None, comment: str = None):
+    def __init__(self, name, tvec: np.array = None, ts=None, allowed_units: list = None, comment: str = None):
 
         if ts is None:
             ts = sc.odict()
@@ -768,8 +769,8 @@ class TimeDependentValuesEntry(object):
         self.allowed_units = [x.title() if x in FS.STANDARD_UNITS else x for x in allowed_units] if allowed_units is not None else None  # Otherwise, can be an odict with keys corresponding to ts - leave as None for no restriction
 
         self.attributes = {}  #: Dictionary containing extra attributes to write along with each TimeSeries object.
-                              #  Keys are attribute name, values can be either a scalar or a dict keyed by the same keys as self.ts. Compared to units, uncertainty etc.
-                              #  attributes are store in the TDVE rather than in the TimeSeries
+        #  Keys are attribute name, values can be either a scalar or a dict keyed by the same keys as self.ts. Compared to units, uncertainty etc.
+        #  attributes are store in the TDVE rather than in the TimeSeries
         self.assumption_heading = 'Constant'  #: Heading to use for assumption column
 
         self.write_units = None  #: Write a column for units (if None, units will be written if any of the TimeSeries have units)
@@ -828,7 +829,7 @@ class TimeDependentValuesEntry(object):
             v = cell.value
             if i == 0 or v is None:
                 continue
-            elif cell.data_type in {'s','str'}:
+            elif cell.data_type in {'s', 'str'}:
                 v = v.strip()
                 if v.lower() in known_headings:
                     headings[v.lower()] = i
@@ -838,7 +839,7 @@ class TimeDependentValuesEntry(object):
                 times[v] = i
             else:
                 raise Exception('Unknown data type in cell %s of the spreadsheet - quantity must be a string or a number' % cell.coordinate)
-        tdve.tvec = np.array(sorted(times),dtype=float)
+        tdve.tvec = np.array(sorted(times), dtype=float)
 
         # Validate and process headings
         if not times and 'constant' not in headings:
@@ -858,7 +859,7 @@ class TimeDependentValuesEntry(object):
         ts_entries = sc.odict()
 
         for row in rows[1:]:
-            if not row[0].data_type in {'s','str'}:
+            if not row[0].data_type in {'s', 'str'}:
                 raise Exception('In cell %s of the spreadsheet, the name of the entry was expected to be a string, but it was not. The left-most column is expected to be a name. If you are certain the value is correct, add an single quote character at the start of the cell to ensure it remains as text' % row[0].coordinate)
             series_name = row[0].value.strip()
 
@@ -972,7 +973,7 @@ class TimeDependentValuesEntry(object):
 
             # Write the attributes
             for attribute in self.attributes:
-                if isinstance(self.attributes[attribute],dict):
+                if isinstance(self.attributes[attribute], dict):
                     if row_name in self.attributes[attribute]:
                         val = self.attributes[attribute][row_name]
                     else:
@@ -1049,6 +1050,7 @@ class TimeDependentValuesEntry(object):
                     worksheet.conditional_format(xlrc(current_row, constant_index), {'type': 'formula', 'criteria': '=AND(%s,NOT(ISBLANK(%s)))' % (fcn_empty_times, xlrc(current_row, constant_index)), 'format': formats['ignored_warning']})
 
         return current_row + 2  # Add two so there is a blank line after this table
+
 
 def cell_get_string(cell, allow_empty=False) -> str:
     """

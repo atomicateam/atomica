@@ -193,8 +193,8 @@ class ProgramSet(NamedItem):
         output = sc.prepr(self)
         output += '    Program set name: %s\n' % self.name
         output += '            Programs: %s\n' % [prog for prog in self.programs]
-        output += '        Date created: %s\n' % sc.getdate(self.created.replace(tzinfo=timezone.utc).astimezone(tz=None),dateformat = '%Y-%b-%d %H:%M:%S %Z')
-        output += '       Date modified: %s\n' % sc.getdate(self.modified.replace(tzinfo=timezone.utc).astimezone(tz=None),dateformat = '%Y-%b-%d %H:%M:%S %Z')
+        output += '        Date created: %s\n' % sc.getdate(self.created.replace(tzinfo=timezone.utc).astimezone(tz=None), dateformat='%Y-%b-%d %H:%M:%S %Z')
+        output += '       Date modified: %s\n' % sc.getdate(self.modified.replace(tzinfo=timezone.utc).astimezone(tz=None), dateformat='%Y-%b-%d %H:%M:%S %Z')
         output += '============================================================\n'
         return output
 

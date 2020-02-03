@@ -95,7 +95,8 @@ def test_modalities():
     better = run_test([0.25, 0.25, 0.25, 0.25], [0.8, 0.9, 0.4, 0.35], 0.3, imp_interaction='P0+P1+P2+P3=1.0')
     assert better[2] == (0.25 * 1.0 + 0.75 * 0.3)  # Check that the nested interaction matches known result
 
-    np.seterr(**old_settings) # Reset numpy error behaviour
+    np.seterr(**old_settings)  # Reset numpy error behaviour
+
 
 if __name__ == '__main__':
     test_modalities()

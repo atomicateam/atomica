@@ -1254,7 +1254,7 @@ class ProjectFramework(object):
 
         writer = pd.ExcelWriter(f, engine='xlsxwriter')
         writer.book.set_properties({'category': 'atomica:framework'})
-        standard_formats(writer.book) # Apply formatting
+        standard_formats(writer.book)  # Apply formatting
 
         for sheet_name, dfs in self.sheets.items():
             if sheet_name == 'transitions':
@@ -1297,8 +1297,6 @@ class ProjectFramework(object):
 
         # Return the spreadsheet
         return spreadsheet
-
-
 
     def save_new(self, fname) -> None:
         """

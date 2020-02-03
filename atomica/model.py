@@ -1831,7 +1831,6 @@ class Model(object):
         self._program_cache = None
         self._exec_order = None
 
-
     def relink(self) -> None:
         """
         Replace IDs with references
@@ -2101,7 +2100,7 @@ class Model(object):
         # dynamic programs or to program overwrites.
         par_derivative = self.framework.pars['is derivative'].to_dict()  # Store all parameter names in framework, as well as whether they are a derivative or not
         G = nx.DiGraph()
-        G.add_nodes_from(par_derivative,keep=False)
+        G.add_nodes_from(par_derivative, keep=False)
         for pop in self.pops:
             for par in pop.pars:
                 for dep, dep_var in par.deps.items():
@@ -2126,7 +2125,6 @@ class Model(object):
 
         exec_order['all_pars'] = [x for x in nx.dag.topological_sort(G) if x in self._vars_by_pop]  # Not all parameters may exist depending on populations, so filter out only the ones that are actually instantiated in this Model
         exec_order['dynamic_pars'] = [x for x in exec_order['all_pars'] if G.nodes[x]['keep']]
-
 
         # Set the parameter execution order - this is a list of only transition parameters, used when updating links
         # This is a flat list of parameters, but the order actually should not matter since all parameters should be

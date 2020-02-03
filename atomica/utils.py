@@ -312,15 +312,15 @@ class TimeSeries(object):
 
         """
         if isinstance(t, list):
-            assert isinstance(v, list) and len(t) == len(v), 'Cannot insert non-matching lengths or types  of time and values %s and %s'%(t, v)
+            assert isinstance(v, list) and len(t) == len(v), 'Cannot insert non-matching lengths or types  of time and values %s and %s' % (t, v)
             for ti, vi in zip(t, v):
-                self.insert(ti, vi)        
+                self.insert(ti, vi)
         else:
             if v is None:  # Can't cast a None to a float, just skip it
                 return
-    
+
             v = float(v)  # Convert input to float
-    
+
             if t is None:
                 self.assumption = v
             elif t in self.t:

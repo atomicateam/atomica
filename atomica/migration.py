@@ -26,12 +26,14 @@ import pandas as pd
 
 __all__ = ['migration', 'migrate', 'register_migration']
 
-SKIP_MIGRATION = False # Global migration flag to disable migration
+SKIP_MIGRATION = False  # Global migration flag to disable migration
 
 # MODULE MIGRATIONS
 #
 # In this section, make changes to the Atomica module structure to enable pickle files
 # to be loaded at all
+
+
 class _Placeholder():
     pass
 
@@ -57,6 +59,7 @@ atomica.optimization.OptimInstructions = _Placeholder
 # This dict stores the migrations associated with each versioned class
 # We migrate projects and results separately because they might be stored
 # separately e.g. in a database
+
 
 class Migration:
     """ Class representation of a migration
@@ -135,11 +138,14 @@ def register_migration(registry, classname, original_version, new_version, descr
         return f
     return register
 
-migrations = dict() # Registry of migrations in Atomica
+
+migrations = dict()  # Registry of migrations in Atomica
+
 
 def migration(*args, **kwargs):
     # Wrapper decorator to bind register_migration to the migration registry in this module
     return register_migration(migrations, *args, **kwargs)
+
 
 def migrate(obj, registry=migrations, version=version, gitinfo=gitinfo):
     """ Update a object to the latest version
@@ -166,7 +172,7 @@ def migrate(obj, registry=migrations, version=version, gitinfo=gitinfo):
     """
 
     if type(obj).__name__ not in registry:
-        return obj # If there are no migrations for the object, then return immediately
+        return obj  # If there are no migrations for the object, then return immediately
 
     elif not hasattr(obj, 'version'):
         # If the object has no version attribute, then add one with version 0. This is presumably
@@ -179,13 +185,13 @@ def migrate(obj, registry=migrations, version=version, gitinfo=gitinfo):
 
     if SKIP_MIGRATION:
         print("Skipping migration")
-        return obj # If migration is disabled then don't make any changes EXCEPT to add in version and gitinfo which may otherwise be hard to catch
+        return obj  # If migration is disabled then don't make any changes EXCEPT to add in version and gitinfo which may otherwise be hard to catch
 
     migrations_to_run = sorted(registry[type(obj).__name__], key=lambda m: LooseVersion(m.original_version))
     if sc.compareversions(obj.version, version) >= 0:
         return obj
     else:
-        if hasattr(obj,'name'):
+        if hasattr(obj, 'name'):
             logger.info('Migrating %s "%s" from %s->%s', type(obj).__name__, obj.name, obj.version, version)
         else:
             logger.info('Migrating %s from %s->%s', type(obj).__name__, obj.version, version)
@@ -285,7 +291,7 @@ def all_frameworks(proj):
             yield result.framework
 
 
-@migration('Project','1.0.5', '1.0.6', 'Simplify ParameterSet storage')
+@migration('Project', '1.0.5', '1.0.6', 'Simplify ParameterSet storage')
 def _simplify_parset_storage(proj):
     # ParameterSets in 1.0.5 store the parameters keyed by the type e.g. 'cascade','comp'
     # In 1.0.6 they are flat
@@ -299,7 +305,7 @@ def _simplify_parset_storage(proj):
     return proj
 
 
-@migration('Project','1.0.7', '1.0.8', 'Add version information to model')
+@migration('Project', '1.0.7', '1.0.8', 'Add version information to model')
 def _add_model_version(proj):
     # Note that this is a legacy update via the Project and therefore Results that
     # are stored separately will not receive this migration. It is unlikely that any
@@ -315,7 +321,7 @@ def _add_model_version(proj):
     return proj
 
 
-@migration('Project','1.0.8', '1.0.9', 'Add currency and units to progset quantities')
+@migration('Project', '1.0.8', '1.0.9', 'Add currency and units to progset quantities')
 def _add_currency_and_units(proj):
 
     def add_units(progset):
@@ -335,7 +341,7 @@ def _add_currency_and_units(proj):
     return proj
 
 
-@migration('Project','1.0.9', '1.0.10', 'Remove target_pars from Programs')
+@migration('Project', '1.0.9', '1.0.10', 'Remove target_pars from Programs')
 def _remove_target_pars(proj):
 
     def remove_pars(progset):
@@ -348,13 +354,13 @@ def _remove_target_pars(proj):
     return proj
 
 
-@migration('Project','1.0.10', '1.0.11', 'Add result update flag to Project')
+@migration('Project', '1.0.10', '1.0.11', 'Add result update flag to Project')
 def _add_result_update_flag(proj):
     proj._update_required = False
     return proj
 
 
-@migration('Project','1.0.12', '1.0.13', 'Add timescale to parameters')
+@migration('Project', '1.0.12', '1.0.13', 'Add timescale to parameters')
 def _add_timescale(proj):
     for _, spec in proj.framework.pars.iterrows():
         if proj.framework.transitions[spec.name]:
@@ -374,7 +380,7 @@ def _add_timescale(proj):
     return proj
 
 
-@migration('Project','1.0.13', '1.0.14', 'Parameters use TimeSeries internally')
+@migration('Project', '1.0.13', '1.0.14', 'Parameters use TimeSeries internally')
 def _parameter_use_timeseries(proj):
     for parset in proj.parsets.values():
         for par in parset.all_pars():
@@ -399,7 +405,7 @@ def _parameter_use_timeseries(proj):
     return proj
 
 
-@migration('Project','1.0.14', '1.0.15', 'Internal model tidying')
+@migration('Project', '1.0.14', '1.0.15', 'Internal model tidying')
 def _model_tidying(proj):
     for result in all_results(proj):
         for pop in result.model.pops:
@@ -415,7 +421,7 @@ def _model_tidying(proj):
     return proj
 
 
-@migration('Project','1.0.15', '1.0.16', 'Replace AtomicaSpreadsheet')
+@migration('Project', '1.0.15', '1.0.16', 'Replace AtomicaSpreadsheet')
 def _convert_spreadsheets(proj):
 
     def convert(placeholder):
@@ -432,7 +438,7 @@ def _convert_spreadsheets(proj):
     return proj
 
 
-@migration('Project','1.0.16', '1.0.17', 'Rename capacity constraint')
+@migration('Project', '1.0.16', '1.0.17', 'Rename capacity constraint')
 def _rename_capacity_constraint(proj):
     for progset in all_progsets(proj):
         for prog in progset.programs.values():
@@ -441,7 +447,7 @@ def _rename_capacity_constraint(proj):
     return proj
 
 
-@migration('Result','1.0.27', '1.0.28', 'Rename link labels')
+@migration('Result', '1.0.27', '1.0.28', 'Rename link labels')
 def _rename_link_labels(result):
     for pop in result.model.pops:
         for link in pop.links:
@@ -450,7 +456,7 @@ def _rename_link_labels(result):
     return result
 
 
-@migration('Project','1.0.30', '1.1.3', 'Replace scenarios')
+@migration('Project', '1.0.30', '1.1.3', 'Replace scenarios')
 def _replace_scenarios(proj):
     # This migration upgrades existing scenarios to match the latest definitions
     from .scenarios import ParameterScenario, BudgetScenario, CoverageScenario
@@ -526,7 +532,7 @@ def _replace_scenarios(proj):
     return proj
 
 
-@migration('Project','1.2.0', '1.3.0', 'Add population type')
+@migration('Project', '1.2.0', '1.3.0', 'Add population type')
 def _add_pop_type(proj):
 
     for fw in all_frameworks(proj):
@@ -572,13 +578,14 @@ def _add_pop_type(proj):
     return proj
 
 
-@migration('Project','1.3.0', '1.4.0', 'Parameter can be derivative')
+@migration('Project', '1.3.0', '1.4.0', 'Parameter can be derivative')
 def _add_project_derivatives(proj):
     for fw in all_frameworks(proj):
         fw.pars['is derivative'] = 'n'
     return proj
 
-@migration('Result','1.3.0', '1.4.0', 'Parameter can be derivative')
+
+@migration('Result', '1.3.0', '1.4.0', 'Parameter can be derivative')
 def _add_result_derivatives(result):
     for pop in result.model.pops:
         for par in pop.pars:
@@ -586,7 +593,7 @@ def _add_result_derivatives(result):
     return result
 
 
-@migration('Project','1.4.3', '1.5.0', 'Parameters with functions can be overwritten')
+@migration('Project', '1.4.3', '1.5.0', 'Parameters with functions can be overwritten')
 def _add_parset_disable_function(proj):
     # Add skip_function flag to parset Parameter instances
     for parset in proj.parsets.values():
@@ -595,7 +602,7 @@ def _add_parset_disable_function(proj):
     return proj
 
 
-@migration('Result','1.4.3', '1.5.0', 'Parameters with functions can be overwritten')
+@migration('Result', '1.4.3', '1.5.0', 'Parameters with functions can be overwritten')
 def _result_add_skip_flag(result):
     for pop in result.model.pops:
         for par in pop.pars:
@@ -603,7 +610,7 @@ def _result_add_skip_flag(result):
     return result
 
 
-@migration('Project','1.5.1', '1.5.2', 'OptimInstruction has separate adjustment and start years')
+@migration('Project', '1.5.1', '1.5.2', 'OptimInstruction has separate adjustment and start years')
 def _separate_optiminstruction_years(proj):
     if hasattr(proj, 'optims'):
         for optim in proj.optims.values():
@@ -612,7 +619,7 @@ def _separate_optiminstruction_years(proj):
     return proj
 
 
-@migration('Project','1.7.0', '1.8.0', 'Parameters store interpolation method, deprecate scenario smooth onset')
+@migration('Project', '1.7.0', '1.8.0', 'Parameters store interpolation method, deprecate scenario smooth onset')
 def _add_parameter_interpolation_method(proj):
     for parset in proj.parsets.values():
         for par in parset.all_pars():
@@ -626,7 +633,7 @@ def _add_parameter_interpolation_method(proj):
     return proj
 
 
-@migration('Project','1.8.0', '1.9.0', 'OptimInstructions functionality moved to apps')
+@migration('Project', '1.8.0', '1.9.0', 'OptimInstructions functionality moved to apps')
 def _refactor_optiminstructions(proj):
     if hasattr(proj, 'optims'):
         delkeys = []
@@ -654,7 +661,7 @@ def _refactor_optiminstructions(proj):
     return proj
 
 
-@migration('Project','1.10.0', '1.11.0', 'TDVE stores headings to write internally')
+@migration('Project', '1.10.0', '1.11.0', 'TDVE stores headings to write internally')
 def _add_internal_flags_to_tdve(proj):
     # This migration adds missing attributes to TDVE and TDC objects
     if proj.data:
@@ -679,13 +686,15 @@ def _add_internal_flags_to_tdve(proj):
 
     return proj
 
-@migration('ProjectFramework','1.12.2', '1.13.0', 'Timed compartment updates to framework')
+
+@migration('ProjectFramework', '1.12.2', '1.13.0', 'Timed compartment updates to framework')
 def _add_framework_timed_comps(fw):
     fw.pars['timed'] = 'n'
     fw.comps['duration group'] = None
     return fw
 
-@migration('Result','1.12.2', '1.13.0', 'Timed compartment updates to result')
+
+@migration('Result', '1.12.2', '1.13.0', 'Timed compartment updates to result')
 def _add_result_timed_attribute(result):
     result.model.unlink()
     for pop in result.model.pops:
@@ -703,9 +712,10 @@ def _add_result_timed_attribute(result):
     result.model.relink()  # Make sure all of the references are updated to the new compartment instance - it has the same ID so it should be fine
     return result
 
-@migration('Project','1.14.0', '1.15.0', 'Refactor migration update flag')
+
+@migration('Project', '1.14.0', '1.15.0', 'Refactor migration update flag')
 def _rename_update_field(proj):
-    if not hasattr(proj,'_result_update_required'):
+    if not hasattr(proj, '_result_update_required'):
         proj._result_update_required = False
     proj._update_required = proj._result_update_required
     del proj._result_update_required
@@ -714,22 +724,26 @@ def _rename_update_field(proj):
         result._update_required = False
     return proj
 
-@migration('Project','1.15.0', '1.16.0', 'Projects may change due to uncapped probabilities')
+
+@migration('Project', '1.15.0', '1.16.0', 'Projects may change due to uncapped probabilities')
 def _refactor_settings_storage(proj):
     proj._update_required = True
     return proj
 
-@migration('Result','1.15.0', '1.16.0', 'Results may change due to uncapped probabilities')
+
+@migration('Result', '1.15.0', '1.16.0', 'Results may change due to uncapped probabilities')
 def _refactor_settings_storage(result):
     result._update_required = True
     return result
 
-@migration('Project','1.16.0', '1.17.0', 'Add sim end year validation to project settings')
+
+@migration('Project', '1.16.0', '1.17.0', 'Add sim end year validation to project settings')
 def _refactor_settings_storage(proj):
     proj.settings = atomica.ProjectSettings(**proj.settings.__dict__)
     return proj
 
-@migration('Project','1.17.0', '1.18.0', 'Add data TDC and TDVE attributes')
+
+@migration('Project', '1.17.0', '1.18.0', 'Add data TDC and TDVE attributes')
 def _add_tdc_tdve_attributes(proj):
     if proj.data:
         for tdve in proj.data.tdve.values():

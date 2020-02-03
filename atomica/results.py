@@ -22,6 +22,7 @@ from .utils import NamedItem, evaluate_plot_string, nested_loop
 from .function_parser import parse_function
 from .version import version, gitinfo
 
+
 class Result(NamedItem):
     """
     Storage for single simulation result
@@ -52,7 +53,7 @@ class Result(NamedItem):
         NamedItem.__init__(self, name)
 
         self.uid = sc.uuid()
-        self.version = version # Track versioning information for the result. This might change due to migration (whereas by convention, the model version does not)
+        self.version = version  # Track versioning information for the result. This might change due to migration (whereas by convention, the model version does not)
         self.gitinfo = gitinfo
 
         # The Result constructor is called in model.run_model and the Model is no longer returned.
@@ -177,36 +178,36 @@ class Result(NamedItem):
 
         if year is None:
             year = self.t
-            
+
         prop_coverage = self.get_coverage(quantity='fraction', year=year)
         num_eligible = self.get_coverage(quantity='eligible', year=year)
-        
+
         equivalent_alloc = sc.odict()
         for prog in prop_coverage.keys():
             uc = self.model.progset.programs[prog].unit_cost.interpolate(year)
             pc = sc.dcp(prop_coverage[prog])
-                     
+
             if self.model.progset.programs[prog].saturation.has_data:
                 sat = self.model.progset.programs[prog].saturation.interpolate(year)
-                
-                #If prop_covered is higher than the saturation then set it to nan (without the error that would happen from np.log)
+
+                # If prop_covered is higher than the saturation then set it to nan (without the error that would happen from np.log)
                 pc[pc >= sat] = np.nan
-            
-                #invert the calculation on the proportional coverage to determine the necessary "costed" coverage
-                pc = -sat * np.log((sat - pc)/(sat + pc))/2.
-            
-            #Calculating the program coverage, capacity constraint is applied first, then saturation, so it needs to happen second when reversing the calculation
+
+                # invert the calculation on the proportional coverage to determine the necessary "costed" coverage
+                pc = -sat * np.log((sat - pc) / (sat + pc)) / 2.
+
+            # Calculating the program coverage, capacity constraint is applied first, then saturation, so it needs to happen second when reversing the calculation
             if self.model.progset.programs[prog].capacity_constraint.has_data:
-                cap = self.model.progset.programs[prog].capacity_constraint.interpolate(year)  
-                #If prop_covered is higher than the capacity constraint then set it to nan as it wouldn't be possible to reach that coverage
+                cap = self.model.progset.programs[prog].capacity_constraint.interpolate(year)
+                # If prop_covered is higher than the capacity constraint then set it to nan as it wouldn't be possible to reach that coverage
                 pc[pc * num_eligible[prog] >= cap] = np.nan
-            
-            #multiply the proportion of naively costed coverage by the number of actually eligible people (catching the case where number covered would be higher than the number eligible)
+
+            # multiply the proportion of naively costed coverage by the number of actually eligible people (catching the case where number covered would be higher than the number eligible)
             num_costed_coverage = pc * num_eligible[prog]
-            
+
             equivalent_alloc[prog] = uc * num_costed_coverage
-            
-            if '/year' in self.model.progset.programs[prog].coverage.units: #it's a one-off program, need to multiply by the time step to annualize spending
+
+            if '/year' in self.model.progset.programs[prog].coverage.units:  # it's a one-off program, need to multiply by the time step to annualize spending
                 equivalent_alloc[prog] /= self.dt
 
         return equivalent_alloc
@@ -648,7 +649,7 @@ def _programs_to_df(results, prog_name, tvals):
             vals = PlotData.programs(result, outputs=prog_name, quantity='spending').interpolate(tvals)
             vals.series[0].vals[~programs_active] = np.nan
             data[(prog_name, result.name, 'Spending ($/year)')] = vals.series[0].vals
-            
+
             vals = PlotData.programs(result, outputs=prog_name, quantity='equivalent_spending').interpolate(tvals)
             vals.series[0].vals[~programs_active] = np.nan
             data[(prog_name, result.name, 'Equivalent spending ($/year)')] = vals.series[0].vals
@@ -1500,10 +1501,10 @@ class Ensemble(NamedItem):
             ax = plt.gca()
             pd.plotting.scatter_matrix(df, ax=ax, c=[colormap[x] for x in df['result'].values], diagonal='kde')
             plt.suptitle(pop)
-            
+
             figs.append(fig)
         return figs
-    
+
 
 def _sample_and_map(proj, parset, progset, progset_instructions, result_names, mapping_function, max_attempts, **kwargs):
     """
