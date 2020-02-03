@@ -766,7 +766,7 @@ class ProjectData(sc.prettyobj):
 
         from_pops = [name for name, pop_spec in self.pops.items() if pop_spec['type'] == from_pop_type]
         to_pops = [name for name, pop_spec in self.pops.items() if pop_spec['type'] == to_pop_type]
-        interpop = TimeDependentConnections(code_name, full_name, self.tvec, from_pops=from_pops, to_pops=to_pops, interpop_type='interaction', ts=None, from_pop_type=from_pop_type, to_pop_type=to_pop_type)
+        interpop = TimeDependentConnections(code_name, full_name, tvec=self.tvec, from_pops=from_pops, to_pops=to_pops, interpop_type='interaction', ts=None, from_pop_type=from_pop_type, to_pop_type=to_pop_type)
         interpop.write_units = True
         interpop.write_assumption = True
         interpop.write_uncertainty = True

@@ -229,7 +229,7 @@ class TimeDependentConnections(object):
 
     """
 
-    def __init__(self, code_name: str, full_name: str, tvec, from_pops: list, to_pops: list, interpop_type: str, ts: dict = None, from_pop_type: str = None, to_pop_type: str = None):
+    def __init__(self, code_name: str, full_name: str, from_pops: list, to_pops: list, interpop_type: str, tvec: np.array = None, ts: dict = None, from_pop_type: str = None, to_pop_type: str = None):
         self.code_name = code_name
         self.full_name = full_name
         self.type = interpop_type
@@ -240,6 +240,8 @@ class TimeDependentConnections(object):
         self.tvec = tvec
         self.ts = ts if ts is not None else sc.odict()
 
+        self.attributes = {}  #: Attributes associated with the table
+        self.ts_attributes = {}  #: Attributes associated with each TimeSeries row
         self.assumption_heading = 'Constant'  #: Heading to use for assumption column
         self.write_units = None  #: Write a column for units (if None, units will be written if any of the TimeSeries have units)
         self.write_uncertainty = None  #: Write a column for units (if None, units will be written if any of the TimeSeries have uncertainty)
@@ -279,21 +281,37 @@ class TimeDependentConnections(object):
 
         assert interaction_type in {'transfer', 'interaction'}, 'Unknown interaction type'
 
-        # Read the name table
-        code_name = tables[0][1][0].value
-        full_name = tables[0][1][1].value
-        if len(tables[0][0]) > 2 and sc.isstring(tables[0][0][2].value) and tables[0][0][2].value.strip().lower() == 'from population type' and tables[0][1][2].value is not None:
-            from_pop_type = cell_get_string(tables[0][1][2])
-        else:
-            from_pop_type = None
+        # Read the TDC definition table (including attributes)
+        code_name = None
+        full_name = None
+        from_pop_type = None
+        to_pop_type = None
 
-        if len(tables[0][0]) > 3 and sc.isstring(tables[0][0][3].value) and tables[0][0][3].value.strip().lower() == 'to population type' and tables[0][1][3].value is not None:
-            to_pop_type = cell_get_string(tables[0][1][3])
-        else:
-            to_pop_type = None
+        attributes = {}
+        for header_cell, value_cell in zip(tables[0][0], tables[0][1]):
+            if header_cell.value is None:
+                continue
+            header = cell_get_string(header_cell).strip()
+            lowered_header = header.lower()
+            if lowered_header == 'abbreviation':
+                code_name = cell_get_string(value_cell).strip()
+            elif lowered_header == 'full name':
+                full_name = cell_get_string(value_cell).strip()
+            elif lowered_header == 'from population type':
+                from_pop_type = cell_get_string(value_cell).strip()
+            elif lowered_header == 'to population type':
+                to_pop_type = cell_get_string(value_cell).strip()
+            else:
+                attributes[header] = value_cell.value
 
         if interaction_type == 'transfer':
             assert from_pop_type == to_pop_type, 'Transfers can only occur between populations of the same type'
+
+        if code_name is None:
+            raise Exception('Code name/abbreviation missing')
+
+        if full_name is None:
+            raise Exception('Full name missing')
 
         # Read the pops from the Y/N table. The Y/N content of the table depends on the timeseries objects that
         # are present. That is, if the Y/N matrix contains a Y then a TimeSeries must be read in, and vice versa.
@@ -304,50 +322,47 @@ class TimeDependentConnections(object):
         for row in tables[1][1:]:
             from_pops.append(row[0].value)
 
-        # Now read any TimeSeries entries that are present. First we need to work out which columns are which, and
-        # what times are present
-        vals = [x.value for x in tables[2][0]]
-        lowered_headings = [x.lower().strip() if sc.isstring(x) else x for x in vals]
-        offset = 3  # The column where time values normally start
+        # Instatiate it
+        tdc = TimeDependentConnections(code_name, full_name, from_pops=from_pops, to_pops=to_pops, interpop_type=interaction_type, from_pop_type=from_pop_type, to_pop_type=to_pop_type)
+        tdc.attributes = attributes
 
-        if 'units' in lowered_headings:
-            units_index = lowered_headings.index('units')
-            write_units = True
-            offset += 1
-        else:
-            units_index = None
-            write_units = None  # If the Units column is missing, don't automatically suppress it if the user later adds some units
+        # Read the time series table
+        headings = {}
+        times = {}
+        known_headings = {'from population','to population', 'units', 'uncertainty', 'constant', 'assumption'}
+        for i, cell in enumerate(tables[2][0]):
+            v = cell.value
+            if i == 0 or v is None:
+                continue
+            elif cell.data_type in {'s','str'}:
+                v = v.strip()
+                if v.lower() in known_headings:
+                    headings[v.lower()] = i
+                else:
+                    headings[v] = i
+            elif cell.data_type == 'n':
+                times[v] = i
+            else:
+                raise Exception('Unknown data type in cell %s of the spreadsheet - quantity must be a string or a number' % cell.coordinate)
+        tdc.tvec = np.array(sorted(times),dtype=float)
 
-        if 'uncertainty' in lowered_headings:
-            uncertainty_index = lowered_headings.index('uncertainty')
-            write_uncertainty = True
-            offset += 1
-        else:
-            uncertainty_index = None
-            write_uncertainty = None
+        # Validate and process headings
+        if not times and 'constant' not in headings:
+            raise Exception('Could not find an assumption or time-specific value - all tables must contain at least one of these values')
+        tdc.write_units = True if 'units' in headings else None
+        tdc.write_uncertainty = True if 'uncertainty' in headings else None
+        tdc.write_assumption = True if 'constant' in headings else None
+        if 'assumption' in headings:
+            tdc.write_assumption = True
+            tdc.assumption_heading = 'Assumption'
+        for heading in headings:
+            if heading not in known_headings:
+                # If it's not a known heading and it's a string, then it must be an attribute
+                # Note that the way `headings` is populated by skipping i=0 ensures that the table name
+                # is not interpreted as a heading
+                tdc.ts_attributes[heading] = {}
 
-        if 'constant' in lowered_headings:
-            constant_index = lowered_headings.index('constant')
-            write_assumption = True
-            assumption_heading = 'Constant'
-            offset += 2
-        elif 'assumption' in lowered_headings:
-            constant_index = lowered_headings.index('assumption')
-            write_assumption = True
-            assumption_heading = 'Assumption'
-            offset += 2
-        else:
-            constant_index = None
-            write_assumption = None
-            assumption_heading = None
-
-        if None in vals[offset:]:  # This handles the case where an empty column is followed by comments
-            t_end = offset + vals[offset:].index(None)
-        else:
-            t_end = len(vals)
-        tvec = np.array(vals[offset:t_end], dtype=float)
-        ts_entries = sc.odict()
-
+        tdc.ts = sc.odict()
         for row in tables[2][1:]:
             if row[0].value != '...':
                 assert row[0].value in from_pops, 'Population "%s" not found - should be contained in %s' % (row[0].value, from_pops)
@@ -356,42 +371,34 @@ class TimeDependentConnections(object):
                 from_pop = vals[0]
                 to_pop = vals[2]
 
-                if units_index is not None and vals[units_index]:
-                    assert sc.isstring(vals[units_index]), "The 'units' quantity needs to be specified as text e.g. 'probability'"
-                    units = vals[units_index]
+                if 'units' in headings:
+                    units = cell_get_string(row[headings['units']], allow_empty=True)
                     if units.lower().strip() in FS.STANDARD_UNITS:
                         units = units.lower().strip()  # Only lower and strip units if they are standard units
                 else:
                     units = None
-
                 ts = TimeSeries(units=units)
 
-                if uncertainty_index is not None:
-                    ts.sigma = cell_get_number(row[uncertainty_index])
+                if 'uncertainty' in headings:
+                    ts.sigma = cell_get_number(row[headings['uncertainty']])
                 else:
                     ts.sigma = None
 
-                if constant_index is not None:
-                    ts.assumption = cell_get_number(row[constant_index])
+                if 'constant' in headings:
+                    ts.assumption = cell_get_number(row[headings['constant']])
+                elif 'assumption' in headings:
+                    ts.assumption = cell_get_number(row[headings['assumption']])
                 else:
                     ts.assumption = None
 
-                if constant_index is not None:
-                    assert sc.isstring(vals[offset - 1]) and vals[offset - 1].strip().lower() == 'or', 'Error with validating row in TDC table "%s" (did not find the text "OR" in the expected place)' % (code_name)  # Check row is as expected
+                for attribute in tdc.ts_attributes:
+                    tdc.ts_attributes[attribute][(from_pop, to_pop)] = row[headings[attribute]].value
 
-                data_cells = row[offset:t_end]
+                for t, idx in times.items():
+                    ts.insert(t, cell_get_number(row[idx]))  # If cell_get_number returns None, this gets handled accordingly by ts.insert()
 
-                for t, cell in zip(tvec, data_cells):
-                    if np.isfinite(t):  # Ignore any times that are NaN - this happens if the cell was empty and casted to a float
-                        ts.insert(t, cell_get_number(cell))  # If cell_get_number returns None, this gets handled accordingly by ts.insert()
-                ts_entries[(from_pop, to_pop)] = ts
+                tdc.ts[(from_pop, to_pop)] = ts
 
-        tdc = TimeDependentConnections(code_name, full_name, tvec, from_pops=from_pops, to_pops=to_pops, interpop_type=interaction_type, ts=ts_entries, from_pop_type=from_pop_type, to_pop_type=to_pop_type)
-        tdc.write_assumption = write_assumption
-        tdc.write_uncertainty = write_uncertainty
-        tdc.write_units = write_units
-        if assumption_heading:
-            tdc.assumption_heading = assumption_heading
         return tdc
 
     def write(self, worksheet, start_row, formats, references: dict = None, widths: dict = None) -> int:
@@ -417,30 +424,43 @@ class TimeDependentConnections(object):
 
         # First, write the name entry table
         current_row = start_row
-        worksheet.write(current_row, 0, 'Abbreviation', formats["center_bold"])
-        update_widths(widths, 0, 'Abbreviation')
-        worksheet.write(current_row, 1, 'Full Name', formats["center_bold"])
-        update_widths(widths, 1, 'Full Name')
-        worksheet.write(current_row, 2, 'From population type', formats["center_bold"])
-        update_widths(widths, 2, 'From population type')
-        worksheet.write(current_row, 3, 'To population type', formats["center_bold"])
-        update_widths(widths, 3, 'To population type')
 
-        current_row += 1
-        worksheet.write(current_row, 0, self.code_name)
-        update_widths(widths, 0, self.code_name)
-        worksheet.write(current_row, 1, self.full_name)
-        update_widths(widths, 1, self.full_name)
-        worksheet.write(current_row, 2, self.from_pop_type)
-        update_widths(widths, 2, self.from_pop_type)
-        worksheet.write(current_row, 3, self.to_pop_type)
-        update_widths(widths, 3, self.to_pop_type)
+        column = 0
+        worksheet.write(current_row, column, 'Abbreviation', formats["center_bold"])
+        update_widths(widths, column, 'Abbreviation')
+        worksheet.write(current_row+1, column, self.code_name)
+        update_widths(widths, column, self.code_name)
+
+        column += 1
+        worksheet.write(current_row, column, 'Full Name', formats["center_bold"])
+        update_widths(widths, column, 'Full Name')
+        worksheet.write(current_row+1, column, self.full_name)
+        update_widths(widths, column, self.full_name)
+
+        column += 1
+        worksheet.write(current_row, column, 'From population type', formats["center_bold"])
+        update_widths(widths, column, 'From population type')
+        worksheet.write(current_row+1, column, self.from_pop_type)
+        update_widths(widths, column, self.from_pop_type)
+
+        column += 1
+        worksheet.write(current_row, column, 'To population type', formats["center_bold"])
+        update_widths(widths, column, 'To population type')
+        worksheet.write(current_row+1, column, self.to_pop_type)
+        update_widths(widths, column, self.to_pop_type)
+
+        for attribute, value in self.attributes.items():
+            column += 1
+            worksheet.write(current_row, column, attribute, formats["center_bold"])
+            update_widths(widths, column, attribute)
+            worksheet.write(current_row + 1, column, value)
+            update_widths(widths, column, value)
 
         references[self.code_name] = "='%s'!%s" % (worksheet.name, xlrc(current_row, 0, True, True))
         references[self.full_name] = "='%s'!%s" % (worksheet.name, xlrc(current_row, 1, True, True))  # Reference to the full name
 
         # Then, write the Y/N matrix
-        current_row += 2  # Leave a blank row below the matrix
+        current_row += 3  # Leave a blank row below the matrix
         # Note - table_references are local to this TimeDependentConnections instance
         # For example, there could be two transfers, and each of them could potentially transfer between 0-4 and 5-14
         # so the worksheet might contain two references from 0-4 to 5-14 but they would be for different transfers and thus
@@ -449,10 +469,16 @@ class TimeDependentConnections(object):
 
         # Finally, write the time dependent part
         headings = []
-        headings.append('')  # From
+        headings.append('From population')
         headings.append('')  # --->
-        headings.append('')  # To
+        headings.append('To population')
         offset = len(headings)
+
+        attribute_index = {}
+        for attribute in self.ts_attributes:
+            attribute_index[attribute] = offset
+            headings.append(attribute)
+            offset += 1
 
         if write_units:
             headings.append('Units')
@@ -472,7 +498,10 @@ class TimeDependentConnections(object):
 
         headings += [float(x) for x in self.tvec]
         for i, entry in enumerate(headings):
-            worksheet.write(current_row, i, entry, formats['center_bold'])
+            if entry in references:
+                worksheet.write_formula(current_row, 0, references[entry], formats['center_bold'], value=entry)
+            else:
+                worksheet.write(current_row, i, entry, formats['center_bold'])
             update_widths(widths, i, entry)
 
         # Now, we will write a wrapper that gates the content
@@ -491,6 +520,11 @@ class TimeDependentConnections(object):
                 entry_tuple = (from_pop, to_pop)
                 entry_cell = table_references[entry_tuple]
 
+                # Write hyperlink
+                if values_written[entry_cell] != FS.DEFAULT_SYMBOL_INAPPLICABLE:
+                    worksheet.write_url(entry_cell, 'internal:%s!%s' % (worksheet.name, xlrc(current_row, 1)), cell_format=formats['center_unlocked'], string=values_written[entry_cell])
+                    worksheet.write_url(xlrc(current_row, 1), 'internal:%s!%s' % (worksheet.name, entry_cell), cell_format=formats['center_unlocked'])
+
                 if entry_tuple in self.ts:
                     ts = self.ts[entry_tuple]
                     format = formats['not_required']
@@ -504,6 +538,20 @@ class TimeDependentConnections(object):
                     worksheet.write_formula(current_row, 1, gate_content('--->', entry_cell), formats['center'], value='--->')
                     worksheet.write_formula(current_row, 2, gate_content(references[to_pop], entry_cell), formats['center_bold'], value=to_pop)
                     update_widths(widths, 2, to_pop)
+
+                    # Write the attributes
+                    for attribute in self.ts_attributes:
+                        if isinstance(self.ts_attributes[attribute], dict):
+                            if entry_tuple in self.ts_attributes[attribute]:
+                                val = self.ts_attributes[attribute][entry_tuple]
+                            else:
+                                val = None
+                        else:
+                            val = self.ts_attributes[attribute]
+
+                        if val is not None:
+                            worksheet.write(current_row, attribute_index[attribute], val)
+                            update_widths(widths, attribute_index[attribute], val)
 
                     if self.write_units:
                         worksheet.write(current_row, units_index, ts.units.title(), format)
@@ -537,11 +585,6 @@ class TimeDependentConnections(object):
                         worksheet.write_blank(current_row, constant_index, '', format)
                         worksheet.write_formula(current_row, constant_index + 1, gate_content('OR', entry_cell), formats['center'], value='...')
                         update_widths(widths, constant_index + 1, '...')
-
-                # Write hyperlink - it's a bit convoluted because we can't read back the contents of the original cell to know
-                # whether it was originally Y or N
-                if values_written[entry_cell] != FS.DEFAULT_SYMBOL_INAPPLICABLE:
-                    worksheet.write_url(entry_cell, 'internal:%s!%s' % (worksheet.name, xlrc(current_row, 2)), cell_format=formats['center_unlocked'], string=values_written[entry_cell])
 
                 content = [None] * len(self.tvec)
 
@@ -673,7 +716,7 @@ class TimeDependentValuesEntry(object):
 
     """
 
-    def __init__(self, name, tvec=None, ts=None, allowed_units=None, comment=None):
+    def __init__(self, name, tvec: np.array = None, ts=None, allowed_units:list = None, comment: str = None):
 
         if ts is None:
             ts = sc.odict()
@@ -754,7 +797,7 @@ class TimeDependentValuesEntry(object):
             elif cell.data_type == 'n':
                 times[v] = i
             else:
-                raise Exception('Unknown data type in cell %s of the spreadsheet - quantity must be a string or a number' % rows[0][0].coordinate)
+                raise Exception('Unknown data type in cell %s of the spreadsheet - quantity must be a string or a number' % cell.coordinate)
         tdve.tvec = np.array(sorted(times),dtype=float)
 
         # Validate and process headings
@@ -766,7 +809,6 @@ class TimeDependentValuesEntry(object):
         if 'assumption' in headings:
             tdve.write_assumption = True
             tdve.assumption_heading = 'Assumption'
-        attributes = [x for x in headings if x not in known_headings] # Get remaining attributes
         for heading in headings:
             if heading not in known_headings:
                 # If it's not a known heading and it's a string, then it must be an attribute
@@ -987,6 +1029,7 @@ def cell_get_string(cell, allow_empty=False) -> str:
         raise Exception('Cell %s needs to contain a string (i.e. not a number, date, or other cell type)' % cell.coordinate)
     else:
         return cell.value.strip()
+
 
 def cell_get_number(cell, dtype=float):
     """
