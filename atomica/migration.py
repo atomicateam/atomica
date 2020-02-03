@@ -728,3 +728,13 @@ def _refactor_settings_storage(result):
 def _refactor_settings_storage(proj):
     proj.settings = atomica.ProjectSettings(**proj.settings.__dict__)
     return proj
+
+@migration('Project','1.17.0', '1.18.0', 'Add data TDC and TDVE attributes')
+def _add_tdc_tdve_attributes(proj):
+    if proj.data:
+        for tdve in proj.data.tdve.values():
+            tdve.attributes = {}
+        for tdc in proj.data.transfers + proj.data.interpops:
+            tdc.attributes = {}
+            tdc.ts_attributes = {}
+    return proj
