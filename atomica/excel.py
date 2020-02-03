@@ -740,12 +740,17 @@ class TimeDependentValuesEntry(object):
         # Read the headings
         headings = {}
         times = {}
+        known_headings = {'units', 'uncertainty', 'constant', 'assumption'}
         for i, cell in enumerate(rows[0]):
             v = cell.value
             if i == 0 or v is None:
                 continue
             elif cell.data_type in {'s','str'}:
-                headings[v.lower().strip()] = i
+                v = v.strip()
+                if v.lower() in known_headings:
+                    headings[v.lower()] = i
+                else:
+                    headings[v] = i
             elif cell.data_type == 'n':
                 times[v] = i
             else:
@@ -761,9 +766,13 @@ class TimeDependentValuesEntry(object):
         if 'assumption' in headings:
             tdve.write_assumption = True
             tdve.assumption_heading = 'Assumption'
-        attributes = {x for x in headings if x not in {'units','uncertainty','constant','assumption'}} # Get remaining attributes
-        for attribute in attributes:
-            tdve.attributes[attribute] = {}
+        attributes = [x for x in headings if x not in known_headings] # Get remaining attributes
+        for heading in headings:
+            if heading not in known_headings:
+                # If it's not a known heading and it's a string, then it must be an attribute
+                # Note that the way `headings` is populated by skipping i=0 ensures that the table name
+                # is not interpreted as a heading
+                tdve.attributes[heading] = {}
         ts_entries = sc.odict()
 
         for row in rows[1:]:
@@ -791,7 +800,7 @@ class TimeDependentValuesEntry(object):
             else:
                 ts.assumption = None
 
-            for attribute in attributes:
+            for attribute in tdve.attributes:
                 tdve.attributes[attribute][series_name] = row[headings[attribute]].value
 
             for t, idx in times.items():
@@ -833,6 +842,13 @@ class TimeDependentValuesEntry(object):
         headings.append(self.name)
         offset = 1  # This is the column where the time values start (after the 'or')
 
+        # Next allocate attributes
+        attribute_index = {}
+        for attribute in self.attributes:
+            attribute_index[attribute] = offset
+            headings.append(attribute)
+            offset += 1
+
         if write_units:
             headings.append('Units')
             units_index = offset  # Column to write the units in
@@ -872,9 +888,22 @@ class TimeDependentValuesEntry(object):
                 worksheet.write_string(current_row, 0, row_name, formats['center_bold'])
                 update_widths(widths, 0, row_name)
 
+            # Write the attributes
+            for attribute in self.attributes:
+                if isinstance(self.attributes[attribute],dict):
+                    if row_name in self.attributes[attribute]:
+                        val = self.attributes[attribute][row_name]
+                    else:
+                        val = None
+                else:
+                    val = self.attributes[attribute]
+
+                if val is not None:
+                    worksheet.write(current_row, attribute_index[attribute], val)
+                    update_widths(widths, attribute_index[attribute], val)
+
             # Write the units
             if write_units:
-
                 if row_ts.units:
                     if row_ts.units.lower().strip() in FS.STANDARD_UNITS:  # Preserve case if nonstandard unit
                         unit = row_ts.units.title().strip()
