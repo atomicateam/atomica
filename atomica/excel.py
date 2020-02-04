@@ -253,8 +253,10 @@ def read_dataframes(worksheet, merge=False) -> list:
 
     dfs = []
     for table in tables:
-        df = pd.DataFrame(table[1:,:],columns=table[0,:])
+        df = pd.DataFrame(table)
         df.dropna(axis=1, how='all', inplace=True)
+        df.columns = df.iloc[0]
+        df = df[1:]
         dfs.append(df)
     return dfs
 
