@@ -203,37 +203,58 @@ def read_dataframes(worksheet, merge=False) -> list:
     # until it gets to the first entirely empty row
     # And then returns the contents of that buffer as a table. So a table is a list of openpyxl rows
     # This function continues until it has exhausted all of the rows in the sheet
-    tables = []
-    buffer = []
-    for row in worksheet.rows:
+
+    content = np.empty((worksheet.max_row, worksheet.max_column), dtype='object')
+    ignore = np.zeros((worksheet.max_row), dtype=bool)
+    empty = np.zeros((worksheet.max_row), dtype=bool) # True for index where a new table begins
+
+    for i,row in enumerate(worksheet.rows):
         if len(row) > 0 and (row[0].data_type == 's' and row[0].value.startswith('#ignore')):
+            ignore[i] = True
             continue
-
-        row_values = []
+            
         any_values = False
-
-        for cell in row:
+        for j,cell in enumerate(row):
             v = cell.value
             if cell.data_type in {'s', 'str'}:
                 v = v.strip()
             if not any_values and v:
                 any_values = True
-            row_values.append(v)
-        if not any_values and buffer and not merge:
-            tables.append(buffer)
-            buffer = []
-        elif any_values:
-            buffer.append(row_values)
+            content[i,j] = v
+        if not any_values:
+            empty[i] = True
 
-    if buffer:
-        tables.append(buffer)
+    tables = []
+    if merge:
+        ignore[empty] = True
+        tables.append(content[~ignore,:])
+    else:
+        # A change from False to True means that we need to start a new table
+        # A True followed by a True doesn't start a new table but instead gets ignored
+        content = content[~ignore,:]
+        empty = empty[~ignore]
+        idx = [0]
+        for i in range(len(empty)-1):
+            if not empty[i] and empty[i+1]:
+                # row i is the last row in the table (so need to include it in the range, hence +1)
+                idx.append(i+1)
+            elif empty[i] and not empty[i+1]:
+                # Row i+1 marks the start of a table
+                idx.append(i+1)
+        if not empty[-1]:
+            # If the last row has content, then make sure that the last table goes all the way up
+            idx.append(empty.size)
+
+        assert not len(idx)%2, 'Error in table parsing routine, did not correctly identify table breaks'
+
+        tables = []
+        for i in range(0,len(idx)-1,2):
+            tables.append(content[idx[i]:idx[i+1]].copy())
 
     dfs = []
     for table in tables:
-        df = pd.DataFrame.from_records(table)
+        df = pd.DataFrame(table[1:,:],columns=table[0,:])
         df.dropna(axis=1, how='all', inplace=True)
-        df.columns = df.iloc[0]
-        df = df[1:]
         dfs.append(df)
     return dfs
 
