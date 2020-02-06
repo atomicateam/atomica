@@ -766,10 +766,13 @@ class TimedCompartment(Compartment):
                     self._vals[-1, ti] += sum(link._vals[self._vals.shape[0]:, tr].tolist())
 
         # Advance the keyring
-        assert np.isclose(self._vals[0, ti], 0)  # Now, the final subcompartment should be empty - can disable this check if it's slow
+        # If this TimedCompartment has only one row, then anyone coming in via TimedLinks will be placed directly
+        # in the final subcompartment (which is also the initial subcompartment). We are assuming that the cached
+        # outflow correctly emptied everyone in the flush compartment so don't check that the final subcompartment
+        # is empty because people could have been added to it in this timestep
         if self._vals.shape[0] > 1:
             self._vals[0:-1, ti] = self._vals[1:, ti]
-        self._vals[-1, ti] = 0.0  # Zero out the inflow (otherwise, it just replicates previous value)
+            self._vals[-1, ti] = 0.0  # Zero out the inflow (otherwise, it just replicates previous value)
 
         # Now, resolve other inputs for which durations are not preserved
         # Regardless of whether they are TimedLinks or not, they should go into the initial subcompartment
