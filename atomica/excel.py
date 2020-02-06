@@ -227,20 +227,32 @@ def read_dataframes(worksheet, merge=False) -> list:
     tables = []
     if merge:
         ignore[empty] = True
+        if all(ignore):
+            return []
         tables.append(content[~ignore,:])
     else:
         # A change from False to True means that we need to start a new table
         # A True followed by a True doesn't start a new table but instead gets ignored
         content = content[~ignore,:]
         empty = empty[~ignore]
-        idx = [0]
+
+        # If there is no content at all, return immediately
+        if all(empty):
+            return []
+
+        idx = []
         for i in range(len(empty)-1):
+            if not empty[i] and not idx:
+                # Write the first line. This could be followed by an empty row, so need to a separate block for this
+                idx.append(i)
+
             if not empty[i] and empty[i+1]:
                 # row i is the last row in the table (so need to include it in the range, hence +1)
                 idx.append(i+1)
             elif empty[i] and not empty[i+1]:
                 # Row i+1 marks the start of a table
                 idx.append(i+1)
+
         if not empty[-1]:
             # If the last row has content, then make sure that the last table goes all the way up
             idx.append(empty.size)
