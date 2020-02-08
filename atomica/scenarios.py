@@ -207,9 +207,11 @@ class ParameterScenario(Scenario):
 
     :param name: The name of the scenario. This will also be used to name the result
     :param scenario_values: A dict of overwrites to parameter values. The structure is
-        ``{parameter_label: {pop_label: dict o}`` where the overwrite ``o`` contains keys
+        ``{parameter_label: {pop_identifier: dict o}`` where the overwrite ``o`` contains keys
          - ``t`` : np.array or list with year values
          - ``y`` : np.array or list with corresponding parameter values
+         The ``pop_identifier`` is a single population name if the ``parameter_label`` corresponds to a Framework parameter
+         or it should be a tuple/list ``(from_pop,to_pop)`` if the ``parameter_label`` corresponds to an interaction or transfer.
     :param active: If running via ``Project.run_scenarios`` this flags whether to run the scenario
     :param parsetname: If running via ``Project.run_scenarios`` this identifies which parset to use from the project
     :param interpolation: The specified interpolation method will be used to interpolate scenario values onto simulation times. Common options are 'linear' (smoothly change) and 'previous' (stepped)
