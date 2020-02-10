@@ -157,7 +157,7 @@ def read_tables(worksheet) -> tuple:
     for i, row in enumerate(worksheet.rows):
 
         # Skip any rows starting with '#ignore'
-        if row[0].data_type == 's' and row[0].value.startswith('#ignore'):
+        if len(row)>0 and row[0].data_type == 's' and row[0].value.startswith('#ignore'):
             continue  # Move on to the next row if row skipping is marked True
 
         # Find out whether we need to add the row to the buffer
