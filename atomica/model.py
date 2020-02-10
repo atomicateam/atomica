@@ -839,8 +839,9 @@ class Characteristic(Variable):
 
         self.t = tvec
         self.dt = dt
-        self._vals = np.empty(tvec.shape)
-        self._vals.fill(np.nan)
+        if self._is_dynamic:
+            self._vals = np.empty(tvec.shape)
+            self._vals.fill(np.nan)
 
     def get_included_comps(self):
         includes = []
