@@ -2143,6 +2143,7 @@ class Model(object):
         G = nx.DiGraph()
         for pop in self.pops:
             for charac in pop.characs:
+                G.add_node(charac)
                 for include in charac.includes:
                     if isinstance(include, Characteristic):
                         G.add_edge(include, charac)  # Note directionality - the included characteristic needs to be added first
