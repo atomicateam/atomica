@@ -13,6 +13,11 @@ def test_progbooks():
     pset = at.ProgramSet.from_spreadsheet(tmpdir + 'progbook_test.xlsx', F, D)
     pset.save(tmpdir + 'progbook_test2.xlsx')
 
+    # Test running a simulation with a newly saved workbook
+    P = at.Project(framework=at.LIBRARY_PATH + 'tb_framework.xlsx', databook=at.LIBRARY_PATH + 'tb_databook.xlsx', do_run=False)
+    P.load_progbook(tmpdir + 'progbook_test2.xlsx')
+    P.run_sim(P.parsets[0], P.progsets[0], at.ProgramInstructions(start_year=2019))
+
     # Test adding things
     pset.add_program('newprog', 'New Program')
     pset.add_par('newpar', 'New Parameter')
