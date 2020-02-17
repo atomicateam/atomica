@@ -515,19 +515,27 @@ class ProjectData(sc.prettyobj):
                 assert ts.units is not None, 'Units are missing for transfer %s, %s->%s' % (tdc.full_name, to_pop, from_pop)
         return True
 
-    def to_spreadsheet(self) -> sc.Spreadsheet:
+    def to_workbook(self) -> tuple:
         """
-        Return content as a Sciris Spreadsheet
+        Return an open workbook for the databook
 
-        :return: A :class:`sciris.Spreadsheet` instance
+        This allows the xlsxwriter workbook to be manipulated prior to closing the
+        filestream e.g. to append extra sheets. This prevents issues related to cached
+        data values when reloading a workbook to append or modify content
+
+        Warning - the workbook is backed by a BytesIO instance and needs to be closed.
+        See the usage of this method in the :meth`to_spreadsheet` function.
+
+        :return: A tuple (bytes, workbook) with a BytesIO instance and a corresponding *open* xlsxwriter workbook instance
 
         """
 
         # Initialize the bytestream
         f = io.BytesIO()
+        wb = xw.Workbook(f, {'in_memory': True})
 
         # Open a workbook
-        self._book = xw.Workbook(f)
+        self._book = wb
         self._book.set_properties({'category': 'atomica:databook'})
         self._formats = standard_formats(self._book)
         self._references = {}  # Reset the references dict
@@ -538,19 +546,24 @@ class ProjectData(sc.prettyobj):
         self._write_interpops()
         self._write_transfers()
 
-        # Close the workbook
-        self._book.close()
-
-        # Dump the file content into a ScirisSpreadsheet
-        spreadsheet = sc.Spreadsheet(f)
-
-        # Clear everything
-        f.close()
+        # Clean internal variables related to writing the worbkook
         self._book = None
         self._formats = None
         self._references = None
 
-        # Return the spreadsheet
+        return f, wb
+
+    def to_spreadsheet(self) -> sc.Spreadsheet:
+        """
+        Return content as a Sciris Spreadsheet
+
+        :return: A :class:`sciris.Spreadsheet` instance
+
+        """
+
+        f, wb = self.to_workbook()
+        wb.close()  # Close the workbook to flush any xlsxwriter content
+        spreadsheet = sc.Spreadsheet(f)  # Wrap it in a spreadsheet instance
         return spreadsheet
 
     def save(self, fname) -> None:
