@@ -40,7 +40,7 @@ jobs:
 
 - job: 'flake8'
   pool:
-    vmImage: 'ubuntu-16.04'
+    vmImage: 'ubuntu-latest'
   steps:
     - task: UsePythonVersion@0
       displayName: 'Select python version'
@@ -63,7 +63,7 @@ jobs:
 - job: 'docs'
   condition: ne(variables['Build.Reason'], 'PullRequest') # Skip if it's a PR build
   pool:
-    vmImage: 'ubuntu-16.04'
+    vmImage: 'ubuntu-latest'
   steps:
     - task: UsePythonVersion@0
       displayName: 'Select python version'
@@ -96,7 +96,7 @@ jobs:
   dependsOn: 'tox'
   condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
   pool:
-    vmImage: 'ubuntu-16.04'
+    vmImage: 'ubuntu-latest'
   steps:
     - task: UsePythonVersion@0
       displayName: 'Select python version'
