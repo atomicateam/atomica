@@ -157,7 +157,7 @@ def read_tables(worksheet) -> tuple:
     for i, row in enumerate(worksheet.rows):
 
         # Skip any rows starting with '#ignore'
-        if len(row)>0 and row[0].data_type == 's' and row[0].value.startswith('#ignore'):
+        if len(row) > 0 and row[0].data_type == 's' and row[0].value.startswith('#ignore'):
             continue  # Move on to the next row if row skipping is marked True
 
         # Find out whether we need to add the row to the buffer
@@ -206,21 +206,21 @@ def read_dataframes(worksheet, merge=False) -> list:
 
     content = np.empty((worksheet.max_row, worksheet.max_column), dtype='object')
     ignore = np.zeros((worksheet.max_row), dtype=bool)
-    empty = np.zeros((worksheet.max_row), dtype=bool) # True for index where a new table begins
+    empty = np.zeros((worksheet.max_row), dtype=bool)  # True for index where a new table begins
 
-    for i,row in enumerate(worksheet.rows):
+    for i, row in enumerate(worksheet.rows):
         if len(row) > 0 and (row[0].data_type == 's' and row[0].value.startswith('#ignore')):
             ignore[i] = True
             continue
-            
+
         any_values = False
-        for j,cell in enumerate(row):
+        for j, cell in enumerate(row):
             v = cell.value
             if cell.data_type in {'s', 'str'}:
                 v = v.strip()
             if not any_values and v:
                 any_values = True
-            content[i,j] = v
+            content[i, j] = v
         if not any_values:
             empty[i] = True
 
@@ -229,11 +229,11 @@ def read_dataframes(worksheet, merge=False) -> list:
         ignore[empty] = True
         if all(ignore):
             return []
-        tables.append(content[~ignore,:])
+        tables.append(content[~ignore, :])
     else:
         # A change from False to True means that we need to start a new table
         # A True followed by a True doesn't start a new table but instead gets ignored
-        content = content[~ignore,:]
+        content = content[~ignore, :]
         empty = empty[~ignore]
 
         # If there is no content at all, return immediately
@@ -241,27 +241,27 @@ def read_dataframes(worksheet, merge=False) -> list:
             return []
 
         idx = []
-        for i in range(len(empty)-1):
+        for i in range(len(empty) - 1):
             if not empty[i] and not idx:
                 # Write the first line. This could be followed by an empty row, so need to a separate block for this
                 idx.append(i)
 
-            if not empty[i] and empty[i+1]:
+            if not empty[i] and empty[i + 1]:
                 # row i is the last row in the table (so need to include it in the range, hence +1)
-                idx.append(i+1)
-            elif empty[i] and not empty[i+1]:
+                idx.append(i + 1)
+            elif empty[i] and not empty[i + 1]:
                 # Row i+1 marks the start of a table
-                idx.append(i+1)
+                idx.append(i + 1)
 
         if not empty[-1]:
             # If the last row has content, then make sure that the last table goes all the way up
             idx.append(empty.size)
 
-        assert not len(idx)%2, 'Error in table parsing routine, did not correctly identify table breaks'
+        assert not len(idx) % 2, 'Error in table parsing routine, did not correctly identify table breaks'
 
         tables = []
-        for i in range(0,len(idx)-1,2):
-            tables.append(content[idx[i]:idx[i+1]].copy())
+        for i in range(0, len(idx) - 1, 2):
+            tables.append(content[idx[i]:idx[i + 1]].copy())
 
     dfs = []
     for table in tables:

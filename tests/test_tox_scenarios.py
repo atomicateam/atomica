@@ -257,20 +257,20 @@ def test_interaction_scenario():
         if from_pop in parset.interactions['w_ctc'] and '15-64' in parset.interactions['w_ctc'][from_pop].ts:
             ps.add('w_ctc', (from_pop, '15-64'), [2020., np.inf], [0, 0])
 
-    res_scen = proj.run_sim(result_name='Scen', parset=ps.get_parset(parset,proj))
+    res_scen = proj.run_sim(result_name='Scen', parset=ps.get_parset(parset, proj))
 
-    d = at.PlotData([res_baseline,res_scen],'age_0-4_to_5-14',pops='0-4')
-    at.plot_series(d,axis='results')
+    d = at.PlotData([res_baseline, res_scen], 'age_0-4_to_5-14', pops='0-4')
+    at.plot_series(d, axis='results')
 
-    d = at.PlotData([res_baseline,res_scen],'foi_in',pops='15-64')
-    at.plot_series(d,axis='results')
+    d = at.PlotData([res_baseline, res_scen], 'foi_in', pops='15-64')
+    at.plot_series(d, axis='results')
 
-    assert res_baseline.get_variable('foi_in','15-64')[0].vals[-1] > 0
-    assert res_scen.get_variable('foi_in','15-64')[0].vals[-1] == 0 # Check scenario has 0 FOI in 15-64
-    assert res_scen.get_variable('foi_in','0-4')[0].vals[-1] > 0 # Check that a different population was not affected
-    assert res_scen.get_variable('foi_in','5-14')[0].vals[-1] > 0 # Check that a different population was not affected
-    assert res_baseline.get_variable('age_0-4_to_5-14','0-4')[0].vals[-1] > 0
-    assert res_scen.get_variable('age_0-4_to_5-14','0-4')[0].vals[-1] == 0 # Check scenario has 0 FOI in 15-64
+    assert res_baseline.get_variable('foi_in', '15-64')[0].vals[-1] > 0
+    assert res_scen.get_variable('foi_in', '15-64')[0].vals[-1] == 0  # Check scenario has 0 FOI in 15-64
+    assert res_scen.get_variable('foi_in', '0-4')[0].vals[-1] > 0  # Check that a different population was not affected
+    assert res_scen.get_variable('foi_in', '5-14')[0].vals[-1] > 0  # Check that a different population was not affected
+    assert res_baseline.get_variable('age_0-4_to_5-14', '0-4')[0].vals[-1] > 0
+    assert res_scen.get_variable('age_0-4_to_5-14', '0-4')[0].vals[-1] == 0  # Check scenario has 0 FOI in 15-64
 
 
 if __name__ == '__main__':

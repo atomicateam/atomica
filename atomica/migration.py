@@ -726,19 +726,19 @@ def _rename_update_field(proj):
 
 
 @migration('Project', '1.15.0', '1.16.0', 'Projects may change due to uncapped probabilities')
-def _refactor_settings_storage(proj):
+def _proj_refactor_settings_storage(proj):
     proj._update_required = True
     return proj
 
 
 @migration('Result', '1.15.0', '1.16.0', 'Results may change due to uncapped probabilities')
-def _refactor_settings_storage(result):
+def _result_refactor_settings_storage(result):
     result._update_required = True
     return result
 
 
 @migration('Project', '1.16.0', '1.17.0', 'Add sim end year validation to project settings')
-def _refactor_settings_storage(proj):
+def _add_end_year_to_project_settings(proj):
     proj.settings = atomica.ProjectSettings(**proj.settings.__dict__)
     return proj
 

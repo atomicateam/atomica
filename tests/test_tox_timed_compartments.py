@@ -341,7 +341,7 @@ def test_timed_transfer_3():
     # Further, 10 more people move from P1C1 to P1C2 due to the keyring advancing
     # So we end up with
     assert pops[1].get_comp('c1').vals[2] == 80
-    assert pops[1].get_comp('c2').vals[2] == 10+50+10
+    assert pops[1].get_comp('c2').vals[2] == 10 + 50 + 10
 
 
 def test_timed_vac_duration():

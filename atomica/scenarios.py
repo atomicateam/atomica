@@ -286,7 +286,7 @@ class ParameterScenario(Scenario):
             if par_label in new_parset.pars:
                 has_function = project.framework.pars.at[par_label, 'function']  # Flag whether this is a function parameter in the framework
             else:
-                has_function = False # Interactions and transfers do not have functions
+                has_function = False  # Interactions and transfers do not have functions
 
             for pop_specifier, overwrite in self.scenario_values[par_label].items():
 

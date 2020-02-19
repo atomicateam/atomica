@@ -247,7 +247,7 @@ class ParameterSet(NamedItem):
             for par in obj.values():
                 yield par
 
-    def get_par(self, name:str, pop:str =None) -> Parameter:
+    def get_par(self, name: str, pop: str = None) -> Parameter:
         """
         Retrieve parameter instance
 
