@@ -247,6 +247,32 @@ class ParameterSet(NamedItem):
             for par in obj.values():
                 yield par
 
+    def get_par(self, name: str, pop: str = None) -> Parameter:
+        """
+        Retrieve parameter instance
+
+        The parameter values for interactions and transfers are stored keyed by
+        the source/from population. Thus, if the quantity name is an interaction
+        or transfer, it is also necessary to specify the source population in order
+        to return a :class:`Parameter` instance.
+
+        :param name: The code name of a parameter, interaction, or transfer
+        :param pop:
+        :return: A :class:`Parameter` instance
+        """
+
+        if name in self.pars:
+            assert pop is None, f'"{name}" is a parameter so the ``pop`` should not be specified'
+            return self.pars[name]
+        elif name in self.transfers:
+            assert pop is not None, f'"{name}" is a transfer, so the ``pop`` must be specified'
+            return self.transfers[name][pop]
+        elif name in self.interactions:
+            assert pop is not None, f'"{name}" is an interaction, so the ``pop`` must be specified'
+            return self.interactions[name][pop]
+        else:
+            raise Exception(f'Parameter "{name}" not found')
+
     def sample(self, constant=True):
         """
         Return a sampled copy of the ParameterSet

@@ -71,14 +71,14 @@ class ProjectSettings(object):
 
     @sim_end.setter
     def sim_end(self, sim_end):
-        self._sim_end = self.sim_start + np.ceil((sim_end-self.sim_start)/self.sim_dt)*self.sim_dt
+        self._sim_end = self.sim_start + np.ceil((sim_end - self.sim_start) / self.sim_dt) * self.sim_dt
         if sim_end != self._sim_end:
-            logger.warn(f'Changing sim end from {sim_end} to {self._sim_end} ({(self._sim_end-self._sim_start)/self._sim_dt:.0f} timesteps)')
+            logger.warn(f'Changing sim end from {sim_end} to {self._sim_end} ({(self._sim_end - self._sim_start) / self._sim_dt:.0f} timesteps)')
 
     @sim_dt.setter
     def sim_dt(self, sim_dt):
         self._sim_dt = sim_dt
-        self.sim_end = self.sim_end # Call the setter function to change sim_end if it is no longer valid
+        self.sim_end = self.sim_end  # Call the setter function to change sim_end if it is no longer valid
 
     @property
     def tvec(self) -> np.ndarray:
@@ -92,7 +92,7 @@ class ProjectSettings(object):
 
         """
 
-        return np.linspace(self.sim_start, self.sim_end, int((self.sim_end-self.sim_start)/self.sim_dt) + 1)
+        return np.linspace(self.sim_start, self.sim_end, int((self.sim_end - self.sim_start) / self.sim_dt) + 1)
 
     def update_time_vector(self, start: float = None, end: float = None, dt: float = None) -> None:
         """
@@ -101,17 +101,20 @@ class ProjectSettings(object):
         :param start: Optionally provide new start year (e.g. '2018')
         :param end: Optionally provide new end year (e.g. '2035')
         :param dt: Optionally provide new step size, in years (e.g. '0.25' for quarterly steps
-        
+
         """
 
         if start is not None:
             self.sim_start = start
 
+        if dt is not None:
+            if end is None:
+                self.sim_dt = dt  # Update the simulation end year automatically to account for the new timestep
+            else:
+                self._sim_dt = dt  # Change sim_dt internally so that the sim_end is only changed once
+
         if end is not None:
             self.sim_end = end
-
-        if dt is not None:
-            self.sim_dt = dt
 
 
 class Project(NamedItem):
@@ -195,9 +198,9 @@ class Project(NamedItem):
         output += '      Results sets: %i\n' % len(self.results)
         output += '\n'
         output += '   Atomica version: %s\n' % self.version
-        output += '      Date created: %s\n' % sc.getdate(self.created.replace(tzinfo=timezone.utc).astimezone(tz=None),dateformat = '%Y-%b-%d %H:%M:%S %Z')
-        output += '     Date modified: %s\n' % sc.getdate(self.modified.replace(tzinfo=timezone.utc).astimezone(tz=None),dateformat = '%Y-%b-%d %H:%M:%S %Z')
-#        output += '  Datasheet loaded: %s\n' % sc.getdate(self.databookloaddate)
+        output += '      Date created: %s\n' % sc.getdate(self.created.replace(tzinfo=timezone.utc).astimezone(tz=None), dateformat='%Y-%b-%d %H:%M:%S %Z')
+        output += '     Date modified: %s\n' % sc.getdate(self.modified.replace(tzinfo=timezone.utc).astimezone(tz=None), dateformat='%Y-%b-%d %H:%M:%S %Z')
+        #        output += '  Datasheet loaded: %s\n' % sc.getdate(self.databookloaddate)
         output += '        Git branch: %s\n' % self.gitinfo['branch']
         output += '          Git hash: %s\n' % self.gitinfo['hash']
         output += '               UID: %s\n' % self.uid
@@ -332,9 +335,9 @@ class Project(NamedItem):
         self.scens.append(scenario)
         return scenario
 
-#    #######################################################################################################
-#    ### Utilities
-#    #######################################################################################################
+    #    #######################################################################################################
+    #    ### Utilities
+    #    #######################################################################################################
 
     def parset(self, key=None, verbose=2):
         ''' Shortcut for getting a parset '''
@@ -533,7 +536,7 @@ class Project(NamedItem):
                 result_names = ['default']
         else:
             result_names = sc.promotetolist(result_names)
-            assert(len(result_names) == 1 and not progset) or (len(progset_instructions) == len(result_names)), "Number of result names must match number of instructions"
+            assert (len(result_names) == 1 and not progset) or (len(progset_instructions) == len(result_names)), "Number of result names must match number of instructions"
 
         original_level = logger.getEffectiveLevel()
         logger.setLevel(logging.WARNING)  # Never print debug messages inside the sampling loop - note that depending on the platform, this may apply within `sc.parallelize`

@@ -10,6 +10,7 @@ an executable Python representation.
 import ast
 import numpy as np
 
+
 def sdiv(numerator, denominator):
     """
     Safe division by zero (return 0)

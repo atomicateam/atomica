@@ -766,10 +766,13 @@ class TimedCompartment(Compartment):
                     self._vals[-1, ti] += sum(link._vals[self._vals.shape[0]:, tr].tolist())
 
         # Advance the keyring
-        assert np.isclose(self._vals[0, ti], 0)  # Now, the final subcompartment should be empty - can disable this check if it's slow
+        # If this TimedCompartment has only one row, then anyone coming in via TimedLinks will be placed directly
+        # in the final subcompartment (which is also the initial subcompartment). We are assuming that the cached
+        # outflow correctly emptied everyone in the flush compartment so don't check that the final subcompartment
+        # is empty because people could have been added to it in this timestep
         if self._vals.shape[0] > 1:
             self._vals[0:-1, ti] = self._vals[1:, ti]
-        self._vals[-1, ti] = 0.0  # Zero out the inflow (otherwise, it just replicates previous value)
+            self._vals[-1, ti] = 0.0  # Zero out the inflow (otherwise, it just replicates previous value)
 
         # Now, resolve other inputs for which durations are not preserved
         # Regardless of whether they are TimedLinks or not, they should go into the initial subcompartment
@@ -836,8 +839,9 @@ class Characteristic(Variable):
 
         self.t = tvec
         self.dt = dt
-        self._vals = np.empty(tvec.shape)
-        self._vals.fill(np.nan)
+        if self._is_dynamic:
+            self._vals = np.empty(tvec.shape)
+            self._vals.fill(np.nan)
 
     def get_included_comps(self):
         includes = []
@@ -1831,7 +1835,6 @@ class Model(object):
         self._program_cache = None
         self._exec_order = None
 
-
     def relink(self) -> None:
         """
         Replace IDs with references
@@ -2101,7 +2104,7 @@ class Model(object):
         # dynamic programs or to program overwrites.
         par_derivative = self.framework.pars['is derivative'].to_dict()  # Store all parameter names in framework, as well as whether they are a derivative or not
         G = nx.DiGraph()
-        G.add_nodes_from(par_derivative,keep=False)
+        G.add_nodes_from(par_derivative, keep=False)
         for pop in self.pops:
             for par in pop.pars:
                 for dep, dep_var in par.deps.items():
@@ -2127,7 +2130,6 @@ class Model(object):
         exec_order['all_pars'] = [x for x in nx.dag.topological_sort(G) if x in self._vars_by_pop]  # Not all parameters may exist depending on populations, so filter out only the ones that are actually instantiated in this Model
         exec_order['dynamic_pars'] = [x for x in exec_order['all_pars'] if G.nodes[x]['keep']]
 
-
         # Set the parameter execution order - this is a list of only transition parameters, used when updating links
         # This is a flat list of parameters, but the order actually should not matter since all parameters should be
         # resolved at this point
@@ -2141,6 +2143,7 @@ class Model(object):
         G = nx.DiGraph()
         for pop in self.pops:
             for charac in pop.characs:
+                G.add_node(charac)
                 for include in charac.includes:
                     if isinstance(include, Characteristic):
                         G.add_edge(include, charac)  # Note directionality - the included characteristic needs to be added first

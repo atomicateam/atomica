@@ -291,6 +291,59 @@ def test_timed_transfer():
     D.save(tempdir + 'timed_transfer_databook_test.xlsx')
 
 
+def test_timed_transfer_2():
+    # This test has zero duration in the second population
+
+    P = at.Project(framework=testdir + 'timed_test_transfer_framework.xlsx', databook=testdir + 'timed_test_transfer_databook_2.xlsx', do_run=True)
+    pops = P.results[0].model.pops
+
+    # First, check the initial sizes
+    assert pops[0].get_comp('c1').vals[0] == 200
+    assert pops[1].get_comp('c1').vals[0] == 100
+
+    # Check the outgoing transfer is as expected (200 people/year)
+    assert pops[0].get_variable('transfer_0_pop_0_to_pop_1')[0].vals[0] == 200
+
+    # This means we request 50 people per timestep. The duration in the first population is 10 timesteps. There are thus 10 bins. We move 5
+    # people per bin out of 9 bins, so we move 45 people in total.
+    assert pops[0].get_comp('c1').outlinks[1].vals[0] == 45
+
+    # At the second timestep, everyone has been flushed from C1 in Pop 1. 45 people have then entered. So there should be 45 people in the compartment
+    assert pops[1].get_comp('c1').vals[1] == 45
+
+    # In the Pop 0, there were 200 people in 10 bins, so 20 people per bin. People in the final subcompartment weren't eligible to be
+    # transferred because the transfer was within the same duration group. Therefore, all 20 people moved to C2 in Pop 0
+    assert pops[0].get_comp('c2').vals[1] == 20
+
+
+def test_timed_transfer_3():
+    # This test has zero duration in the first population
+
+    P = at.Project(framework=testdir + 'timed_test_transfer_framework.xlsx', databook=testdir + 'timed_test_transfer_databook_3.xlsx', do_run=True)
+    pops = P.results[0].model.pops
+
+    # First, check the initial sizes
+    assert pops[0].get_comp('c1').vals[0] == 200
+    assert pops[1].get_comp('c1').vals[0] == 100
+
+    # Check the outgoing transfer is as expected (200 people/year)
+    assert pops[0].get_variable('transfer_0_pop_0_to_pop_1')[0].vals[0] == 200
+
+    # At the first timestep, everyone is flushed from C1 to C2 in Pop 0. Therefore, nobody makes the transfer from C1 to C2
+    assert pops[0].get_comp('c1').vals[1] == 0
+    assert pops[0].get_comp('c2').vals[1] == 200
+
+    # In Pop 1, 10 people transition (due to the keyring advancing)
+    assert pops[1].get_comp('c1').vals[1] == 90
+    assert pops[1].get_comp('c2').vals[1] == 10
+
+    # At the second timestep, now we can transfer 50 people from P0C2 to P1C2
+    # Further, 10 more people move from P1C1 to P1C2 due to the keyring advancing
+    # So we end up with
+    assert pops[1].get_comp('c1').vals[2] == 80
+    assert pops[1].get_comp('c2').vals[2] == 10 + 50 + 10
+
+
 def test_timed_vac_duration():
     P = at.Project(framework=at.LIBRARY_PATH + 'sir_vaccine_framework.xlsx', databook=at.LIBRARY_PATH + 'sir_vaccine_databook.xlsx', do_run=False)
     P.settings.sim_dt = 0.25
@@ -315,13 +368,15 @@ def test_timed_vac_duration():
 
 if __name__ == '__main__':
 
-    # test_timed_invalid()
-    # test_timed_indirect()
-    # test_timed_indirect2()
-    # test_timed_eligibility()
-    # test_timed_transfer()
-    # test_spike()
-    # test_read_write_databook()
-    # test_zero_duration()
-    # test_timed_tb()
+    test_timed_invalid()
+    test_timed_indirect()
+    test_timed_indirect2()
+    test_timed_eligibility()
+    test_timed_transfer()
+    test_timed_transfer_2()
+    test_timed_transfer_3()
+    test_spike()
+    test_read_write_databook()
+    test_zero_duration()
+    test_timed_tb()
     test_timed_vac_duration()

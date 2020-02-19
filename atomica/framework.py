@@ -16,7 +16,7 @@ import io
 import xlsxwriter as xw
 
 from .cascade import validate_cascade
-from .excel import read_tables, validate_category, standard_formats
+from .excel import read_tables, validate_category, standard_formats, read_dataframes
 from .function_parser import parse_function
 from .system import NotFoundError, FrameworkSettings as FS
 from .system import logger
@@ -71,31 +71,18 @@ class ProjectFramework(object):
 
         for worksheet in workbook.worksheets:
             sheet_title = worksheet.title.lower()
-            tables, start_rows = read_tables(worksheet)  # Read the tables
-            if sheet_title in merge_tables:
-                tables = [[row for table in tables for row in table]]  # Flatten the tables into one big table
-
-            if not any(tables):
-                continue
-
-            self.sheets[sheet_title] = list()
-            for table in tables:
-                # Get a dataframe
-                df = pd.DataFrame.from_records(table).applymap(lambda x: x.value.strip() if x.data_type == 's' else x.value)
-                df.dropna(axis=1, how='all', inplace=True)  # If a column is completely empty, including the header, ignore it. Helps avoid errors where blank cells are loaded by openpyxl due to extra non-value content
-
+            self.sheets[sheet_title] = read_dataframes(worksheet, sheet_title in merge_tables)
+            for df in self.sheets[sheet_title]:
                 if sheet_title == 'cascades':
                     # On the cascades sheet, the user-entered name appears in the header row. We must preserve case for this
                     # name so that things like 'TB cascade' don't become 'tb cascade'. Same for compartment names so that
                     # any capitals in the compartment name are preserved
-                    df.columns = [df.iloc[0, 0]] + list(df.iloc[0, 1:].str.lower())
+                    df.columns = [df.columns[0]] + list(df.columns[1:].str.lower())
                 elif sheet_title == 'transitions':
                     # On the transitions sheet, don't make the compartment code names lowercase
-                    df.columns = df.iloc[0]
+                    pass
                 else:
-                    df.columns = df.iloc[0].str.lower()
-                df = df[1:]
-                self.sheets[sheet_title].append(df)
+                    df.columns = df.columns.str.lower()
 
         self._validate()
         if name is not None:
@@ -1267,7 +1254,7 @@ class ProjectFramework(object):
 
         writer = pd.ExcelWriter(f, engine='xlsxwriter')
         writer.book.set_properties({'category': 'atomica:framework'})
-        standard_formats(writer.book) # Apply formatting
+        standard_formats(writer.book)  # Apply formatting
 
         for sheet_name, dfs in self.sheets.items():
             if sheet_name == 'transitions':
@@ -1310,8 +1297,6 @@ class ProjectFramework(object):
 
         # Return the spreadsheet
         return spreadsheet
-
-
 
     def save_new(self, fname) -> None:
         """
