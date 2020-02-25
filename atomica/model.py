@@ -250,7 +250,7 @@ class Compartment(Variable):
 
             if par.units == FS.QUANTITY_TYPE_DURATION:
                 outflow_probability += min(1, self.dt / (transition * par.timescale))
-            elif par.units == FS.QUANTITY_TYPE_PROBABILITY:
+            elif par.units in {FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_RATE}:
                 outflow_probability += min(1, transition * (self.dt / par.timescale))
             elif par.units == FS.QUANTITY_TYPE_NUMBER:
                 outflow_probability += par[ti] * self.dt / self[ti]
@@ -1979,7 +1979,7 @@ class Model(object):
                         par.units = transfer_parameter.ts[pop_target].units.strip().split()[0].strip().lower()
 
                         # Sampling might result in the parameter value going out of bounds, so make sure the transfer parameter values are constrained
-                        if par.units == FS.QUANTITY_TYPE_PROBABILITY:
+                        if par.units == FS.QUANTITY_TYPE_RATE or par.units == FS.QUANTITY_TYPE_PROBABILITY:
                             par.limits = [0, 1]
                         elif par.units == FS.QUANTITY_TYPE_NUMBER:
                             par.limits = [0, np.inf]
@@ -2238,7 +2238,7 @@ class Model(object):
                 continue
 
             # Convert probability by Poisson distribution formula to a value appropriate for timestep.
-            if par.units == FS.QUANTITY_TYPE_PROBABILITY:
+            if par.units == FS.QUANTITY_TYPE_RATE or par.units == FS.QUANTITY_TYPE_PROBABILITY:
                 # Note that we convert the transition to the timestep before checking whether it is greater than 1 or not. That way,
                 # durations get preserved until we limit them based on the timestep size. The rationale is that the annual probability
                 # will come out at 1.0 if the *mean* duration is the same as the step size, but that doesn't mean that if the step size
@@ -2399,7 +2399,7 @@ class Model(object):
 
                         if par.units == FS.QUANTITY_TYPE_NUMBER:
                             par[ti] *= par.source_popsize(ti) / self.dt  # The outcome in the progbook is per person reached, which is a timestep specific value. Thus, need to annualize here
-                        elif par.units == FS.QUANTITY_TYPE_PROBABILITY:
+                        elif par.units == FS.QUANTITY_TYPE_RATE or par.units == FS.QUANTITY_TYPE_PROBABILITY:
                             # Continuous programs generally should not target number or probability parameters
                             # We apply a factor of dt here regardless of the parameter's timescale. This is because the dt factor here
                             # matches the factor of dt used to divide the annual spending into timestep spending

@@ -16,7 +16,7 @@ from openpyxl.comments import Comment
 import numpy as np
 from .system import FrameworkSettings as FS
 import pandas as pd
-
+from .utils import format_duration
 
 def standard_formats(workbook):
     # Add standard formatting to a workbook and return the set of format objects
@@ -318,6 +318,8 @@ class TimeDependentConnections(object):
 
         self.attributes = {}  #: Attributes associated with the table
         self.ts_attributes = {}  #: Attributes associated with each TimeSeries row
+        self.ts_attributes['Provenance'] = {}  # Include provenance attribute by default
+
         self.assumption_heading = 'Constant'  #: Heading to use for assumption column
         self.write_units = None  #: Write a column for units (if None, units will be written if any of the TimeSeries have units)
         self.write_uncertainty = None  #: Write a column for units (if None, units will be written if any of the TimeSeries have uncertainty)
@@ -325,7 +327,10 @@ class TimeDependentConnections(object):
 
         if self.type == 'transfer':
             self.enable_diagonal = False
-            self.allowed_units = [FS.QUANTITY_TYPE_NUMBER + ' (per year)', FS.QUANTITY_TYPE_PROBABILITY + ' (per year)']
+            self.allowed_units = []
+            self.allowed_units.append('%s (%s)' % (FS.QUANTITY_TYPE_NUMBER.title(), format_duration(1, pluralize=True)))
+            self.allowed_units.append('%s (per %s)' % (FS.QUANTITY_TYPE_RATE.title(), format_duration(1, pluralize=False)))
+            self.allowed_units.append('%s (%s)' % (FS.QUANTITY_TYPE_DURATION.title(), format_duration(1, pluralize=True)))
         elif self.type == 'interaction':
             self.enable_diagonal = True
             self.allowed_units = [FS.DEFAULT_SYMBOL_INAPPLICABLE]
@@ -468,7 +473,8 @@ class TimeDependentConnections(object):
                     ts.assumption = None
 
                 for attribute in tdc.ts_attributes:
-                    tdc.ts_attributes[attribute][(from_pop, to_pop)] = row[headings[attribute]].value
+                    if attribute in headings:
+                        tdc.ts_attributes[attribute][(from_pop, to_pop)] = row[headings[attribute]].value
 
                 for t, idx in times.items():
                     ts.insert(t, cell_get_number(row[idx]))  # If cell_get_number returns None, this gets handled accordingly by ts.insert()
@@ -630,14 +636,13 @@ class TimeDependentConnections(object):
                             update_widths(widths, attribute_index[attribute], val)
 
                     if self.write_units:
-                        worksheet.write(current_row, units_index, ts.units.title(), format)
-                        update_widths(widths, units_index, ts.units.title())
+                        worksheet.write(current_row, units_index, ts.units, format)
+                        update_widths(widths, units_index, ts.units)
                         if self.allowed_units:
-                            worksheet.data_validation(xlrc(current_row, units_index), {"validate": "list", "source": [x.title() for x in self.allowed_units]})
+                            worksheet.data_validation(xlrc(current_row, units_index), {"validate": "list", "source": [x for x in self.allowed_units]})
 
                     if self.write_uncertainty:
                         worksheet.write(current_row, uncertainty_index, ts.sigma, formats['not_required'])
-                        update_widths(widths, uncertainty_index, ts.units.title())
 
                     if self.write_assumption:
                         worksheet.write(current_row, constant_index, ts.assumption, format)
@@ -652,7 +657,7 @@ class TimeDependentConnections(object):
                     if self.write_units:
                         worksheet.write_blank(current_row, units_index, '', format)
                         if self.allowed_units:
-                            worksheet.data_validation(xlrc(current_row, units_index), {"validate": "list", "source": [x.title() for x in self.allowed_units]})
+                            worksheet.data_validation(xlrc(current_row, units_index), {"validate": "list", "source": [x for x in self.allowed_units]})
 
                     if self.write_uncertainty:
                         worksheet.write_blank(current_row, uncertainty_index, '', formats['not_required'])
@@ -803,7 +808,9 @@ class TimeDependentValuesEntry(object):
         self.ts = ts  # : dict of :class:`TimeSeries` objects
         self.allowed_units = [x.title() if x in FS.STANDARD_UNITS else x for x in allowed_units] if allowed_units is not None else None  # Otherwise, can be an odict with keys corresponding to ts - leave as None for no restriction
 
-        self.attributes = {}  #: Dictionary containing extra attributes to write along with each TimeSeries object.
+        self.ts_attributes = {}  #: Dictionary containing extra attributes to write along with each TimeSeries object.
+        self.ts_attributes['Provenance'] = {}  # Include provenance attribute by default
+
         #  Keys are attribute name, values can be either a scalar or a dict keyed by the same keys as self.ts. Compared to units, uncertainty etc.
         #  attributes are store in the TDVE rather than in the TimeSeries
         self.assumption_heading = 'Constant'  #: Heading to use for assumption column
@@ -890,7 +897,7 @@ class TimeDependentValuesEntry(object):
                 # If it's not a known heading and it's a string, then it must be an attribute
                 # Note that the way `headings` is populated by skipping i=0 ensures that the table name
                 # is not interpreted as a heading
-                tdve.attributes[heading] = {}
+                tdve.ts_attributes[heading] = {}
         ts_entries = sc.odict()
 
         for row in rows[1:]:
@@ -918,8 +925,10 @@ class TimeDependentValuesEntry(object):
             else:
                 ts.assumption = None
 
-            for attribute in tdve.attributes:
-                tdve.attributes[attribute][series_name] = row[headings[attribute]].value
+            for attribute in tdve.ts_attributes:
+                if attribute in headings:
+                    # If it's a default attribute e.g. provenance, and it is missing from the databook, then don't populate it
+                    tdve.ts_attributes[attribute][series_name] = row[headings[attribute]].value
 
             for t, idx in times.items():
                 ts.insert(t, cell_get_number(row[idx]))  # If cell_get_number returns None, this gets handled accordingly by ts.insert()
@@ -962,7 +971,7 @@ class TimeDependentValuesEntry(object):
 
         # Next allocate attributes
         attribute_index = {}
-        for attribute in self.attributes:
+        for attribute in self.ts_attributes:
             attribute_index[attribute] = offset
             headings.append(attribute)
             offset += 1
@@ -1007,14 +1016,14 @@ class TimeDependentValuesEntry(object):
                 update_widths(widths, 0, row_name)
 
             # Write the attributes
-            for attribute in self.attributes:
-                if isinstance(self.attributes[attribute], dict):
-                    if row_name in self.attributes[attribute]:
-                        val = self.attributes[attribute][row_name]
+            for attribute in self.ts_attributes:
+                if isinstance(self.ts_attributes[attribute], dict):
+                    if row_name in self.ts_attributes[attribute]:
+                        val = self.ts_attributes[attribute][row_name]
                     else:
                         val = None
                 else:
-                    val = self.attributes[attribute]
+                    val = self.ts_attributes[attribute]
 
                 if val is not None:
                     worksheet.write(current_row, attribute_index[attribute], val)
