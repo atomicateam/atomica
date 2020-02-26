@@ -17,6 +17,7 @@ import numpy as np
 from .system import FrameworkSettings as FS
 import pandas as pd
 from .utils import format_duration
+import xlsxwriter
 
 def standard_formats(workbook):
     # Add standard formatting to a workbook and return the set of format objects
@@ -133,6 +134,42 @@ def transfer_comments(target: sc.Spreadsheet, comment_source: sc.Spreadsheet) ->
     f.seek(0)
     target.load(f)
 
+
+def copy_sheet(source: str, sheet_name: str, workbook: xlsxwriter.Workbook) -> None:
+    """
+    Copy a sheet into a Workbook
+
+    This function allows values to be copied from a file into a Workbook. The
+    main use case is to support custom sheets in databooks that are not otherwise parsed
+    but which might need to be retained. In particular, the ``ProjectData`` class does
+    not parse ignored sheets at all, because no guarantees can be made about the quantity and
+    type of the content, and whether there are formulas etc. that would be lost. In some cases
+    though, it may be necessary to edit the databook and preserve specific sheets. In general,
+    this can be done by using the ``to_workbook()`` method and then manually performing whatever
+    operations are necessary to preserve the content on the extra sheets. However, when the
+    extra sheet content is extremely simple e.g. just a table of values, then this helper
+    function can be used to facilitate copying the content.
+
+    Warning - note that Excel functions, formatting, and comments will NOT be preserved.
+
+    :param source: File name of the spreadsheet to read the source sheet from or an ``sc.Spreadsheet`` instance
+    :param sheet_name: Name of the sheet to write to
+    :param workbook: A Workbook instance to add the sheet to
+    :return: None - the sheet will be added to the Workbook in-place
+    """
+
+    if sc.isstring(source):
+        source = sc.Spreadsheet(source)
+
+    src_workbook = openpyxl.load_workbook(source.tofile(), read_only=True,data_only=True)  # Load in read-only mode for performance, since we don't parse comments etc.
+    src_worksheet = src_workbook[sheet_name]
+    dst_worksheet = workbook.add_worksheet(sheet_name)
+
+    for i, row in enumerate(src_worksheet.rows):
+        for j, cell in enumerate(row):
+            dst_worksheet.write(i, j, cell.value)
+
+    src_workbook.close()
 
 def read_tables(worksheet) -> tuple:
     """
