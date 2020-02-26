@@ -320,7 +320,7 @@ class ProjectData(sc.prettyobj):
 
         self = ProjectData(framework=framework)
 
-        if sc.isstring(spreadsheet):
+        if not isinstance(spreadsheet, sc.Spreadsheet):
             spreadsheet = sc.Spreadsheet(spreadsheet)
 
         workbook = openpyxl.load_workbook(spreadsheet.tofile(), read_only=True, data_only=True)  # Load in read-only mode for performance, since we don't parse comments etc.
