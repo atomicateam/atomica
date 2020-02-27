@@ -475,7 +475,10 @@ class TimeDependentConnections(object):
                 else:
                     headings[v] = i
             elif cell.data_type == 'n':
-                times[v] = i
+                if cell.is_date:
+                    times[_datetime_to_year(v)] = i
+                else:
+                    times[v] = i
             else:
                 raise Exception('Unknown data type in cell %s of the spreadsheet - quantity must be a string or a number' % cell.coordinate)
         tdc.tvec = np.array(sorted(times), dtype=float)
