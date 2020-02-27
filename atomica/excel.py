@@ -16,24 +16,9 @@ from openpyxl.comments import Comment
 import numpy as np
 from .system import FrameworkSettings as FS
 import pandas as pd
-from .utils import format_duration
+from .utils import format_duration, datetime_to_year
 import xlsxwriter
-from datetime import datetime
 
-def _datetime_to_year(dt: datetime) -> float:
-    """
-    Convert a DateTime instance to decimal year
-
-    For example, 1/7/2010 would be approximately 2010.5
-
-    :param dt: The datetime instance to convert
-    :return: Equivalent decimal year
-
-    """
-    # By Luke Davis from https://stackoverflow.com/a/42424261
-    year_part = dt - datetime(year=dt.year, month=1, day=1)
-    year_length = datetime(year=dt.year+1, month=1, day=1) - datetime(year=dt.year, month=1, day=1)
-    return dt.year + year_part/year_length
 
 def standard_formats(workbook):
     # Add standard formatting to a workbook and return the set of format objects
@@ -476,7 +461,7 @@ class TimeDependentConnections(object):
                     headings[v] = i
             elif cell.data_type == 'n':
                 if cell.is_date:
-                    times[_datetime_to_year(v)] = i
+                    times[datetime_to_year(v)] = i
                 else:
                     times[v] = i
             else:
@@ -935,7 +920,7 @@ class TimeDependentValuesEntry(object):
                     headings[v] = i
             elif cell.data_type == 'n':
                 if cell.is_date:
-                    times[_datetime_to_year(v)] = i
+                    times[datetime_to_year(v)] = i
                 else:
                     times[v] = i
             else:
