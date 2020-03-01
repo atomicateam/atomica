@@ -1348,7 +1348,12 @@ def _sanitize_dataframe(df: pd.DataFrame, required_columns: list, defaults: dict
 
     """
 
-    # First check required columns are present
+    # First check if there are any duplicate columns in the heading
+    if len(set(df.columns)) < len(df.columns):
+        duplicates = [x for i,x in enumerate(df.columns.values) if x in df.columns[:i]]
+        raise InvalidFramework(f'Duplicate headings present: {duplicates}')
+
+    # Next check required columns are present
     if set_index is not None:
         if set_index not in df.columns:
             raise InvalidFramework(f'Mandatory index column "{set_index}" is missing')
