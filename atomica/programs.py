@@ -193,8 +193,8 @@ class ProgramSet(NamedItem):
         output = sc.prepr(self)
         output += '    Program set name: %s\n' % self.name
         output += '            Programs: %s\n' % [prog for prog in self.programs]
-        output += '        Date created: %s\n' % sc.getdate(self.created.replace(tzinfo=timezone.utc).astimezone(tz=None),dateformat = '%Y-%b-%d %H:%M:%S %Z')
-        output += '       Date modified: %s\n' % sc.getdate(self.modified.replace(tzinfo=timezone.utc).astimezone(tz=None),dateformat = '%Y-%b-%d %H:%M:%S %Z')
+        output += '        Date created: %s\n' % sc.getdate(self.created.replace(tzinfo=timezone.utc).astimezone(tz=None), dateformat='%Y-%b-%d %H:%M:%S %Z')
+        output += '       Date modified: %s\n' % sc.getdate(self.modified.replace(tzinfo=timezone.utc).astimezone(tz=None), dateformat='%Y-%b-%d %H:%M:%S %Z')
         output += '============================================================\n'
         return output
 
@@ -473,14 +473,24 @@ class ProgramSet(NamedItem):
 
         return self
 
-    def to_spreadsheet(self):
+    def to_workbook(self) -> tuple:
         """
-        Write the contents of a program set to a spreadsheet.
-        """
+        Return an open workbook for the ProgramSet
 
+        This allows the xlsxwriter workbook to be manipulated prior to closing the
+        filestream e.g. to append extra sheets. This prevents issues related to cached
+        data values when reloading a workbook to append or modify content
+
+        Warning - the workbook is backed by a BytesIO instance and needs to be closed.
+        See the usage of this method in the :meth`to_spreadsheet` function.
+
+        :return: A tuple (bytes, workbook) with a BytesIO instance and a corresponding *open* xlsxwriter workbook instance
+
+        """
         f = io.BytesIO()  # Write to this binary stream in memory
+        wb = xw.Workbook(f)
 
-        self._book = xw.Workbook(f)
+        self._book = wb
         self._book.set_properties({'category': 'atomica:progbook'})
         self._formats = standard_formats(self._book)
         self._references = {}  # Reset the references dict
@@ -489,18 +499,23 @@ class ProgramSet(NamedItem):
         self._write_spending()
         self._write_effects()
 
-        self._book.close()
-
-        # Dump the file content into a ScirisSpreadsheet
-        spreadsheet = sc.Spreadsheet(f)
-
-        # Clear everything
-        f.close()
         self._book = None
         self._formats = None
         self._references = None
 
-        # Return the spreadsheet
+        return f, wb
+
+    def to_spreadsheet(self) -> sc.Spreadsheet:
+        """
+        Return content as a Sciris Spreadsheet
+
+        :return: A :class:`sciris.Spreadsheet` instance
+
+        """
+
+        f, wb = self.to_workbook()
+        wb.close()  # Close the workbook to flush any xlsxwriter content
+        spreadsheet = sc.Spreadsheet(f)  # Wrap it in a spreadsheet instance
         return spreadsheet
 
     def save(self, filename=None, folder=None) -> str:

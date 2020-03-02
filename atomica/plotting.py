@@ -93,7 +93,7 @@ def save_figs(figs, path='.', prefix='', fnames=None) -> None:
         else:
             bbox = 'tight'
         fname = prefix + fnames[i] + '.png'
-        fname = sc.sanitizefilename(fname) #parameters may have inappropriate characters
+        fname = sc.sanitizefilename(fname)  # parameters may have inappropriate characters
         fig.savefig(os.path.join(path, fname), bbox_inches=bbox, dpi=settings['dpi'], transparent=settings['transparent'])
         logger.info('Saved figure "%s"', fname)
 
@@ -313,7 +313,7 @@ class PlotData:
 
                         # Set default aggregation method depending on the units of the quantity
                         if output_aggregation is None:
-                            if units[0] in ['', FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY]:
+                            if units[0] in ['', FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_RATE]:
                                 output_aggregation = 'average'
                             else:
                                 output_aggregation = 'sum'
@@ -322,7 +322,7 @@ class PlotData:
                             logger.warning("Aggregation for output '%s' is mixing units, this is almost certainly not desired.", output_name)
                             aggregated_units[output_name] = 'unknown'
                         else:
-                            if units[0] in ['', FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY] and output_aggregation == 'sum' and len(labels) > 1:  # Dimensionless, like prevalance
+                            if units[0] in ['', FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_RATE] and output_aggregation == 'sum' and len(labels) > 1:  # Dimensionless, like prevalance
                                 logger.warning("Output '%s' is not in number units, so output aggregation probably should not be 'sum'.", output_name)
                             aggregated_units[output_name] = output_units[labels[0]]
 
@@ -355,13 +355,13 @@ class PlotData:
 
                         # Set population aggregation method depending on
                         if pop_aggregation is None:
-                            if aggregated_units[output_name] in ['', FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY]:
+                            if aggregated_units[output_name] in ['', FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_RATE]:
                                 pop_aggregation = 'average'
                             else:
                                 pop_aggregation = 'sum'
 
                         if pop_aggregation == 'sum':
-                            if aggregated_units[output_name] in ['', FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY] and len(pop_labels) > 1:
+                            if aggregated_units[output_name] in ['', FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_RATE] and len(pop_labels) > 1:
                                 logger.warning("Output '%s' is not in number units, so population aggregation probably should not be 'sum'", output_name)
                             vals = sum(aggregated_outputs[x][output_name] for x in pop_labels)  # Add together all the outputs
                         elif pop_aggregation == 'average':
@@ -497,13 +497,13 @@ class PlotData:
 
             # Decide automatic aggregation method if not specified - this is done on a per-quantity basis
             if time_aggregation is None:
-                if s.units in {FS.QUANTITY_TYPE_DURATION, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_FRACTION}:
+                if s.units in {FS.QUANTITY_TYPE_DURATION, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_RATE, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_FRACTION}:
                     method = 'average'
                 else:
                     method = 'integrate'
             else:
                 method = time_aggregation
-                if method == 'integrate' and s.units in {FS.QUANTITY_TYPE_DURATION, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_FRACTION}:
+                if method == 'integrate' and s.units in {FS.QUANTITY_TYPE_DURATION, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_RATE, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_FRACTION}:
                     logger.warning('Units for series "%s" are "%s" so time aggregation should probably be "average", not "integrate"', s, s.units)
 
             if s.timescale is not None:
@@ -524,7 +524,7 @@ class PlotData:
                     vals[i] = np.trapz(y=v2 / scale, x=t2)  # Note division by timescale here, which annualizes it
                 elif interpolation_method == 'previous':
                     v2 = scipy.interpolate.interp1d(s.tvec, s.vals, kind='previous', copy=False, assume_sorted=True, bounds_error=False, fill_value=(np.nan, np.nan))(t2)
-                    vals[i] = sum(v2[:-1]/scale * np.diff(t2))
+                    vals[i] = sum(v2[:-1] / scale * np.diff(t2))
 
             s.tvec = (lower + upper) / 2.0
 
@@ -554,8 +554,8 @@ class PlotData:
                         pass
 
             elif method == 'average':
-                s.vals = np.array(vals) / np.diff(t_bins/scale) # Divide by bin width if averaging within the bins
-                s.units = 'Average %s' % (s.units) # It will look odd to do 'Cumulative Average Number of people' but that's will accurately what the user has requested (combining aggregation and accumulation is permitted, but not likely to be necessary)
+                s.vals = np.array(vals) / np.diff(t_bins / scale)  # Divide by bin width if averaging within the bins
+                s.units = 'Average %s' % (s.units)  # It will look odd to do 'Cumulative Average Number of people' but that's will accurately what the user has requested (combining aggregation and accumulation is permitted, but not likely to be necessary)
             else:
                 raise Exception('Unknown time aggregation type "%s"' % (time_aggregation))
 

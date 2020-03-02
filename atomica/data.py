@@ -21,6 +21,7 @@ from . import logger
 from .system import FrameworkSettings as FS
 from collections import defaultdict
 
+_DEFAULT_PROVENANCE = 'Framework-supplied default'
 
 class ProjectData(sc.prettyobj):
     """
@@ -280,6 +281,7 @@ class ProjectData(sc.prettyobj):
                         ts = TimeSeries(units=interpop.allowed_units[0])
                         ts.insert(None, spec['default value'])
                         interpop.ts[(from_pop, to_pop)] = ts
+                        interpop.ts_attributes['Provenance'][(from_pop, to_pop)] = _DEFAULT_PROVENANCE
 
         # Finally, insert parameter and characteristic default values
         for df in [framework.comps, framework.characs, framework.pars]:
@@ -289,8 +291,9 @@ class ProjectData(sc.prettyobj):
                 # - The quantity should appear in the databook
                 if 'default value' in spec and (spec['default value'] is not None) and spec['databook page']:
                     tdve = data.tdve[spec.name]
-                    for ts in tdve.ts.values():
+                    for key, ts in tdve.ts.items():
                         ts.insert(None, spec['default value'])
+                        tdve.ts_attributes['Provenance'][key] = _DEFAULT_PROVENANCE
 
         return data
 
@@ -317,7 +320,7 @@ class ProjectData(sc.prettyobj):
 
         self = ProjectData(framework=framework)
 
-        if sc.isstring(spreadsheet):
+        if not isinstance(spreadsheet, sc.Spreadsheet):
             spreadsheet = sc.Spreadsheet(spreadsheet)
 
         workbook = openpyxl.load_workbook(spreadsheet.tofile(), read_only=True, data_only=True)  # Load in read-only mode for performance, since we don't parse comments etc.
@@ -478,7 +481,7 @@ class ProjectData(sc.prettyobj):
                             if ts.units.strip().lower() != framework_units.strip().lower():
                                 # If the units don't match the framework's 'databook' units, see if they at least match the standard unit (for legacy databooks)
                                 # For compartments and characteristics, the units must match exactly
-                                if obj_type in ['comps','characs'] or ('format' in spec and spec['format'] is not None and ts.units.lower().strip() != spec['format'].lower().strip()):
+                                if obj_type in ['comps', 'characs'] or ('format' in spec and spec['format'] is not None and ts.units.lower().strip() != spec['format'].lower().strip()):
                                     assert ts.units == framework_units, '%s. Unit "%s" for %s (%s) does not match the declared units from the Framework (expecting "%s")' % (location, ts.units, tdve.name, name, framework_units)
                             if obj_type == 'par' and spec['timed'] == 'y':
                                 assert not ts.has_time_data, '%s. Parameter %s (%s) is marked as a timed transition in the Framework, so it must have a constant value (i.e., the databook cannot contain time-dependent values for this parameter)' % (location, tdve.name, name)
@@ -515,19 +518,27 @@ class ProjectData(sc.prettyobj):
                 assert ts.units is not None, 'Units are missing for transfer %s, %s->%s' % (tdc.full_name, to_pop, from_pop)
         return True
 
-    def to_spreadsheet(self) -> sc.Spreadsheet:
+    def to_workbook(self) -> tuple:
         """
-        Return content as a Sciris Spreadsheet
+        Return an open workbook for the databook
 
-        :return: A :class:`sciris.Spreadsheet` instance
+        This allows the xlsxwriter workbook to be manipulated prior to closing the
+        filestream e.g. to append extra sheets. This prevents issues related to cached
+        data values when reloading a workbook to append or modify content
+
+        Warning - the workbook is backed by a BytesIO instance and needs to be closed.
+        See the usage of this method in the :meth`to_spreadsheet` function.
+
+        :return: A tuple (bytes, workbook) with a BytesIO instance and a corresponding *open* xlsxwriter workbook instance
 
         """
 
         # Initialize the bytestream
         f = io.BytesIO()
+        wb = xw.Workbook(f, {'in_memory': True})
 
         # Open a workbook
-        self._book = xw.Workbook(f)
+        self._book = wb
         self._book.set_properties({'category': 'atomica:databook'})
         self._formats = standard_formats(self._book)
         self._references = {}  # Reset the references dict
@@ -538,19 +549,24 @@ class ProjectData(sc.prettyobj):
         self._write_interpops()
         self._write_transfers()
 
-        # Close the workbook
-        self._book.close()
-
-        # Dump the file content into a ScirisSpreadsheet
-        spreadsheet = sc.Spreadsheet(f)
-
-        # Clear everything
-        f.close()
+        # Clean internal variables related to writing the worbkook
         self._book = None
         self._formats = None
         self._references = None
 
-        # Return the spreadsheet
+        return f, wb
+
+    def to_spreadsheet(self) -> sc.Spreadsheet:
+        """
+        Return content as a Sciris Spreadsheet
+
+        :return: A :class:`sciris.Spreadsheet` instance
+
+        """
+
+        f, wb = self.to_workbook()
+        wb.close()  # Close the workbook to flush any xlsxwriter content
+        spreadsheet = sc.Spreadsheet(f)  # Wrap it in a spreadsheet instance
         return spreadsheet
 
     def save(self, fname) -> None:
@@ -766,7 +782,7 @@ class ProjectData(sc.prettyobj):
 
         from_pops = [name for name, pop_spec in self.pops.items() if pop_spec['type'] == from_pop_type]
         to_pops = [name for name, pop_spec in self.pops.items() if pop_spec['type'] == to_pop_type]
-        interpop = TimeDependentConnections(code_name, full_name, self.tvec, from_pops=from_pops, to_pops=to_pops, interpop_type='interaction', ts=None, from_pop_type=from_pop_type, to_pop_type=to_pop_type)
+        interpop = TimeDependentConnections(code_name, full_name, tvec=self.tvec, from_pops=from_pops, to_pops=to_pops, interpop_type='interaction', ts=None, from_pop_type=from_pop_type, to_pop_type=to_pop_type)
         interpop.write_units = True
         interpop.write_assumption = True
         interpop.write_uncertainty = True

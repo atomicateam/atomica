@@ -250,7 +250,7 @@ class Compartment(Variable):
 
             if par.units == FS.QUANTITY_TYPE_DURATION:
                 outflow_probability += min(1, self.dt / (transition * par.timescale))
-            elif par.units == FS.QUANTITY_TYPE_PROBABILITY:
+            elif par.units in {FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_RATE}:
                 outflow_probability += min(1, transition * (self.dt / par.timescale))
             elif par.units == FS.QUANTITY_TYPE_NUMBER:
                 outflow_probability += par[ti] * self.dt / self[ti]
@@ -766,10 +766,13 @@ class TimedCompartment(Compartment):
                     self._vals[-1, ti] += sum(link._vals[self._vals.shape[0]:, tr].tolist())
 
         # Advance the keyring
-        assert np.isclose(self._vals[0, ti], 0)  # Now, the final subcompartment should be empty - can disable this check if it's slow
+        # If this TimedCompartment has only one row, then anyone coming in via TimedLinks will be placed directly
+        # in the final subcompartment (which is also the initial subcompartment). We are assuming that the cached
+        # outflow correctly emptied everyone in the flush compartment so don't check that the final subcompartment
+        # is empty because people could have been added to it in this timestep
         if self._vals.shape[0] > 1:
             self._vals[0:-1, ti] = self._vals[1:, ti]
-        self._vals[-1, ti] = 0.0  # Zero out the inflow (otherwise, it just replicates previous value)
+            self._vals[-1, ti] = 0.0  # Zero out the inflow (otherwise, it just replicates previous value)
 
         # Now, resolve other inputs for which durations are not preserved
         # Regardless of whether they are TimedLinks or not, they should go into the initial subcompartment
@@ -836,8 +839,9 @@ class Characteristic(Variable):
 
         self.t = tvec
         self.dt = dt
-        self._vals = np.empty(tvec.shape)
-        self._vals.fill(np.nan)
+        if self._is_dynamic:
+            self._vals = np.empty(tvec.shape)
+            self._vals.fill(np.nan)
 
     def get_included_comps(self):
         includes = []
@@ -952,7 +956,7 @@ class Parameter(Variable):
         #: one wanted to use 1/365.25 instead of 1/365)
         self.timescale = 1.0
 
-    def set_fcn(self, framework, fcn_str, progset) -> None:
+    def set_fcn(self, fcn_str) -> None:
         """
         Add a function to this parameter
 
@@ -965,7 +969,6 @@ class Parameter(Variable):
 
         :param framework: A py:class:`ProjectFramework` instance, used to identify and retrieve interaction terms
         :param fcn_str: The string containing the function to add
-        :param progset: A py:class:`ProgramSet` instance, used to identify parameters that will be overwritten
 
         """
 
@@ -980,19 +983,12 @@ class Parameter(Variable):
             function_args = [x.strip() for x in function_args]
             self.pop_aggregation = [special_function] + function_args
             # Aggregation dependencies are set externally because they may cross populations - see `Model.build()`
+            # Note that aggregations are computed externally rather than via `Parameter.update`
         else:
             for dep_name in dep_list:
                 if not (dep_name in ['t', 'dt']):  # There are no integration variables associated with the interactions, as they are treated as a special matrix
                     self.deps[dep_name] = self.pop.get_variable(dep_name)  # nb. this lookup will fail if the user has a function that depends on a quantity outside this population
 
-        # If this Parameter has links and a function, it must be updated before it is needed during integration.
-        # If the function depends on any compartment sizes, it must be updated element-wise during integration.
-        # Similarly, if it is a derivative parameter, it needs to be updated element-wise.
-        # Otherwise, it can be pre-computed in a fast vector operation
-        # A timed parameter doesn't _directly_ have links associated with it (because it does not supply values
-        # for the links) but it does need to be precomputed
-        if self.links or self.derivative or framework.pars.at[self.name, 'timed'] == 'y':
-            self.set_dynamic(progset)
 
     def set_dynamic(self, progset=None) -> None:
         """
@@ -1033,7 +1029,7 @@ class Parameter(Variable):
             for deps in self.deps.values():  # deps is {'dep_name':[dep_objects]}
                 for dep in deps:
                     if isinstance(dep, Link):
-                        raise ModelError("A Parameter that depends on transition flow rates cannot be a dependency, it must be output only.")
+                        raise ModelError(f"Parameter '{self.name}' depends on transition flow '{dep.name}' thus it cannot be a dependency, it must be output only.")
                     elif isinstance(dep, Compartment) or isinstance(dep, Characteristic):
                         dep.set_dynamic()
                         self._is_dynamic = True
@@ -1642,7 +1638,17 @@ class Population(object):
 
             fcn_str = pars.at[par.name, 'function']
             if fcn_str is not None:
-                par.set_fcn(framework, fcn_str, progset)
+                par.set_fcn(fcn_str)
+
+        # If this Parameter has links and a function, it must be updated before it is needed during integration.
+        # If the function depends on any compartment sizes, it must be updated element-wise during integration.
+        # Similarly, if it is a derivative parameter, it needs to be updated element-wise.
+        # Otherwise, it can be pre-computed in a fast vector operation
+        # A timed parameter doesn't _directly_ have links associated with it (because it does not supply values
+        # for the links) but it does need to be precomputed
+        for par in self.pars:
+            if par.fcn_str and (par.links or par.derivative or framework.pars.at[par.name, 'timed'] == 'y'):
+                par.set_dynamic(progset)
 
     def initialize_compartments(self, parset: ParameterSet, framework, t_init: float) -> None:
         """
@@ -1831,7 +1837,6 @@ class Model(object):
         self._program_cache = None
         self._exec_order = None
 
-
     def relink(self) -> None:
         """
         Replace IDs with references
@@ -1976,7 +1981,7 @@ class Model(object):
                         par.units = transfer_parameter.ts[pop_target].units.strip().split()[0].strip().lower()
 
                         # Sampling might result in the parameter value going out of bounds, so make sure the transfer parameter values are constrained
-                        if par.units == FS.QUANTITY_TYPE_PROBABILITY:
+                        if par.units == FS.QUANTITY_TYPE_RATE or par.units == FS.QUANTITY_TYPE_PROBABILITY:
                             par.limits = [0, 1]
                         elif par.units == FS.QUANTITY_TYPE_NUMBER:
                             par.limits = [0, np.inf]
@@ -2101,7 +2106,7 @@ class Model(object):
         # dynamic programs or to program overwrites.
         par_derivative = self.framework.pars['is derivative'].to_dict()  # Store all parameter names in framework, as well as whether they are a derivative or not
         G = nx.DiGraph()
-        G.add_nodes_from(par_derivative,keep=False)
+        G.add_nodes_from(par_derivative, keep=False)
         for pop in self.pops:
             for par in pop.pars:
                 for dep, dep_var in par.deps.items():
@@ -2127,7 +2132,6 @@ class Model(object):
         exec_order['all_pars'] = [x for x in nx.dag.topological_sort(G) if x in self._vars_by_pop]  # Not all parameters may exist depending on populations, so filter out only the ones that are actually instantiated in this Model
         exec_order['dynamic_pars'] = [x for x in exec_order['all_pars'] if G.nodes[x]['keep']]
 
-
         # Set the parameter execution order - this is a list of only transition parameters, used when updating links
         # This is a flat list of parameters, but the order actually should not matter since all parameters should be
         # resolved at this point
@@ -2141,6 +2145,7 @@ class Model(object):
         G = nx.DiGraph()
         for pop in self.pops:
             for charac in pop.characs:
+                G.add_node(charac)
                 for include in charac.includes:
                     if isinstance(include, Characteristic):
                         G.add_edge(include, charac)  # Note directionality - the included characteristic needs to be added first
@@ -2235,7 +2240,7 @@ class Model(object):
                 continue
 
             # Convert probability by Poisson distribution formula to a value appropriate for timestep.
-            if par.units == FS.QUANTITY_TYPE_PROBABILITY:
+            if par.units == FS.QUANTITY_TYPE_RATE or par.units == FS.QUANTITY_TYPE_PROBABILITY:
                 # Note that we convert the transition to the timestep before checking whether it is greater than 1 or not. That way,
                 # durations get preserved until we limit them based on the timestep size. The rationale is that the annual probability
                 # will come out at 1.0 if the *mean* duration is the same as the step size, but that doesn't mean that if the step size
@@ -2396,7 +2401,7 @@ class Model(object):
 
                         if par.units == FS.QUANTITY_TYPE_NUMBER:
                             par[ti] *= par.source_popsize(ti) / self.dt  # The outcome in the progbook is per person reached, which is a timestep specific value. Thus, need to annualize here
-                        elif par.units == FS.QUANTITY_TYPE_PROBABILITY:
+                        elif par.units == FS.QUANTITY_TYPE_RATE or par.units == FS.QUANTITY_TYPE_PROBABILITY:
                             # Continuous programs generally should not target number or probability parameters
                             # We apply a factor of dt here regardless of the parameter's timescale. This is because the dt factor here
                             # matches the factor of dt used to divide the annual spending into timestep spending

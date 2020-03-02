@@ -242,9 +242,41 @@ def test_overwrite_function_scenario():
     assert np.allclose(var2.vals[var2.t == 2019][0], 0.15, equal_nan=True)  # Check that the function didn't turn back on
 
 
+def test_interaction_scenario():
+
+    proj = at.demo('tb', do_run=False)
+    parset = proj.parsets[0]
+    res_baseline = proj.run_sim(result_name='Baseline', parset='default')
+
+    # Run an interaction and transfer scenario - take out aging 0-4 to 5-14, and also
+    # no FOI input for 15-64
+    ps = at.ParameterScenario(name="examplePS")
+    ps.add('age', ('0-4', '5-14'), [2020., np.inf], [0, 0])
+
+    for from_pop in proj.data.pops:
+        if from_pop in parset.interactions['w_ctc'] and '15-64' in parset.interactions['w_ctc'][from_pop].ts:
+            ps.add('w_ctc', (from_pop, '15-64'), [2020., np.inf], [0, 0])
+
+    res_scen = proj.run_sim(result_name='Scen', parset=ps.get_parset(parset, proj))
+
+    d = at.PlotData([res_baseline, res_scen], 'age_0-4_to_5-14', pops='0-4')
+    at.plot_series(d, axis='results')
+
+    d = at.PlotData([res_baseline, res_scen], 'foi_in', pops='15-64')
+    at.plot_series(d, axis='results')
+
+    assert res_baseline.get_variable('foi_in', '15-64')[0].vals[-1] > 0
+    assert res_scen.get_variable('foi_in', '15-64')[0].vals[-1] == 0  # Check scenario has 0 FOI in 15-64
+    assert res_scen.get_variable('foi_in', '0-4')[0].vals[-1] > 0  # Check that a different population was not affected
+    assert res_scen.get_variable('foi_in', '5-14')[0].vals[-1] > 0  # Check that a different population was not affected
+    assert res_baseline.get_variable('age_0-4_to_5-14', '0-4')[0].vals[-1] > 0
+    assert res_scen.get_variable('age_0-4_to_5-14', '0-4')[0].vals[-1] == 0  # Check scenario has 0 FOI in 15-64
+
+
 if __name__ == '__main__':
-    # test_program_scenarios()
-    # test_timevarying_progscen()
+    test_program_scenarios()
+    test_timevarying_progscen()
     test_parameter_scenarios()
-    # test_combined_scenario()
-    # test_overwrite_function_scenario()
+    test_combined_scenario()
+    test_overwrite_function_scenario()
+    test_interaction_scenario()

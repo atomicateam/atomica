@@ -11,3 +11,4 @@ These tutorials walk through getting starting with building models in Atomica
     T3-Multiple-populations
     T4-Characteristics
     T5-Junctions
+    T6-Programs

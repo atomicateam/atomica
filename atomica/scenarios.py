@@ -207,9 +207,11 @@ class ParameterScenario(Scenario):
 
     :param name: The name of the scenario. This will also be used to name the result
     :param scenario_values: A dict of overwrites to parameter values. The structure is
-        ``{parameter_label: {pop_label: dict o}`` where the overwrite ``o`` contains keys
+        ``{parameter_label: {pop_identifier: dict o}`` where the overwrite ``o`` contains keys
          - ``t`` : np.array or list with year values
          - ``y`` : np.array or list with corresponding parameter values
+         The ``pop_identifier`` is a single population name if the ``parameter_label`` corresponds to a Framework parameter
+         or it should be a tuple/list ``(from_pop,to_pop)`` if the ``parameter_label`` corresponds to an interaction or transfer.
     :param active: If running via ``Project.run_scenarios`` this flags whether to run the scenario
     :param parsetname: If running via ``Project.run_scenarios`` this identifies which parset to use from the project
     :param interpolation: The specified interpolation method will be used to interpolate scenario values onto simulation times. Common options are 'linear' (smoothly change) and 'previous' (stepped)
@@ -233,12 +235,14 @@ class ParameterScenario(Scenario):
 
         >>> pscenario = ParameterScenario(name="examplePS")
         >>> pscenario.add('rec_rate','Pop1',[2004.,2014],[3e6, 1e4])
+        >>> pscenario.add('aging',('Pop1','Pop2'),[2004.,2014],[0.05,0.06])
 
         This can provide a more readable way to define a parameter scenario, without having to
         assemble a dict of the overwrites in advance.
 
-        :param par_name: Name of the parameter to overwrite
-        :param pop_name: Population to overwrite values for
+        :param par_name: Name of the parameter to overwrite. This can also be the code name of a transfer or interaction
+        :param pop_name: Population to overwrite values for. If the ``par_name`` is a transfer or interaction, this
+                         should be a tuple containing ``(from_pop,to_pop)``
         :param t: scalar, list, or array of times
         :param y: scalar, list, or array of overwrite values
         :param end_overwrite: If True, after the final overwrite, the parameter will revert to its baseline value
@@ -278,10 +282,20 @@ class ParameterScenario(Scenario):
         tvec = project.settings.tvec  # Simulation times
 
         for par_label in self.scenario_values.keys():
-            par = new_parset.pars[par_label]  # This is the parameter we are updating
-            has_function = project.framework.pars.at[par.name, 'function']  # Flag whether this is a function parameter in the framework
 
-            for pop_label, overwrite in self.scenario_values[par_label].items():
+            if par_label in new_parset.pars:
+                has_function = project.framework.pars.at[par_label, 'function']  # Flag whether this is a function parameter in the framework
+            else:
+                has_function = False  # Interactions and transfers do not have functions
+
+            for pop_specifier, overwrite in self.scenario_values[par_label].items():
+
+                if sc.isstring(pop_specifier):
+                    par = new_parset.get_par(par_label)
+                    pop_label = pop_specifier
+                else:
+                    par = new_parset.get_par(par_label, pop_specifier[0])
+                    pop_label = pop_specifier[1]
 
                 # Sanitize the overwrite values
                 overwrite = sc.dcp(overwrite)

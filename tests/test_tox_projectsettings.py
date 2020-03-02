@@ -1,6 +1,7 @@
 import atomica as at
 import numpy as np
 
+
 def test_projectsettings():
 
     # Check that the sim end year is automatically updated if the
@@ -25,7 +26,8 @@ def test_projectsettings():
 
     # Check that the tvec returned is inclusive of the end year
     s = at.ProjectSettings(sim_start=2000, sim_end=2003, sim_dt=1)
-    assert np.all(s.tvec == np.array([2000,2001,2002,2003]))
+    assert np.all(s.tvec == np.array([2000, 2001, 2002, 2003]))
+
 
 if __name__ == '__main__':
     test_projectsettings()
