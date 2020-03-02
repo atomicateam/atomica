@@ -14,6 +14,7 @@ import itertools
 import zlib
 import re
 import time
+from datetime import datetime
 
 
 def parent_dir():
@@ -748,3 +749,18 @@ def fast_gitinfo(path):
 
     output = {'branch': gitbranch, 'hash': githash, 'date': gitdate}  # Assemble outupt
     return output
+
+def datetime_to_year(dt: datetime) -> float:
+    """
+    Convert a DateTime instance to decimal year
+
+    For example, 1/7/2010 would be approximately 2010.5
+
+    :param dt: The datetime instance to convert
+    :return: Equivalent decimal year
+
+    """
+    # By Luke Davis from https://stackoverflow.com/a/42424261
+    year_part = dt - datetime(year=dt.year, month=1, day=1)
+    year_length = datetime(year=dt.year+1, month=1, day=1) - datetime(year=dt.year, month=1, day=1)
+    return dt.year + year_part/year_length

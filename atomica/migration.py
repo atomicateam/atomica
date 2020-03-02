@@ -747,7 +747,7 @@ def _add_end_year_to_project_settings(proj):
 def _add_tdc_tdve_attributes(proj):
     if proj.data:
         for tdve in proj.data.tdve.values():
-            tdve.attributes = {}
+            tdve.ts_attributes = {}
         for tdc in proj.data.transfers + proj.data.interpops:
             tdc.attributes = {}
             tdc.ts_attributes = {}

@@ -280,8 +280,20 @@ class Project(NamedItem):
         self.parsets.append(ParameterSet(self.framework, self.data, name))
         return self.parsets[name]
 
-    def make_progbook(self, progbook_path=None, progs=None, data_start=None, data_end=None):
-        ''' Make a blank program databook'''
+    def make_progbook(self, progbook_path: str=None, progs=None, data_start: float=None, data_end: float=None) -> str:
+        """
+        Save a blank program book
+
+        This method will create a temporary ``ProgramSet`` and save it to the requested path
+
+        :param progbook_path: Path to save program book
+        :param progs: A program specification supposed by ``ProgramSet.new()``
+        :param data_start: The start year for data entry
+        :param data_end: The end year for data entry
+        :return: The full path of the newly created program book
+
+        """
+
         # Get filepath
         if self.data is None:
             errormsg = 'Please upload a databook before creating a program book. The databook defines which populations will appear in the program book.'
@@ -293,6 +305,7 @@ class Project(NamedItem):
             data_end = self.data.tvec[-1]
         progset = ProgramSet.new(tvec=np.arange(data_start, data_end + 1), progs=progs, framework=self.framework, data=self.data)
         progset.save(full_path)
+        return full_path
 
     def load_progbook(self, progbook_path=None, name="default"):
         """

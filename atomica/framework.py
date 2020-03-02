@@ -580,6 +580,12 @@ class ProjectFramework(object):
             self.comps['calibrate'] = None
             self.comps['calibrate'][default_calibrate] = 'y'
 
+        try:
+            pd.to_numeric(self.comps['databook order'])
+        except Exception as e:
+            message = 'An error was detected on the "Compartments" sheet in the Framework file - databook order must be a number'
+            raise Exception('%s -> %s' % (message, e)) from e
+
         # VALIDATE COMPARTMENTS
         for comp_name, row in zip(self.comps.index, self.comps.to_dict(orient='records')):
 
@@ -636,6 +642,12 @@ class ProjectFramework(object):
 
         # Assign first population type to any empty population types
         self.characs['population type'] = self.characs['population type'].fillna(available_pop_types[0])
+
+        try:
+            pd.to_numeric(self.characs['databook order'])
+        except Exception as e:
+            message = 'An error was detected on the "Characteristics" sheet in the Framework file - databook order must be a number'
+            raise Exception('%s -> %s' % (message, e)) from e
 
         if 'setup weight' not in self.characs:
             self.characs['setup weight'] = (~self.characs['databook page'].isnull()).astype(int)
@@ -751,8 +763,12 @@ class ProjectFramework(object):
 
         # Assign first population type to any empty population types
         self.pars['population type'] = self.pars['population type'].fillna(available_pop_types[0])
-
         self.pars['format'] = self.pars['format'].map(lambda x: x.strip() if sc.isstring(x) else x)
+        try:
+            pd.to_numeric(self.pars['databook order'])
+        except Exception as e:
+            message = 'An error was detected on the "Parameters" sheet in the Framework file - databook order must be a number'
+            raise Exception('%s -> %s' % (message, e)) from e
 
         if 'calibrate' not in self.pars:
             default_calibrate = self.pars['targetable'] == 'y'
@@ -795,7 +811,7 @@ class ProjectFramework(object):
                     # Durations should always have a timescale, assumed to be annual by default
                     # This ensures the time units get printed in the databook, even for non-transition parameters
                     self.pars.at[par_name, 'timescale'] = 1.0  # Assign default timescale for probability and duration (but not number, since a number might be absolute rather than annual for non-transition parameters)
-                elif self.transitions[par_name] and par['timescale'] is None and par['format'] in {FS.QUANTITY_TYPE_NUMBER, FS.QUANTITY_TYPE_PROBABILITY}:
+                elif self.transitions[par_name] and par['timescale'] is None and par['format'] in {FS.QUANTITY_TYPE_NUMBER, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_RATE}:
                     # For number and probability, non-transition parameters might not be be in units per time period, therefore having a timescale
                     # is optional *unless* it is a transition parameter
                     self.pars.at[par_name, 'timescale'] = 1.0
@@ -813,11 +829,11 @@ class ProjectFramework(object):
                 if par['targetable'] == 'y':
                     raise InvalidFramework(f'Parameter "{par_name}" is marked as driving a timed transition so it cannot be targeted by programs')
 
-            if par['format'] == FS.QUANTITY_TYPE_PROBABILITY and par['maximum value'] == 1:
+            if par['format'] in {FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_RATE} and par['maximum value'] == 1:
                 # With a timestep of 0.25, the maximum timestep probability of 1 corresponds to an annual probability of 4. Allowing the annual probability to exceed 1 for the purpose of
                 # flow rate calculations impacts dynamics, because capping the value is a non-invertible process. If the annual probability is capped during calculations, then a timestep
                 # probability of 0.3 and 1.0 will both have an annual probability of 1.
-                logger.warning(f'Parameter "{par_name}" is in probability units and a maximum value of "1" has been entered. Probabilities in the framework should generally not be limited to "1" because it is only the timestep-specific probability that is capped at 1')
+                logger.warning(f'Parameter "{par_name}" is in rate units and a maximum value of "1" has been entered. Rates in the framework should generally not be limited to "1"')
 
             if par['function'] is None:
                 # In order to have a value, a transition parameter must either be
@@ -959,9 +975,9 @@ class ProjectFramework(object):
                 if not par['format']:
                     raise InvalidFramework('Parameter %s is a transition parameter, so it needs to have a format specified in the Framework' % par_name)
 
-                allowed_formats = {FS.QUANTITY_TYPE_NUMBER, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_DURATION, FS.QUANTITY_TYPE_PROPORTION}
+                allowed_formats = {FS.QUANTITY_TYPE_NUMBER, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_RATE, FS.QUANTITY_TYPE_DURATION, FS.QUANTITY_TYPE_PROPORTION}
                 if par['format'] not in allowed_formats:
-                    raise InvalidFramework('Parameter %s is a transition parameter so format "%s is not allowed - it must be one of %s' % (par_name, par['format'], allowed_formats))
+                    raise InvalidFramework('Parameter %s is a transition parameter so format "%s" is not allowed - it must be one of %s' % (par_name, par['format'], allowed_formats))
 
                 from_comps = [x[0] for x in self.transitions[par_name]]
                 to_comps = [x[1] for x in self.transitions[par_name]]
@@ -1230,7 +1246,7 @@ class ProjectFramework(object):
                     raise InvalidFramework(f'A timescale was provided for Framework quantity {code_name} but no units were provided')
                 elif units.lower() == FS.QUANTITY_TYPE_DURATION:
                     return '%s (%s)' % (FS.QUANTITY_TYPE_DURATION.title(), format_duration(item_spec['timescale'], pluralize=True))
-                elif units.lower() in {FS.QUANTITY_TYPE_NUMBER, FS.QUANTITY_TYPE_PROBABILITY}:
+                elif units.lower() in {FS.QUANTITY_TYPE_NUMBER, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_RATE}:
                     return '%s (per %s)' % (units.title(), format_duration(item_spec['timescale'], pluralize=False))
                 else:
                     if units is None:
@@ -1332,7 +1348,12 @@ def _sanitize_dataframe(df: pd.DataFrame, required_columns: list, defaults: dict
 
     """
 
-    # First check required columns are present
+    # First check if there are any duplicate columns in the heading
+    if len(set(df.columns)) < len(df.columns):
+        duplicates = [x for i,x in enumerate(df.columns.values) if x in df.columns[:i]]
+        raise InvalidFramework(f'Duplicate headings present: {duplicates}')
+
+    # Next check required columns are present
     if set_index is not None:
         if set_index not in df.columns:
             raise InvalidFramework(f'Mandatory index column "{set_index}" is missing')

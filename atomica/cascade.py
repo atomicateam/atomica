@@ -136,7 +136,7 @@ def sanitize_cascade(framework, cascade, fallback_used: bool = False) -> tuple:
 
     :param framework: A :class:`ProjectFramework` instance
     :param cascade: Supported cascade representation. Could be
-        - A string cascade name
+        - A string cascade nameP
         - An integer specifying the index of the cascade
         - ``None``, which maps to the first cascade in the framework
         - A ``list`` of cascade stages
@@ -260,14 +260,10 @@ def validate_cascade(framework, cascade, cascade_name=None, fallback_used: bool 
     """
 
     if not isinstance(cascade, dict):
-        sanitize_cascade(framework, cascade, fallback_used=fallback_used)  # This will result in a call to validate_cascade()
-        return True
+        _, _, pop_type = sanitize_cascade(framework, cascade, fallback_used=fallback_used)  # This will result in a call to validate_cascade()
+        return pop_type
     else:
         cascade_dict = cascade
-
-    if len(cascade_dict) < 2:
-        # A 'cascade' with 0 or 1 stages is by definition valid, although it would not be sensible!
-        return True
 
     expanded = sc.odict()
     for stage, includes in cascade_dict.items():
@@ -380,6 +376,7 @@ def plot_single_cascade(result=None, cascade=None, pops=None, year=None, data=No
     losscolor = (0, 0, 0)  # (0.8,0.2,0.2)
 
     cascade_name, cascade_dict, pop_type = sanitize_cascade(result.framework, cascade)
+
     pops = sanitize_pops(pops, result, pop_type)
 
     if not year:

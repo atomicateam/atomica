@@ -21,6 +21,7 @@ from . import logger
 from .system import FrameworkSettings as FS
 from collections import defaultdict
 
+_DEFAULT_PROVENANCE = 'Framework-supplied default'
 
 class ProjectData(sc.prettyobj):
     """
@@ -280,6 +281,7 @@ class ProjectData(sc.prettyobj):
                         ts = TimeSeries(units=interpop.allowed_units[0])
                         ts.insert(None, spec['default value'])
                         interpop.ts[(from_pop, to_pop)] = ts
+                        interpop.ts_attributes['Provenance'][(from_pop, to_pop)] = _DEFAULT_PROVENANCE
 
         # Finally, insert parameter and characteristic default values
         for df in [framework.comps, framework.characs, framework.pars]:
@@ -289,8 +291,9 @@ class ProjectData(sc.prettyobj):
                 # - The quantity should appear in the databook
                 if 'default value' in spec and (spec['default value'] is not None) and spec['databook page']:
                     tdve = data.tdve[spec.name]
-                    for ts in tdve.ts.values():
+                    for key, ts in tdve.ts.items():
                         ts.insert(None, spec['default value'])
+                        tdve.ts_attributes['Provenance'][key] = _DEFAULT_PROVENANCE
 
         return data
 
@@ -317,7 +320,7 @@ class ProjectData(sc.prettyobj):
 
         self = ProjectData(framework=framework)
 
-        if sc.isstring(spreadsheet):
+        if not isinstance(spreadsheet, sc.Spreadsheet):
             spreadsheet = sc.Spreadsheet(spreadsheet)
 
         workbook = openpyxl.load_workbook(spreadsheet.tofile(), read_only=True, data_only=True)  # Load in read-only mode for performance, since we don't parse comments etc.
