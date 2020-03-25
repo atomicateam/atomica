@@ -51,12 +51,12 @@ class ProjectFramework(object):
         self.sheets = sc.odict()  #: Stores a dict of Pandas dataframes organized by sheet from the Excel file
         self.spreadsheet = None  #: A ``sc.Spreadsheet`` object containing the original Excel file
 
-        if sc.isstring(inputs):
-            self.spreadsheet = sc.Spreadsheet(inputs)
+        if inputs is None:
+            return
         elif isinstance(inputs, sc.Spreadsheet):
             self.spreadsheet = inputs
         else:
-            return
+            self.spreadsheet = sc.Spreadsheet(inputs)
 
         workbook = openpyxl.load_workbook(self.spreadsheet.tofile(), read_only=True, data_only=True)  # Load in read-write mode so that we can correctly dump the file
         validate_category(workbook, 'atomica:framework')
@@ -82,7 +82,8 @@ class ProjectFramework(object):
                     # On the transitions sheet, don't make the compartment code names lowercase
                     pass
                 else:
-                    df.columns = df.columns.str.lower()
+                    if not df.empty:
+                        df.columns = df.columns.str.lower()
 
         self._validate()
         if name is not None:
