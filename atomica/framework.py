@@ -82,7 +82,7 @@ class ProjectFramework(object):
                     # On the transitions sheet, don't make the compartment code names lowercase
                     pass
                 else:
-                    if not df.empty:
+                    if len(df.columns):
                         df.columns = df.columns.str.lower()
 
         self._validate()
