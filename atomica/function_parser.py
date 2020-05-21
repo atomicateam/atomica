@@ -24,11 +24,6 @@ def sdiv(numerator, denominator):
     """
 
     if np.isscalar(numerator):
-        if np.isscalar(denominator):
-            if numerator == 0:
-                return 0
-            else:
-                return numerator/denominator
         return np.divide(numerator, denominator, out=np.zeros_like(denominator, dtype=float), where=numerator != 0)
     else:
         return np.divide(numerator, denominator, out=np.zeros_like(numerator, dtype=float), where=numerator != 0)
