@@ -36,7 +36,7 @@ setup(
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://atomica.tools',
-    keywords=['dynamic','compartment','optimization', 'disease'],
+    keywords=['dynamic', 'compartment', 'optimization', 'disease'],
     platforms=['OS Independent'],
     classifiers=CLASSIFIERS,
     packages=find_packages(),
@@ -44,7 +44,7 @@ setup(
     install_requires=[
         'matplotlib>=3.0',
         'numpy>=1.10.1',
-        'scipy',
+        'scipy>=1.2.1',
         'pandas',
         'six>=1.11.0',
         'xlsxwriter',

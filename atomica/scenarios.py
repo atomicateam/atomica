@@ -25,6 +25,7 @@ from .programs import ProgramInstructions, ProgramSet
 from .parameters import ParameterSet
 from .results import Result
 
+
 class Scenario(NamedItem):
     """
     Base scenario class
@@ -47,13 +48,13 @@ class Scenario(NamedItem):
 
     """
 
-    def __init__(self, name:str, active:bool=True, parsetname:str =None, progsetname:str =None):
+    def __init__(self, name: str, active: bool = True, parsetname: str = None, progsetname: str = None):
         NamedItem.__init__(self, name)
         self.parsetname = parsetname  #: Specify parset name when run via ``Project.run_scenarios``
         self.progsetname = progsetname  #: Specify progset name when run via ``Project.run_scenarios``
         self.active = active  #: Flag whether the scenario should be run via ``Project.run_scenarios``
 
-    def get_parset(self,parset,project) -> ParameterSet:
+    def get_parset(self, parset, project) -> ParameterSet:
         """
         Get scenario parset
 
@@ -66,7 +67,7 @@ class Scenario(NamedItem):
 
         return parset
 
-    def get_progset(self, progset:ProgramSet, project) -> ProgramSet:
+    def get_progset(self, progset: ProgramSet, project) -> ProgramSet:
         """
         Get scenario progset
 
@@ -79,8 +80,7 @@ class Scenario(NamedItem):
 
         return progset
 
-    def get_instructions(self, progset:ProgramSet, project) -> ProgramInstructions:
-
+    def get_instructions(self, progset: ProgramSet, project) -> ProgramInstructions:
         """
         Get scenario instructions
 
@@ -94,7 +94,7 @@ class Scenario(NamedItem):
 
         return None
 
-    def run(self, project, parset:ParameterSet =None, progset:ProgramSet =None, store_results:bool =True) -> Result:
+    def run(self, project, parset: ParameterSet = None, progset: ProgramSet = None, store_results: bool = True) -> Result:
         """
         Run scenario
 
@@ -149,11 +149,11 @@ class CombinedScenario(Scenario):
 
     """
 
-    def __init__(self, name:str =None, active:bool =True, parsetname:str =None, progsetname:str =None, scenario_values:dict =None, instructions:ProgramInstructions =None, interpolation: str='linear'):
+    def __init__(self, name: str = None, active: bool = True, parsetname: str = None, progsetname: str = None, scenario_values: dict = None, instructions: ProgramInstructions = None, interpolation: str = 'linear'):
         super().__init__(name, active, parsetname, progsetname)
         self.scenario_values = scenario_values  #: Parameter scenario values (see :class:`ParameterScenario`)
         self.interpolation = interpolation  #: Interpolation method to use for parameter overwrite
-        self.instructions = instructions #: Program instructions for budget scenario (should already contain required overwrites)
+        self.instructions = instructions  # : Program instructions for budget scenario (should already contain required overwrites)
 
     def get_parset(self, parset, project) -> ParameterSet:
         if self.scenario_values is not None:
@@ -162,29 +162,29 @@ class CombinedScenario(Scenario):
             scenario_parset = parset
         return scenario_parset
 
-    def get_instructions(self, progset:ProgramSet, project) -> ProgramInstructions:
+    def get_instructions(self, progset: ProgramSet, project) -> ProgramInstructions:
         return self.instructions
 
 
 class BudgetScenario(Scenario):
 
-    def __init__(self, name=None, active:bool=True, parsetname:str =None, progsetname:str =None, alloc:dict =None, start_year=2019):
+    def __init__(self, name=None, active: bool = True, parsetname: str = None, progsetname: str = None, alloc: dict = None, start_year=2019):
         super().__init__(name, active, parsetname, progsetname)
-        self.start_year = start_year # Program start year
+        self.start_year = start_year  # Program start year
         self.alloc = sc.dcp(alloc) if alloc is not None else sc.odict()
 
-    def get_instructions(self, progset:ProgramSet, project) -> ProgramInstructions:
+    def get_instructions(self, progset: ProgramSet, project) -> ProgramInstructions:
         return ProgramInstructions(start_year=self.start_year, alloc=self.alloc)
 
 
 class CoverageScenario(Scenario):
 
-    def __init__(self, name=None, active:bool=True, parsetname:str =None, progsetname:str =None, coverage:dict =None, start_year=2019):
+    def __init__(self, name=None, active: bool = True, parsetname: str = None, progsetname: str = None, coverage: dict = None, start_year=2019):
         super().__init__(name, active, parsetname, progsetname)
-        self.start_year = start_year # Program start year
+        self.start_year = start_year  # Program start year
         self.coverage = sc.dcp(coverage) if coverage is not None else sc.odict()
 
-    def get_instructions(self, progset:ProgramSet, project) -> ProgramInstructions:
+    def get_instructions(self, progset: ProgramSet, project) -> ProgramInstructions:
         return ProgramInstructions(start_year=self.start_year, coverage=self.coverage)
 
 
@@ -207,9 +207,11 @@ class ParameterScenario(Scenario):
 
     :param name: The name of the scenario. This will also be used to name the result
     :param scenario_values: A dict of overwrites to parameter values. The structure is
-        ``{parameter_label: {pop_label: dict o}`` where the overwrite ``o`` contains keys
+        ``{parameter_label: {pop_identifier: dict o}`` where the overwrite ``o`` contains keys
          - ``t`` : np.array or list with year values
          - ``y`` : np.array or list with corresponding parameter values
+         The ``pop_identifier`` is a single population name if the ``parameter_label`` corresponds to a Framework parameter
+         or it should be a tuple/list ``(from_pop,to_pop)`` if the ``parameter_label`` corresponds to an interaction or transfer.
     :param active: If running via ``Project.run_scenarios`` this flags whether to run the scenario
     :param parsetname: If running via ``Project.run_scenarios`` this identifies which parset to use from the project
     :param interpolation: The specified interpolation method will be used to interpolate scenario values onto simulation times. Common options are 'linear' (smoothly change) and 'previous' (stepped)
@@ -222,7 +224,7 @@ class ParameterScenario(Scenario):
         self.scenario_values = sc.dcp(scenario_values) if scenario_values is not None else dict()  #: Store dictionary containing the overwrite values
         self.interpolation = interpolation  #: Stores the name of a supported interpolation method
 
-    def add(self,par_name: str, pop_name:str, t, y) -> None:
+    def add(self, par_name: str, pop_name: str, t, y) -> None:
         """
         Add overwrite to scenario
 
@@ -233,12 +235,14 @@ class ParameterScenario(Scenario):
 
         >>> pscenario = ParameterScenario(name="examplePS")
         >>> pscenario.add('rec_rate','Pop1',[2004.,2014],[3e6, 1e4])
+        >>> pscenario.add('aging',('Pop1','Pop2'),[2004.,2014],[0.05,0.06])
 
         This can provide a more readable way to define a parameter scenario, without having to
         assemble a dict of the overwrites in advance.
 
-        :param par_name: Name of the parameter to overwrite
-        :param pop_name: Population to overwrite values for
+        :param par_name: Name of the parameter to overwrite. This can also be the code name of a transfer or interaction
+        :param pop_name: Population to overwrite values for. If the ``par_name`` is a transfer or interaction, this
+                         should be a tuple containing ``(from_pop,to_pop)``
         :param t: scalar, list, or array of times
         :param y: scalar, list, or array of overwrite values
         :param end_overwrite: If True, after the final overwrite, the parameter will revert to its baseline value
@@ -254,9 +258,9 @@ class ParameterScenario(Scenario):
             self.scenario_values[par_name] = dict()
         if pop_name not in self.scenario_values[par_name]:
             self.scenario_values[par_name][pop_name] = dict()
-        self.scenario_values[par_name][pop_name] = {'t':t,'y':y}
+        self.scenario_values[par_name][pop_name] = {'t': t, 'y': y}
 
-    def get_parset(self, parset:ParameterSet, project) -> ParameterSet:
+    def get_parset(self, parset: ParameterSet, project) -> ParameterSet:
         """
         Return modified parset
 
@@ -275,17 +279,27 @@ class ParameterScenario(Scenario):
 
         new_parset = sc.dcp(parset)
         new_parset.name = self.name + '_' + parset.name
-        tvec = project.settings.tvec # Simulation times
+        tvec = project.settings.tvec  # Simulation times
 
         for par_label in self.scenario_values.keys():
-            par = new_parset.pars[par_label]  # This is the parameter we are updating
-            has_function = project.framework.pars.at[par.name, 'function'] # Flag whether this is a function parameter in the framework
 
-            for pop_label, overwrite in self.scenario_values[par_label].items():
+            if par_label in new_parset.pars:
+                has_function = project.framework.pars.at[par_label, 'function']  # Flag whether this is a function parameter in the framework
+            else:
+                has_function = False  # Interactions and transfers do not have functions
+
+            for pop_specifier, overwrite in self.scenario_values[par_label].items():
+
+                if sc.isstring(pop_specifier):
+                    par = new_parset.get_par(par_label)
+                    pop_label = pop_specifier
+                else:
+                    par = new_parset.get_par(par_label, pop_specifier[0])
+                    pop_label = pop_specifier[1]
 
                 # Sanitize the overwrite values
                 overwrite = sc.dcp(overwrite)
-                overwrite['t'] = sc.promotetoarray(overwrite['t']).astype('float') # astype('float') converts None to np.nan
+                overwrite['t'] = sc.promotetoarray(overwrite['t']).astype('float')  # astype('float') converts None to np.nan
                 overwrite['y'] = sc.promotetoarray(overwrite['y']).astype('float')
                 idx = ~np.isnan(overwrite['t']) & ~np.isnan(overwrite['y'])
                 if not np.any(idx):
@@ -293,14 +307,14 @@ class ParameterScenario(Scenario):
 
                 # Expand out the baseline values and remove any other values
                 scen_start = min(overwrite['t'])
-                vals = par.interpolate(tvec[tvec < scen_start],pop_label) # Interpolate parameter onto valid sim times, using default interpolation. To override this, interpolate the parameter before calling ``ParameterScenario.get_parset()``
+                vals = par.interpolate(tvec[tvec < scen_start], pop_label)  # Interpolate parameter onto valid sim times, using default interpolation. To override this, interpolate the parameter before calling ``ParameterScenario.get_parset()``
                 par.ts[pop_label].t = tvec[tvec < scen_start].tolist()
                 par.ts[pop_label].vals = vals.tolist()
 
                 # Insert the overwrites
                 assert len(overwrite['t']) == len(overwrite['y']), 'Number of time points in overwrite does not match number of values'
-                for t,y in zip(overwrite['t'],overwrite['y']):
-                    par.ts[pop_label].insert(t,y)
+                for t, y in zip(overwrite['t'], overwrite['y']):
+                    par.ts[pop_label].insert(t, y)
                 par.smooth(tvec[tvec >= scen_start], pop_names=pop_label, method=self.interpolation)
 
                 # Disable parameter function during scenario

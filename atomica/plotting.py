@@ -24,7 +24,7 @@ from matplotlib.patches import Rectangle, Patch
 from matplotlib.ticker import FuncFormatter
 
 import sciris as sc
-from .model import Compartment, Characteristic, Parameter, Link
+from .model import Compartment, Characteristic, Parameter, Link, TimedLink, SourceCompartment, JunctionCompartment, SinkCompartment
 from .results import Result
 from .system import logger
 from .function_parser import parse_function
@@ -34,7 +34,10 @@ from .utils import format_duration, nested_loop
 settings = dict()
 settings['legend_mode'] = 'together'  # Possible options are ['together','separate','none']
 settings['bar_width'] = 1.0  # Width of bars in plot_bars()
-settings['line_width'] = 3.0  # Width of bars in plot_bars()
+settings['line_width'] = 3.0  # Width of lines in plot_series()
+settings['marker_edge_width'] = 3.0
+settings['dpi'] = 150  # average quality
+settings['transparent'] = False
 
 
 def save_figs(figs, path='.', prefix='', fnames=None) -> None:
@@ -84,8 +87,14 @@ def save_figs(figs, path='.', prefix='', fnames=None) -> None:
     for i, fig in enumerate(figs):
         if not fnames[i]:  # assert above means that i>0
             fnames[i] = fnames[i - 1] + '_legend'
+            legend = fig.findobj(Legend)[0]
+            fig.canvas.draw()
+            bbox = legend.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+        else:
+            bbox = 'tight'
         fname = prefix + fnames[i] + '.png'
-        fig.savefig(os.path.join(path, fname), bbox_inches='tight')
+        fname = sc.sanitizefilename(fname)  # parameters may have inappropriate characters
+        fig.savefig(os.path.join(path, fname), bbox_inches=bbox, dpi=settings['dpi'], transparent=settings['transparent'])
         logger.info('Saved figure "%s"', fname)
 
 
@@ -169,7 +178,7 @@ class PlotData:
 
         if outputs is None:
             outputs = [comp.name for comp in results[0].model.pops[0].comps if
-                       not (comp.tag_birth or comp.tag_dead or comp.is_junction)]
+                       not (isinstance(comp, SourceCompartment) or isinstance(comp, JunctionCompartment) or isinstance(comp, SinkCompartment))]
         elif not isinstance(outputs, list):
             outputs = [outputs]
 
@@ -222,18 +231,18 @@ class PlotData:
 
                         for link in vars:
                             data_dict[output_label] += link.vals
-                            compsize[output_label] += (link.source.vals if not link.source.is_junction else link.source.outflow)
+                            compsize[output_label] += (link.source.vals if not isinstance(link.source, JunctionCompartment) else link.source.outflow)
 
                         # Annualize the units, and record that they correspond to a flow per year
                         data_dict[output_label] /= dt
                         output_units[output_label] = vars[0].units
                         output_timescales[output_label] = 1.0
-                        data_label[output_label] = vars[0].parameter.name if vars[0].parameter.units == FS.QUANTITY_TYPE_NUMBER else None  # Only use parameter data points if the units match
+                        data_label[output_label] = vars[0].parameter.name if (vars[0].parameter and vars[0].parameter.units == FS.QUANTITY_TYPE_NUMBER) else None  # Only use parameter data points if the units match
 
                     elif isinstance(vars[0], Parameter):
                         data_dict[output_label] = vars[0].vals
                         output_units[output_label] = vars[0].units
-                        output_timescales[output_label] = vars[0].timescale # The timescale attribute for non-transition parameters will already be set to None
+                        output_timescales[output_label] = vars[0].timescale  # The timescale attribute for non-transition parameters will already be set to None
                         data_label[output_label] = vars[0].name
 
                         # If there are links, we can retrieve a compsize for the user to do a weighted average
@@ -241,7 +250,7 @@ class PlotData:
                             output_units[output_label] = vars[0].units
                             compsize[output_label] = np.zeros(tvecs[result_label].shape)
                             for link in vars[0].links:
-                                compsize[output_label] += (link.source.vals if not link.source.is_junction else link.source.outflow)
+                                compsize[output_label] += (link.source.vals if not isinstance(link.source, JunctionCompartment) else link.source.outflow)
 
                     elif isinstance(vars[0], Compartment) or isinstance(vars[0], Characteristic):
                         data_dict[output_label] = vars[0].vals
@@ -265,7 +274,9 @@ class PlotData:
                     if not sc.isstring(f_stack_str):
                         continue
 
-                    def placeholder_pop(): return None
+                    def placeholder_pop():
+                        return None
+
                     placeholder_pop.name = 'None'
                     par = Parameter(pop=placeholder_pop, name=output_label)
                     fcn, dep_labels = parse_function(f_stack_str)
@@ -294,7 +305,7 @@ class PlotData:
                         if sc.isstring(labels):
                             aggregated_outputs[pop_label][output_name] = data_dict[output_name]
                             aggregated_units[output_name] = 'unknown'  # Also, we don't know what the units of a function are
-                            aggregated_timescales[output_name] = None # Timescale is lost
+                            aggregated_timescales[output_name] = None  # Timescale is lost
                             continue
 
                         units = list(set([output_units[x] for x in labels]))
@@ -302,7 +313,7 @@ class PlotData:
 
                         # Set default aggregation method depending on the units of the quantity
                         if output_aggregation is None:
-                            if units[0] in ['', FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY]:
+                            if units[0] in ['', FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_RATE]:
                                 output_aggregation = 'average'
                             else:
                                 output_aggregation = 'sum'
@@ -311,7 +322,7 @@ class PlotData:
                             logger.warning("Aggregation for output '%s' is mixing units, this is almost certainly not desired.", output_name)
                             aggregated_units[output_name] = 'unknown'
                         else:
-                            if units[0] in ['', FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY] and output_aggregation == 'sum' and len(labels) > 1:  # Dimensionless, like prevalance
+                            if units[0] in ['', FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_RATE] and output_aggregation == 'sum' and len(labels) > 1:  # Dimensionless, like prevalance
                                 logger.warning("Output '%s' is not in number units, so output aggregation probably should not be 'sum'.", output_name)
                             aggregated_units[output_name] = output_units[labels[0]]
 
@@ -320,7 +331,6 @@ class PlotData:
                             aggregated_timescales[output_name] = None
                         else:
                             aggregated_timescales[output_name] = output_timescales[labels[0]]
-
 
                         if output_aggregation == 'sum':
                             aggregated_outputs[pop_label][output_name] = sum(data_dict[x] for x in labels)  # Add together all the outputs
@@ -345,13 +355,13 @@ class PlotData:
 
                         # Set population aggregation method depending on
                         if pop_aggregation is None:
-                            if aggregated_units[output_name] in ['', FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY]:
+                            if aggregated_units[output_name] in ['', FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_RATE]:
                                 pop_aggregation = 'average'
                             else:
                                 pop_aggregation = 'sum'
 
                         if pop_aggregation == 'sum':
-                            if aggregated_units[output_name] in ['', FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY] and len(pop_labels) > 1:
+                            if aggregated_units[output_name] in ['', FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_RATE] and len(pop_labels) > 1:
                                 logger.warning("Output '%s' is not in number units, so population aggregation probably should not be 'sum'", output_name)
                             vals = sum(aggregated_outputs[x][output_name] for x in pop_labels)  # Add together all the outputs
                         elif pop_aggregation == 'average':
@@ -362,10 +372,10 @@ class PlotData:
                             vals /= sum([popsize[x] for x in pop_labels])
                         else:
                             raise Exception('Unknown pop aggregation method')
-                        self.series.append(Series(tvecs[result_label], vals, result_label, pop_name, output_name, data_label[output_name], units=aggregated_units[output_name], timescale=aggregated_timescales[output_name],data_pop=pop_name))
+                        self.series.append(Series(tvecs[result_label], vals, result_label, pop_name, output_name, data_label[output_name], units=aggregated_units[output_name], timescale=aggregated_timescales[output_name], data_pop=pop_name))
                     else:
                         vals = aggregated_outputs[pop][output_name]
-                        self.series.append(Series(tvecs[result_label], vals, result_label, pop, output_name, data_label[output_name], units=aggregated_units[output_name], timescale=aggregated_timescales[output_name],data_pop=pop))
+                        self.series.append(Series(tvecs[result_label], vals, result_label, pop, output_name, data_label[output_name], units=aggregated_units[output_name], timescale=aggregated_timescales[output_name], data_pop=pop))
 
         self.results = sc.odict()
         for result in results:
@@ -383,19 +393,19 @@ class PlotData:
 
         # Handle time aggregation
         if t_bins is not None:
-            self._time_aggregate(t_bins, time_aggregation)
+            self.time_aggregate(t_bins, time_aggregation)
 
         if accumulate is not None:
-            self._accumulate(accumulate)
+            self.accumulate(accumulate)
 
-    def _accumulate(self, accumulation_method) -> None:
+    def accumulate(self, accumulation_method) -> None:
         """
-        Internal method to accumulate values over time
+        Accumulate values over time
 
         Accumulation methods are
 
         :param accumulation_method: Select whether to add or integrate. Supported methods are:
-                                    - 'sum' : runs `cumsum` on all quantities - should not be used if units are flow rates (so will check for '/year').
+                                    - 'sum' : runs `cumsum` on all quantities - should not be used if units are flow rates (so will check for a timescale).
                                               Summation should be used for compartment-based quantities, such as DALYs
                                     - 'integrate' : integrate using trapezoidal rule, assuming initial value of 0
                                             Note that here there is no concept of 'dt' because we might have non-uniform time aggregation bins
@@ -414,7 +424,7 @@ class PlotData:
                 s.vals = np.cumsum(s.vals)
             elif accumulation_method == 'integrate':
                 if s.timescale:
-                    s.vals = scipy.integrate.cumtrapz(s.vals, s.tvec/s.timescale)
+                    s.vals = scipy.integrate.cumtrapz(s.vals, s.tvec / s.timescale)
                 else:
                     s.vals = scipy.integrate.cumtrapz(s.vals, s.tvec)
                 s.vals = np.insert(s.vals, 0, 0.0)
@@ -434,22 +444,33 @@ class PlotData:
 
             self.outputs[s.output] = 'Cumulative ' + self.outputs[s.output]
 
-    def _time_aggregate(self, t_bins, time_aggregation = None) -> None:
+    def time_aggregate(self, t_bins, time_aggregation=None, interpolation_method=None) -> None:
         """
-        Internal method for time aggregation
+        Aggregate values over time
 
         Note that *accumulation* is a running total, whereas *aggregation* refers to binning. The two can be
-        both be applied (with aggregation occuring prior to accumulation).
+        both be applied (aggregation should be performed prior to accumulation).
+
+        Normally, aggregation is performed when constructing a `PlotData` instance and this method does not need
+        to be manually called. However, in rare cases, it may be necessary to explicitly set the interpolation method.
+        Specifically, the interpolation method needs to match the underlying assumption for parameter values. For
+        parameter scenarios, this may require that the 'previous' method is used (to match the assumption in the parameter overwrite)
+        rather than relying on the standard assumption that databook quantities can be interpolated directly.
 
         :param t_bins: Vector of bin edges OR a scalar bin size, which will be automatically expanded to a vector of bin edges
         :param time_aggregation: can be 'sum' or 'average'. Note that for quantities that have a timescale, 'sum' behaves like integration
                                  so flow parameters in number units will be adjusted accordingly (e.g. a parameter in units of 'people/day'
                                  aggregated over a 1 year period will display as the equivalent number of people that year)
+        :param interpolation_method: Assumption on how the quantity behaves in between timesteps - in general, 'linear' should be suitable for
+                                     most dynamic quantities, while 'previous' should be used for spending and other program-related quantities.
 
         """
 
         assert time_aggregation in [None, 'integrate', 'average']
+        assert interpolation_method in [None, 'linear', 'previous']
 
+        if interpolation_method is None:
+            interpolation_method = 'linear'
 
         if not hasattr(t_bins, '__len__'):
             # If a scalar bin is provided, then it is
@@ -466,7 +487,7 @@ class PlotData:
             raise Exception('If passing in t_bins as a list of bin edges, at least two values must be provided')
 
         if sc.isstring(t_bins) and t_bins == 'all':
-            t_bins = self.series[0].tvec[[0,-1]].ravel()
+            t_bins = self.series[0].tvec[[0, -1]].ravel()
 
         t_bins = sc.promotetoarray(t_bins)
         lower = t_bins[0:-1]
@@ -476,13 +497,13 @@ class PlotData:
 
             # Decide automatic aggregation method if not specified - this is done on a per-quantity basis
             if time_aggregation is None:
-                if s.units in {FS.QUANTITY_TYPE_DURATION, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_FRACTION}:
+                if s.units in {FS.QUANTITY_TYPE_DURATION, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_RATE, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_FRACTION}:
                     method = 'average'
                 else:
                     method = 'integrate'
             else:
                 method = time_aggregation
-                if method == 'integrate' and s.units in {FS.QUANTITY_TYPE_DURATION, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_FRACTION}:
+                if method == 'integrate' and s.units in {FS.QUANTITY_TYPE_DURATION, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_RATE, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_FRACTION}:
                     logger.warning('Units for series "%s" are "%s" so time aggregation should probably be "average", not "integrate"', s, s.units)
 
             if s.timescale is not None:
@@ -493,13 +514,17 @@ class PlotData:
             # We interpolate in time-aggregation because the time bins are independent of the step size. In contrast,
             # accumulation preserves the same time bins, so we don't need the interpolation step and instead go straight
             # to summation or trapezoidal integration
-            max_step = 0.5*min(np.diff(s.tvec)) # Subdivide for trapezoidal integration with at least 2 divisions per timestep. Could be a lot of memory for integrating daily timesteps over a full simulation, but unlikely to be prohibitive
+            max_step = 0.5 * min(np.diff(s.tvec))  # Subdivide for trapezoidal integration with at least 2 divisions per timestep. Could be a lot of memory for integrating daily timesteps over a full simulation, but unlikely to be prohibitive
             vals = np.full(lower.shape, fill_value=np.nan)
             for i, (l, u) in enumerate(zip(lower, upper)):
-                n = np.ceil((u - l) / max_step) + 1 # Add 1 so that in most cases, we can use the actual timestep values
-                t2 = np.linspace(l,u,int(n))
-                v2 = np.interp(t2, s.tvec, s.vals, left=np.nan, right=np.nan) # Return NaN outside bounds - it should never be valid to use extrapolated output values in time aggregation
-                vals[i] = np.trapz(y=v2/scale, x=t2)  # Note division by timescale here, which annualizes it
+                n = np.ceil((u - l) / max_step) + 1  # Add 1 so that in most cases, we can use the actual timestep values
+                t2 = np.linspace(l, u, int(n))
+                if interpolation_method == 'linear':
+                    v2 = np.interp(t2, s.tvec, s.vals, left=np.nan, right=np.nan)  # Return NaN outside bounds - it should never be valid to use extrapolated output values in time aggregation
+                    vals[i] = np.trapz(y=v2 / scale, x=t2)  # Note division by timescale here, which annualizes it
+                elif interpolation_method == 'previous':
+                    v2 = scipy.interpolate.interp1d(s.tvec, s.vals, kind='previous', copy=False, assume_sorted=True, bounds_error=False, fill_value=(np.nan, np.nan))(t2)
+                    vals[i] = sum(v2[:-1] / scale * np.diff(t2))
 
             s.tvec = (lower + upper) / 2.0
 
@@ -519,12 +544,18 @@ class PlotData:
                     # This would be the usage 99% of the time (esp. for DALYs that are interested in number of person-years)
                     if s.units == 'Number of people':
                         s.units = 'Number of person-years'
-                    else:
+                    elif s.units is not None:
                         s.units += ' years'
+                    else:
+                        # If the units are none, decide what to do. It probably makes sense just to do nothing and
+                        # leave the units blank, on the assumption that the user knows what they are doing if they
+                        # are working with dimensionless quantities. More commonly, the quantity wouldn't actually
+                        # be dimensionless, but it might not have had units entered e.g. parameter functions
+                        pass
 
             elif method == 'average':
-                s.vals = np.array(vals) / np.diff(t_bins/scale) # Divide by bin width if averaging within the bins
-                s.units = 'Average %s' % (s.units) # It will look odd to do 'Cumulative Average Number of people' but that's will accurately what the user has requested (combining aggregation and accumulation is permitted, but not likely to be necessary)
+                s.vals = np.array(vals) / np.diff(t_bins / scale)  # Divide by bin width if averaging within the bins
+                s.units = 'Average %s' % (s.units)  # It will look odd to do 'Cumulative Average Number of people' but that's will accurately what the user has requested (combining aggregation and accumulation is permitted, but not likely to be necessary)
             else:
                 raise Exception('Unknown time aggregation type "%s"' % (time_aggregation))
 
@@ -577,7 +608,7 @@ class PlotData:
         :return: A new :class:`PlotData` instance
         """
 
-        assert isinstance(other,self.__class__), 'PlotData subtraction can only operate on another PlotData instance'
+        assert isinstance(other, self.__class__), 'PlotData subtraction can only operate on another PlotData instance'
         assert set(self.pops) == set(other.pops), 'PlotData subtraction requires both instances to have the same populations'
         assert set(self.outputs) == set(other.outputs), 'PlotData subtraction requires both instances to have the same populations'
         assert np.array_equal(self.tvals()[0], other.tvals()[0])
@@ -593,24 +624,23 @@ class PlotData:
         for s1 in new.series:
 
             if len(other.results) > 1:
-                s2 = self[self.results[0],s1.pop,s1.output]
+                s2 = self[self.results[0], s1.pop, s1.output]
             else:
-                s2 = other[other.results[0],s1.pop,s1.output]
+                s2 = other[other.results[0], s1.pop, s1.output]
             assert s1.units == s2.units
             assert s1.timescale == s2.timescale
 
             if len(other.results) > 1:
                 # If `b` has more than one result, then `s1` is from `b` and `s2` is from `a`, so the values for `a-b` are `s2-s1`
                 s1.vals = s2.vals - s1.vals
-                s1.result = '%s-%s' % (s2.result,s1.result)
+                s1.result = '%s-%s' % (s2.result, s1.result)
             else:
                 s1.vals = s1.vals - s2.vals
-                s1.result = '%s-%s' % (s1.result,s2.result)
+                s1.result = '%s-%s' % (s1.result, s2.result)
 
             new.results[s1.result] = s1.result
 
         return new
-
 
     def __truediv__(self, other):
         """
@@ -642,7 +672,7 @@ class PlotData:
 
         """
 
-        assert isinstance(other,self.__class__), 'PlotData subtraction can only operate on another PlotData instance'
+        assert isinstance(other, self.__class__), 'PlotData subtraction can only operate on another PlotData instance'
         assert set(self.pops) == set(other.pops), 'PlotData subtraction requires both instances to have the same populations'
         assert set(self.outputs) == set(other.outputs), 'PlotData subtraction requires both instances to have the same populations'
         assert np.array_equal(self.tvals()[0], other.tvals()[0])
@@ -657,25 +687,23 @@ class PlotData:
 
         for s1 in new.series:
             if len(other.results) > 1:
-                s2 = self[self.results[0],s1.pop,s1.output]
+                s2 = self[self.results[0], s1.pop, s1.output]
             else:
-                s2 = other[other.results[0],s1.pop,s1.output]
+                s2 = other[other.results[0], s1.pop, s1.output]
             assert s1.units == s2.units
             assert s1.timescale == s2.timescale
 
             if len(other.results) > 1:
                 # If `b` has more than one result, then `s1` is from `b` and `s2` is from `a`, so the values for `a-b` are `s2-s1`
-                s1.vals = s2.vals/s1.vals
-                s1.result = '%s/%s' % (s2.result,s1.result)
+                s1.vals = s2.vals / s1.vals
+                s1.result = '%s/%s' % (s2.result, s1.result)
             else:
-                s1.vals = s1.vals/s2.vals
-                s1.result = '%s/%s' % (s1.result,s2.result)
+                s1.vals = s1.vals / s2.vals
+                s1.result = '%s/%s' % (s1.result, s2.result)
             s1.units = ''
             new.results[s1.result] = s1.result
 
         return new
-
-
 
     @staticmethod
     def programs(results, outputs=None, t_bins=None, quantity='spending', accumulate=None, nan_outside=False):
@@ -720,7 +748,7 @@ class PlotData:
 
         outputs = _expand_dict(outputs)
 
-        assert quantity in ['spending', 'coverage_number', 'coverage_eligible', 'coverage_fraction', 'coverage_capacity']
+        assert quantity in ['spending', 'equivalent_spending', 'coverage_number', 'coverage_eligible', 'coverage_fraction', 'coverage_capacity']
         # Make a new PlotData instance
         # We are using __new__ because this method is to be formally considered an alternate constructor and
         # thus bears responsibility for ensuring this new instance is initialized correctly
@@ -733,28 +761,32 @@ class PlotData:
             if quantity == 'spending':
                 all_vals = result.get_alloc()
                 units = result.model.progset.currency
-                timescales = dict.fromkeys(all_vals,1.0)
-            elif quantity in {'coverage_capacity','coverage_number'}:
+                timescales = dict.fromkeys(all_vals, 1.0)
+            elif quantity == 'equivalent_spending':
+                all_vals = result.get_equivalent_alloc()
+                units = result.model.progset.currency
+                timescales = dict.fromkeys(all_vals, 1.0)
+            elif quantity in {'coverage_capacity', 'coverage_number'}:
                 if quantity == 'coverage_capacity':
                     all_vals = result.get_coverage('capacity')
                 else:
                     all_vals = result.get_coverage('number')
                 units = 'Number of people'
-                timescales = dict.fromkeys(all_vals,1.0)
+                timescales = dict.fromkeys(all_vals, 1.0)
             elif quantity == 'coverage_eligible':
                 all_vals = result.get_coverage('eligible')
                 units = 'Number of people'
-                timescales = dict.fromkeys(all_vals,None)
+                timescales = dict.fromkeys(all_vals, None)
             elif quantity == 'coverage_fraction':
                 all_vals = result.get_coverage('fraction')
                 units = 'Fraction covered'
-                timescales = dict.fromkeys(all_vals,None)
+                timescales = dict.fromkeys(all_vals, None)
             else:
                 raise Exception('Unknown quantity')
 
             for output in outputs:  # For each final output
                 if isinstance(output, dict):  # If this is an aggregation over programs
-                    if quantity == 'spending':
+                    if quantity in ['spending', 'equivalent_spending']:
                         output_name = list(output.keys())[0]  # This is the aggregated name
                         labels = output[output_name]  # These are the quantities being aggregated
 
@@ -788,13 +820,15 @@ class PlotData:
             plotdata.outputs[key] = results[0].model.progset.programs[key].label if key in results[0].model.progset.programs else key
 
         if t_bins is not None:
-            if quantity in ['spending', 'coverage_number']:
-                plotdata._time_aggregate(t_bins, 'integrate')
-            elif quantity in ['coverage_eligible', 'coverage_fraction']:
-                plotdata._time_aggregate(t_bins, 'average')
+            if quantity in {'spending', 'equivalent_spending', 'coverage_number'}:
+                plotdata.time_aggregate(t_bins, 'integrate', interpolation_method='previous')
+            elif quantity in {'coverage_eligible', 'coverage_fraction'}:
+                plotdata.time_aggregate(t_bins, 'average', interpolation_method='previous')
+            else:
+                raise Exception('Unknown quantity type for aggregation')
 
         if accumulate is not None:
-            plotdata._accumulate(accumulate)
+            plotdata.accumulate(accumulate)
 
         return plotdata
 
@@ -950,13 +984,13 @@ class Series:
     """
 
     def __init__(self, tvec, vals, result='default', pop='default', output='default', data_label='', color=None, units='', timescale=None, data_pop=''):
-        self.tvec = np.copy(tvec) #: array of time values
-        self.t_labels = np.copy(self.tvec) #: Iterable array of time labels - could be set to strings like [2010-2014]
-        self.vals = np.copy(vals) #: array of values
-        self.result = result #: name of the result associated with ths data
-        self.pop = pop #: name of the pop associated with the data
-        self.output = output #: name of the output associated with the data
-        self.color = color #: the color to render the `Series` with
+        self.tvec = np.copy(tvec)  # : array of time values
+        self.t_labels = np.copy(self.tvec)  # : Iterable array of time labels - could be set to strings like [2010-2014]
+        self.vals = np.copy(vals)  # : array of values
+        self.result = result  # : name of the result associated with ths data
+        self.pop = pop  # : name of the pop associated with the data
+        self.output = output  # : name of the output associated with the data
+        self.color = color  # : the color to render the `Series` with
         self.data_label = data_label  #: Used to identify data for plotting - should match the name of a data TDVE
         self.data_pop = data_pop  #: Used to identify which population in the TDVE (specified by ``data_label``) to look up
         self.units = units  #: The units for the quantity to display on the plot
@@ -987,7 +1021,7 @@ class Series:
 
         if self.timescale is not None:
             if self.units == FS.QUANTITY_TYPE_DURATION:
-                return '%s' % (format_duration(self.timescale,True))
+                return '%s' % (format_duration(self.timescale, True))
             else:
                 return '%s per %s' % (self.units, format_duration(self.timescale))
         else:
@@ -1174,7 +1208,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer=None, legend_
     inner_labels = []  # Labels for bar groups below axis
     block_offset = None
     base_offset = None
-    negative_present = False # If True, it means negative quantities were present
+    negative_present = False  # If True, it means negative quantities were present
 
     # Iterate over the inner and outer groups, rendering blocks at a time
     for r_idx, t_idx in iterator:
@@ -1190,7 +1224,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer=None, legend_
             # pop is something like ['0-4','5-14'] or ['0-4']
             # output is something like ['sus','vac'] or ['0-4'] depending on the stack
 
-            y0 = [0,0] # Baselines for positive and negative bars, respectively
+            y0 = [0, 0]  # Baselines for positive and negative bars, respectively
 
             # Set the name of the bar
             # If the user provided a label, it will always be displayed
@@ -1211,9 +1245,9 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer=None, legend_
                         bar_label = bar_output[1]
             else:
                 if color_by == 'outputs' and len(pop_stacks) > 1 and len(set([x[0] for x in pop_stacks])) > 1:
-                    bar_label = bar_pop[0]
+                    bar_label = plotdata.pops[bar_pop[0]]
                 elif color_by == 'pops' and len(output_stacks) > 1 and len(set([x[0] for x in output_stacks])) > 1:
-                    bar_label = bar_output[0]
+                    bar_label = plotdata.outputs[bar_output[0]]
                 else:
                     bar_label = ''
 
@@ -1226,7 +1260,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer=None, legend_
                         y0[0] += y
                         height = y
                     else:
-                        baseline = y0[1]+y
+                        baseline = y0[1] + y
                         y0[1] += y
                         height = -y
                         negative_present = True
@@ -1297,12 +1331,12 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer=None, legend_
     # Calculate the units. As all bar patches are shown on the same axis, they are all expected to have the
     # same units. If they do not, the plot could be misleading
     units = list(set([x.unit_string for x in plotdata.series]))
-    if len(units) == 1:
+    if len(units) == 1 and units[0] is not None:
         if orientation == 'horizontal':
             ax.set_xlabel(units[0].capitalize())
         else:
             ax.set_ylabel(units[0].capitalize())
-    else:
+    elif len(units) > 1:
         logger.warning('Warning - bar plot quantities mix units, double check that output selection is correct')
 
     # Outer group labels are only displayed if there is more than one group
@@ -1389,7 +1423,6 @@ def plot_series(plotdata, plot_type='line', axis=None, data=None, legend_mode=No
     :return: A list of newly created Figures
 
     """
-
 
     global settings
     if legend_mode is None:
@@ -1572,7 +1605,7 @@ def _render_data(ax, data, series, baseline=None, filled=False) -> None:
     if filled:
         ax.scatter(t, y, marker='o', s=40, linewidths=1, facecolors=series.color, color='k')  # label='Data %s %s' % (name(pop,proj),name(output,proj)))
     else:
-        ax.scatter(t, y, marker='o', s=40, linewidths=3, facecolors='none', color=series.color)  # label='Data %s %s' % (name(pop,proj),name(output,proj)))
+        ax.scatter(t, y, marker='o', s=40, linewidths=settings['marker_edge_width'], facecolors='none', color=series.color)  # label='Data %s %s' % (name(pop,proj),name(output,proj)))
 
 
 def _apply_series_formatting(ax, plot_type) -> None:
@@ -1605,36 +1638,50 @@ def _turn_off_border(ax) -> None:
     ax.yaxis.set_ticks_position('left')
 
 
-def plot_legend(entries: dict, plot_type='patch', fig=None):
+def plot_legend(entries: dict, plot_type=None, fig=None, legendsettings: dict = None):
     """
     Render a new legend
 
     :param entries: Dict where key is the label and value is the colour e.g. `{'sus':'blue','vac':'red'}`
-    :param plot_type: can be 'patch' or 'line'
+    :param plot_type: Optionally specify 'patch', 'line', 'circle', or a list the same length as param_entries containing these values
     :param fig: Optionally takes in the figure to render the legend in. If not provided, a new figure will be created
+    :param legendsettings: settings for the layout of the legend. If not provided will default to appropriate values depending on whether the legend is separate or together with a plot
     :return: The matplotlib `Figure` object containing the legend
 
     """
 
-    h = []
-    for label, color in entries.items():
-        if plot_type == 'patch':
-            h.append(Patch(color=color, label=label))
-        else:
-            h.append(Line2D([0], [0], color=color, label=label))
+    if plot_type is None:
+        plot_type = 'line'
 
-    legendsettings = {'loc': 'center', 'bbox_to_anchor': None, 'frameon': False}  # Settings for separate legend
+    plot_type = sc.promotetolist(plot_type)
+    if len(plot_type) == 1:
+        plot_type = plot_type * len(entries)
+    assert len(plot_type) == len(entries), 'If plot_type is a list, it must have the same number of values as there are entries in the legend (%s vs %s)' % (plot_type, entries)
+
+    h = []
+    for (label, color), p_type in zip(entries.items(), plot_type):
+        if p_type == 'patch':
+            h.append(Patch(color=color, label=label))
+        elif p_type == 'line':
+            h.append(Line2D([0], [0], linewidth=settings['line_width'], color=color, label=label))
+        elif p_type == 'circle':
+            h.append(Line2D([0], [0], marker='o', linewidth=0, markeredgewidth=settings['marker_edge_width'], fillstyle='none', color=color, label=label))
+        else:
+            raise Exception(f'Unknown plot type "{p_type}"')
 
     if fig is None:  # Draw in a new figure
-        fig = sc.separatelegend(handles=h)
+        fig = sc.separatelegend(handles=h, legendsettings=legendsettings)
     else:
         existing_legend = fig.findobj(Legend)
         if existing_legend and existing_legend[0].parent is fig:  # If existing legend and this is a separate legend fig
             existing_legend[0].remove()  # Delete the old legend
+            if legendsettings is None:
+                legendsettings = {'loc': 'center', 'bbox_to_anchor': None, 'frameon': False}  # Settings for separate legend
             fig.legend(handles=h, **legendsettings)
         else:  # Drawing into an existing figure
             ax = fig.axes[0]
-            legendsettings = {'loc': 'center left', 'bbox_to_anchor': (1.05, 0.5), 'ncol': 1}
+            if legendsettings is None:
+                legendsettings = {'loc': 'center left', 'bbox_to_anchor': (1.05, 0.5), 'ncol': 1}
             if existing_legend:
                 existing_legend[0].remove()  # Delete the old legend
                 ax.legend(handles=h, **legendsettings)
@@ -1661,13 +1708,13 @@ def _render_legend(ax, plot_type=None, handles=None) -> None:
     else:
         labels = [h.get_label() for h in handles]
 
-    legendsettings = {'loc': 'center left', 'bbox_to_anchor': (1.05, 0.5), 'ncol': 1, 'framealpha':0}
-#    labels = [textwrap.fill(label, 16) for label in labels]
+    legendsettings = {'loc': 'center left', 'bbox_to_anchor': (1.05, 0.5), 'ncol': 1, 'framealpha': 0}
+    #    labels = [textwrap.fill(label, 16) for label in labels]
 
     if plot_type in ['stacked', 'proportion', 'bar']:
-        h = ax.legend(handles=handles[::-1], labels=labels[::-1], **legendsettings)
+        ax.legend(handles=handles[::-1], labels=labels[::-1], **legendsettings)
     else:
-        h = ax.legend(handles=handles, labels=labels, **legendsettings)
+        ax.legend(handles=handles, labels=labels, **legendsettings)
 
     box = ax.get_position()
     ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
@@ -1804,6 +1851,7 @@ def _get_full_name(code_name: str, proj=None) -> str:
             return proj.framework.get_label(code_name)
         else:
             return code_name
+
 
 def _expand_dict(x: list) -> list:
     """

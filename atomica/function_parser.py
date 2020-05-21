@@ -10,6 +10,24 @@ an executable Python representation.
 import ast
 import numpy as np
 
+
+def sdiv(numerator, denominator):
+    """
+    Safe division by zero (return 0)
+
+    This helper function returns division where ``0/0=0`` rather than ``np.nan``.
+
+    :param numerator: The numerator of the operation (float, array)
+    :param denominator: The denominator of the operation (float, array)
+    :return: Array
+    """
+
+    if np.isscalar(numerator):
+        return np.divide(numerator, denominator, out=np.zeros_like(denominator, dtype=float), where=numerator != 0)
+    else:
+        return np.divide(numerator, denominator, out=np.zeros_like(numerator, dtype=float), where=numerator != 0)
+
+
 # Only calls to functions in the dict below will be permitted
 supported_functions = {
     'max': np.maximum,
@@ -27,6 +45,7 @@ supported_functions = {
     'ln': np.log,
     'rand': np.random.rand,
     'randn': np.random.randn,
+    'sdiv': sdiv
 }
 
 

@@ -16,10 +16,6 @@ for f in os.listdir(at.LIBRARY_PATH):
     if f.endswith('_framework.xlsx') and not f.startswith('~$'):
         models.append(f.replace('_framework.xlsx', ''))
 
-def check_for_nans(result):
-    for pop in result.model.pops:
-        for var in pop.pars + pop.comps + pop.characs + pop.links:
-            assert np.all(np.isfinite(var.vals)), 'NaNs detected'
 
 def run_auto_calibration(proj):
     """ Run an automatic calibration
@@ -44,13 +40,13 @@ def run_parameter_scenario(proj):
     print('Testing parameter scenario')
 
     # Find a parameter from the databook
-    for _,spec in proj.framework.pars.iterrows():
+    for _, spec in proj.framework.pars.iterrows():
         if spec['databook page']:
             break
     else:
         raise Exception('No Framework parameters appeared in the databook')
 
-    par = proj.parsets[0].pars[spec.name] # Get the parameter
+    par = proj.parsets[0].pars[spec.name]  # Get the parameter
     pop_name = par.pops[0]
 
     # Add overwrite with a slight increase in the 2020 value
@@ -58,10 +54,11 @@ def run_parameter_scenario(proj):
     scvalues[spec.name] = dict()
     scvalues[spec.name][pop_name] = dict()
     scvalues[spec.name][pop_name]["t"] = [2015., 2020.]
-    scvalues[spec.name][pop_name]["y"] = par.interpolate(scvalues[spec.name][pop_name]["t"],pop_name) * np.array([1,1.5]).ravel()
+    scvalues[spec.name][pop_name]["y"] = par.interpolate(scvalues[spec.name][pop_name]["t"], pop_name) * np.array([1, 1.5]).ravel()
     scen = proj.make_scenario(which='parameter', name="Test", scenario_values=scvalues)
     res = scen.run(proj, proj.parsets["default"])
-    check_for_nans(res)
+    if res.check_for_nans():
+        raise Exception('NaNs detected')
     return
 
 
@@ -89,11 +86,12 @@ def run_budget_scenario(proj):
     print('Testing budget scenario')
 
     alloc = proj.progsets[0].get_alloc(2018)
-    doubled_budget = {x:v*2 for x,v in alloc.items()}
-    instructions = at.ProgramInstructions(start_year=2018,alloc=doubled_budget)
-    scen = at.CombinedScenario(name='Doubled budget',instructions=instructions)
-    res = scen.run(proj,parset='default',progset='default')
-    check_for_nans(res)
+    doubled_budget = {x: v * 2 for x, v in alloc.items()}
+    instructions = at.ProgramInstructions(start_year=2018, alloc=doubled_budget)
+    scen = at.CombinedScenario(name='Doubled budget', instructions=instructions)
+    res = scen.run(proj, parset='default', progset='default')
+    if res.check_for_nans():
+        raise Exception('NaNs detected')
 
     return
 
@@ -108,17 +106,19 @@ def run_coverage_scenario(proj):
 
     print('Testing coverage scenario')
 
-    half_coverage = {x:0.5 for x in proj.progsets[0].programs.keys()}
-    instructions = at.ProgramInstructions(start_year=2018,coverage=half_coverage)
-    scen = at.CombinedScenario(name='Doubled budget',instructions=instructions)
-    res = scen.run(proj,parset='default',progset='default')
-    check_for_nans(res)
+    half_coverage = {x: 0.5 for x in proj.progsets[0].programs.keys()}
+    instructions = at.ProgramInstructions(start_year=2018, coverage=half_coverage)
+    scen = at.CombinedScenario(name='Doubled budget', instructions=instructions)
+    res = scen.run(proj, parset='default', progset='default')
+    if res.check_for_nans():
+        raise Exception('NaNs detected')
 
     return
 
 
 def run_optimization(proj):
-    """ Run an optimization
+    """
+    Run an optimization
 
     This demo optimization will adjust spending on all programs optimize all programs with the last default cascade stage)
 
@@ -127,29 +127,44 @@ def run_optimization(proj):
 
     """
 
-    instructions = at.ProgramInstructions(alloc=proj.progsets[0],start_year=2020) # Instructions for default spending
-    adjustments = [at.SpendingAdjustment(x,2020,'rel',0.,2.) for x in instructions.alloc.keys()]
-    measurables = at.MaximizeCascadeStage(None,2020)
-    constraints = at.TotalSpendConstraint() # Cap total spending in all years
-    optimization = at.Optimization(name='default', adjustments=adjustments, measurables=measurables,constraints=constraints,maxtime=10) # Evaluate from 2020 to end of simulation
-    optimized_instructions = at.optimize(proj, optimization, parset=proj.parsets["default"], progset=proj.progsets['default'], instructions=instructions)
+    instructions = at.ProgramInstructions(alloc=proj.progsets[0], start_year=2020)  # Instructions for default spending
+    adjustments = [at.SpendingAdjustment(x, 2020, 'rel', 0., 2.) for x in instructions.alloc.keys()]
+    measurables = at.MaximizeCascadeStage(None, 2020)
+    constraints = at.TotalSpendConstraint()  # Cap total spending in all years
+    optimization = at.Optimization(name='default', adjustments=adjustments, measurables=measurables, constraints=constraints, maxtime=10)  # Evaluate from 2020 to end of simulation
+    at.optimize(proj, optimization, parset=proj.parsets["default"], progset=proj.progsets['default'], instructions=instructions)
 
     return
 
-def run_export(result,model):
+
+def run_export(result, model):
     """
-    Test exporting a results
+    Test exporting results
 
     :param result:
     :param model:
     :return:
     """
 
-    at.export_results(result,tmpdir+model+'_single_export_test') # Export single
-    result.export_raw(tmpdir+model+'_raw_export_test')
+    at.export_results(result, tmpdir + model + '_single_export_test')  # Export single
+    result.export_raw(tmpdir + model + '_raw_export_test')
     r2 = sc.dcp(result)
     r2.name = 'Copied'
-    at.export_results([result, r2],tmpdir+model+'_multiple_export_test') # Export single
+    at.export_results([result, r2], tmpdir + model + '_multiple_export_test')  # Export single
+
+
+def run_regenerated_framework(proj):
+
+    r1 = at.run_model(proj.settings, proj.framework, proj.parsets[0], proj.progsets[0], at.ProgramInstructions(start_year=2020))
+
+    ss = proj.framework.to_spreadsheet()
+    f2 = at.ProjectFramework(ss)
+
+    r2 = at.run_model(proj.settings, f2, proj.parsets[0], proj.progsets[0], at.ProgramInstructions(start_year=2020))
+
+    for p1, p2 in zip(r1.model.pops, r2.model.pops):
+        for v1, v2 in zip(p1.pars + p1.comps + p1.characs + p1.links, p2.pars + p2.comps + p2.characs + p2.links):
+            assert np.all(v1.vals == v2.vals)
 
 
 # Testing optimizations and calibrations could be expensive
@@ -172,13 +187,13 @@ def test_model(model):
         print('No databook found, test complete')
         return
 
-    P.update_settings(sim_end=2025) # Make sure we run until 2025
+    P.update_settings(sim_end=2025)  # Make sure we run until 2025
 
     # Test loading the databook and doing a basic run
-    P.load_databook(databook_file,make_default_parset=True,do_run=True)
+    P.load_databook(databook_file, make_default_parset=True, do_run=True)
 
     # Test doing auto-calibration
-    run_auto_calibration(P)
+    # run_auto_calibration(P)
 
     # Test a parameter scenario
     run_parameter_scenario(P)
@@ -189,10 +204,15 @@ def test_model(model):
 
     # Test loading the progbook and doing a basic run
     P.load_progbook(progbook_file)
-    res = P.run_sim(P.parsets[0],P.progsets[0],at.ProgramInstructions(start_year=2018))
-    check_for_nans(res)
+    res = P.run_sim(P.parsets[0], P.progsets[0], at.ProgramInstructions(start_year=2018))
+    if res.check_for_nans():
+        raise Exception('NaNs detected')
 
-    run_export(res,model)
+    # Test re-saving the framework
+    run_regenerated_framework(P)
+
+    # Test exporting the model with progset results
+    run_export(res, model)
 
     # Test a reconciliation
     run_reconciliation(P)
@@ -208,8 +228,10 @@ def test_model(model):
 
     print('Test complete')
 
+
 if __name__ == '__main__':
 
     np.seterr(all='raise')
+    models = ['combined']
     for m in models:
         test_model(m)
