@@ -23,6 +23,11 @@ def sdiv(numerator, denominator):
     """
 
     if np.isscalar(numerator):
+        if np.isscalar(denominator):
+            if numerator == 0:
+                return 0
+            else:
+                return numerator/denominator
         return np.divide(numerator, denominator, out=np.zeros_like(denominator, dtype=float), where=numerator != 0)
     else:
         return np.divide(numerator, denominator, out=np.zeros_like(numerator, dtype=float), where=numerator != 0)
@@ -47,6 +52,31 @@ supported_functions = {
     'randn': np.random.randn,
     'sdiv': sdiv
 }
+
+
+class _DivTransformer(ast.NodeTransformer):
+    """
+    Helper class to use sdiv everywhere
+
+    This is a NodeTransformer that converts Div nodes into
+    function nodes that call the sdiv function
+
+    Modified from https://stackoverflow.com/a/51918098 by Aran-Fey
+
+    """
+    def visit_BinOp(self, node):
+        lhs = self.visit(node.left)
+        rhs = self.visit(node.right)
+
+        if not isinstance(node.op, ast.Div):
+            node.left = lhs
+            node.right = rhs
+            return node
+
+        name = ast.Name('sdiv', ast.Load())
+        args = [lhs, rhs]
+        kwargs = []
+        return ast.Call(name, args, kwargs)
 
 
 def parse_function(fcn_str: str) -> tuple:
@@ -89,6 +119,8 @@ def parse_function(fcn_str: str) -> tuple:
     assert len(fcn_str) < 1800  # Function string must be less than 1800 characters
     fcn_str = fcn_str.replace(':', '___')
     fcn_ast = ast.parse(fcn_str, mode='eval')
+    fcn_ast = _DivTransformer().visit(fcn_ast)
+    fcn_ast = ast.fix_missing_locations(fcn_ast)
     dep_list = []
     for node in ast.walk(fcn_ast):
         if isinstance(node, ast.Name) and node.id not in supported_functions:
