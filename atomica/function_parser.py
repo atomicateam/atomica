@@ -9,6 +9,7 @@ an executable Python representation.
 
 import ast
 import numpy as np
+from functools import reduce
 
 
 def sdiv(numerator, denominator):
@@ -33,10 +34,54 @@ def sdiv(numerator, denominator):
         return np.divide(numerator, denominator, out=np.zeros_like(numerator, dtype=float), where=numerator != 0)
 
 
+def vector_min(*args):
+    """
+    Repeated elementwise minimum
+
+    Repeatedly call `np.minimum` so that both scalars and arrays are supported
+    as well as >2 items.
+
+    All arrays provided (if any) must be the same size
+
+    Example:
+
+        >>> vector_min([1,2],0,[-1,1])
+        array([-1,  0])
+
+    :param args: Scalars or arrays to take minimum over
+    :return: Result of calling `np.minimum` repeatedly
+        - Scalar if all inputs are scalar
+        - np.array if any input is an array
+    """
+    return reduce(np.minimum, args)
+
+
+def vector_max(*args):
+    """
+    Repeated elementwise maximum
+
+    Repeatedly call `np.maximum` so that both scalars and arrays are supported
+    as well as >2 items.
+
+    All arrays provided (if any) must be the same size
+
+    Example:
+
+        >>> vector_max([1,2],5,[10,1])
+        array([10,  5])
+
+    :param args: Scalars or arrays to take maximum over
+    :return: Result of calling `np.maximum` repeatedly
+        - Scalar if all inputs are scalar
+        - np.array if any input is an array
+    """
+    return reduce(np.maximum, args)
+
+
 # Only calls to functions in the dict below will be permitted
 supported_functions = {
-    'max': np.maximum,
-    'min': np.minimum,
+    'max': vector_max,
+    'min': vector_min,
     'exp': np.exp,
     'floor': np.floor,
     'SRC_POP_AVG': None,
