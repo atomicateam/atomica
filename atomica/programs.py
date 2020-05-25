@@ -11,7 +11,6 @@ import io
 from datetime import timezone
 
 import numpy as np
-import openpyxl
 import xlsxwriter as xw
 from numpy import inf, array, exp, minimum
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
@@ -453,6 +452,7 @@ class ProgramSet(NamedItem):
         :return: A :class:`ProgramSet`
 
         """
+        import openpyxl
 
         framework, data = ProgramSet._normalize_inputs(framework, data, project)
 

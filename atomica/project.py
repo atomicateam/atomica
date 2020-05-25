@@ -25,12 +25,11 @@ from .framework import ProjectFramework
 from .model import run_model
 from .parameters import ParameterSet
 
-from .programs import ProgramSet, ProgramInstructions
+from .programs import ProgramSet
 from .scenarios import Scenario, ParameterScenario, CombinedScenario, BudgetScenario, CoverageScenario
 from .optimization import Optimization, optimize, InvalidInitialConditions
 from .system import logger
-from .cascade import sanitize_cascade
-from .utils import NDict, evaluate_plot_string, NamedItem, TimeSeries
+from .utils import NDict, evaluate_plot_string, NamedItem, parallel_progress, Quiet
 from .plotting import PlotData, plot_series
 from .results import Result
 from .migration import migrate
@@ -39,7 +38,7 @@ import numpy as np
 import tqdm
 import logging
 from datetime import timezone
-
+import functools
 
 class ProjectSettings(object):
     def __init__(self, sim_start=2000, sim_end=2035, sim_dt=0.25):
@@ -503,7 +502,7 @@ class Project(NamedItem):
 
         return result
 
-    def run_sampled_sims(self, parset, progset=None, progset_instructions=None, result_names=None, n_samples: int = 1, parallel=False, max_attempts=None) -> list:
+    def run_sampled_sims(self, parset, progset=None, progset_instructions=None, result_names=None, n_samples: int = 1, parallel=False, max_attempts=None, num_workers=None) -> list:
         """
         Run sampled simulations
 
@@ -511,13 +510,9 @@ class Project(NamedItem):
         several reasons
 
         - To avoid inadvertantly blowing up the size of the project, `run_sampled_sims` does not support automatic result saving
-        - `run_sim` always returns a `Result` - if rolled into one functions, the return type would not be predictable
+        - `run_sim` always returns a `Result` - if rolled into one function, the return type would not be predictable
         - `run_sim` only takes in a single ``ProgramInstructions`` and ``result_name`` whereas `run_sampled_sims` supports iteration
            over multiple instructions
-
-
-        This method is different from proj.run_sim(samples=n_samples) in two ways
-        -
 
         The other common scenario is having multiple results
 
@@ -530,6 +525,7 @@ class Project(NamedItem):
                              containing a single element if not using programs.
         :param parallel: If True, run simulations in parallel (on Windows, must have ``if __name__ == '__main__'`` gating the calling code)
         :param max_attempts: Number of retry attempts for bad initializations
+        :param num_workers: If ``parallel`` is True, this determines the number of parallel workers to use (default is usually number of CPUs)
         :return: A list of Results that can be passed to `Ensemble.update()`. If multiple instructions are provided, the return value of this
                  function will be a list of lists, where the inner list iterates over different instructions for the same parset/progset samples.
                  It is expected in that case that the Ensemble's mapping function would take in a list of results
@@ -551,22 +547,19 @@ class Project(NamedItem):
             result_names = sc.promotetolist(result_names)
             assert (len(result_names) == 1 and not progset) or (len(progset_instructions) == len(result_names)), "Number of result names must match number of instructions"
 
-        original_level = logger.getEffectiveLevel()
-        logger.setLevel(logging.WARNING)  # Never print debug messages inside the sampling loop - note that depending on the platform, this may apply within `sc.parallelize`
+        show_progress = n_samples > 1 and logger.getEffectiveLevel() <= logging.INFO
 
-        if n_samples == 1:
-            results = [_run_sampled_sim(self, parset, progset, progset_instructions, result_names, max_attempts=max_attempts)]
-        elif parallel:
-            # NB. The calling code must be wrapped in a 'if __name__ == '__main__' if on Windows
-            results = sc.parallelize(_run_sampled_sim, iterarg=n_samples, kwargs={'proj': self, 'parset': parset, 'progset': progset, 'progset_instructions': progset_instructions, 'result_names': result_names, 'max_attempts': max_attempts})
-        else:
-            if original_level <= logging.INFO:
-                # Print the progress bar if the logging level was INFO or lower
+        if parallel:
+            fcn = functools.partial(_run_sampled_sim, proj=self, parset=parset, progset=progset, progset_instructions=progset_instructions, result_names=result_names, max_attempts=max_attempts )
+            results = parallel_progress(fcn, n_samples, show_progress=show_progress, num_workers=num_workers)
+        elif show_progress:
+            # Print the progress bar if the logging level was INFO or lower
+            # This means that the user can still set the logging level higher e.g. WARNING to suppress output from Atomica in general
+            # (including any progress bars)
+            with Quiet():
                 results = [_run_sampled_sim(self, parset, progset, progset_instructions, result_names, max_attempts=max_attempts) for _ in tqdm.trange(n_samples)]
-            else:
-                results = [_run_sampled_sim(self, parset, progset, progset_instructions, result_names, max_attempts=max_attempts) for _ in range(n_samples)]
-
-        logger.setLevel(original_level)  # Reset the logger
+        else:
+            results = [_run_sampled_sim(self, parset, progset, progset_instructions, result_names, max_attempts=max_attempts) for _ in range(n_samples)]
 
         return results
 
