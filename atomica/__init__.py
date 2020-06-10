@@ -47,33 +47,28 @@ using Atomica. It consists of the following submodules:
 # Display version information using logging
 
 import sys
-from datetime import datetime
 import logging
 logger = logging.getLogger('atomica')
 
-if not any([isinstance(h, logging.StreamHandler) and not isinstance(h, logging.FileHandler) for h in logger.handlers]):
+if not logger.hasHandlers():
     # Only add handlers if they don't already exist in the module-level logger
-    # User can still add a file handler to the
-    h1 = logging.StreamHandler(sys.stdout)
-    h2 = logging.StreamHandler(sys.stderr)
-    # h2 sends warnings and above to STDERR, while h1 sends everything else to stdout
-    h1.setLevel(0)  # Handle all
+    # This means that it's possible for the user to completely customize *a* logger called 'atomica'
+    # prior to importing Atomica, and the user's custom logger won't be overwritten as long as it has
+    # at least one handler already added. The use case was originally to suppress messages on import, but since
+    # importing is silent now, it doesn't matter so much.
+    h1 = logging.StreamHandler(sys.stdout) # h1 will handle all messages below WARNING sending them to STDOUT
+    h2 = logging.StreamHandler(sys.stderr) # h2 will send all messages at or above WARNING to STDERR
+
+    h1.setLevel(0)  # Handle all lower levels - the output should be filtered further by setting the logger level, not the handler level
     warning_level = logging.WARNING
     h1.addFilter(type("ThresholdFilter", (object,), {"filter": lambda x, logRecord: logRecord.levelno < warning_level})())  # Display anything less than a warning
     h2.setLevel(logging.WARNING)
 
     logger.addHandler(h1)
     logger.addHandler(h2)
+    logger.setLevel('INFO') # Set the overall log level
 
-from .version import version as __version__, versiondate as __versiondate__
-logger.critical('Atomica %s (%s) -- (c) the Atomica development team' % (__version__, __versiondate__))  # Log with the highest level
-from .version import gitinfo as __gitinfo__
-if __gitinfo__['branch'] != 'N/A':
-    logger.critical('git branch: %s (%s)' % (__gitinfo__['branch'], __gitinfo__['hash'][0:8]))
-logger.critical(datetime.now())
-
-# Finally, set default output level to INFO
-logger.setLevel('INFO')
+from .version import version as __version__, versiondate as __versiondate__, gitinfo as __gitinfo__
 
 # Check scipy version
 import scipy

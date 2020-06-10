@@ -11,7 +11,6 @@ to Excel files.
 from .utils import TimeSeries
 import sciris as sc
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
-import openpyxl
 from .excel import cell_get_string, standard_formats, read_tables, TimeDependentValuesEntry, TimeDependentConnections, apply_widths, update_widths, validate_category
 import xlsxwriter as xw
 import io
@@ -317,6 +316,8 @@ class ProjectData(sc.prettyobj):
         # 2. Read in all the other TDVE content, and then store it in the data specs according to the variable type defined in the Framework
         # e.g. the fact that 'Alive' is a Characteristic is stored in the Framework and Data but not in the Databook. So for example, we read in
         # a TDVE table called 'Alive', but it needs to be stored in data.specs['charac']['ch_alive'] and the 'charac' and 'ch_alive' are only available in the Framework
+
+        import openpyxl
 
         self = ProjectData(framework=framework)
 
