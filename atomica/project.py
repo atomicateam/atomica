@@ -19,7 +19,7 @@ In addition, a project contains:
 """
 
 from .version import version, gitinfo
-from .calibration import perform_autofit
+from .calibration import calibrate
 from .data import ProjectData
 from .framework import ProjectFramework
 from .model import run_model
@@ -594,7 +594,9 @@ class Project(NamedItem):
 
         if parset is None:
             parset = -1
-        parset = self.parsets[parset]
+        elif not isinstance(parset, ParameterSet):
+            parset = self.parsets[parset]
+
         if new_name is None:
             new_name = parset.name + ' (auto-calibrated)'
         if adjustables is None:
@@ -610,8 +612,8 @@ class Project(NamedItem):
         for index, measurable in enumerate(measurables):
             if sc.isstring(measurable):  # Assume that a parameter name was passed in if not a tuple.
                 measurables[index] = (measurable, None, default_weight, default_metric)
-        new_parset = perform_autofit(project=self, parset=parset,
-                                     pars_to_adjust=adjustables, output_quantities=measurables, max_time=max_time)
+        new_parset = calibrate(project=self, parset=parset,
+                               pars_to_adjust=adjustables, output_quantities=measurables, max_time=max_time)
         new_parset.name = new_name  # The new parset is a calibrated copy of the old, so change id.
         if save_to_project:
             self.parsets.append(new_parset)

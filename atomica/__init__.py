@@ -56,16 +56,23 @@ if not logger.hasHandlers():
     # prior to importing Atomica, and the user's custom logger won't be overwritten as long as it has
     # at least one handler already added. The use case was originally to suppress messages on import, but since
     # importing is silent now, it doesn't matter so much.
-    h1 = logging.StreamHandler(sys.stdout) # h1 will handle all messages below WARNING sending them to STDOUT
-    h2 = logging.StreamHandler(sys.stderr) # h2 will send all messages at or above WARNING to STDERR
+    debug_handler = logging.StreamHandler(sys.stdout) # info_handler will handle all messages below WARNING sending them to STDOUT
+    info_handler = logging.StreamHandler(sys.stdout) # info_handler will handle all messages below WARNING sending them to STDOUT
+    warning_handler = logging.StreamHandler(sys.stderr) # warning_handler will send all messages at or above WARNING to STDERR
 
-    h1.setLevel(0)  # Handle all lower levels - the output should be filtered further by setting the logger level, not the handler level
-    warning_level = logging.WARNING
-    h1.addFilter(type("ThresholdFilter", (object,), {"filter": lambda x, logRecord: logRecord.levelno < warning_level})())  # Display anything less than a warning
-    h2.setLevel(logging.WARNING)
+    debug_handler.setLevel(0)  # Handle all lower levels - the output should be filtered further by setting the logger level, not the handler level
+    info_handler.setLevel(logging.INFO)  # Handle all lower levels - the output should be filtered further by setting the logger level, not the handler level
+    warning_handler.setLevel(logging.WARNING)
 
-    logger.addHandler(h1)
-    logger.addHandler(h2)
+    debug_handler.addFilter(type("ThresholdFilter", (object,), {"filter": lambda x, logRecord: logRecord.levelno < logging.INFO})())  # Display anything INFO or higher
+    info_handler.addFilter(type("ThresholdFilter", (object,), {"filter": lambda x, logRecord: logRecord.levelno < logging.WARNING})())  # Don't display WARNING or higher
+
+    debug_formatter = logging.Formatter('%(levelname)s {%(filename)s:%(lineno)d} - %(message)s')
+    debug_handler.setFormatter(debug_formatter)
+
+    logger.addHandler(debug_handler)
+    logger.addHandler(info_handler)
+    logger.addHandler(warning_handler)
     logger.setLevel('INFO') # Set the overall log level
 
 from .version import version as __version__, versiondate as __versiondate__, gitinfo as __gitinfo__

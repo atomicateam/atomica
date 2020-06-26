@@ -10,6 +10,7 @@ import numpy as np
 import sciris as sc
 from .model import BadInitialization
 from .system import logger
+from .parameters import ParameterSet
 
 # TODO: Determine whether this is necessary.
 calibration_settings = dict()
@@ -118,16 +119,23 @@ def _calc_wape(y_obs, y_fit):
     return abs(y_fit - y_obs) / (y_obs.mean() + calibration_settings['tolerance'])
 
 
-def perform_autofit(project, parset, pars_to_adjust, output_quantities, max_time=60):
+def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, max_time=60, method='asd') -> ParameterSet:
     """
-    Run an autofit and save resulting parameterset
 
-    pars_to_adjust - list of tuples, (par_name,pop_name,lower_limit,upper_limit)
-                     the pop name can be None, which will be expanded to all populations
-                     relevant to the parameter independently, or 'all' which will instead operate
-                     on the meta y factor.
-    output_quantities - list of tuples, (var_label,pop_name,weight,metric), for use in the objective
-                        function. pop_name=None will expand to all pops. pop_name='all' is not supported
+    Run automated calibration
+
+    :param project: A project instance to provide data and sim settings
+    :param parset: A :class:`ParameterSet` instance to calibrate
+    :param pars_to_adjust: list of tuples, (par_name,pop_name,lower_limit,upper_limit)
+                           the pop name can be None, which will be expanded to all populations
+                           relevant to the parameter independently, or 'all' which will instead operate
+                           on the meta y factor.
+    :param output_quantities: list of tuples, (var_label,pop_name,weight,metric), for use in the objective
+                              function. pop_name=None will expand to all pops. pop_name='all' is not supported
+    :param max_time: If using ASD, the maximum run time
+    :param method: 'asd' or 'pso'. If using 'pso' all upper and lower limits must be finite
+    :return: A calibrated :class:`ParameterSet`
+
     """
 
     # Expand out pop=None in pars_to_adjust
@@ -180,23 +188,43 @@ def perform_autofit(project, parset, pars_to_adjust, output_quantities, max_time
         xmin.append(scale_min)
         xmax.append(scale_max)
 
-    optim_args = {
-        'stepsize': 0.1,
-        'maxiters': 2000,
-        'sinc': 1.5,
-        'sdec': 2.,
-        'fulloutput': False,
-        'reltol': 1e-3,
-        'abstol': 1e-6,
-        'xmin': xmin,
-        'xmax': xmax,
-    }
+    if method == 'asd':
+        optim_args = {
+            'stepsize': 0.1,
+            'maxiters': 2000,
+            'sinc': 1.5,
+            'sdec': 2.,
+            'fulloutput': False,
+            'reltol': 1e-3,
+            'abstol': 1e-6,
+            'xmin': xmin,
+            'xmax': xmax,
+        }
 
-    if max_time is not None:
-        optim_args['maxtime'] = max_time
+        if max_time is not None:
+            optim_args['maxtime'] = max_time
 
-    opt_result = sc.asd(_calculate_objective, x0, args, **optim_args)
-    x1 = opt_result['x']
+        opt_result = sc.asd(_calculate_objective, x0, args, **optim_args)
+        x1 = opt_result['x']
+
+    elif method == 'pso':
+        import pyswarm
+
+        optim_args = {
+            'maxiter': 3,
+            'lb': xmin,
+            'ub': xmax,
+            'minstep': 1e-3,
+            'debug': True
+        }
+        if np.any(~np.isfinite(xmin)) or np.any(~np.isfinite(xmax)):
+            errormsg = 'PSO optimization requires finite upper and lower bounds to specify the search domain (i.e. every parameter being adjusted needs to have finite bounds)'
+            raise Exception(errormsg)
+
+        x1, _ = pyswarm.pso(_calculate_objective, kwargs=args, **optim_args)
+
+    else:
+        raise Exception('Unrecognized method')
 
     _update_parset(args['parset'], x1, pars_to_adjust)
 
@@ -208,7 +236,7 @@ def perform_autofit(project, parset, pars_to_adjust, output_quantities, max_time
         if par_name in parset.pars:
             par = args['parset'].pars[par_name]
 
-            if pop_name is None or pop_name == 'all':
+            if pop_name == 'all':
                 logger.debug("parset.get_par('{}').meta_y_factor={:.2f}".format(par_name, par.meta_y_factor))
             else:
                 logger.debug("parset.get_par('{}').y_factor['{}']={:.2f}".format(par_name, pop_name, par.y_factor[pop_name]))
