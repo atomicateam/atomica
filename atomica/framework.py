@@ -1140,7 +1140,7 @@ class ProjectFramework(object):
                     A[i, comps.index(include)] = 1.0
 
             if np.linalg.matrix_rank(A) < len(comps):
-                logger.warning('Initialization characteristics are underdetermined - this may be intentional, but check the initial compartment sizes carefully')
+                logger.debug('Initialization characteristics are underdetermined - this may be intentional, but check the initial compartment sizes carefully')
 
         # ASSIGN DURATION GROUPS
         # This needs to be done for compartments, as well as junctions
