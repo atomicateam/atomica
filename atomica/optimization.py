@@ -7,19 +7,22 @@ effectively serves as a mapping from one set of program instructions to another.
 
 """
 
+import logging
+import pickle
+from collections import defaultdict
+
+import numpy as np
+import scipy.optimize
+
 import sciris as sc
+from .cascade import get_cascade_vals
+from .model import Model, Link
+from .parameters import ParameterSet
+from .programs import ProgramSet, ProgramInstructions
+from .results import Result
 from .system import logger, NotFoundError
 from .utils import NamedItem
-import numpy as np
-from .model import Model, Link
-import pickle
-import scipy.optimize
-from collections import defaultdict
 from .utils import TimeSeries
-from .results import Result
-from .cascade import get_cascade_vals
-from .programs import ProgramSet, ProgramInstructions
-from .parameters import ParameterSet
 
 
 class InvalidInitialConditions(Exception):
@@ -1327,6 +1330,14 @@ def optimize(project, optimization, parset: ParameterSet, progset: ProgramSet, i
             'xmin': xmin,
             'xmax': xmax,
         }
+
+        # Set ASD verbosity based on Atomica logging level
+        log_level = logger.getEffectiveLevel()
+        if log_level < logging.WARNING:
+            optim_args['verbose'] = 2
+        else:
+            optim_args['verbose'] = 0
+
         opt_result = sc.asd(_objective_fcn, x0, args, **optim_args)
         x_opt = opt_result['x']
 
@@ -1372,6 +1383,14 @@ def optimize(project, optimization, parset: ParameterSet, progset: ProgramSet, i
     optimization.update_instructions(x_opt, model.program_instructions)
     optimization.constrain_instructions(model.program_instructions, hard_constraints)
     return model.program_instructions  # Return the modified instructions
+    # Note that we do not return the value of the objective here because *in general* the objective isn't required
+    # or expected to have a meaningful interpretation because it may arbitrarily combine quantities (e.g. spending
+    # and epi outcomes) or is otherwise subject to the choice of weighting (e.g. impact vs equity). Therefore,
+    # it is recommended that an _absolute_ metric be computed from the returned optimized instructions rather than
+    # capturing the optimization objective. For example, in an optimization trading off equity against impact,
+    # the deaths averted could be computed using the optimized instructions and returned as an absolute measure of quality.
+
+
 
 # def parallel_optimize(project,optimization,parset,progset,program_instructions):
 #

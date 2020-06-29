@@ -88,7 +88,8 @@ def save_figs(figs, path='.', prefix='', fnames=None) -> None:
         if not fnames[i]:  # assert above means that i>0
             fnames[i] = fnames[i - 1] + '_legend'
             legend = fig.findobj(Legend)[0]
-            fig.canvas.draw()
+            renderer = fig.canvas.get_renderer()
+            fig.draw(renderer=renderer)
             bbox = legend.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
         else:
             bbox = 'tight'

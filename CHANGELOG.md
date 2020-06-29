@@ -1,0 +1,12 @@
+# Changelog
+
+This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
+
+## [Unreleased]
+
+
+## [1.19.0] - 2020-06-26
+
+- Renamed `calibration.py:perform_autofit()` to `calibration.py:calibrate()`
+- Added debug-level log messages, which can be viewed by setting `atomica.logger.setLevel(1)`
+- Added changelog

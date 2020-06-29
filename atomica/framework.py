@@ -8,9 +8,7 @@ class, which provides a Python representation of a Framework file.
 """
 
 import numpy as np
-import openpyxl
 import pandas as pd
-import networkx as nx
 import sciris as sc
 import io
 import xlsxwriter as xw
@@ -40,6 +38,8 @@ class ProjectFramework(object):
     """
 
     def __init__(self, inputs=None, name: str = None):
+        import openpyxl
+
         # Define metadata
         self.uid = sc.uuid()  #: Unique identifier
         self.version = version  #: Current Atomica version
@@ -490,6 +490,8 @@ class ProjectFramework(object):
         being raised.
 
         """
+
+        import networkx as nx
 
         # Check for required sheets
         for page in ['databook pages', 'parameters']:
@@ -1138,7 +1140,7 @@ class ProjectFramework(object):
                     A[i, comps.index(include)] = 1.0
 
             if np.linalg.matrix_rank(A) < len(comps):
-                logger.warning('Initialization characteristics are underdetermined - this may be intentional, but check the initial compartment sizes carefully')
+                logger.debug('Initialization characteristics are underdetermined - this may be intentional, but check the initial compartment sizes carefully')
 
         # ASSIGN DURATION GROUPS
         # This needs to be done for compartments, as well as junctions

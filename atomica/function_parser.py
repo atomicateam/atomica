@@ -9,6 +9,7 @@ an executable Python representation.
 
 import ast
 import numpy as np
+from functools import reduce
 
 
 def sdiv(numerator, denominator):
@@ -28,10 +29,54 @@ def sdiv(numerator, denominator):
         return np.divide(numerator, denominator, out=np.zeros_like(numerator, dtype=float), where=numerator != 0)
 
 
+def vector_min(*args):
+    """
+    Repeated elementwise minimum
+
+    Repeatedly call `np.minimum` so that both scalars and arrays are supported
+    as well as >2 items.
+
+    All arrays provided (if any) must be the same size
+
+    Example:
+
+        >>> vector_min([1,2],0,[-1,1])
+        array([-1,  0])
+
+    :param args: Scalars or arrays to take minimum over
+    :return: Result of calling `np.minimum` repeatedly
+        - Scalar if all inputs are scalar
+        - np.array if any input is an array
+    """
+    return reduce(np.minimum, args)
+
+
+def vector_max(*args):
+    """
+    Repeated elementwise maximum
+
+    Repeatedly call `np.maximum` so that both scalars and arrays are supported
+    as well as >2 items.
+
+    All arrays provided (if any) must be the same size
+
+    Example:
+
+        >>> vector_max([1,2],5,[10,1])
+        array([10,  5])
+
+    :param args: Scalars or arrays to take maximum over
+    :return: Result of calling `np.maximum` repeatedly
+        - Scalar if all inputs are scalar
+        - np.array if any input is an array
+    """
+    return reduce(np.maximum, args)
+
+
 # Only calls to functions in the dict below will be permitted
 supported_functions = {
-    'max': np.maximum,
-    'min': np.minimum,
+    'max': vector_max,
+    'min': vector_min,
     'exp': np.exp,
     'floor': np.floor,
     'SRC_POP_AVG': None,
@@ -47,6 +92,31 @@ supported_functions = {
     'randn': np.random.randn,
     'sdiv': sdiv
 }
+
+
+class _DivTransformer(ast.NodeTransformer):
+    """
+    Helper class to use sdiv everywhere
+
+    This is a NodeTransformer that converts Div nodes into
+    function nodes that call the sdiv function
+
+    Modified from https://stackoverflow.com/a/51918098 by Aran-Fey
+
+    """
+    def visit_BinOp(self, node):
+        lhs = self.visit(node.left)
+        rhs = self.visit(node.right)
+
+        if not isinstance(node.op, ast.Div):
+            node.left = lhs
+            node.right = rhs
+            return node
+
+        name = ast.Name('sdiv', ast.Load())
+        args = [lhs, rhs]
+        kwargs = []
+        return ast.Call(name, args, kwargs)
 
 
 def parse_function(fcn_str: str) -> tuple:
@@ -89,6 +159,8 @@ def parse_function(fcn_str: str) -> tuple:
     assert len(fcn_str) < 1800  # Function string must be less than 1800 characters
     fcn_str = fcn_str.replace(':', '___')
     fcn_ast = ast.parse(fcn_str, mode='eval')
+    fcn_ast = _DivTransformer().visit(fcn_ast)
+    fcn_ast = ast.fix_missing_locations(fcn_ast)
     dep_list = []
     for node in ast.walk(fcn_ast):
         if isinstance(node, ast.Name) and node.id not in supported_functions:

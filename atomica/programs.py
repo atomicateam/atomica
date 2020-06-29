@@ -11,7 +11,6 @@ import io
 from datetime import timezone
 
 import numpy as np
-import openpyxl
 import xlsxwriter as xw
 from numpy import inf, array, exp, minimum
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
@@ -453,6 +452,7 @@ class ProgramSet(NamedItem):
         :return: A :class:`ProgramSet`
 
         """
+        import openpyxl
 
         framework, data = ProgramSet._normalize_inputs(framework, data, project)
 
@@ -460,7 +460,7 @@ class ProgramSet(NamedItem):
         self = ProgramSet(name=name, framework=framework, data=data)
 
         # Create and load spreadsheet
-        if sc.isstring(spreadsheet):
+        if not isinstance(spreadsheet, sc.Spreadsheet):
             spreadsheet = sc.Spreadsheet(spreadsheet)
 
         workbook = openpyxl.load_workbook(spreadsheet.tofile(), read_only=True, data_only=True)  # Load in read-only mode for performance, since we don't parse comments etc.

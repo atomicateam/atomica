@@ -11,8 +11,6 @@ For example, Excel formatting, and time-varying data entry tables, are implement
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 import sciris as sc
 import io
-import openpyxl
-from openpyxl.comments import Comment
 import numpy as np
 from .system import FrameworkSettings as FS
 import pandas as pd
@@ -110,6 +108,9 @@ def transfer_comments(target: sc.Spreadsheet, comment_source: sc.Spreadsheet) ->
 
     """
 
+    import openpyxl
+    from openpyxl.comments import Comment
+
     assert isinstance(target, sc.Spreadsheet)
     assert isinstance(comment_source, sc.Spreadsheet)
 
@@ -158,6 +159,8 @@ def copy_sheet(source: str, sheet_name: str, workbook: xlsxwriter.Workbook) -> N
     :param workbook: A Workbook instance to add the sheet to
     :return: None - the sheet will be added to the Workbook in-place
     """
+
+    import openpyxl
 
     if sc.isstring(source):
         source = sc.Spreadsheet(source)

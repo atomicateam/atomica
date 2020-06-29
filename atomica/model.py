@@ -23,7 +23,6 @@ from .programs import ProgramSet, ProgramInstructions
 from .parameters import Parameter as ParsetParameter
 from .parameters import ParameterSet as ParameterSet
 import math
-import networkx as nx
 
 model_settings = dict()
 model_settings['tolerance'] = 1e-6
@@ -2094,6 +2093,8 @@ class Model(object):
         :return: Dict containing execution orders for ``'all_pars'``,``dynamic_pars``,``characs``,``junctions``
 
         """
+
+        import networkx as nx
 
         exec_order = dict()
 
