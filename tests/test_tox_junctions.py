@@ -104,7 +104,15 @@ def test_only_junctions():
     assert res.get_variable('state2')[0].vals[1] == 60
     assert res.get_variable('state2')[0].vals[2] == 120
 
+def test_junction_remainder():
+    F = at.ProjectFramework(testdir + "framework_junction_remainder_test.xlsx")
+    D = at.ProjectData.new(F, [2018], pops=1, transfers=0)
+
+    P = at.Project(name="test", framework=F, databook=D.to_spreadsheet(), do_run=True)
+    res = P.results[0]
+
 
 if __name__ == '__main__':
     # test_junctions()
-    test_only_junctions()
+    # test_only_junctions()
+    test_junction_remainder()

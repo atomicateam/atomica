@@ -503,6 +503,106 @@ class JunctionCompartment(Compartment):
 
             self.vals[0] = 0.0
 
+class ResidualJunctionCompartment(JunctionCompartment):
+    """
+    Junction with a residual outflow
+
+    A residual outflow junction has a single additional outflow link
+    """
+
+    def __init__(self, pop, name: str, duration_group: str = None):
+        """
+
+        A TimedCompartment has a duration group by virtue of having a `.parameter` attribute and a flush link.
+        A junction might belong to a duration group by having inflows and outflows exclusively from that group.
+        However, it might not be directly attached to any timed compartments, if the connections are entirely
+        via upstream and downstream junctions. Junctions also do not have flush links. Therefore, we record
+        membership in the duration group by specifying the name of the parameter in the (indirect) upstream
+        and downstream compartments.
+
+        Note that having connections to timed compartments does not itself indicate membership in the duration
+        group - the junction is only a member if all of the upstream and downstream compartments belong to the
+        same duration group. The duration group is determined in framework validation and stored in the framework.
+
+        :param pop:
+        :param name:
+        :param duration_group: Optionally specify a duration group
+
+        """
+        super().__init__(pop, name)
+        self.duration_group = duration_group  #: Store the name of the duration group, if the junction belongs to one
+
+    def connect(self, dest, par) -> None:
+        """
+        Construct link out of this compartment
+
+        For junctions, outgoing links are normal links unless the junction belongs to a duration group.
+        If the junction belongs to a duration group, then the output links should all be :class:`TimedLink` instances.
+
+        :param dest: A ``Compartment`` instance
+        :param par: The parameter that the Link will be associated with
+
+        """
+
+        if self.duration_group:
+            if (isinstance(dest, TimedCompartment) and dest.parameter.name != self.duration_group) or (isinstance(dest, JunctionCompartment) and dest.duration_group != self.duration_group):
+                raise ModelError('Mismatched junction duration groups - the framework has not been validated correctly')
+            TimedLink.create(pop=self.pop, parameter=par, source=self, dest=dest)
+        else:
+            Link.create(pop=self.pop, parameter=par, source=self, dest=dest)
+
+    def balance(self, ti: int) -> None:
+        """
+        Balance junction inflows and outflows
+
+        This is the primary update for a junction - where outflows are adjusted so that they
+        equal the inflows. It's analogous to `resolve_outflows` as a primary update method, but
+        it takes place at a separate integration stage (once the outflows for normal compartments
+        have been finalized, as these outputs serve as the junction inputs in that same timestep)
+        After this method is called, all outflows should equal inflows
+
+        The parameter workflow is simplified because all links flowing out of junctions must be
+        in 'proportion' units, so they can be looked up and used directly.
+
+        :param ti: Time index to update (scalar only, as this function is only called during integration)
+
+        """
+
+        # First, work out the total inflow that needs to pass through the junction
+        net_inflow = 0
+        if self.duration_group:
+            for link in self.inlinks:
+                net_inflow += link._vals[:, ti]  # If part of a duration group, get the flow from TimedLink._vals
+        else:
+            for link in self.inlinks:
+                net_inflow += link.vals[ti]  # If not part of a duration group, get scalar flow from Link.vals
+
+        # Next, get the total outflow. Note that the parameters are guaranteed to be in proportion units here
+        outflow_fractions = [link.parameter.vals[ti] for link in self.outlinks]
+        total_outflow = sum(outflow_fractions)
+
+        # Finally, assign the inflow to the outflow proportionately accounting for the total outflow downscaling
+        for frac, link in zip(outflow_fractions, self.outlinks):
+            if self.duration_group:
+                link._vals[:, ti] = net_inflow * frac / total_outflow
+            else:
+                link.vals[ti] = net_inflow * frac / total_outflow
+
+
+    def unlink(self):
+        Variable.unlink(self)
+        self.includes = [x.id for x in self.includes]
+        self.denominator = self.denominator.id if self.denominator is not None else None
+
+    def relink(self, objs):
+        # Given a dictionary of objects, restore the internal references
+        Variable.relink(self, objs)
+        self.includes = [objs[x] for x in self.includes]
+        self.denominator = objs[self.denominator] if self.denominator is not None else None
+
+
+
+
 
 class SourceCompartment(Compartment):
     """
