@@ -77,7 +77,7 @@ def test_validate_model(model):
 
 if __name__ == '__main__':
     np.seterr(all='raise', under='ignore')
-    # test_validate_model('sir')
+    test_validate_model('combined')
 
     for m in models:
         test_validate_model(m)

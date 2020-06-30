@@ -1224,7 +1224,8 @@ class ProjectFramework(object):
                             group = self.comps.at[inflow_comp, 'duration group']
                             if group is not None:
                                 groups.add(group)
-                                if self.pars.at[inflow_par, 'timed'] != 'y':
+                                # TODO - is there a cleaner way to check for '>' being the special symbol for a residual transition?
+                                if inflow_par == '>' or self.pars.at[inflow_par, 'timed'] != 'y':
                                     attachments.add(group)
                     return comps, groups, attachments
 

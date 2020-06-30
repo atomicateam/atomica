@@ -111,6 +111,15 @@ def test_junction_remainder():
     P = at.Project(name="test", framework=F, databook=D.to_spreadsheet(), do_run=True)
     res = P.results[0]
 
+    # Initial flush
+    assert res.get_variable('s1')[0].vals[0] == 60
+    assert res.get_variable('s2')[0].vals[0] == 30
+
+    # First timestep
+    assert res.get_variable('s1')[0].vals[1] == 60+0.6*200*P.settings.sim_dt
+    assert res.get_variable('s2')[0].vals[1] == 30+0.3*200*P.settings.sim_dt
+    assert res.get_variable('j1:j2')[0].vals[1] == 0.1*200*P.settings.sim_dt
+
 
 if __name__ == '__main__':
     # test_junctions()

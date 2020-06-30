@@ -4,6 +4,7 @@ This file records changes to the codebase grouped by version release. Unreleased
 
 ## [Unreleased]
 
+- Add support for '>' in transition matrix to represent junction residual
 
 ## [1.19.0] - 2020-06-26
 
