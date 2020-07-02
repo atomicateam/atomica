@@ -584,14 +584,14 @@ def export_results(results, filename=None, output_ordering=('output', 'result', 
         for _, spec in plots_available.iterrows():
             if 'type' in spec and spec['type'] == 'bar':
                 continue  # For now, don't do bars - not implemented yet
-            plot_df.append(_output_to_df(results, output_name=spec['name'], output=evaluate_plot_string(spec['quantities'], time_aggregate=False), tvals=new_tvals))
-        _write_df(writer, formats, 'Plot data annualized Jan 1', pd.concat(plot_df), output_ordering)
+            plot_df.append(_output_to_df(results, output_name=spec['name'], output=evaluate_plot_string(spec['quantities']), tvals=new_tvals, time_aggregate=False))
+        _write_df(writer, formats, 'Plot data annualized', pd.concat(plot_df), output_ordering)
         
         plot_df = []
         for _, spec in plots_available.iterrows():
             if 'type' in spec and spec['type'] == 'bar':
                 continue  # For now, don't do bars - not implemented yet
-            plot_df.append(_output_to_df(results, output_name=spec['name'], output=evaluate_plot_string(spec['quantities'], time_aggregate=True), tvals=new_tvals))
+            plot_df.append(_output_to_df(results, output_name=spec['name'], output=evaluate_plot_string(spec['quantities']), tvals=new_tvals, time_aggregate=True))
         _write_df(writer, formats, 'Plot data annual aggregated', pd.concat(plot_df), output_ordering)
 
     # Write cascades into separate sheets
@@ -601,7 +601,7 @@ def export_results(results, filename=None, output_ordering=('output', 'result', 
     if cascade_df:
         # always split tables by cascade, since different cascades can have different stages or the same stages with different definitions
         # it's thus potentially very confusing if the tables are split by something other than the cascade
-        _write_df(writer, formats, 'Cascade Jan 1', pd.concat(cascade_df), ('cascade',) + cascade_ordering)
+        _write_df(writer, formats, 'Cascade', pd.concat(cascade_df), ('cascade',) + cascade_ordering)
 
     # If there are targetable parameters, output them
     targetable_code_names = list(results[0].framework.pars.index[results[0].framework.pars['targetable'] == 'y'])
@@ -609,7 +609,7 @@ def export_results(results, filename=None, output_ordering=('output', 'result', 
         par_df = []
         for par_name in targetable_code_names:
             par_df.append(_output_to_df(results, output_name=par_name, output=par_name, tvals=new_tvals))
-        _write_df(writer, formats, 'Target parameters annualized Jan 1', pd.concat(par_df), output_ordering)
+        _write_df(writer, formats, 'Target parameters annualized', pd.concat(par_df), output_ordering)
 
     # If any of the results used programs, output them
     if any([x.used_programs for x in results]):
@@ -624,7 +624,7 @@ def export_results(results, filename=None, output_ordering=('output', 'result', 
         prog_df = []
         for prog_name in prog_names:
             prog_df.append(_programs_to_df(results, prog_name, new_tvals, time_aggregate=False))
-        _write_df(writer, formats, 'Programs annualized Jan 1', pd.concat(prog_df), program_ordering)
+        _write_df(writer, formats, 'Programs annualized', pd.concat(prog_df), program_ordering)
         
         prog_df = []
         for prog_name in prog_names:
@@ -668,7 +668,7 @@ def _programs_to_df(results, prog_name, tvals, time_aggregate = False):
 
             for quantity, label in out_quantities.items():
                 plot_data = PlotData.programs(result, outputs=prog_name, quantity=quantity)
-                vals = plot_data.time_aggregate(tvals) if time_aggregate else plot_data.interpolate(tvals)
+                vals = plot_data.time_aggregate(np.append(tvals, tvals[-1] + (tvals[-1] - tvals[-2]))) if time_aggregate else plot_data.interpolate(tvals)
                 vals.series[0].vals[~programs_active] = np.nan
                 data[(prog_name, result.name, label)] = vals.series[0].vals
 
@@ -743,18 +743,18 @@ def _output_to_df(results, output_name: str, output, tvals, time_aggregate = Fal
 
     from .plotting import PlotData
     
-    if time_aggregate:
-        agg_fn = popdata.time_aggregate
-    else:
-        agg_fn = popdata.interpolate
+
 
     pops = _filter_pops_by_output(results[0], output)
     pop_labels = {x: y for x, y in zip(results[0].pop_names, results[0].pop_labels) if x in pops}
     data = dict()
 
-    popdata = PlotData(results, pops=pops, outputs=output)
+    popdata = PlotData(results, pops=pops, outputs=output)  
     assert len(popdata.outputs) == 1, 'Framework plot specification should evaluate to exactly one output series - there were %d' % (len(popdata.outputs))
-    agg_fn(tvals)
+    if time_aggregate:
+        popdata.time_aggregate(np.append(tvals, tvals[-1] + (tvals[-1] - tvals[-2])))
+    else:
+        popdata.interpolate(tvals)
     for result in popdata.results:
         for pop_name in popdata.pops:
             data[(output_name, popdata.results[result], pop_labels[pop_name])] = popdata[result, pop_name, popdata.outputs[0]].vals
@@ -764,12 +764,18 @@ def _output_to_df(results, output_name: str, output, tvals, time_aggregate = Fal
     if popdata.series[0].units in {FS.QUANTITY_TYPE_NUMBER, results[0].model.pops[0].comps[0].units}:
         # Number units, can use summation
         popdata = PlotData(results, outputs=output, pops={'total': pops}, pop_aggregation='sum')
-        agg_fn(tvals)
+        if time_aggregate:
+            popdata.time_aggregate(np.append(tvals, tvals[-1] + (tvals[-1] - tvals[-2])))
+        else:
+            popdata.interpolate(tvals)
         for result in popdata.results:
             data[(output_name, popdata.results[result], 'Total (sum)')] = popdata[result, popdata.pops[0], popdata.outputs[0]].vals
     elif popdata.series[0].units in {FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY}:
         popdata = PlotData(results, outputs=output, pops={'total': pops}, pop_aggregation='weighted')
-        agg_fn(tvals)
+        if time_aggregate:
+            popdata.time_aggregate(np.append(tvals, tvals[-1] + (tvals[-1] - tvals[-2])))
+        else:
+            popdata.interpolate(tvals)
         for result in popdata.results:
             data[(output_name, popdata.results[result], 'Total (weighted average)')] = popdata[result, popdata.pops[0], popdata.outputs[0]].vals
     else:
