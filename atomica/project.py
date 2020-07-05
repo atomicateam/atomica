@@ -147,13 +147,13 @@ class Project(NamedItem):
     def __init__(self, name="default", framework=None, databook=None, do_run=True, **kwargs):
         NamedItem.__init__(self, name)
 
-        if sc.isstring(framework) or isinstance(framework, sc.Spreadsheet):
-            self.framework = ProjectFramework(inputs=framework)
-        elif isinstance(framework, ProjectFramework):
+        if isinstance(framework, ProjectFramework):
             self.framework = framework
-        else:
+        elif framework is None:
             logger.warning('Project was constructed without a Framework - a framework should be provided')
             self.framework = None
+        else:
+            self.framework = ProjectFramework(inputs=framework)
 
         # Define the structure sets
         self.parsets = NDict()
@@ -223,7 +223,7 @@ class Project(NamedItem):
     #######################################################################################################
     # Methods for I/O and spreadsheet loading
     #######################################################################################################
-    def create_databook(self, databook_path=None, num_pops=1, num_transfers=0, num_interpops=0, data_start=2000.0, data_end=2020.0, data_dt=1.0):
+    def create_databook(self, databook_path=None, num_pops=1, num_transfers=0, data_start=2000.0, data_end=2020.0, data_dt=1.0):
         """ Generate an empty data-input Excel spreadsheet corresponding to the framework of this project. """
         if databook_path is None:
             databook_path = "./databook_" + self.name + ".xlsx"
@@ -231,25 +231,30 @@ class Project(NamedItem):
         data.save(databook_path)
         return data
 
-    def load_databook(self, databook_path=None, make_default_parset=True, do_run=True) -> None:
+    def load_databook(self, databook_path, make_default_parset:bool=True, do_run:bool=True) -> None:
         """
         Load a data spreadsheet
 
-        :param databook_path: a path string, which will load a file from disk, or an sc.Spreadsheet
-                                containing the contents of a databook
-        :param make_default_parset: If True, a Parset called "default" will be immediately created from the
-                                    newly-added data
+        :param databook_path: Databook input. Supported inputs are:
+                                - A path string, which will load a file from disk
+                                - An `sc.Spreadsheet` containing the contents of a databook
+                                - A `ProjectData` instance
+        :param make_default_parset: If True, a Parset called "default" will be immediately created from the newly-added data
         :param do_run: If True, a simulation will be run using the new parset
 
         """
 
-        if sc.isstring(databook_path):
-            full_path = sc.makefilepath(filename=databook_path, default=self.name, ext='xlsx', makedirs=False)
-            databook_spreadsheet = sc.Spreadsheet(full_path)
-        else:
-            databook_spreadsheet = databook_path
 
-        data = ProjectData.from_spreadsheet(databook_spreadsheet, self.framework)
+        if isinstance(databook_path, ProjectData):
+            # If the user passed in a ProjectData instance, use it directly
+            data = databook_path
+            databook = data.to_spreadsheet()
+        else:
+            if isinstance(databook_path, sc.Spreadsheet):
+                databook = databook_path
+            else:
+                databook = sc.Spreadsheet(databook_path)
+            data = ProjectData.from_spreadsheet(databook, self.framework)
 
         # If there are existing progsets, make sure the new data is consistent with them
         if self.progsets:
@@ -259,7 +264,7 @@ class Project(NamedItem):
 
         self.data = data
         self.data.validate(self.framework)  # Make sure the data is suitable for use in the Project (as opposed to just manipulating the databook)
-        self.databook = sc.dcp(databook_spreadsheet)  # Actually a shallow copy is fine here because sc.Spreadsheet contains no mutable properties
+        self.databook = sc.dcp(databook)
         self.modified = sc.now(utc=True)
         self.settings.update_time_vector(start=self.data.start_year)  # Align sim start year with data start year.
 

@@ -438,7 +438,7 @@ class ProjectFramework(object):
             # Check all compartments are within the specified population type
             for comp in set(list(df.index) + list(df.columns)):
                 if comp not in comps:
-                    raise InvalidFramework('A compartment "%s" appears in the first column of the matrix on the Transitions sheet, but it was not defined on the Compartments sheet' % (comp))
+                    raise InvalidFramework('A compartment "%s" appears in the matrix on the Transitions sheet, but it was not defined on the Compartments sheet' % (comp))
                 elif comps[comp] != df.index.name:
                     raise InvalidFramework('Compartment "%s" belongs to pop type "%s" but it appears in the transition matrix for "%s"' % (comp, comps[comp], df.index.name))
 
@@ -1008,7 +1008,7 @@ class ProjectFramework(object):
                             raise InvalidFramework('Parameter "%s" has an outflow from a junction, so it must be in "proportion" units' % par_name)
 
                     if (par['format'] == FS.QUANTITY_TYPE_PROPORTION) and (self.comps.at[comp, 'is junction'] != 'y'):
-                        raise InvalidFramework('"Parameter "%s" has units of "proportion" which means all of its outflows must be from junction compartments, which Compartment "%s" is not', par_name, comp)
+                        raise InvalidFramework('Parameter "%s" has units of "proportion" which means all of its outflows must be from junction compartments, which Compartment "%s" is not' % (par_name, comp))
 
                 if n_source_outflow > 1:
                     raise InvalidFramework('Parameter "%s" has an outflow from more than one source compartment, which prevents disaggregation from working correctly' % par_name)

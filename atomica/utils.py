@@ -3,28 +3,30 @@ Define utility classes used throughout Atomica
 
 """
 
-import inspect
-import os
 import ast
-from bisect import bisect
-import numpy as np
-import scipy.interpolate
-import sciris as sc
+import inspect
 import itertools
-import zlib
+import logging
+import os
 import re
 import time
+import zlib
+from bisect import bisect
 from datetime import datetime
-from tqdm import tqdm
 from functools import partial
+from pathlib import Path
+
+import numpy as np
+import scipy.interpolate
+from tqdm import tqdm
+
+import sciris as sc
 from .system import logger
-import logging
 
 
 def parent_dir():
     # Return the parent directory of the file that called this function
-    return os.path.join(os.path.abspath(os.path.join(inspect.stack()[1][1], os.pardir)), '')
-
+    return Path(inspect.stack()[1][1]).parent
 
 class NamedItem():
     def __init__(self, name: str = None):
