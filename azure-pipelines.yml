@@ -68,7 +68,7 @@ jobs:
     - task: UsePythonVersion@0
       displayName: 'Select python version'
       inputs:
-        versionSpec: '3.8'
+        versionSpec: '3.7'
     - script: |
         python setup.py develop
         python -m pip install -r requirements.txt
