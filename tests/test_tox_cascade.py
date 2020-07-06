@@ -31,7 +31,7 @@ def test_cascade_validate():
 
     for fname in ["framework_sir_badcascade1.xlsx", "framework_sir_badcascade2.xlsx"]:
         with pytest.raises(InvalidCascade):
-            ProjectFramework(at.parent_dir() + fname)
+            ProjectFramework(at.parent_dir() / fname)
 
 
 def test_cascade_basic_tb():
