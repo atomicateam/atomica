@@ -89,7 +89,7 @@ def test_combined_plots():
 
 
 def test_combined_order():
-    testdir = os.path.abspath(os.path.join(os.path.dirname(__file__))) + os.sep  # Must be relative to current file to work with tox
+    testdir = at.parent_dir()  # Must be relative to current file to work with tox
     P = at.Project(framework=testdir / 'test_order_framework.xlsx', databook=testdir / 'test_order_databook.xlsx')
     res = P.results[0]
 

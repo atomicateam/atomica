@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 def test_stochastic():
 
-    testdir = os.path.abspath(os.path.join(os.path.dirname(__file__))) + os.sep  # Must be relative to current file to work with tox
+    testdir = at.parent_dir()  # Must be relative to current file to work with tox
 
     F0 = at.ProjectFramework(testdir / "framework_sir_dynamic.xlsx")
     P0 = at.Project(name="test", framework=F0, do_run=False)

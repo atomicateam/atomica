@@ -16,9 +16,6 @@ import sys
 #
 #
 
-testdir = os.path.abspath(os.path.join(os.path.dirname(__file__))) + os.sep  # Must be relative to current file to work with tox
-tempdir = os.path.join(testdir, 'temp') + os.sep
-
 testdir = at.parent_dir()
 tempdir = testdir/'temp'
 
