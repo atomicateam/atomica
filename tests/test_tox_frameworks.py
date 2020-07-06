@@ -5,7 +5,7 @@ import os
 import numpy as np
 
 testdir = at.parent_dir()
-tmpdir = os.path.join(testdir, 'temp', '')
+tmpdir = testdir/'temp'
 
 def test_framework_blank_sheet():
     F_path = testdir / 'framework_blank_sheet.xlsx'

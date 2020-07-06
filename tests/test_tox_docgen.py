@@ -11,7 +11,7 @@ def test_docgen():
     F = at.ProjectFramework(at.LIBRARY_PATH + 'tb_framework.xlsx')
 
     testdir = at.parent_dir()
-    tmpdir = os.path.join(testdir, 'temp', '')
+    tmpdir = testdir/'temp'
     fname = sc.makefilepath(filename='tb_doc.md', folder=tmpdir)
 
     at.generate_framework_doc(F, fname=fname)

@@ -24,8 +24,18 @@ import sciris as sc
 from .system import logger
 
 
-def parent_dir():
-    # Return the parent directory of the file that called this function
+def parent_dir() -> Path:
+    """
+    Return the parent directory of current file
+
+    This function returns a Path object for the folder containing the file that called this function
+    e.g. if the file on disk is `foo/bar/baz.py` and `baz.py` contains `x = at.parent_dir()` then
+    `x` would be an absolute path corresponding to `Path('foo/bar')`
+
+    :return: Path object to the directory containing calling file
+
+    """
+
     return Path(inspect.stack()[1][1]).parent
 
 class NamedItem():

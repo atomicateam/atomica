@@ -8,7 +8,7 @@ import os
 
 def test_seasonal():
     testdir = at.parent_dir()
-    tmpdir = os.path.join(testdir, 'temp', '')
+    tmpdir = testdir/'temp'
 
     F_path = testdir / 'framework_seasonal_test.xlsx'
     D_path = tmpdir / 'databook_seasonal_test.xlsx'

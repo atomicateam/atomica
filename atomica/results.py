@@ -13,6 +13,7 @@ import pandas as pd
 from scipy import stats
 import tqdm
 import logging
+from pathlib import Path
 
 import sciris as sc
 from .excel import standard_formats
@@ -573,7 +574,7 @@ def export_results(results, filename=None, output_ordering=('output', 'result', 
     new_tvals = np.arange(np.ceil(results[0].t[0]), np.floor(results[0].t[-1]) + 1)
 
     # Open the output file
-    output_fname = filename + '.xlsx' if not filename.endswith('.xlsx') else filename
+    output_fname = Path(filename).with_suffix('.xlsx').resolve()
     writer = pd.ExcelWriter(output_fname, engine='xlsxwriter')
     formats = standard_formats(writer.book)
 
