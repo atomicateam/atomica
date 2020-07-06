@@ -434,7 +434,8 @@ class Result(NamedItem):
 
         # Optionally save it
         if filename is not None:
-            df.T.to_excel(filename + '.xlsx' if not filename.endswith('.xlsx') else filename)
+            output_fname = Path(filename).with_suffix('.xlsx').resolve()
+            df.T.to_excel(output_fname)
 
         return df
 
