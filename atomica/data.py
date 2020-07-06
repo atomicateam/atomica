@@ -581,7 +581,7 @@ class ProjectData(sc.prettyobj):
         """
 
         ss = self.to_spreadsheet()
-        ss.save(fname + '.xlsx' if not fname.endswith('.xlsx') else fname)
+        ss.save(fname)
 
     def add_pop(self, code_name: str, full_name: str, pop_type: str = None) -> None:
         """

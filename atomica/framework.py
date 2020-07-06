@@ -124,23 +124,6 @@ class ProjectFramework(object):
         assert sc.isstring(value)
         self.sheets['about'][0]['name'].iloc[0] = value
 
-    def save(self, filename: str = None, folder: str = None) -> str:
-        """
-        Save original spreadsheet
-
-        :param filename: Optionally specify name of file to write - defaults to framework name
-        :param folder: Optionally specify directory to write to
-        :return: The full path to the file that was written
-
-        """
-
-        fullpath = sc.makefilepath(filename=filename, folder=folder, default=self.name, ext='xlsx', sanitize=True)
-        if self.spreadsheet is None:
-            raise Exception('Spreadsheet is not present, cannot save Framework as xlsx')
-        else:
-            self.spreadsheet.save(fullpath)
-        return fullpath
-
     # The primary data storage in the Framework are DataFrames with the contents of the Excel file
     # The convenience methods below enable easy access of frequency used contents without having
     # to store them separately or going via the DataFrames every time
@@ -1356,22 +1339,21 @@ class ProjectFramework(object):
         # Return the spreadsheet
         return spreadsheet
 
-    def save_new(self, fname) -> None:
+    def save(self, fname) -> None:
         """
-        Save regenerated framework to disk
+        Save framework to disk
 
-        Rather that saving the originally provided spreadsheet, this function writes a spreadsheet
-        based on the actual dataframes present. This allows programmatic modifications to
+        This function writes a spreadsheet based on the actual dataframes present. This allows programmatic modifications to
         frameworks to be viewed in Excel.
+
+        To save the original framework file (if one was loaded in) use `ProjectFramework.original.save()`
 
         :param fname: File name to write on disk
 
         """
 
-
-
         ss = self.to_spreadsheet()
-        ss.save(fname + '.xlsx' if not fname.endswith('.xlsx') else fname)
+        ss.save(fname)
 
 
 def _sanitize_dataframe(df: pd.DataFrame, required_columns: list, defaults: dict, valid_content: dict, set_index: str = None) -> pd.DataFrame:

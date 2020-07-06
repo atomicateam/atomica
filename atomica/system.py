@@ -35,7 +35,7 @@ def atomica_path(subdir=None) -> pathlib.Path:
 
     """
 
-    path = pathlib.Path(__file__).parent
+    path = pathlib.Path(__file__).parent.parent
     for d in sc.promotetolist(subdir):
         path /= d
     return path.resolve()

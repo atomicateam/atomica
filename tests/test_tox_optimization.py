@@ -39,7 +39,7 @@ def run_optimization(proj, optimization, instructions):
 
 def test_standard():
 
-    P = at.demo(which=test, do_plot=0, do_run=False)
+    P = at.demo(which=test, do_run=False)
     P.update_settings(sim_end=2030.0)
 
     alloc = sc.odict([('Risk avoidance', 0.),
@@ -72,7 +72,7 @@ def test_standard():
 
 def test_unresolvable():
 
-    P = at.demo(which=test, do_plot=0, do_run=False)
+    P = at.demo(which=test, do_run=False)
     P.update_settings(sim_end=2030.0)
 
     alloc = sc.odict([('Risk avoidance', 0.),
@@ -112,7 +112,7 @@ def test_unresolvable():
 
 def test_standard_mindeaths():
 
-    P = at.demo(which=test, do_plot=0, do_run=False)
+    P = at.demo(which=test, do_run=False)
     P.update_settings(sim_end=2030.0)
 
     alloc = sc.odict([('Risk avoidance', 0.),
@@ -144,7 +144,7 @@ def test_standard_mindeaths():
 
 def test_delayed():
 
-    P = at.demo(which=test, do_plot=0, do_run=False)
+    P = at.demo(which=test, do_run=False)
     P.update_settings(sim_end=2030.0)
 
     alloc = sc.odict([('Risk avoidance', 0.),
@@ -193,7 +193,7 @@ def test_delayed():
 
 def test_multiyear_fixed():
 
-    P = at.demo(which=test, do_plot=0, do_run=False)
+    P = at.demo(which=test, do_run=False)
     P.update_settings(sim_end=2030.0)
 
     alloc = sc.odict([('Risk avoidance', 0.),
@@ -236,7 +236,7 @@ def test_multiyear_fixed():
 
 def test_multiyear_relative():
 
-    P = at.demo(which=test, do_plot=0, do_run=False)
+    P = at.demo(which=test, do_run=False)
     P.update_settings(sim_end=2030.0)
 
     alloc = sc.odict([('Risk avoidance', 0.),
@@ -277,7 +277,7 @@ def test_multiyear_relative():
 
 def test_gradual():
 
-    P = at.demo(which=test, do_plot=0, do_run=False)
+    P = at.demo(which=test, do_run=False)
     P.update_settings(sim_end=2030.0)
 
     alloc = sc.odict([('Risk avoidance', 0.),
@@ -320,7 +320,7 @@ def test_gradual():
 
 def test_mixed_timing():
 
-    P = at.demo(which=test, do_plot=0, do_run=False)
+    P = at.demo(which=test, do_run=False)
     P.update_settings(sim_end=2030.0)
 
     alloc = sc.odict([('Risk avoidance', 0.),
@@ -354,7 +354,7 @@ def test_mixed_timing():
 
 def test_parametric_paired():
 
-    P = at.demo(which=test, do_plot=0, do_run=False)
+    P = at.demo(which=test, do_run=False)
     P.update_settings(sim_end=2030.0)
 
     alloc = sc.odict([('Risk avoidance', 0.),
@@ -395,7 +395,7 @@ def test_parametric_paired():
 
 def test_minmoney():
 
-    P = at.demo(which=test, do_plot=0, do_run=False)
+    P = at.demo(which=test, do_run=False)
     P.update_settings(sim_end=2030.0)
 
     alloc = sc.odict([('Risk avoidance', 0.),
@@ -437,7 +437,7 @@ def test_minmoney():
 
 def test_minmoney_relative():
 
-    P = at.demo(which=test, do_plot=0, do_run=False)
+    P = at.demo(which=test, do_run=False)
     P.update_settings(sim_end=2030.0)
 
     alloc = sc.odict([('Risk avoidance', 0.),
@@ -477,7 +477,7 @@ def test_minmoney_relative():
 
 def test_minmoney_absolute():
 
-    P = at.demo(which=test, do_plot=0, do_run=False)
+    P = at.demo(which=test, do_run=False)
     P.update_settings(sim_end=2030.0)
 
     alloc = sc.odict([('Risk avoidance', 0.),
@@ -513,7 +513,7 @@ def test_minmoney_absolute():
 
 def test_cascade_final_stage():
 
-    P = at.demo(which=test, do_plot=0, do_run=False)
+    P = at.demo(which=test, do_run=False)
     P.update_settings(sim_end=2030.0)
 
     # This is the same as the 'standard' example, just setting up the fact that we can adjust spending on Treatment 1 and Treatment 2
@@ -548,7 +548,7 @@ def test_cascade_final_stage():
 
 def test_cascade_multi_stage():
 
-    P = at.demo(which=test, do_plot=0, do_run=False)
+    P = at.demo(which=test, do_run=False)
     P.update_settings(sim_end=2030.0)
 
     alloc = sc.odict([('Risk avoidance', 0.),
@@ -573,7 +573,7 @@ def test_cascade_multi_stage():
 
 def test_cascade_conversions():
 
-    P = at.demo(which=test, do_plot=0, do_run=False)
+    P = at.demo(which=test, do_run=False)
     P.update_settings(sim_end=2030.0)
 
     # This is the same as the 'standard' example, just setting up the fact that we can adjust spending on Treatment 1 and Treatment 2
