@@ -1644,7 +1644,7 @@ class Population(object):
             src, dest, par = name_tokens
 
             if src and dest:
-                links = [l for l in self.get_comp(src).outlinks if l.dest.name == dest]
+                links = [link for link in self.get_comp(src).outlinks if link.dest.name == dest]
             elif src:
                 links = self.get_comp(src).outlinks
             elif dest:
@@ -1653,7 +1653,7 @@ class Population(object):
                 links = self.links
 
             if par:
-                links = [l for l in links if l.parameter.name == par]
+                links = [link for link in links if link.parameter.name == par]
 
             return links
         else:

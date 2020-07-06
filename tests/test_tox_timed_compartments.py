@@ -65,8 +65,8 @@ def test_zero_duration():
     assert pop.get_variable('inf')[0].vals[2] == 24 * res2.dt  # Same again, contents equals the inflow because it was flushed entirely
 
     # Check formally that total inflows equal total outflows
-    assert pop.get_variable('inf')[0].vals[0] == sum(l.vals[0] for l in pop.get_variable('inf')[0].outlinks)
-    assert pop.get_variable('inf')[0].vals[1] == sum(l.vals[1] for l in pop.get_variable('inf')[0].outlinks)
+    assert pop.get_variable('inf')[0].vals[0] == sum(link.vals[0] for link in pop.get_variable('inf')[0].outlinks)
+    assert pop.get_variable('inf')[0].vals[1] == sum(link.vals[1] for link in pop.get_variable('inf')[0].outlinks)
 
 
 def test_timed_tb():
@@ -282,9 +282,9 @@ def test_timed_transfer():
     assert pops[2].get_comp('c1')._vals[-1, 1] == 0  # The final subcompartment had no inflow
 
     # The absolute total outflow from all three compartments should match the initialization plus the transfer
-    assert sum([l.vals.sum() for l in pops[2].get_comp('c1').outlinks]) == 95  # 50 initialized, plus 45 transferred
-    assert sum([l.vals.sum() for l in pops[1].get_comp('c1').outlinks]) == 100  # 90 transitioned out, plus 10 flushed
-    assert sum([l.vals.sum() for l in pops[0].get_comp('c1').outlinks]) == 245  # 200 initialized, plus 45 transferred
+    assert sum([link.vals.sum() for link in pops[2].get_comp('c1').outlinks]) == 95  # 50 initialized, plus 45 transferred
+    assert sum([link.vals.sum() for link in pops[1].get_comp('c1').outlinks]) == 100  # 90 transitioned out, plus 10 flushed
+    assert sum([link.vals.sum() for link in pops[0].get_comp('c1').outlinks]) == 245  # 200 initialized, plus 45 transferred
 
     # Test writing out this databook too
     D = at.ProjectData.new(framework=P.framework, tvec=[2018, 2019], pops=3, transfers=2)

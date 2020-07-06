@@ -20,13 +20,6 @@ def demo(which: str = None, do_run: bool = True, addprogs: bool = True) -> Proje
     :return: A Project instance
     """
 
-    """
-    
-    Options for easily creating default projects based on different spreadsheets, including
-    program information -- useful for testing
-    Version: 2018mar27
-    """
-
     options = [
         'udt',
         'udt_dyn',

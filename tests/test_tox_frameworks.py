@@ -1,7 +1,6 @@
 # Run various framework-related tests
 
 import atomica as at
-import os
 import numpy as np
 
 testdir = at.parent_dir()
@@ -10,7 +9,7 @@ tmpdir = testdir / 'temp'
 
 def test_framework_blank_sheet():
     F_path = testdir / 'framework_blank_sheet.xlsx'
-    F = at.ProjectFramework(F_path)
+    at.ProjectFramework(F_path)
 
 
 def test_framework_par_min_max():
