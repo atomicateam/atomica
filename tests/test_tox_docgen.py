@@ -8,7 +8,7 @@ import sciris as sc
 
 
 def test_docgen():
-    F = at.ProjectFramework(at.LIBRARY_PATH + 'tb_framework.xlsx')
+    F = at.ProjectFramework(at.LIBRARY_PATH / 'tb_framework.xlsx')
 
     testdir = at.parent_dir()
     tmpdir = testdir/'temp'

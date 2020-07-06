@@ -8,7 +8,8 @@ import sciris as sc
 import pytest
 
 
-tmpdir = at.atomica_path(['tests', 'temp'])
+testdir = at.parent_dir()
+tmpdir = testdir/'temp'
 
 
 def test_export():

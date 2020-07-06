@@ -6,19 +6,20 @@ import numpy as np
 from atomica import ProjectFramework, Project, ProjectData
 import sciris as sc
 
+testdir = at.parent_dir()
+tmpdir = testdir/'temp'
 
 def test_databooks():
-    tmpdir = at.atomica_path(['tests', 'temp'])
 
-    F = ProjectFramework(at.LIBRARY_PATH + 'tb_framework.xlsx')
+    F = ProjectFramework(at.LIBRARY_PATH / 'tb_framework.xlsx')
     F.save(tmpdir / 'f_blug.xlsx')
 
     # Copy a databook by loading and saving it
-    data = ProjectData.from_spreadsheet(at.LIBRARY_PATH + "tb_databook.xlsx", F)
+    data = ProjectData.from_spreadsheet(at.LIBRARY_PATH / "tb_databook.xlsx", F)
     data.save(tmpdir / 'd_blug.xlsx')
 
     # Copy comments, using lower-level Spreadsheet object (for in-memory file operations)
-    original_workbook = sc.Spreadsheet(at.LIBRARY_PATH + "tb_databook.xlsx")
+    original_workbook = sc.Spreadsheet(at.LIBRARY_PATH / "tb_databook.xlsx")
     new_workbook = data.to_spreadsheet()  # This is a sc.Spreadsheet that can be stored in the FE database
     transfer_comments(new_workbook, original_workbook)
     new_workbook.save(tmpdir / 'd_blug_formatted.xlsx')
@@ -42,7 +43,7 @@ def test_databooks():
     at.plot_series(d, plot_type="stacked")  # This should look like the usual Optima-TB result
 
     # Change the pops and run it
-    data = ProjectData.from_spreadsheet(at.LIBRARY_PATH + "tb_databook.xlsx", F)
+    data = ProjectData.from_spreadsheet(at.LIBRARY_PATH / "tb_databook.xlsx", F)
     data.rename_pop('0-4', '0-3', 'Gen 0-3')
     data.rename_transfer('age', 'age_up', 'Age Up')
     data.save(tmpdir / 'd_blug_renamed.xlsx')
@@ -85,7 +86,7 @@ def test_databooks():
     d2.save(tmpdir / 'd_blug_blank_modified.xlsx')
 
     # Test writing out a databook with uncertainty values
-    data = ProjectData.from_spreadsheet(at.LIBRARY_PATH + "tb_databook.xlsx", F)
+    data = ProjectData.from_spreadsheet(at.LIBRARY_PATH / "tb_databook.xlsx", F)
     data.tdve['alive'].ts[0].sigma = 100
 
     # Check stripping uncertainty values

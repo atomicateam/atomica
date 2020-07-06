@@ -26,7 +26,7 @@ fe_program_years = [2015, 2018]
 
 
 def get_default_programs():
-    F = at.ProjectFramework(at.LIBRARY_PATH + 'tb_framework.xlsx')
+    F = at.ProjectFramework(at.LIBRARY_PATH / 'tb_framework.xlsx')
     default_pops = sc.odict()
     default_pops['^0.*'] = '^0.*'
     default_pops['.*HIV.*'] = '.*HIV.*'
@@ -36,7 +36,7 @@ def get_default_programs():
     # Use these comments to make the blank template for *us* to fill out
     # Normally this is just a one-off process
     D = at.ProjectData.new(F, tvec=np.array([0]), pops=default_pops, transfers=0)
-    default_progset = at.ProgramSet.from_spreadsheet(at.LIBRARY_PATH + 'tb_progbook_defaults.xlsx', framework=F, data=D)
+    default_progset = at.ProgramSet.from_spreadsheet(at.LIBRARY_PATH / 'tb_progbook_defaults.xlsx', framework=F, data=D)
 
     return sc.odict([(key, default_progset.programs[key].label) for key in default_progset.programs.keys()])
 
@@ -49,7 +49,7 @@ def generate_blank_default_spreadsheets(num_progs, default_pops=None):
         default_pops['.*[pP]rison.*'] = '.*[pP]rison.*'
         default_pops['^[^0](?!HIV)(?![pP]rison).*'] = '^[^0](?!HIV)(?![pP]rison).*'
 
-    F = at.ProjectFramework(at.LIBRARY_PATH + 'tb_framework.xlsx')
+    F = at.ProjectFramework(at.LIBRARY_PATH / 'tb_framework.xlsx')
     D = at.ProjectData.new(F, tvec=np.array([0]), pops=default_pops, transfers=0)
     ps = at.ProgramSet.new(framework=F, data=D, progs=num_progs, tvec=np.array([0]))
     ps.save('template_blank.xlsx')
@@ -57,7 +57,7 @@ def generate_blank_default_spreadsheets(num_progs, default_pops=None):
 
 def generate_default_spreadsheets(fe_pops, fe_transfers, fe_data_years, fe_program_years, fe_progs=None):
 
-    F = at.ProjectFramework(at.LIBRARY_PATH + 'tb_framework.xlsx')
+    F = at.ProjectFramework(at.LIBRARY_PATH / 'tb_framework.xlsx')
 
     # These commands get used to both write and read the template progbook
     # In practice, the main requirement is that this list of template pops
@@ -77,7 +77,7 @@ def generate_default_spreadsheets(fe_pops, fe_transfers, fe_data_years, fe_progr
     # Normally, all we need to do is load in the filled out template
     # This is the file that contains the default values to use for each program
     # as well as the default targeting
-    default_progset = at.ProgramSet.from_spreadsheet(at.LIBRARY_PATH + 'tb_progbook_defaults.xlsx', framework=F, data=D)
+    default_progset = at.ProgramSet.from_spreadsheet(at.LIBRARY_PATH / 'tb_progbook_defaults.xlsx', framework=F, data=D)
 
     # Next, instantiate a new ProjectData and ProgramSet using the FE values
     user_data = at.ProjectData.new(F, tvec=np.arange(fe_data_years[0], fe_data_years[1] + 1), pops=fe_pops, transfers=fe_transfers)

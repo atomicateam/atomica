@@ -2,11 +2,12 @@ import os
 import numpy as np
 import atomica as at
 
+testdir = at.parent_dir()
+tmpdir = testdir/'temp'
 
 def test_combined_creation():
-    tmpdir = at.atomica_path(['tests', 'temp'])
 
-    F = at.ProjectFramework(at.LIBRARY_PATH + 'combined_framework.xlsx')
+    F = at.ProjectFramework(at.LIBRARY_PATH / 'combined_framework.xlsx')
     pops = {
         'SIR_0-4': {'label': 'SIR 0-4', 'type': 'sir'},
         'SIR_5-14': {'label': 'SIR 5-14', 'type': 'sir'},
@@ -35,7 +36,7 @@ def test_combined_creation():
     ps = at.ProgramSet.new('default', tvec=np.arange(2015, 2019), progs=9, project=P)
     ps.save(tmpdir / 'combined_progbook_test.xlsx')
 
-    ps2 = at.ProgramSet.from_spreadsheet(at.LIBRARY_PATH + 'combined_progbook.xlsx', project=P)
+    ps2 = at.ProgramSet.from_spreadsheet(at.LIBRARY_PATH / 'combined_progbook.xlsx', project=P)
     ps2.add_program('test', 'test')
     ps2.save(tmpdir / 'combined_added.xlsx')
 

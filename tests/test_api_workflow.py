@@ -14,9 +14,9 @@ test = "sir"  # This test workflow only works with the SIR model
 testdir = at.parent_dir()
 tmpdir = testdir/'temp'
 
-F = at.ProjectFramework(at.LIBRARY_PATH + test + '_framework.xlsx')
+F = at.ProjectFramework(at.LIBRARY_PATH / test + '_framework.xlsx')
 P = at.Project(name=test.upper() + " project", framework=F, do_run=False)
-P.load_databook(databook_path=at.LIBRARY_PATH + test + '_databook.xlsx', make_default_parset=True, do_run=True)
+P.load_databook(databook_path=at.LIBRARY_PATH / test + '_databook.xlsx', make_default_parset=True, do_run=True)
 
 at.export_results(P.results[0], tmpdir / test.upper() + " results")
 

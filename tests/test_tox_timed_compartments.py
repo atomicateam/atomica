@@ -17,7 +17,7 @@ import sys
 #
 
 testdir = at.parent_dir()
-tempdir = testdir/'temp'
+tmpdir = testdir/'temp'
 
 
 def get_project():
@@ -288,7 +288,7 @@ def test_timed_transfer():
 
     # Test writing out this databook too
     D = at.ProjectData.new(framework=P.framework, tvec=[2018, 2019], pops=3, transfers=2)
-    D.save(tempdir / 'timed_transfer_databook_test.xlsx')
+    D.save(tmpdir / 'timed_transfer_databook_test.xlsx')
 
 
 def test_timed_transfer_2():
@@ -345,7 +345,7 @@ def test_timed_transfer_3():
 
 
 def test_timed_vac_duration():
-    P = at.Project(framework=at.LIBRARY_PATH + 'sir_vaccine_framework.xlsx', databook=at.LIBRARY_PATH + 'sir_vaccine_databook.xlsx', do_run=False)
+    P = at.Project(framework=at.LIBRARY_PATH / 'sir_vaccine_framework.xlsx', databook=at.LIBRARY_PATH / 'sir_vaccine_databook.xlsx', do_run=False)
     P.settings.sim_dt = 0.25
     P.settings.sim_start = 2018
     P.settings.sim_end = 2030

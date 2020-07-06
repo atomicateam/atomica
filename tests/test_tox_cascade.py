@@ -23,7 +23,7 @@ def test_cascade_validate():
     for fname in fnames:
         if fname.endswith('_framework.xlsx') and not fname.startswith('~'):
             print("Validating %s" % (fname))
-            F = ProjectFramework(at.LIBRARY_PATH + fname)
+            F = ProjectFramework(at.LIBRARY_PATH / fname)
 
             # Validate all of the cascades in the framework
             for cascade in F.cascades:
