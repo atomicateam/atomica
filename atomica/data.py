@@ -22,6 +22,7 @@ from collections import defaultdict
 
 _DEFAULT_PROVENANCE = 'Framework-supplied default'
 
+
 class ProjectData(sc.prettyobj):
     """
     Store project data: class-equivalent of Databooks

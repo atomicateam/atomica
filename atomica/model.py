@@ -578,7 +578,7 @@ class ResidualJunctionCompartment(JunctionCompartment):
         for frac, link in zip(outflow_fractions, self.outlinks):
             if link.parameter is None:
                 if has_residual:
-                    flow = net_inflow - sum(net_inflow*outflow_fractions)
+                    flow = net_inflow - sum(net_inflow * outflow_fractions)
                 else:
                     flow = 0
             else:
@@ -588,7 +588,6 @@ class ResidualJunctionCompartment(JunctionCompartment):
                 link._vals[:, ti] = flow
             else:
                 link.vals[ti] = flow
-
 
     def initial_flush(self) -> None:
         """
@@ -621,12 +620,11 @@ class ResidualJunctionCompartment(JunctionCompartment):
             for frac, link in zip(outflow_fractions, self.outlinks):
                 if link.parameter is None:
                     if has_residual:
-                        link.dest[0] += self.vals[0] - sum(self.vals[0]*outflow_fractions)
+                        link.dest[0] += self.vals[0] - sum(self.vals[0] * outflow_fractions)
                 else:
                     link.dest[0] += self.vals[0] * frac
 
             self.vals[0] = 0.0
-
 
 
 class SourceCompartment(Compartment):
@@ -1116,7 +1114,6 @@ class Parameter(Variable):
             for dep_name in dep_list:
                 if not (dep_name in ['t', 'dt']):  # There are no integration variables associated with the interactions, as they are treated as a special matrix
                     self.deps[dep_name] = self.pop.get_variable(dep_name)  # nb. this lookup will fail if the user has a function that depends on a quantity outside this population
-
 
     def set_dynamic(self, progset=None) -> None:
         """
@@ -1725,7 +1722,7 @@ class Population(object):
         self.par_lookup = {par.name: par for par in self.pars}
 
         # Instantiate compartments
-        residual_junctions = {x[0] for x in framework.transitions.get('>',[])}
+        residual_junctions = {x[0] for x in framework.transitions.get('>', [])}
         for comp_name in list(comps.index):
             if comps.at[comp_name, 'population type'] == self.type:
                 if comp_name in residual_junctions:

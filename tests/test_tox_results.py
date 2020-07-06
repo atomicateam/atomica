@@ -9,7 +9,7 @@ import pytest
 
 
 testdir = at.parent_dir()
-tmpdir = testdir/'temp'
+tmpdir = testdir / 'temp'
 
 
 def test_export():

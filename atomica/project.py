@@ -40,6 +40,7 @@ import logging
 from datetime import timezone
 import functools
 
+
 class ProjectSettings(object):
     def __init__(self, sim_start=2000, sim_end=2035, sim_dt=0.25):
         self._sim_start = sim_start
@@ -231,7 +232,7 @@ class Project(NamedItem):
         data.save(databook_path)
         return data
 
-    def load_databook(self, databook_path, make_default_parset:bool=True, do_run:bool=True) -> None:
+    def load_databook(self, databook_path, make_default_parset: bool = True, do_run: bool = True) -> None:
         """
         Load a data spreadsheet
 
@@ -243,7 +244,6 @@ class Project(NamedItem):
         :param do_run: If True, a simulation will be run using the new parset
 
         """
-
 
         if isinstance(databook_path, ProjectData):
             # If the user passed in a ProjectData instance, use it directly
@@ -284,7 +284,7 @@ class Project(NamedItem):
         self.parsets.append(ParameterSet(self.framework, self.data, name))
         return self.parsets[name]
 
-    def make_progbook(self, progbook_path: str=None, progs=None, data_start: float=None, data_end: float=None) -> str:
+    def make_progbook(self, progbook_path: str = None, progs=None, data_start: float = None, data_end: float = None) -> str:
         """
         Save a blank program book
 
@@ -555,7 +555,7 @@ class Project(NamedItem):
         show_progress = n_samples > 1 and logger.getEffectiveLevel() <= logging.INFO
 
         if parallel:
-            fcn = functools.partial(_run_sampled_sim, proj=self, parset=parset, progset=progset, progset_instructions=progset_instructions, result_names=result_names, max_attempts=max_attempts )
+            fcn = functools.partial(_run_sampled_sim, proj=self, parset=parset, progset=progset, progset_instructions=progset_instructions, result_names=result_names, max_attempts=max_attempts)
             results = parallel_progress(fcn, n_samples, show_progress=show_progress, num_workers=num_workers)
         elif show_progress:
             # Print the progress bar if the logging level was INFO or lower

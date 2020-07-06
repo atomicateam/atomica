@@ -3,7 +3,8 @@ import numpy as np
 import atomica as at
 
 testdir = at.parent_dir()
-tmpdir = testdir/'temp'
+tmpdir = testdir / 'temp'
+
 
 def test_combined_creation():
 

@@ -38,6 +38,7 @@ def parent_dir() -> Path:
 
     return Path(inspect.stack()[1][1]).parent
 
+
 class NamedItem():
     def __init__(self, name: str = None):
         """

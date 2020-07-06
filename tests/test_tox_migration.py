@@ -15,7 +15,7 @@ def test_migration():
     at.logger.setLevel('DEBUG')
 
     testdir = at.parent_dir()
-    tmpdir = testdir/'temp'
+    tmpdir = testdir / 'temp'
 
     P = at.Project.load(testdir / 'migration_test_with_scenarios.prj')
     results = P.run_scenarios()

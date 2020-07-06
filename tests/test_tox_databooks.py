@@ -7,7 +7,8 @@ from atomica import ProjectFramework, Project, ProjectData
 import sciris as sc
 
 testdir = at.parent_dir()
-tmpdir = testdir/'temp'
+tmpdir = testdir / 'temp'
+
 
 def test_databooks():
 

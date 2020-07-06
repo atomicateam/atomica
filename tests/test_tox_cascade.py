@@ -6,7 +6,7 @@ import os
 import pytest
 
 testdir = at.parent_dir()
-tmpdir = testdir/'temp'
+tmpdir = testdir / 'temp'
 
 try:
     os.makedirs(tmpdir)

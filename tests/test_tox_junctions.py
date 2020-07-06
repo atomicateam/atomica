@@ -104,6 +104,7 @@ def test_only_junctions():
     assert res.get_variable('state2')[0].vals[1] == 60
     assert res.get_variable('state2')[0].vals[2] == 120
 
+
 def test_junction_remainder():
     F = at.ProjectFramework(testdir / "framework_junction_remainder_test.xlsx")
     D = at.ProjectData.new(F, [2018], pops=1, transfers=0)
@@ -116,9 +117,9 @@ def test_junction_remainder():
     assert res.get_variable('s2')[0].vals[0] == 30
 
     # First timestep
-    assert res.get_variable('s1')[0].vals[1] == 60+0.6*200*P.settings.sim_dt
-    assert res.get_variable('s2')[0].vals[1] == 30+0.3*200*P.settings.sim_dt
-    assert res.get_variable('j1:j2')[0].vals[1] == 0.1*200*P.settings.sim_dt
+    assert res.get_variable('s1')[0].vals[1] == 60 + 0.6 * 200 * P.settings.sim_dt
+    assert res.get_variable('s2')[0].vals[1] == 30 + 0.3 * 200 * P.settings.sim_dt
+    assert res.get_variable('j1:j2')[0].vals[1] == 0.1 * 200 * P.settings.sim_dt
 
 
 if __name__ == '__main__':

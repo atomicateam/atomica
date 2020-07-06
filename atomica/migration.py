@@ -754,6 +754,7 @@ def _add_tdc_tdve_attributes(proj):
             tdc.ts_attributes = {}
     return proj
 
+
 @migration('Project', '1.19.0', '1.20.0', 'Framework.transitions is a defaultdict')
 def _framework_transitions_defaultdict(proj):
     for fw in all_frameworks(proj):

@@ -519,7 +519,8 @@ def _filter_pops_by_output(result, output) -> list:
         raise Exception('Could not determine population type')
 
     matching_pops = {x.pop.name for x in vars}
-    return [x for x in result.pop_names if x in matching_pops] # Maintain original population order
+    return [x for x in result.pop_names if x in matching_pops]  # Maintain original population order
+
 
 def export_results(results, filename=None, output_ordering=('output', 'result', 'pop'),
                    cascade_ordering=('pop', 'result', 'stage'), program_ordering=('program', 'result', 'quantity')):

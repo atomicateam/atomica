@@ -1391,7 +1391,6 @@ def optimize(project, optimization, parset: ParameterSet, progset: ProgramSet, i
     # the deaths averted could be computed using the optimized instructions and returned as an absolute measure of quality.
 
 
-
 # def parallel_optimize(project,optimization,parset,progset,program_instructions):
 #
 #    raise NotImplementedError

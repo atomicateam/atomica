@@ -3,7 +3,8 @@ import numpy as np
 import sciris as sc
 
 testdir = at.parent_dir()
-tmpdir = testdir/'temp'
+tmpdir = testdir / 'temp'
+
 
 def test_progbooks():
     F = at.ProjectFramework(at.LIBRARY_PATH / 'tb_framework.xlsx')

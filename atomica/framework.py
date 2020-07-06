@@ -435,7 +435,7 @@ class ProjectFramework(object):
 
                 for to_comp, par_names in from_row.iteritems():
                     if par_names.strip() == '>':
-                        self.transitions['>'].append((from_comp, to_comp)) # Add a transition entry for parameter-less junction residual links. This is consistent in that `self.transitions` is a representation of links, not parameters
+                        self.transitions['>'].append((from_comp, to_comp))  # Add a transition entry for parameter-less junction residual links. This is consistent in that `self.transitions` is a representation of links, not parameters
                         continue
 
                     for par_name in par_names.split(','):
@@ -1376,7 +1376,7 @@ def _sanitize_dataframe(df: pd.DataFrame, required_columns: list, defaults: dict
 
     # First check if there are any duplicate columns in the heading
     if len(set(df.columns)) < len(df.columns):
-        duplicates = [x for i,x in enumerate(df.columns.values) if x in df.columns[:i]]
+        duplicates = [x for i, x in enumerate(df.columns.values) if x in df.columns[:i]]
         raise InvalidFramework(f'Duplicate headings present: {duplicates}')
 
     # Next check required columns are present

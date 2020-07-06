@@ -12,7 +12,7 @@ plot_initial = True
 test = "sir"  # This test workflow only works with the SIR model
 
 testdir = at.parent_dir()
-tmpdir = testdir/'temp'
+tmpdir = testdir / 'temp'
 
 F = at.ProjectFramework(at.LIBRARY_PATH / test + '_framework.xlsx')
 P = at.Project(name=test.upper() + " project", framework=F, do_run=False)
