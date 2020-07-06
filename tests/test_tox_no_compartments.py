@@ -12,9 +12,9 @@ def test_no_compartments():
 
     # Commands to generate the databook and progbook prior to being filled out
 
-    f_path = testdir + "test_no_compartment_framework.xlsx"
-    d_path = testdir + "test_no_compartment_databook.xlsx"
-    p_path = testdir + "test_no_compartment_progbook.xlsx"
+    f_path = testdir / "test_no_compartment_framework.xlsx"
+    d_path = testdir / "test_no_compartment_databook.xlsx"
+    p_path = testdir / "test_no_compartment_progbook.xlsx"
     # F = at.ProjectFramework(f_path)
     # D = at.ProjectData.new(F,[2000],pops=1,transfers=0)
     # D.save(d_path)

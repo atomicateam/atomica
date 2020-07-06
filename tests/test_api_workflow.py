@@ -18,10 +18,10 @@ F = at.ProjectFramework(at.LIBRARY_PATH + test + '_framework.xlsx')
 P = at.Project(name=test.upper() + " project", framework=F, do_run=False)
 P.load_databook(databook_path=at.LIBRARY_PATH + test + '_databook.xlsx', make_default_parset=True, do_run=True)
 
-at.export_results(P.results[0], tmpdir + test.upper() + " results")
+at.export_results(P.results[0], tmpdir / test.upper() + " results")
 
-P.save(tmpdir + test + ".prj")
-P = at.Project.load(tmpdir + test + ".prj")
+P.save(tmpdir / test + ".prj")
+P = at.Project.load(tmpdir / test + ".prj")
 
 if plot_initial:
 

@@ -38,7 +38,7 @@ def test_reconciliation(model):
             d = at.PlotData([parset_result, original_result, reconciled_result], outputs=par, pops=pop, project=P)
             at.plot_series(d, axis='results')
 
-    reconciled_progset.save(tmpdir + 'reconciled_progset.xlsx')
+    reconciled_progset.save(tmpdir / 'reconciled_progset.xlsx')
 
     # Test multi year reconciliation
 

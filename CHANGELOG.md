@@ -4,7 +4,9 @@ This file records changes to the codebase grouped by version release. Unreleased
 
 ## [Unreleased]
 
-- `at.atomica_path` returns a `Path` object. The `trailingsep` argument has been removed as it is not relevant when returning a path 
+
+- `at.atomica_path` returns a `Path` object. The `trailingsep` argument has been removed as it is not relevant when returning a path. Legacy code may experience a `TypeError: unsupported operand type(s) for +: 'WindowsPath' and 'str'` or similar if the output of `at.atomica_path` is concatenated by addition. In general, this can be resolved by replacing `+` with `/` e.g.
+`at.LIBRARY_PATH+'foo.xlsx'` becomes `at.LIBRARY_PATH/'foo.xlsx'`. 
 - `at.parent_dir` returns a `Path` object
 - `Project.load_databook` now supports passing in a `ProjectData` instance (as does the `Project` constructor) 
 - Remove unused `num_interpops` argument from `Project.create_databook()`

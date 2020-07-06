@@ -5,9 +5,9 @@ import os
 testdir = at.parent_dir()
 tmpdir = os.path.join(testdir, 'temp', '')
 
-F = ProjectFramework(testdir + "framework_sir_dynamic.xlsx")
+F = ProjectFramework(testdir / "framework_sir_dynamic.xlsx")
 P = Project(name="test", framework=F, do_run=False)
-P.load_databook(databook_path=testdir + "databook_sir_dynamic.xlsx", make_default_parset=True, do_run=True)
+P.load_databook(databook_path=testdir / "databook_sir_dynamic.xlsx", make_default_parset=True, do_run=True)
 result = P.results[0]
 
 # # Do a scenario to get a second set of results

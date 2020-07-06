@@ -64,7 +64,7 @@ def test_validate_model(model):
     P1.run_sim(P1.parsets[0], result_name='parset', store_results=True)
     P1.run_sim(P1.parsets[0], P1.progsets[0], at.ProgramInstructions(start_year=2018), result_name='progset', store_results=True)
 
-    fname = tmpdir + 'validation_' + model + '.prj'
+    fname = tmpdir / 'validation_' + model + '.prj'
     if os.path.isfile(fname):
         P2 = at.Project.load(fname)
         print('Validating %s parset' % (model))

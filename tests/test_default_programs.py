@@ -136,8 +136,8 @@ def generate_default_spreadsheets(fe_pops, fe_transfers, fe_data_years, fe_progr
 
 new_data, new_progset = generate_default_spreadsheets(fe_pops, fe_transfers, fe_data_years, fe_program_years)
 tmpdir = at.atomica_path(['tests', 'temp'])
-new_data.save(tmpdir + 'user_data.xlsx')
-new_progset.save(tmpdir + 'user_progset.xlsx')
+new_data.save(tmpdir / 'user_data.xlsx')
+new_progset.save(tmpdir / 'user_progset.xlsx')
 
 progs = get_default_programs()
 print(progs)

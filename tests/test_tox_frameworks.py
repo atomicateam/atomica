@@ -8,18 +8,18 @@ testdir = at.parent_dir()
 tmpdir = os.path.join(testdir, 'temp', '')
 
 def test_framework_blank_sheet():
-    F_path = testdir + 'framework_blank_sheet.xlsx'
+    F_path = testdir / 'framework_blank_sheet.xlsx'
     F = at.ProjectFramework(F_path)
 
 def test_framework_par_min_max():
     # Check that the vector min/max functions work properly
 
-    F_path = testdir + 'framework_par_min_max_test.xlsx'
+    F_path = testdir / 'framework_par_min_max_test.xlsx'
     F = at.ProjectFramework(F_path)
 
     # D = at.ProjectData.new(F,[2020,2021,2022],1,0)
-    # D.save(testdir + 'par_min_max_databook.xlsx')
-    D = at.ProjectData.from_spreadsheet(testdir + 'par_min_max_databook.xlsx', F)
+    # D.save(testdir / 'par_min_max_databook.xlsx')
+    D = at.ProjectData.from_spreadsheet(testdir / 'par_min_max_databook.xlsx', F)
 
     # Example of running a bare model without a project
     res = at.run_model(at.ProjectSettings(2020,2022,1),F, at.ParameterSet(F, D))

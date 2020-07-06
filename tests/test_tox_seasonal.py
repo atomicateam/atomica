@@ -10,8 +10,8 @@ def test_seasonal():
     testdir = at.parent_dir()
     tmpdir = os.path.join(testdir, 'temp', '')
 
-    F_path = testdir + 'framework_seasonal_test.xlsx'
-    D_path = tmpdir + 'databook_seasonal_test.xlsx'
+    F_path = testdir / 'framework_seasonal_test.xlsx'
+    D_path = tmpdir / 'databook_seasonal_test.xlsx'
 
     F = at.ProjectFramework(F_path)
     D = at.ProjectData.new(F, np.arange(2000, 2001), pops={'pop1': 'Population 1'}, transfers=0)

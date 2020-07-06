@@ -21,23 +21,23 @@ def test_combined_creation():
     }
 
     D = at.ProjectData.new(framework=F, tvec=[2016, 2017, 2018], pops=pops, transfers=transfers)
-    D.save(tmpdir + 'combined_test.xlsx')
-    D2 = at.ProjectData.from_spreadsheet(tmpdir + 'combined_test.xlsx', framework=F)
+    D.save(tmpdir / 'combined_test.xlsx')
+    D2 = at.ProjectData.from_spreadsheet(tmpdir / 'combined_test.xlsx', framework=F)
     D2.add_pop('UDT_65+', 'UDT 65+', 'udt')
     D2.add_transfer('incarceration', 'Incarceration', 'sir')
-    D2.save(tmpdir + 'combined_test2.xlsx')
+    D2.save(tmpdir / 'combined_test2.xlsx')
 
-    D3 = at.ProjectData.from_spreadsheet(tmpdir + 'combined_test.xlsx', framework=F)  # Load in the original one because it has no missing values
+    D3 = at.ProjectData.from_spreadsheet(tmpdir / 'combined_test.xlsx', framework=F)  # Load in the original one because it has no missing values
     D3.validate(F)
 
-    P = at.Project(framework=F, databook=tmpdir + 'combined_test.xlsx')
+    P = at.Project(framework=F, databook=tmpdir / 'combined_test.xlsx')
 
     ps = at.ProgramSet.new('default', tvec=np.arange(2015, 2019), progs=9, project=P)
-    ps.save(tmpdir + 'combined_progbook_test.xlsx')
+    ps.save(tmpdir / 'combined_progbook_test.xlsx')
 
     ps2 = at.ProgramSet.from_spreadsheet(at.LIBRARY_PATH + 'combined_progbook.xlsx', project=P)
     ps2.add_program('test', 'test')
-    ps2.save(tmpdir + 'combined_added.xlsx')
+    ps2.save(tmpdir / 'combined_added.xlsx')
 
 
 def test_combined_values():
@@ -90,7 +90,7 @@ def test_combined_plots():
 
 def test_combined_order():
     testdir = os.path.abspath(os.path.join(os.path.dirname(__file__))) + os.sep  # Must be relative to current file to work with tox
-    P = at.Project(framework=testdir + 'test_order_framework.xlsx', databook=testdir + 'test_order_databook.xlsx')
+    P = at.Project(framework=testdir / 'test_order_framework.xlsx', databook=testdir / 'test_order_databook.xlsx')
     res = P.results[0]
 
     # This framework has interdependencies that mean the parameters must be resolved in exact framework order

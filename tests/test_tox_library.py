@@ -146,11 +146,11 @@ def run_export(result, model):
     :return:
     """
 
-    at.export_results(result, tmpdir + model + '_single_export_test')  # Export single
-    result.export_raw(tmpdir + model + '_raw_export_test')
+    at.export_results(result, tmpdir / model + '_single_export_test')  # Export single
+    result.export_raw(tmpdir / model + '_raw_export_test')
     r2 = sc.dcp(result)
     r2.name = 'Copied'
-    at.export_results([result, r2], tmpdir + model + '_multiple_export_test')  # Export single
+    at.export_results([result, r2], tmpdir / model + '_multiple_export_test')  # Export single
 
 
 def run_regenerated_framework(proj):

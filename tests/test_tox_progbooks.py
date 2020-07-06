@@ -9,31 +9,31 @@ def test_progbooks():
     D = at.ProjectData.from_spreadsheet(at.LIBRARY_PATH + 'tb_databook.xlsx', framework=F)
     D.validate(F)  # Need to validate the databook before it can be used for anything other than databook IO
     pset = at.ProgramSet.from_spreadsheet(at.LIBRARY_PATH + 'tb_progbook.xlsx', F, D)
-    pset.save(tmpdir + 'progbook_test.xlsx')
-    pset = at.ProgramSet.from_spreadsheet(tmpdir + 'progbook_test.xlsx', F, D)
-    pset.save(tmpdir + 'progbook_test2.xlsx')
+    pset.save(tmpdir / 'progbook_test.xlsx')
+    pset = at.ProgramSet.from_spreadsheet(tmpdir / 'progbook_test.xlsx', F, D)
+    pset.save(tmpdir / 'progbook_test2.xlsx')
 
     # Test running a simulation with a newly saved workbook
     P = at.Project(framework=at.LIBRARY_PATH + 'tb_framework.xlsx', databook=at.LIBRARY_PATH + 'tb_databook.xlsx', do_run=False)
-    P.load_progbook(tmpdir + 'progbook_test2.xlsx')
+    P.load_progbook(tmpdir / 'progbook_test2.xlsx')
     P.run_sim(P.parsets[0], P.progsets[0], at.ProgramInstructions(start_year=2019))
 
     # Test adding things
     pset.add_program('newprog', 'New Program')
     pset.add_par('newpar', 'New Parameter')
     pset.add_pop('newpop', 'New Pop')
-    pset.save(tmpdir + 'progbook_test3.xlsx')
+    pset.save(tmpdir / 'progbook_test3.xlsx')
 
     # Test removing things
     pset.remove_pop('Prisoners')
     pset.remove_comp('Susceptible')
     pset.remove_par('v_num')
     pset.remove_par('LTBI treatment average duration of full course')
-    pset.save(tmpdir + 'progbook_test4.xlsx')
+    pset.save(tmpdir / 'progbook_test4.xlsx')
 
     # Test making a new one
     pset = at.ProgramSet.new(tvec=np.arange(2015, 2018), progs=2, framework=F, data=D)
-    pset.save(tmpdir + 'progbook_test5.xlsx')
+    pset.save(tmpdir / 'progbook_test5.xlsx')
 
     progs = sc.odict()
     progs['BCG'] = 'BCG vaccination'
@@ -50,7 +50,7 @@ def test_progbooks():
     progs['PrisMDR'] = 'Prisoner treatment (MD)'
     progs['PrisXDR'] = 'Prisoner treatment (XDR)'
     pset = at.ProgramSet.new(tvec=np.arange(2015, 2018), progs=progs, framework=F, data=D)
-    pset.save(tmpdir + 'progbook_test6.xlsx')
+    pset.save(tmpdir / 'progbook_test6.xlsx')
 
     # Test performance of a random coverage interaction simulation
     P = at.Project(framework=at.LIBRARY_PATH + 'tb_framework.xlsx', databook=at.LIBRARY_PATH + 'tb_databook.xlsx', do_run=False)

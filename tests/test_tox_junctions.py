@@ -9,7 +9,7 @@ testdir = os.path.abspath(os.path.join(os.path.dirname(__file__))) + os.sep  # M
 
 def test_junctions():
 
-    F = at.ProjectFramework(testdir + "framework_junction_test.xlsx")
+    F = at.ProjectFramework(testdir / "framework_junction_test.xlsx")
     D = at.ProjectData.new(F, np.arange(2000, 2001), pops={'pop1': 'Population 1'}, transfers=0)
 
     P = at.Project(name="test", framework=F, do_run=False)
@@ -90,7 +90,7 @@ def test_junctions():
 def test_only_junctions():
     # This is a minimal framework that has a source connected only to junctions and then sinks
     # So there are no normal compartments
-    F = at.ProjectFramework(testdir + "test_only_junctions_framework.xlsx")
+    F = at.ProjectFramework(testdir / "test_only_junctions_framework.xlsx")
     D = at.ProjectData.new(F, [2018], pops=1, transfers=0)
 
     P = at.Project(name="test", framework=F, databook=D.to_spreadsheet(), do_run=True)
@@ -105,7 +105,7 @@ def test_only_junctions():
     assert res.get_variable('state2')[0].vals[2] == 120
 
 def test_junction_remainder():
-    F = at.ProjectFramework(testdir + "framework_junction_remainder_test.xlsx")
+    F = at.ProjectFramework(testdir / "framework_junction_remainder_test.xlsx")
     D = at.ProjectData.new(F, [2018], pops=1, transfers=0)
 
     P = at.Project(name="test", framework=F, databook=D.to_spreadsheet(), do_run=True)
