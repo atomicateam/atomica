@@ -668,7 +668,7 @@ def _programs_to_df(results, prog_name, tvals, time_aggregate = False):
 
             for quantity, label in out_quantities.items():
                 plot_data = PlotData.programs(result, outputs=prog_name, quantity=quantity)
-                vals = plot_data.time_aggregate(np.append(tvals, tvals[-1] + (tvals[-1] - tvals[-2]))) if time_aggregate else plot_data.interpolate(tvals)
+                vals = plot_data.time_aggregate(_extend_tvals(tvals)) if time_aggregate else plot_data.interpolate(tvals)
                 vals.series[0].vals[~programs_active] = np.nan
                 data[(prog_name, result.name, label)] = vals.series[0].vals
 
@@ -678,6 +678,20 @@ def _programs_to_df(results, prog_name, tvals, time_aggregate = False):
     df.index = df.index.set_names(['program', 'result', 'quantity'])  # Set the index names correctly so they can be reordered easily
 
     return df
+
+def _extend_tvals(tvals):
+    """
+    Given a list of time values, add an extra time value to the end to allow these time values to be used with time_integration instead of interpolate
+    :param tvals: array or list of time values (ints)
+    """
+    assert isinstance(tvals, (list, np.ndarray)), 'Time values must be an array or list '
+    if len(tvals) == 0:
+        return tvals  #no time values to add to, return as is (empty list or array)
+    else:
+        for tv in range(1, len(tvals)):
+            assert tvals[tv] == tvals[tv-1] + 1, 'Time values should be one year apart, otherwise time integration may produce inconsistent results, use interpolation instead'
+        
+        return np.append(tvals, [tvals[-1]+1]) #return the list or array with one more year added on to the end
 
 
 def _cascade_to_df(results, cascade_name, tvals):
@@ -752,7 +766,7 @@ def _output_to_df(results, output_name: str, output, tvals, time_aggregate = Fal
     popdata = PlotData(results, pops=pops, outputs=output)  
     assert len(popdata.outputs) == 1, 'Framework plot specification should evaluate to exactly one output series - there were %d' % (len(popdata.outputs))
     if time_aggregate:
-        popdata.time_aggregate(np.append(tvals, tvals[-1] + (tvals[-1] - tvals[-2])))
+        popdata.time_aggregate(_extend_tvals(tvals))
     else:
         popdata.interpolate(tvals)
     for result in popdata.results:
@@ -765,7 +779,7 @@ def _output_to_df(results, output_name: str, output, tvals, time_aggregate = Fal
         # Number units, can use summation
         popdata = PlotData(results, outputs=output, pops={'total': pops}, pop_aggregation='sum')
         if time_aggregate:
-            popdata.time_aggregate(np.append(tvals, tvals[-1] + (tvals[-1] - tvals[-2])))
+            popdata.time_aggregate(_extend_tvals(tvals))
         else:
             popdata.interpolate(tvals)
         for result in popdata.results:
@@ -773,7 +787,7 @@ def _output_to_df(results, output_name: str, output, tvals, time_aggregate = Fal
     elif popdata.series[0].units in {FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY}:
         popdata = PlotData(results, outputs=output, pops={'total': pops}, pop_aggregation='weighted')
         if time_aggregate:
-            popdata.time_aggregate(np.append(tvals, tvals[-1] + (tvals[-1] - tvals[-2])))
+            popdata.time_aggregate(_extend_tvals(tvals))
         else:
             popdata.interpolate(tvals)
         for result in popdata.results:
