@@ -445,7 +445,7 @@ class PlotData:
 
             self.outputs[s.output] = 'Cumulative ' + self.outputs[s.output]
 
-    def time_aggregate(self, t_bins, time_aggregation=None, interpolation_method=None) -> None:
+    def time_aggregate(self, t_bins, time_aggregation=None, interpolation_method=None):
         """
         Aggregate values over time
 
@@ -458,12 +458,16 @@ class PlotData:
         parameter scenarios, this may require that the 'previous' method is used (to match the assumption in the parameter overwrite)
         rather than relying on the standard assumption that databook quantities can be interpolated directly.
 
+        This method modifies the `PlotData` object in-place. However, the modified object is also returned, so that
+        time aggregation can be chained with other operations, the same as `PlotData.interpolate()`.
+
         :param t_bins: Vector of bin edges OR a scalar bin size, which will be automatically expanded to a vector of bin edges
         :param time_aggregation: can be 'sum' or 'average'. Note that for quantities that have a timescale, 'sum' behaves like integration
                                  so flow parameters in number units will be adjusted accordingly (e.g. a parameter in units of 'people/day'
                                  aggregated over a 1 year period will display as the equivalent number of people that year)
         :param interpolation_method: Assumption on how the quantity behaves in between timesteps - in general, 'linear' should be suitable for
                                      most dynamic quantities, while 'previous' should be used for spending and other program-related quantities.
+        :return: The same modified `PlotData` instance
 
         """
 
@@ -564,6 +568,8 @@ class PlotData:
                 s.t_labels = ['All']
             else:
                 s.t_labels = ['%d-%d' % (l, h) for l, h in zip(lower, upper)]
+
+        return self
 
     def __repr__(self):
         s = "PlotData\n"
