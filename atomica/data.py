@@ -22,6 +22,7 @@ from collections import defaultdict
 
 _DEFAULT_PROVENANCE = 'Framework-supplied default'
 
+
 class ProjectData(sc.prettyobj):
     """
     Store project data: class-equivalent of Databooks
@@ -581,7 +582,7 @@ class ProjectData(sc.prettyobj):
         """
 
         ss = self.to_spreadsheet()
-        ss.save(fname + '.xlsx' if not fname.endswith('.xlsx') else fname)
+        ss.save(fname)
 
     def add_pop(self, code_name: str, full_name: str, pop_type: str = None) -> None:
         """

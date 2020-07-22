@@ -7,8 +7,8 @@ import os
 import atomica as at
 import pytest
 
-testdir = os.path.abspath(os.path.join(os.path.dirname(__file__))) + os.sep  # Must be relative to current file to work with tox
-fdir = testdir + '/bad_frameworks/'
+testdir = at.parent_dir()  # Must be relative to current file to work with tox
+fdir = testdir / 'bad_frameworks'
 
 # List available models based on which framework files exist
 framework_files = list()
@@ -20,7 +20,7 @@ for f in os.listdir(fdir):
 @pytest.mark.parametrize('framework_file', framework_files)
 def test_bad_framework(framework_file):
     with pytest.raises(at.InvalidFramework):
-        at.ProjectFramework(fdir + framework_file)
+        at.ProjectFramework(fdir / framework_file)
 
 
 if __name__ == '__main__':

@@ -6,7 +6,7 @@ import os
 import pytest
 
 testdir = at.parent_dir()
-tmpdir = os.path.join(testdir, 'temp', '')
+tmpdir = testdir / 'temp'
 
 try:
     os.makedirs(tmpdir)
@@ -23,7 +23,7 @@ def test_cascade_validate():
     for fname in fnames:
         if fname.endswith('_framework.xlsx') and not fname.startswith('~'):
             print("Validating %s" % (fname))
-            F = ProjectFramework(at.LIBRARY_PATH + fname)
+            F = ProjectFramework(at.LIBRARY_PATH / fname)
 
             # Validate all of the cascades in the framework
             for cascade in F.cascades:
@@ -31,7 +31,7 @@ def test_cascade_validate():
 
     for fname in ["framework_sir_badcascade1.xlsx", "framework_sir_badcascade2.xlsx"]:
         with pytest.raises(InvalidCascade):
-            ProjectFramework(at.parent_dir() + fname)
+            ProjectFramework(at.parent_dir() / fname)
 
 
 def test_cascade_basic_tb():
@@ -43,8 +43,8 @@ def test_cascade_basic_tb():
     result.plot(plot_group='latency')
 
 #    # Export limited set of results based on 'Export' column in Framework, or export everything
-    at.export_results(result, filename=tmpdir + 'export_from_framework_1.xlsx')
-    result.export_raw(filename=tmpdir + 'export_raw.xlsx')  # Export everything
+    at.export_results(result, filename=tmpdir / 'export_from_framework_1.xlsx')
+    result.export_raw(filename=tmpdir / 'export_raw.xlsx')  # Export everything
 
     # Plot various cascades
     startyear = 2000
@@ -130,9 +130,9 @@ def test_cascade_dynamic():
 def test_cascade_sir():
 
     # Get a Result
-    F = ProjectFramework(testdir + 'framework_sir_dynamic.xlsx')
+    F = ProjectFramework(testdir / 'framework_sir_dynamic.xlsx')
     P = at.Project(name="test", framework=F, do_run=False)
-    P.load_databook(databook_path=testdir + "databook_sir_dynamic.xlsx", make_default_parset=True, do_run=True)
+    P.load_databook(databook_path=testdir / "databook_sir_dynamic.xlsx", make_default_parset=True, do_run=True)
 
     # # Do a scenario to get a second set of results
     par_results = P.results[-1]

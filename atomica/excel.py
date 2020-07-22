@@ -165,7 +165,7 @@ def copy_sheet(source: str, sheet_name: str, workbook: xlsxwriter.Workbook) -> N
     if sc.isstring(source):
         source = sc.Spreadsheet(source)
 
-    src_workbook = openpyxl.load_workbook(source.tofile(), read_only=True,data_only=True)  # Load in read-only mode for performance, since we don't parse comments etc.
+    src_workbook = openpyxl.load_workbook(source.tofile(), read_only=True, data_only=True)  # Load in read-only mode for performance, since we don't parse comments etc.
     src_worksheet = src_workbook[sheet_name]
     dst_worksheet = workbook.add_worksheet(sheet_name)
 
@@ -174,6 +174,7 @@ def copy_sheet(source: str, sheet_name: str, workbook: xlsxwriter.Workbook) -> N
             dst_worksheet.write(i, j, cell.value)
 
     src_workbook.close()
+
 
 def read_tables(worksheet) -> tuple:
     """

@@ -2,7 +2,7 @@ import atomica as at
 import numpy as np
 import os
 
-testdir = os.path.abspath(os.path.join(os.path.dirname(__file__))) + os.sep  # Must be relative to current file to work with tox
+testdir = at.parent_dir()  # Must be relative to current file to work with tox
 
 
 def test_program_coverage_calculation():
@@ -10,11 +10,11 @@ def test_program_coverage_calculation():
     # F = at.ProjectFramework(testdir+'test_program_calc_framework.xlsx')
     # D = at.ProjectData.new(F, tvec=[2019],pops=1, transfers=0)
     # D.save(testdir+'test_program_calc_databook.xlsx')
-    P = at.Project(framework=testdir + 'test_program_calc_framework.xlsx', databook=testdir + 'test_program_calc_databook.xlsx', do_run=False)
+    P = at.Project(framework=testdir / 'test_program_calc_framework.xlsx', databook=testdir / 'test_program_calc_databook.xlsx', do_run=False)
 
     # ps = at.ProgramSet.new(project=P,progs=3,tvec=[2019])
     # ps.save(testdir+'test_program_calc_progbook.xlsx')
-    P.load_progbook(testdir + 'test_program_calc_progbook.xlsx')
+    P.load_progbook(testdir / 'test_program_calc_progbook.xlsx')
 
     P.settings.update_time_vector(start=2019, end=2020, dt=0.25)
     ins = at.ProgramInstructions(start_year=2019)
