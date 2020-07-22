@@ -2,8 +2,8 @@ jobs:
 
 - job: 'tox'
   variables:
-    python.version: '3.7'
-    TOXENV: 'py37'
+    python.version: '3.8'
+    TOXENV: 'py38'
   strategy:
     matrix:
       linux:
@@ -45,7 +45,7 @@ jobs:
     - task: UsePythonVersion@0
       displayName: 'Select python version'
       inputs:
-        versionSpec: '3.7'
+        versionSpec: '3.8'
     - script: python -m pip install flake8 flake8-junit-report
       displayName: 'Install flake8'
     - script: flake8 atomica tests --exit-zero --output-file flake8.txt
@@ -101,7 +101,7 @@ jobs:
     - task: UsePythonVersion@0
       displayName: 'Select python version'
       inputs:
-        versionSpec: '3.7'
+        versionSpec: '3.8'
     - script: |
         python -m pip install wheel
         python -m pip install twine

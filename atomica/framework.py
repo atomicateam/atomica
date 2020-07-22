@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import sciris as sc
 import io
-import xlsxwriter as xw
+from collections import defaultdict
 
 from .cascade import validate_cascade
 from .excel import read_tables, validate_category, standard_formats, read_dataframes
@@ -123,23 +123,6 @@ class ProjectFramework(object):
 
         assert sc.isstring(value)
         self.sheets['about'][0]['name'].iloc[0] = value
-
-    def save(self, filename: str = None, folder: str = None) -> str:
-        """
-        Save original spreadsheet
-
-        :param filename: Optionally specify name of file to write - defaults to framework name
-        :param folder: Optionally specify directory to write to
-        :return: The full path to the file that was written
-
-        """
-
-        fullpath = sc.makefilepath(filename=filename, folder=folder, default=self.name, ext='xlsx', sanitize=True)
-        if self.spreadsheet is None:
-            raise Exception('Spreadsheet is not present, cannot save Framework as xlsx')
-        else:
-            self.spreadsheet.save(fullpath)
-        return fullpath
 
     # The primary data storage in the Framework are DataFrames with the contents of the Excel file
     # The convenience methods below enable easy access of frequency used contents without having
@@ -420,7 +403,7 @@ class ProjectFramework(object):
         """
 
         # First, assign the transition matrices to population types
-        self.transitions = {x: list() for x in self.pars.index}
+        self.transitions = defaultdict(list)
         comps = self.comps['population type'].to_dict()  # Look up which pop type is associated with each compartment
         pars = self.pars['population type'].to_dict()  # Look up which pop type is associated with each parameter
 
@@ -438,7 +421,7 @@ class ProjectFramework(object):
             # Check all compartments are within the specified population type
             for comp in set(list(df.index) + list(df.columns)):
                 if comp not in comps:
-                    raise InvalidFramework('A compartment "%s" appears in the first column of the matrix on the Transitions sheet, but it was not defined on the Compartments sheet' % (comp))
+                    raise InvalidFramework('A compartment "%s" appears in the matrix on the Transitions sheet, but it was not defined on the Compartments sheet' % (comp))
                 elif comps[comp] != df.index.name:
                     raise InvalidFramework('Compartment "%s" belongs to pop type "%s" but it appears in the transition matrix for "%s"' % (comp, comps[comp], df.index.name))
 
@@ -451,10 +434,14 @@ class ProjectFramework(object):
                 from_comp = from_row.name
 
                 for to_comp, par_names in from_row.iteritems():
+                    if par_names.strip() == '>':
+                        self.transitions['>'].append((from_comp, to_comp))  # Add a transition entry for parameter-less junction residual links. This is consistent in that `self.transitions` is a representation of links, not parameters
+                        continue
+
                     for par_name in par_names.split(','):
                         par_name = par_name.strip()
 
-                        if par_name not in self.transitions:
+                        if par_name not in self.pars.index:
                             raise InvalidFramework('Parameter "%s" appears in the transition matrix but not on the Parameters page' % (par_name))
 
                         if pars[par_name] != df.index.name:
@@ -1004,7 +991,7 @@ class ProjectFramework(object):
                             raise InvalidFramework('Parameter "%s" has an outflow from a junction, so it must be in "proportion" units' % par_name)
 
                     if (par['format'] == FS.QUANTITY_TYPE_PROPORTION) and (self.comps.at[comp, 'is junction'] != 'y'):
-                        raise InvalidFramework('"Parameter "%s" has units of "proportion" which means all of its outflows must be from junction compartments, which Compartment "%s" is not', par_name, comp)
+                        raise InvalidFramework('Parameter "%s" has units of "proportion" which means all of its outflows must be from junction compartments, which Compartment "%s" is not' % (par_name, comp))
 
                 if n_source_outflow > 1:
                     raise InvalidFramework('Parameter "%s" has an outflow from more than one source compartment, which prevents disaggregation from working correctly' % par_name)
@@ -1150,6 +1137,9 @@ class ProjectFramework(object):
             # For each junction, work out if there are any upstream or downstream timed compartments
             for junc_name in self.comps.index[self.comps['is junction'] == 'y']:
 
+                # TODO - This won't work for split transition matrices with duration groups if the duration group
+                # is split up. Instead, the duration groups need to be assigned based on self.transitions
+
                 # Retrieve the transition matrix for the given population type
                 for s in self.sheets['transitions']:
                     if junc_name in s.index:
@@ -1159,21 +1149,52 @@ class ProjectFramework(object):
                 # We are a member of the duration group if there is a path to a timed compartment
                 # that does not go via a timed parameter
                 def get_attached_comps(comp_name, direction, comps=None, groups=None, attachments=None):
-                    # If there is a compartment linked to the junction with a duration group, the group
-                    # is added to the upstream/downstream groups. Additionally, if the link is not the flush link,
-                    # then it is considered 'attached'. A compartment must attach
-                    # An attachment is a connection via a parameter that isn't a flush link. A junction is
-                    # part of the duration group only if group equals the attachments and the attachments match
-                    # on the upstream and downstream sides. Otherwise, the links are untimed, and the only
-                    # constraint is that upstream groups can't flow into the same downstream groups (which would
-                    # require TimedLinks)
+                    """
+                    Return attached compartments, groups, and attachments
+
+                    This function searches junctions forwards and backwards to find compartments indirectly
+                    connected to the junction, and then returns the duration groups of those compartments.
+                    This allows intermediate junctions to be assigned to duration groups even if their inflows
+                    and outflows are both exclusively to other junctions.
+
+                    - The 'groups' associated with a junction are the set of duration groups for all compartments
+                      directly connected to the junction, or indirectly connected via a junction. A group may be associated
+                      with the junction even if the link is a flush link - for example, if a compartment in group A flushes into
+                      a junction, that junction would be associated with the group A and group A would appear in `groups`
+                    - A junction is 'attached' to a group if it is associated with a group via a parameter that isn't a flush link.
+                      For example, if a compartment in group A flushes into a junction, the junction is NOT attached to group A.
+                      Qualitatively, attachment corresponds to durations being preserved - if a compartment has a flush outflow into
+                      a junction, duration is not preserved, whereas if the compartment has a normal flow, duration would be preserved.
+                      The return variable `attachments` corresponds to all of the attached groups
+
+                    A junction is assigned a duration group only if
+                        - The set of groups and attachments are equal group i.e. if there are any timed inflows,
+                            - they must all be from the same duration group
+                            - there cannot be any other untimed inflows
+                            - all outflows must be into the same duration group
+
+                    Otherwise, the links are untimed, and the only constraint is that upstream groups can't flow
+                    into the same downstream groups (which would require TimedLinks). This latter requirement means
+                    that it would not be possible to have A -> J1 -> J2 -> A, since A -> J1 -> A would not be allowed
+                    unless J1 was attached to group A.
+
+                    :param comp_name: The name of the root compartment
+                    :param direction: Traverse the transition graph 'upstream' or 'downstream'
+                    :param comps: Compartments at the end of the flow graph
+                    :param groups: Groups encountered in the flow graph
+                    :param attachments: Attachments encountered in the flow graph
+                    :return: Tuple of `(comps, groups, attachments)`
+
+                    """
+
                     if comps is None:
                         comps = set()
                         groups = set()
                         attachments = set()
+
                     if direction == 'upstream':
                         items = zip(transition_matrix.columns.tolist(), transition_matrix[comp_name].tolist())
-                    if direction == 'downstream':
+                    elif direction == 'downstream':
                         items = zip(transition_matrix.index.tolist(), transition_matrix.loc[comp_name].tolist())
 
                     for inflow_comp, inflow_par in items:
@@ -1186,7 +1207,8 @@ class ProjectFramework(object):
                             group = self.comps.at[inflow_comp, 'duration group']
                             if group is not None:
                                 groups.add(group)
-                                if self.pars.at[inflow_par, 'timed'] != 'y':
+                                # TODO - is there a cleaner way to check for '>' being the special symbol for a residual transition?
+                                if inflow_par == '>' or self.pars.at[inflow_par, 'timed'] != 'y':
                                     attachments.add(group)
                     return comps, groups, attachments
 
@@ -1317,20 +1339,21 @@ class ProjectFramework(object):
         # Return the spreadsheet
         return spreadsheet
 
-    def save_new(self, fname) -> None:
+    def save(self, fname) -> None:
         """
-        Save regenerated framework to disk
+        Save framework to disk
 
-        Rather that saving the originally provided spreadsheet, this function writes a spreadsheet
-        based on the actual dataframes present. This allows programmatic modifications to
+        This function writes a spreadsheet based on the actual dataframes present. This allows programmatic modifications to
         frameworks to be viewed in Excel.
+
+        To save the original framework file (if one was loaded in) use `ProjectFramework.original.save()`
 
         :param fname: File name to write on disk
 
         """
 
         ss = self.to_spreadsheet()
-        ss.save(fname + '.xlsx' if not fname.endswith('.xlsx') else fname)
+        ss.save(fname)
 
 
 def _sanitize_dataframe(df: pd.DataFrame, required_columns: list, defaults: dict, valid_content: dict, set_index: str = None) -> pd.DataFrame:
@@ -1353,7 +1376,7 @@ def _sanitize_dataframe(df: pd.DataFrame, required_columns: list, defaults: dict
 
     # First check if there are any duplicate columns in the heading
     if len(set(df.columns)) < len(df.columns):
-        duplicates = [x for i,x in enumerate(df.columns.values) if x in df.columns[:i]]
+        duplicates = [x for i, x in enumerate(df.columns.values) if x in df.columns[:i]]
         raise InvalidFramework(f'Duplicate headings present: {duplicates}')
 
     # Next check required columns are present

@@ -104,6 +104,7 @@ class _DivTransformer(ast.NodeTransformer):
     Modified from https://stackoverflow.com/a/51918098 by Aran-Fey
 
     """
+
     def visit_BinOp(self, node):
         lhs = self.visit(node.left)
         rhs = self.visit(node.right)

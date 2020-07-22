@@ -12,10 +12,10 @@ def test_ensemble_cascade():
     # BASIC SETUP
     testdir = at.parent_dir()
 
-    P = at.Project(framework=testdir + 'test_uncertainty_framework.xlsx', databook=testdir + 'test_uncertainty_databook.xlsx')
+    P = at.Project(framework=testdir / 'test_uncertainty_framework.xlsx', databook=testdir / 'test_uncertainty_databook.xlsx')
 
-    low_uncertainty_progset = at.ProgramSet.from_spreadsheet(testdir + 'test_uncertainty_low_progbook.xlsx', project=P)
-    high_uncertainty_progset = at.ProgramSet.from_spreadsheet(testdir + 'test_uncertainty_high_progbook.xlsx', project=P)
+    low_uncertainty_progset = at.ProgramSet.from_spreadsheet(testdir / 'test_uncertainty_low_progbook.xlsx', project=P)
+    high_uncertainty_progset = at.ProgramSet.from_spreadsheet(testdir / 'test_uncertainty_high_progbook.xlsx', project=P)
     default_budget = at.ProgramInstructions(start_year=2018, alloc=low_uncertainty_progset)
     doubled_budget = default_budget.scale_alloc(2)
 

@@ -47,10 +47,12 @@ def validate(r1, r2):
 @pytest.mark.parametrize('model', models)
 def test_validate_model(model):
 
-    tmpdir = at.atomica_path(['tests', 'temp'])
-    framework_file = at.LIBRARY_PATH + model + '_framework.xlsx'
-    databook_file = at.LIBRARY_PATH + model + '_databook.xlsx'
-    progbook_file = at.LIBRARY_PATH + model + '_progbook.xlsx'
+    testdir = at.parent_dir()
+    tmpdir = testdir / 'temp'
+
+    framework_file = at.LIBRARY_PATH / f'{model}_framework.xlsx'
+    databook_file = at.LIBRARY_PATH / f'{model}_databook.xlsx'
+    progbook_file = at.LIBRARY_PATH / f'{model}_progbook.xlsx'
 
     # Only check if both parset and progset are present
     # Not meant to be exhaustive, just reasonably comprehensive
@@ -64,7 +66,7 @@ def test_validate_model(model):
     P1.run_sim(P1.parsets[0], result_name='parset', store_results=True)
     P1.run_sim(P1.parsets[0], P1.progsets[0], at.ProgramInstructions(start_year=2018), result_name='progset', store_results=True)
 
-    fname = tmpdir + 'validation_' + model + '.prj'
+    fname = tmpdir / 'validation_' + model + '.prj'
     if os.path.isfile(fname):
         P2 = at.Project.load(fname)
         print('Validating %s parset' % (model))
@@ -77,7 +79,7 @@ def test_validate_model(model):
 
 if __name__ == '__main__':
     np.seterr(all='raise', under='ignore')
-    # test_validate_model('sir')
+    test_validate_model('combined')
 
     for m in models:
         test_validate_model(m)
