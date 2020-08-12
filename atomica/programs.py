@@ -9,6 +9,7 @@ set of programs, respectively.
 
 import io
 from datetime import timezone
+from pathlib import Path
 
 import numpy as np
 import xlsxwriter as xw
@@ -518,12 +519,9 @@ class ProgramSet(NamedItem):
         spreadsheet = sc.Spreadsheet(f)  # Wrap it in a spreadsheet instance
         return spreadsheet
 
-    def save(self, filename=None, folder=None) -> str:
-        # Shortcut for saving to disk - FE RPC will probably use `to_spreadsheet()` but BE users will probably use `save()`
-        full_path = sc.makefilepath(filename=filename, folder=folder, default='Programs', ext='xlsx')
+    def save(self, fname):
         ss = self.to_spreadsheet()
-        ss.save(full_path)
-        return full_path
+        ss.save(fname)
 
     def _read_targeting(self, sheet, framework) -> None:
         # This function reads a targeting sheet and instantiates all of the programs with appropriate targets, putting them

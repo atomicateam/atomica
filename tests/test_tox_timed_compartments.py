@@ -16,12 +16,12 @@ import sys
 #
 #
 
-testdir = os.path.abspath(os.path.join(os.path.dirname(__file__))) + os.sep  # Must be relative to current file to work with tox
-tempdir = os.path.join(testdir, 'temp') + os.sep
+testdir = at.parent_dir()
+tmpdir = testdir / 'temp'
 
 
 def get_project():
-    P = at.Project(framework=at.ProjectFramework(testdir + 'timed_test_framework.xlsx'), databook=testdir + 'timed_test_databook.xlsx', do_run=False)
+    P = at.Project(framework=at.ProjectFramework(testdir / 'timed_test_framework.xlsx'), databook=testdir / 'timed_test_databook.xlsx', do_run=False)
     P.settings.sim_dt = 1 / 12
     P.settings.sim_start = 2018
     P.settings.sim_end = 2020
@@ -31,7 +31,7 @@ def get_project():
 def run_framework(fname):
     # Saves a single-pop databook from a framework, then loads it back and runs a simulation
     # This assumes the framework provides default values for all quantities
-    F = at.ProjectFramework(testdir + fname)
+    F = at.ProjectFramework(testdir / fname)
     D = at.ProjectData.new(framework=F, tvec=[2018], pops=1, transfers=0)
     P = at.Project(framework=F, databook=D.to_spreadsheet(), do_run=False)
     P.settings.sim_dt = 0.25
@@ -42,7 +42,7 @@ def run_framework(fname):
 
 def test_read_write_databook():
     # Test that the timed databook can be written and read
-    F = at.ProjectFramework(testdir + 'timed_test_framework.xlsx')
+    F = at.ProjectFramework(testdir / 'timed_test_framework.xlsx')
     D = at.ProjectData.new(framework=F, tvec=[2018], pops=1, transfers=0)
     D.save('test.xlsx')
     P = at.Project(framework=F, databook='test.xlsx', do_run=False)
@@ -65,13 +65,13 @@ def test_zero_duration():
     assert pop.get_variable('inf')[0].vals[2] == 24 * res2.dt  # Same again, contents equals the inflow because it was flushed entirely
 
     # Check formally that total inflows equal total outflows
-    assert pop.get_variable('inf')[0].vals[0] == sum(l.vals[0] for l in pop.get_variable('inf')[0].outlinks)
-    assert pop.get_variable('inf')[0].vals[1] == sum(l.vals[1] for l in pop.get_variable('inf')[0].outlinks)
+    assert pop.get_variable('inf')[0].vals[0] == sum(link.vals[0] for link in pop.get_variable('inf')[0].outlinks)
+    assert pop.get_variable('inf')[0].vals[1] == sum(link.vals[1] for link in pop.get_variable('inf')[0].outlinks)
 
 
 def test_timed_tb():
     # Just check that it runs as a demonstration
-    P = at.Project(framework=testdir + 'timed_tb_framework.xlsx', databook=testdir + 'timed_tb_databook.xlsx', do_run=False)
+    P = at.Project(framework=testdir / 'timed_tb_framework.xlsx', databook=testdir / 'timed_tb_databook.xlsx', do_run=False)
     P.settings.sim_dt = 0.25
     return P.run_sim()
 
@@ -245,7 +245,7 @@ def test_timed_transfer():
     # sizes are 200, 100, and 50, thus placing 10 people in each subcompartment. We seek to transfer a total
     # of 100 people out of pop 1 in the first timestep.
 
-    P = at.Project(framework=testdir + 'timed_test_transfer_framework.xlsx', databook=testdir + 'timed_test_transfer_databook.xlsx', do_run=True)
+    P = at.Project(framework=testdir / 'timed_test_transfer_framework.xlsx', databook=testdir / 'timed_test_transfer_databook.xlsx', do_run=True)
     pops = P.results[0].model.pops
 
     # First, check the initial sizes
@@ -282,19 +282,19 @@ def test_timed_transfer():
     assert pops[2].get_comp('c1')._vals[-1, 1] == 0  # The final subcompartment had no inflow
 
     # The absolute total outflow from all three compartments should match the initialization plus the transfer
-    assert sum([l.vals.sum() for l in pops[2].get_comp('c1').outlinks]) == 95  # 50 initialized, plus 45 transferred
-    assert sum([l.vals.sum() for l in pops[1].get_comp('c1').outlinks]) == 100  # 90 transitioned out, plus 10 flushed
-    assert sum([l.vals.sum() for l in pops[0].get_comp('c1').outlinks]) == 245  # 200 initialized, plus 45 transferred
+    assert sum([link.vals.sum() for link in pops[2].get_comp('c1').outlinks]) == 95  # 50 initialized, plus 45 transferred
+    assert sum([link.vals.sum() for link in pops[1].get_comp('c1').outlinks]) == 100  # 90 transitioned out, plus 10 flushed
+    assert sum([link.vals.sum() for link in pops[0].get_comp('c1').outlinks]) == 245  # 200 initialized, plus 45 transferred
 
     # Test writing out this databook too
     D = at.ProjectData.new(framework=P.framework, tvec=[2018, 2019], pops=3, transfers=2)
-    D.save(tempdir + 'timed_transfer_databook_test.xlsx')
+    D.save(tmpdir / 'timed_transfer_databook_test.xlsx')
 
 
 def test_timed_transfer_2():
     # This test has zero duration in the second population
 
-    P = at.Project(framework=testdir + 'timed_test_transfer_framework.xlsx', databook=testdir + 'timed_test_transfer_databook_2.xlsx', do_run=True)
+    P = at.Project(framework=testdir / 'timed_test_transfer_framework.xlsx', databook=testdir / 'timed_test_transfer_databook_2.xlsx', do_run=True)
     pops = P.results[0].model.pops
 
     # First, check the initial sizes
@@ -319,7 +319,7 @@ def test_timed_transfer_2():
 def test_timed_transfer_3():
     # This test has zero duration in the first population
 
-    P = at.Project(framework=testdir + 'timed_test_transfer_framework.xlsx', databook=testdir + 'timed_test_transfer_databook_3.xlsx', do_run=True)
+    P = at.Project(framework=testdir / 'timed_test_transfer_framework.xlsx', databook=testdir / 'timed_test_transfer_databook_3.xlsx', do_run=True)
     pops = P.results[0].model.pops
 
     # First, check the initial sizes
@@ -345,7 +345,7 @@ def test_timed_transfer_3():
 
 
 def test_timed_vac_duration():
-    P = at.Project(framework=at.LIBRARY_PATH + 'sir_vaccine_framework.xlsx', databook=at.LIBRARY_PATH + 'sir_vaccine_databook.xlsx', do_run=False)
+    P = at.Project(framework=at.LIBRARY_PATH / 'sir_vaccine_framework.xlsx', databook=at.LIBRARY_PATH / 'sir_vaccine_databook.xlsx', do_run=False)
     P.settings.sim_dt = 0.25
     P.settings.sim_start = 2018
     P.settings.sim_end = 2030

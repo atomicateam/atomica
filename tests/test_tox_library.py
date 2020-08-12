@@ -8,7 +8,8 @@ import pytest
 import numpy as np
 import sciris as sc
 
-tmpdir = at.atomica_path(['tests', 'temp'])
+testdir = at.parent_dir()
+tmpdir = testdir / 'temp'
 
 # List available models based on which framework files exist
 models = list()
@@ -146,11 +147,11 @@ def run_export(result, model):
     :return:
     """
 
-    at.export_results(result, tmpdir + model + '_single_export_test')  # Export single
-    result.export_raw(tmpdir + model + '_raw_export_test')
+    at.export_results(result, tmpdir / f'{model}_single_export_test')  # Export single
+    result.export_raw(tmpdir / f'{model}_raw_export_test')
     r2 = sc.dcp(result)
     r2.name = 'Copied'
-    at.export_results([result, r2], tmpdir + model + '_multiple_export_test')  # Export single
+    at.export_results([result, r2], tmpdir / f'{model}_multiple_export_test')  # Export single
 
 
 def run_regenerated_framework(proj):
@@ -175,9 +176,9 @@ def run_regenerated_framework(proj):
 @pytest.mark.parametrize('model', models)
 def test_model(model):
 
-    framework_file = at.LIBRARY_PATH + model + '_framework.xlsx'
-    databook_file = at.LIBRARY_PATH + model + '_databook.xlsx'
-    progbook_file = at.LIBRARY_PATH + model + '_progbook.xlsx'
+    framework_file = at.LIBRARY_PATH / f'{model}_framework.xlsx'
+    databook_file = at.LIBRARY_PATH / f'{model}_databook.xlsx'
+    progbook_file = at.LIBRARY_PATH / f'{model}_progbook.xlsx'
 
     print('\n\nTESTING %s project' % (model))
 

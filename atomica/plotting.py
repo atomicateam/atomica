@@ -266,11 +266,11 @@ class PlotData:
                 # Second pass, add in any dynamically computed quantities
                 # Using model. Parameter objects will automatically sum over Links and convert Links
                 # to annualized rates
-                for l in outputs:
-                    if not isinstance(l, dict):
+                for output in outputs:
+                    if not isinstance(output, dict):
                         continue
 
-                    output_label, f_stack_str = list(l.items())[0]  # _extract_labels has already ensured only one key is present
+                    output_label, f_stack_str = list(output.items())[0]  # _extract_labels has already ensured only one key is present
 
                     if not sc.isstring(f_stack_str):
                         continue
@@ -567,7 +567,7 @@ class PlotData:
             if sc.isstring(t_bins) and t_bins == 'all':
                 s.t_labels = ['All']
             else:
-                s.t_labels = ['%d-%d' % (l, h) for l, h in zip(lower, upper)]
+                s.t_labels = ['%d-%d' % (low, high) for low, high in zip(lower, upper)]
 
         return self
 
