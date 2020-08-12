@@ -180,6 +180,16 @@ class TimeSeries(object):
         return dict([(k, getattr(self,k,None)) for k in self.__slots__])
 
     def __setstate__(self, data):
+
+        if 'format' in data:
+            # 'format' was changed to 'units' but the attribute was not dropped, however now this is a
+            # hard error because of the switch to __slots__ so we need to make sure it gets removed.
+            # This can't be done as a Migration because a Migration expects an instance of the
+            data = sc.dcp(data)
+            if 'units' not in data:
+                data['units'] = data['format']
+            del data['format']
+
         for k, v in data.items():
             setattr(self,k,v)
 
