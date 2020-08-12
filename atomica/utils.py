@@ -11,7 +11,7 @@ import os
 import re
 import time
 import zlib
-from bisect import bisect
+from bisect import bisect_right, bisect_left
 from datetime import datetime
 from functools import partial
 from pathlib import Path
@@ -131,11 +131,11 @@ class TimeSeries(object):
 
     """
 
-    def __init__(self, t=None, vals=None, units: str = None, assumption: float = None, sigma: float = None):
-        t = sc.promotetolist(t) if t is not None else list()
-        vals = sc.promotetolist(vals) if vals is not None else list()
+    # Use slots here to guarantee that __deepcopy__() and __eq__() only have to check these
+    # specific fields - otherwise, would need to do a more complex recursive dict comparison
+    __slots__ = ['t', 'vals', 'units', 'assumption', 'sigma', '_sampled']
 
-        assert len(t) == len(vals)
+    def __init__(self, t=None, vals=None, units: str = None, assumption: float = None, sigma: float = None):
 
         self.t = []  #: Sorted array of time points. Normally interacted with via methods like :meth:`insert()`
         self.vals = []  #: Time-specific values - indices correspond to ``self.t``
@@ -144,12 +144,27 @@ class TimeSeries(object):
         self.sigma = sigma  #: Uncertainty value, assumed to be a standard deviation
         self._sampled = False  #: Flag to indicate whether sampling has been performed. Once sampling has been performed, cannot sample again
 
-        for tx, vx in zip(t, vals):
-            self.insert(tx, vx)
+        # Using insert() means that array/list inputs containing None or duplicate entries will
+        # be sanitized via insert()
+        self.insert(t, vals)
 
     def __repr__(self):
         output = sc.prepr(self)
         return output
+
+    def __eq__(self, other):
+        """
+        Check TimeSeries equality
+
+        Two TimeSeries instances are equal if all of their attributes are equal. This is easy to
+        implement because `==` is directly defined for all of the attribute types (lists and scalars)
+        and due to `__slots__` there are guaranteed not to be any other attributes
+
+        :param other:
+        :return:
+        """
+
+        return all(getattr(self, x) == getattr(other, x) for x in self.__slots__)
 
     def __deepcopy__(self, memodict={}):
         new = TimeSeries.__new__(TimeSeries)
@@ -160,6 +175,14 @@ class TimeSeries(object):
         new.sigma = self.sigma
         new._sampled = self._sampled
         return new
+
+    def __getstate__(self):
+        return dict([(k, getattr(self,k,None)) for k in self.__slots__])
+
+    def __setstate__(self, data):
+        for k, v in data.items():
+            setattr(self,k,v)
+
 
     # The operators for + and * below are prototypes but haven't been added
     # The reason is because they add a lot of complexity to the usage of the class
@@ -329,25 +352,36 @@ class TimeSeries(object):
         :param v: Value to insert. If ``None``, this function will return immediately without doing anything
 
         """
-        if isinstance(t, list):
-            assert isinstance(v, list) and len(t) == len(v), 'Cannot insert non-matching lengths or types  of time and values %s and %s' % (t, v)
+
+        # Check if inputs are iterable
+        iterable_input = True
+        try:
+            assert len(t) == len(v),  'Cannot insert non-matching lengths or types of time and values %s and %s' % (t, v)
+        except TypeError:
+            iterable_input = False
+
+        # If inputs are iterable, call insert() for each zipped item
+        if iterable_input:
             for ti, vi in zip(t, v):
                 self.insert(ti, vi)
+            return
+
+        if v is None:  # Can't cast a None to a float, so just skip it
+            return
+
+        v = float(v)  # Convert input to float
+
+        if t is None: # Store the value in the assumption
+            self.assumption = v
+            return
+
+        idx = bisect_left(self.t, t)
+        if idx < len(self.t) and self.t[idx] == t:
+            # Overwrite an existing entry
+            self.vals[idx] = v
         else:
-            if v is None:  # Can't cast a None to a float, just skip it
-                return
-
-            v = float(v)  # Convert input to float
-
-            if t is None:
-                self.assumption = v
-            elif t in self.t:
-                idx = self.t.index(t)
-                self.vals[idx] = v
-            else:
-                idx = bisect(self.t, t)
-                self.t.insert(idx, t)
-                self.vals.insert(idx, v)
+            self.t.insert(idx, t)
+            self.vals.insert(idx, v)
 
     def get(self, t) -> float:
         """
