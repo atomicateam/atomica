@@ -129,7 +129,7 @@ class ProgramInstructions(object):
         for ts in new.alloc.values():
             ts.vals = [x * scale_factor for x in ts.vals]
             ts.assumption = ts.assumption * scale_factor if ts.assumption is not None else None
-            ts.uncertainty = ts.sigma * scale_factor if ts.sigma is not None else None
+            ts.sigma = ts.sigma * scale_factor if ts.sigma is not None else None
         return new
 
 

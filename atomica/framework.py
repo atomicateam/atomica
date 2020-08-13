@@ -1119,7 +1119,7 @@ class ProjectFramework(object):
                     message = 'No compartments or characteristics appear in the databook, which means it is not possible to initialize the simulation. Please assign at least some of the compartments and/or characteristics to a databook page.'
                 else:
                     message = 'No compartments or characteristics have a setup weight (either because they do not appear in the databook, or the setup weight has been explicitly set to zero) - cannot initialize simulation. Please change some of the setup weights to be nonzero'
-                raise Exception(message)
+                logger.debug(message)
 
             A = np.zeros((len(characs), len(comps)))
             for i, charac in enumerate(characs):
