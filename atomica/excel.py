@@ -925,11 +925,10 @@ class TimeDependentValuesEntry(object):
                     headings[v.lower()] = i
                 else:
                     headings[v] = i
+            elif cell.is_date:
+                times[datetime_to_year(v)] = i
             elif cell.data_type == 'n':
-                if cell.is_date:
-                    times[datetime_to_year(v)] = i
-                else:
-                    times[v] = i
+                times[v] = i
             else:
                 raise Exception('Unknown data type in cell %s of the spreadsheet - quantity must be a string or a number' % cell.coordinate)
         tdve.tvec = np.array(sorted(times), dtype=float)
