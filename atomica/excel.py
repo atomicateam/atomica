@@ -258,9 +258,12 @@ def read_dataframes(worksheet, merge=False) -> list:
         any_values = False
         for j, cell in enumerate(row):
             v = cell.value
-            if cell.data_type in {'s', 'str'}:
+            try:
                 v = v.strip()
-            if not any_values and v:
+                has_value = bool(v)  # If it's a string type, call strip() before checking truthiness
+            except AttributeError:
+                has_value = v is not None  # If it's not a string type, then only consider it empty if it's type is None (otherwise, a numerical value of 0 would be treated as empty)
+            if has_value:
                 any_values = True
             content[i, j] = v
         if not any_values:
