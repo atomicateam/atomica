@@ -77,6 +77,7 @@ class ProjectSettings(object):
 
     @sim_dt.setter
     def sim_dt(self, sim_dt):
+        assert sim_dt > 0, 'Simulation timestep must be greater than 0'
         self._sim_dt = sim_dt
         self.sim_end = self.sim_end  # Call the setter function to change sim_end if it is no longer valid
 
