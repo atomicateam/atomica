@@ -2,6 +2,15 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.21.2] - 2020-09-07
+
+- Drop version constraint for `openpyxl` to support both version 2.5 and >2.5
+
+## [1.21.1] - 2020-07-06to
+
+- Add equality operator to `at.Timeseries`
+- Support passing in arrays to the `at.TimeSeries` constructor
+
 ## [1.21] - 2020-06-27
 
 - Refactored `ProgramSet.save(filename, folder)` to `ProgramSet.save(fname)` so that it now matches `ProjectData` and `ProjectFramework`

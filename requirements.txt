@@ -1,6 +1,6 @@
 # Dependencies for testing/documentation
 pytest<6  # Pytest 6 breaks nbsmoke and nbval runs each cell as a separate test
-pytest-xdist
+pytest-xdist<2 # xdist 2 requires pytest 6
 pytest-env
 pytest-cov
 nbsmoke
