@@ -2,6 +2,14 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.21.3] - 2020-09-08
+
+- `Project.calibrate()` no longer saves the new calibration to the project by default
+
+*Backwards-compatibility notes*
+
+- Add the explicit argument `save_to_project=True` to `calibrate()` to match previous behaviour
+
 ## [1.21.2] - 2020-09-07
 
 - Drop version constraint for `openpyxl` to support both version 2.5 and >2.5
