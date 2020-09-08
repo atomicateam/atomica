@@ -160,9 +160,6 @@ def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, 
             o2.append(output_tuple)
     output_quantities = o2
 
-    original_sim_end = project.settings.sim_end
-    project.settings.sim_end = min(project.data.tvec[-1], original_sim_end)
-
     args = {
         'project': project,
         'parset': parset.copy(),
@@ -188,43 +185,49 @@ def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, 
         xmin.append(scale_min)
         xmax.append(scale_max)
 
-    if method == 'asd':
-        optim_args = {
-            'stepsize': 0.1,
-            'maxiters': 2000,
-            'sinc': 1.5,
-            'sdec': 2.,
-            'fulloutput': False,
-            'reltol': 1e-3,
-            'abstol': 1e-6,
-            'xmin': xmin,
-            'xmax': xmax,
-        }
+    original_sim_end = project.settings.sim_end
+    project.settings.sim_end = min(project.data.tvec[-1], original_sim_end)
 
-        if max_time is not None:
-            optim_args['maxtime'] = max_time
+    try:
+        if method == 'asd':
+            optim_args = {
+                'stepsize': 0.1,
+                'maxiters': 2000,
+                'sinc': 1.5,
+                'sdec': 2.,
+                'fulloutput': False,
+                'reltol': 1e-3,
+                'abstol': 1e-6,
+                'xmin': xmin,
+                'xmax': xmax,
+            }
 
-        opt_result = sc.asd(_calculate_objective, x0, args, **optim_args)
-        x1 = opt_result['x']
+            if max_time is not None:
+                optim_args['maxtime'] = max_time
 
-    elif method == 'pso':
-        import pyswarm
+            opt_result = sc.asd(_calculate_objective, x0, args, **optim_args)
+            x1 = opt_result['x']
+        elif method == 'pso':
+            import pyswarm
 
-        optim_args = {
-            'maxiter': 3,
-            'lb': xmin,
-            'ub': xmax,
-            'minstep': 1e-3,
-            'debug': True
-        }
-        if np.any(~np.isfinite(xmin)) or np.any(~np.isfinite(xmax)):
-            errormsg = 'PSO optimization requires finite upper and lower bounds to specify the search domain (i.e. every parameter being adjusted needs to have finite bounds)'
-            raise Exception(errormsg)
+            optim_args = {
+                'maxiter': 3,
+                'lb': xmin,
+                'ub': xmax,
+                'minstep': 1e-3,
+                'debug': True
+            }
+            if np.any(~np.isfinite(xmin)) or np.any(~np.isfinite(xmax)):
+                errormsg = 'PSO optimization requires finite upper and lower bounds to specify the search domain (i.e. every parameter being adjusted needs to have finite bounds)'
+                raise Exception(errormsg)
 
-        x1, _ = pyswarm.pso(_calculate_objective, kwargs=args, **optim_args)
-
-    else:
-        raise Exception('Unrecognized method')
+            x1, _ = pyswarm.pso(_calculate_objective, kwargs=args, **optim_args)
+        else:
+            raise Exception('Unrecognized method')
+    except Exception as e:
+        raise e
+    finally:
+        project.settings.sim_end = original_sim_end  # Restore the simulation end year
 
     _update_parset(args['parset'], x1, pars_to_adjust)
 
@@ -249,7 +252,5 @@ def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, 
             raise NotImplementedError  # Transfers might be handled differently in Atomica
 
     args['parset'].name = 'calibrated_' + args['parset'].name
-
-    project.settings.sim_end = original_sim_end  # Restore the simulation end year
 
     return args['parset']
