@@ -14,7 +14,7 @@ This file records changes to the codebase grouped by version release. Unreleased
 
 - Drop version constraint for `openpyxl` to support both version 2.5 and >2.5
 
-## [1.21.1] - 2020-07-06to
+## [1.21.1] - 2020-07-06
 
 - Add equality operator to `at.Timeseries`
 - Support passing in arrays to the `at.TimeSeries` constructor
