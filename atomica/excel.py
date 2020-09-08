@@ -17,6 +17,16 @@ import pandas as pd
 from .utils import format_duration, datetime_to_year
 import xlsxwriter
 
+# Suppress known warning in Openpyxl
+# Warnings are:
+# - C:\ProgramData\Miniconda3\envs\atomica37\lib\site-packages\openpyxl\worksheet\_reader.py:300: UserWarning: Conditional Formatting extension is not supported and will be removed
+#   warn(msg)
+# - C:\ProgramData\Miniconda3\envs\atomica37\lib\site-packages\openpyxl\worksheet\_reader.py:300: UserWarning: Data Validation extension is not supported and will be removed
+#   warn(msg)
+# This means that conditional formatting and data valuation rules aren't being loaded, but since `data_only=True` these don't matter and can be safely ignored
+import warnings
+warnings.filterwarnings(action='ignore',category=UserWarning, module='openpyxl.worksheet', lineno=300)
+
 
 def standard_formats(workbook):
     # Add standard formatting to a workbook and return the set of format objects
