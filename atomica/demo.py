@@ -9,7 +9,7 @@ from .system import LIBRARY_PATH, logger
 from .scenarios import BudgetScenario
 from .utils import TimeSeries
 
-__all__ = ['demo']
+__all__ = ['demo', 'make_demo_scenarios']
 
 def demo(which: str = None, do_run: bool = True, addprogs: bool = True) -> Project:
     """
@@ -62,14 +62,14 @@ def demo(which: str = None, do_run: bool = True, addprogs: bool = True) -> Proje
         P.load_progbook(progbook)
 
         logger.debug('Creating program scenarios')
-        _make_demo_scenarios(P)
+        make_demo_scenarios(P)
 
     logger.debug('Finished creating demo project')
 
     return P
 
 
-def _make_demo_scenarios(proj: Project) -> None:
+def make_demo_scenarios(proj: Project) -> None:
     """
     Create demo scenarios
 
@@ -81,7 +81,7 @@ def _make_demo_scenarios(proj: Project) -> None:
 
     The scenarios will be created and added to the project's list of scenarios
 
-    :param dorun: If True, and if doadd=True, simulations will be run
+    :param proj: A :class:`Project` instance. New scenarios will be added in-place
 
     """
 

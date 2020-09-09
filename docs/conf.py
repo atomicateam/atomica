@@ -51,6 +51,7 @@ extensions = [
     'sphinx_autodoc_typehints', # Automatically document param types (less noise in class signature)
     'sphinx_markdown_tables',
     'recommonmark',
+    'nbsphinx',
     'sphinx.ext.intersphinx',  # Link to other project's documentation (see mapping below)
 ]
 
