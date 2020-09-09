@@ -9,6 +9,7 @@ from .system import LIBRARY_PATH, logger
 from .scenarios import BudgetScenario
 from .utils import TimeSeries
 
+__all__ = ['demo']
 
 def demo(which: str = None, do_run: bool = True, addprogs: bool = True) -> Project:
     """
@@ -61,14 +62,14 @@ def demo(which: str = None, do_run: bool = True, addprogs: bool = True) -> Proje
         P.load_progbook(progbook)
 
         logger.debug('Creating program scenarios')
-        make_demo_scenarios(P)
+        _make_demo_scenarios(P)
 
     logger.debug('Finished creating demo project')
 
     return P
 
 
-def make_demo_scenarios(proj: Project) -> None:
+def _make_demo_scenarios(proj: Project) -> None:
     """
     Create demo scenarios
 

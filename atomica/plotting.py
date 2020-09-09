@@ -31,6 +31,8 @@ from .function_parser import parse_function
 from .system import FrameworkSettings as FS
 from .utils import format_duration, nested_loop
 
+__all__ = ['save_figs','PlotData','Series','plot_bars','plot_series','plot_legend','reorder_legend','relabel_legend']
+
 settings = dict()
 settings['legend_mode'] = 'together'  # Possible options are ['together','separate','none']
 settings['bar_width'] = 1.0  # Width of bars in plot_bars()

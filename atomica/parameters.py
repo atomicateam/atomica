@@ -14,6 +14,7 @@ import sciris as sc
 from .utils import NamedItem, TimeSeries
 import scipy.interpolate
 
+__all__ = ['Parameter','ParameterSet']
 
 class Parameter(NamedItem):
     """

@@ -21,8 +21,10 @@ from .excel import standard_formats, apply_widths, update_widths, read_tables, T
 from .system import logger, FrameworkSettings as FS
 from .utils import NamedItem, TimeSeries
 
+__all__ = ['ProgramInstructions', 'ProgramSet', 'Program', 'Covout']
 
-class ProgramInstructions(object):
+
+class ProgramInstructions():
     """
     Store instructions for applying programs
 
@@ -1297,7 +1299,7 @@ class Program(NamedItem):
         return prop_covered
 
 
-class Covout(object):
+class Covout():
     """
     Store and compute program outcomes
 

@@ -56,7 +56,7 @@ class ModelError(Exception):
     pass
 
 
-class Variable(object):
+class Variable():
     """
     Integration object to manage compartments, characteristics, parameters, and links
 
@@ -1509,7 +1509,7 @@ class TimedLink(Link):
         return self._vals[:, ti].sum(axis=0)
 
 
-class Population(object):
+class Population():
     """
     A class to wrap up data for one population within model.
     Each model population must contain a set of compartments with equivalent names.
@@ -1926,7 +1926,7 @@ class Population(object):
             c[0] = max(0.0, x[i])
 
 
-class Model(object):
+class Model():
     """ A class to wrap up multiple populations within model and handle cross-population transitions. """
 
     def __init__(self, settings, framework, parset, progset=None, program_instructions=None):

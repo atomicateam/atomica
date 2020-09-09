@@ -328,7 +328,7 @@ def read_dataframes(worksheet, merge=False) -> list:
     return dfs
 
 
-class TimeDependentConnections(object):
+class TimeDependentConnections():
     """
     Structure for reading/writing interactions
 
@@ -831,7 +831,7 @@ class TimeDependentConnections(object):
         return next_row, table_references, values_written
 
 
-class TimeDependentValuesEntry(object):
+class TimeDependentValuesEntry():
     """ Table for time-dependent data entry
 
     This class is Databooks and Program books to enter potentially time-varying data.

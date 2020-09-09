@@ -21,12 +21,13 @@ from .system import logger
 from .utils import format_duration
 from .version import version, gitinfo
 
+__all__ = ['InvalidFramework', 'ProjectFramework', 'generate_framework_doc']
 
 class InvalidFramework(Exception):
     pass
 
 
-class ProjectFramework(object):
+class ProjectFramework():
     """
     Base Framework class
 

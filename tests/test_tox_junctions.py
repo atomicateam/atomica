@@ -147,6 +147,7 @@ def test_junction_remainder_2():
 
 
 if __name__ == '__main__':
-    # test_junctions()
-    # test_only_junctions()
+    test_junctions()
+    test_only_junctions()
+    test_junction_remainder()
     test_junction_remainder_2()

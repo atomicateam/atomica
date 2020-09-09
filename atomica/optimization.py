@@ -24,6 +24,31 @@ from .system import logger, NotFoundError
 from .utils import NamedItem
 from .utils import TimeSeries
 
+__all__ = [
+    'InvalidInitialConditions',
+    'UnresolvableConstraint',
+    'FailedConstraint',
+    'Adjustable',
+    'Adjustment',
+    'SpendingAdjustment',
+    'StartTimeAdjustment',
+    'ExponentialSpendingAdjustment',
+    'SpendingPackageAdjustment',
+    'PairedLinearSpendingAdjustment',
+    'Measurable',
+    'MinimizeMeasurable',
+    'MaximizeMeasurable',
+    'AtMostMeasurable',
+    'AtLeastMeasurable',
+    'IncreaseByMeasurable',
+    'DecreaseByMeasurable',
+    'MaximizeCascadeStage',
+    'MaximizeCascadeConversionRate',
+    'Constraint',
+    'TotalSpendConstraint',
+    'Optimization',
+    'optimize'
+]
 
 class InvalidInitialConditions(Exception):
     """
@@ -69,7 +94,7 @@ class FailedConstraint(Exception):
     pass
 
 
-class Adjustable(object):
+class Adjustable():
     """
     Class to store single optimizable parameter
 
@@ -113,7 +138,7 @@ class Adjustable(object):
         return xmin, xmax
 
 
-class Adjustment(object):
+class Adjustment():
     """
     Class to represent changes to instructions
 
@@ -280,15 +305,29 @@ class ExponentialSpendingAdjustment(Adjustment):
 
 class SpendingPackageAdjustment(Adjustment):
     """
-    Adjustment package example which would modify e.g. MDR short and MDR standard with a total spending and then a fraction to be spend on each of them"""
+    Adjustment to set total spending on several programs
 
-    def __init__(self, package_name, t, prog_names, initial_spends, min_props=None, max_props=None,
-                 min_total_spend=0., max_total_spend=np.inf):
-        """initial_spends in currency units
-        min_props and max_props should be in the range of 0 to 1 as a proportion of spending within the set of interventions
+    This adjustment can be used when it is important to constrain the sum of spending on multiple programs. For example,
+    a package could be defined for 'MDR short' and 'MDR standard' standard programs, where the adjustments would be the
+    total spend on MDR, and the fraction spent on MDR short.
+    """
+
+    def __init__(self, package_name: str, t, prog_names: list, initial_spends, min_props: list = None, max_props: list = None, min_total_spend: float = 0., max_total_spend: float = np.inf):
         """
 
-#        super().__init__(self, name=package_name)
+        :param package_name:
+        :param t:
+        :param prog_names:
+        :param initial_spends:
+        :param min_props: List of minimum proportion to spend on each program, same length as ``prog_names``
+        :param max_props: List of maximum proportion to spend on each program, same length as ``prog_names``
+        :param min_total_spend: Minimum total spend
+        :param max_total_spend: Maximum total spend
+
+        """
+
+
+        #        super().__init__(self, name=package_name)
         self.name = package_name
         self.prog_name = prog_names
         self.t = t
@@ -382,7 +421,7 @@ class PairedLinearSpendingAdjustment(Adjustment):
         instructions.alloc[self.prog_name[1]].insert(self.t[1], instructions.alloc[self.prog_name[1]].get(self.t[0]) + funding_change)
 
 
-class Measurable(object):
+class Measurable():
     """
     Optimization objective
 
@@ -718,7 +757,7 @@ class MaximizeCascadeConversionRate(Measurable):
         return val
 
 
-class Constraint(object):
+class Constraint():
     """
     Store conditions to satisfy during optimization
 
@@ -937,7 +976,7 @@ class TotalSpendConstraint(Constraint):
                         spend_bounds = adjustment.adjustables[-1].get_hard_bounds()
                         for pn, prog in enumerate(sc.promotetolist(adjustment.prog_name)):
                             frac_bounds = adjustment.adjustables[pn].get_hard_bounds(instructions.alloc[prog].get(t))
-#                            print (total_spend_bound, '\n...', adjustable.get_hard_bounds())
+                            #                            print (total_spend_bound, '\n...', adjustable.get_hard_bounds())
                             hard_constraints['bounds'][t][prog] = (spend_bounds[0] * frac_bounds[0], spend_bounds[1] * frac_bounds[1])
                     else:
                         for prog in sc.promotetolist(adjustment.prog_name):
@@ -1389,7 +1428,6 @@ def optimize(project, optimization, parset: ParameterSet, progset: ProgramSet, i
     # it is recommended that an _absolute_ metric be computed from the returned optimized instructions rather than
     # capturing the optimization objective. For example, in an optimization trading off equity against impact,
     # the deaths averted could be computed using the optimized instructions and returned as an absolute measure of quality.
-
 
 # def parallel_optimize(project,optimization,parset,progset,program_instructions):
 #

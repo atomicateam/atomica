@@ -2,30 +2,7 @@
 Atomica root module
 
 The Atomica module is the entry point for running simulations and performing analysis
-using Atomica. It consists of the following submodules:
-
-    .. autosummary::
-        :toctree: _autosummary
-
-        calibration
-        cascade
-        data
-        defaults
-        excel
-        framework
-        migration
-        model
-        optimization
-        parameters
-        function_parser
-        plotting
-        programs
-        project
-        reconciliation
-        results
-        scenarios
-        system
-        utils
+using Atomica.
 
 """
 
@@ -88,17 +65,20 @@ import pandas as pd
 pd.set_option('mode.chained_assignment', None)
 
 # The Atomica user interface -- import from submodules
-from .framework import *
-from .project import *
 from .calibration import *
-from .scenarios import *
-from .defaults import *
+from .cascade import *
+from .data import *
+from .demo import *
+from .framework import *
+from .function_parser import *
+from .migration import migrations, register_migration
+from .optimization import *
+from .parameters import *
 from .plotting import *
 from .programs import *
+from .project import *
 from .reconciliation import *
-from .optimization import *
-from .cascade import *
 from .results import *
-from .migration import migrations, register_migration
-from .utils import *
+from .scenarios import *
 from .system import *
+from .utils import *

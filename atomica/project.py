@@ -40,8 +40,10 @@ import logging
 from datetime import timezone
 import functools
 
+__all__ = ['ProjectSettings', 'Project']
 
-class ProjectSettings(object):
+
+class ProjectSettings():
     def __init__(self, sim_start=2000, sim_end=2035, sim_dt=0.25):
         self._sim_start = sim_start
         self._sim_dt = sim_dt
