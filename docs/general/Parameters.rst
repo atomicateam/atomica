@@ -32,6 +32,27 @@ Finally, all parameters are updated prior to computing flow rates. This is becau
 
     Links can only be used inside parameter functions for output parameters
 
+Value precedence
+****************
+
+The value for a parameter is derived from (in order of precedence):
+
+1. Data entered in the databook
+2. A parameter function
+3. The result of a program calculation
+
+The workflow in the model is
+
+- First any data points in the parameter set (that is, the values from the databook after any parameter scenarios have been applied) are inserted into the parameter
+- Next, if a parameter function is present, it is evaluated, and the result of the function overwrites the parameter's current value
+- Finally, program outcomes are evaluated, and used to overwrite any parameters that are being reached by active programs
+
+.. caution::
+
+    If a parameter has both a databook page and a function, the simulation dynamics will reflect the function. The data in the databook is used for plotting and calibration only.
+
+In the ``ParameterSet``, it is possible to set the ``skip_function`` attribute in order to skip evaluating the parameter function, in which case the parameter value will be drawn from either the data points or from the program calculation, if present. This functionality is used internally by parameter scenarios, so that it is possible to use a parameter overwrite to override a function (e.g. to use a parameter scenario to explicitly set the force of infection). However, using the ``skip_function`` attribute directly is a non-standard workflow and must be implemented consistently in all scripts. If a script omits setting this flag then the simulation will run without errors, but will produce different results. It is therefore recommended not to use this functionality directly, but to modify the framework to avoid the need to disable the parameter function.
+
 Performance considerations
 **************************
 

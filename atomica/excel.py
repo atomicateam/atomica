@@ -17,6 +17,16 @@ import pandas as pd
 from .utils import format_duration, datetime_to_year
 import xlsxwriter
 
+# Suppress known warning in Openpyxl
+# Warnings are:
+# - C:\ProgramData\Miniconda3\envs\atomica37\lib\site-packages\openpyxl\worksheet\_reader.py:300: UserWarning: Conditional Formatting extension is not supported and will be removed
+#   warn(msg)
+# - C:\ProgramData\Miniconda3\envs\atomica37\lib\site-packages\openpyxl\worksheet\_reader.py:300: UserWarning: Data Validation extension is not supported and will be removed
+#   warn(msg)
+# This means that conditional formatting and data valuation rules aren't being loaded, but since `data_only=True` these don't matter and can be safely ignored
+import warnings
+warnings.filterwarnings(action='ignore',category=UserWarning, module='openpyxl.worksheet', lineno=300)
+
 
 def standard_formats(workbook):
     # Add standard formatting to a workbook and return the set of format objects
@@ -258,9 +268,12 @@ def read_dataframes(worksheet, merge=False) -> list:
         any_values = False
         for j, cell in enumerate(row):
             v = cell.value
-            if cell.data_type in {'s', 'str'}:
+            try:
                 v = v.strip()
-            if not any_values and v:
+                has_value = bool(v)  # If it's a string type, call strip() before checking truthiness
+            except AttributeError:
+                has_value = v is not None  # If it's not a string type, then only consider it empty if it's type is None (otherwise, a numerical value of 0 would be treated as empty)
+            if has_value:
                 any_values = True
             content[i, j] = v
         if not any_values:
@@ -315,7 +328,7 @@ def read_dataframes(worksheet, merge=False) -> list:
     return dfs
 
 
-class TimeDependentConnections(object):
+class TimeDependentConnections():
     """
     Structure for reading/writing interactions
 
@@ -818,7 +831,7 @@ class TimeDependentConnections(object):
         return next_row, table_references, values_written
 
 
-class TimeDependentValuesEntry(object):
+class TimeDependentValuesEntry():
     """ Table for time-dependent data entry
 
     This class is Databooks and Program books to enter potentially time-varying data.
@@ -922,11 +935,10 @@ class TimeDependentValuesEntry(object):
                     headings[v.lower()] = i
                 else:
                     headings[v] = i
+            elif cell.is_date:
+                times[datetime_to_year(v)] = i
             elif cell.data_type == 'n':
-                if cell.is_date:
-                    times[datetime_to_year(v)] = i
-                else:
-                    times[v] = i
+                times[v] = i
             else:
                 raise Exception('Unknown data type in cell %s of the spreadsheet - quantity must be a string or a number' % cell.coordinate)
         tdve.tvec = np.array(sorted(times), dtype=float)

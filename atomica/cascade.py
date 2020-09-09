@@ -62,9 +62,24 @@ from .results import Result, Ensemble
 from .system import logger
 from .data import ProjectData
 import functools
+
 default_figsize = (10, 4)
 default_ax_position = [0.15, 0.2, 0.35, 0.7]
 
+__all__ = [
+    'InvalidCascade',
+    'plot_cascade',
+    'sanitize_cascade',
+    'sanitize_pops',
+    'validate_cascade',
+    'plot_single_cascade_series',
+    'plot_single_cascade',
+    'plot_multi_cascade',
+    'get_cascade_vals',
+    'cascade_summary',
+    'get_cascade_data',
+    'CascadeEnsemble',
+]
 
 class InvalidCascade(Exception):
     """

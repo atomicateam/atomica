@@ -10,6 +10,8 @@ import pathlib
 # Set up a logger that can be imported elsewhere
 import logging
 
+__all__ = ['atomica_path','LIBRARY_PATH','NotFoundError','FrameworkSettings']
+
 logger = logging.getLogger('atomica')
 
 

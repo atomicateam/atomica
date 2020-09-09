@@ -11,6 +11,8 @@ import ast
 import numpy as np
 from functools import reduce
 
+__all__ = ['parse_function']
+
 
 def sdiv(numerator, denominator):
     """
