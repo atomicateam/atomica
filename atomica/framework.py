@@ -21,12 +21,13 @@ from .system import logger
 from .utils import format_duration
 from .version import version, gitinfo
 
+__all__ = ['InvalidFramework', 'ProjectFramework', 'generate_framework_doc']
 
 class InvalidFramework(Exception):
     pass
 
 
-class ProjectFramework(object):
+class ProjectFramework():
     """
     Base Framework class
 
@@ -1386,7 +1387,7 @@ def _sanitize_dataframe(df: pd.DataFrame, required_columns: list, defaults: dict
         df.set_index(set_index, inplace=True)
 
     if any(df.index.isnull()):
-        raise InvalidFramework('The first column contained an empty cell (this probably indicates that a "code name" was left empty')
+        raise InvalidFramework('The first column contained an empty cell (this probably indicates that a "code name" was left empty)')
 
     if not df.index.is_unique:
         raise InvalidFramework(f'Row indices are not unique. The duplicate items are {set(df.index[df.index.duplicated()])}')

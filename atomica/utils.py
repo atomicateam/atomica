@@ -23,6 +23,20 @@ from tqdm import tqdm
 import sciris as sc
 from .system import logger
 
+__all__ = [
+    'NamedItem',
+    'NDict',
+    'TimeSeries',
+    'Quiet',
+    'parent_dir',
+    'evaluate_plot_string',
+    'format_duration',
+    'nested_loop',
+    'fast_gitinfo',
+    'datetime_to_year',
+    'parallel_progress',
+    'start_logging',
+]
 
 def parent_dir() -> Path:
     """
@@ -113,7 +127,7 @@ class NDict(sc.odict):
         return self[new]
 
 
-class TimeSeries(object):
+class TimeSeries():
     """
     Class to store time-series data
 

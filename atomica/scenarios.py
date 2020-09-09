@@ -25,6 +25,7 @@ from .programs import ProgramInstructions, ProgramSet
 from .parameters import ParameterSet
 from .results import Result
 
+__all__ = ['Scenario', 'CombinedScenario', 'BudgetScenario', 'CoverageScenario', 'ParameterScenario']
 
 class Scenario(NamedItem):
     """

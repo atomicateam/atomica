@@ -16,6 +16,7 @@ from .system import logger
 from .system import FrameworkSettings as FS
 import pandas as pd
 
+__all__ = ['reconcile']
 
 def _extract_targets(result, progset, ti, eval_pars=None):
     # Store the target parset values in the same form as the progset computed parameter values

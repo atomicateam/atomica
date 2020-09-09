@@ -76,7 +76,7 @@ jobs:
       displayName: 'Install dependencies'
     - script: |
         mkdir doc_build
-        sphinx-build "docs" "doc_build/$(Build.SourceBranchName)"
+        sphinx-build "docs" "doc_build/$(Build.SourceBranchName)" -j2
       displayName: 'Build documentation'
     - script: |
         git clone --depth 1 https://github.com/atomicateam/docs doc_repo

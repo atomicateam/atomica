@@ -40,8 +40,10 @@ import logging
 from datetime import timezone
 import functools
 
+__all__ = ['ProjectSettings', 'Project']
 
-class ProjectSettings(object):
+
+class ProjectSettings():
     def __init__(self, sim_start=2000, sim_end=2035, sim_dt=0.25):
         self._sim_start = sim_start
         self._sim_dt = sim_dt
@@ -77,6 +79,7 @@ class ProjectSettings(object):
 
     @sim_dt.setter
     def sim_dt(self, sim_dt):
+        assert sim_dt > 0, 'Simulation timestep must be greater than 0'
         self._sim_dt = sim_dt
         self.sim_end = self.sim_end  # Call the setter function to change sim_end if it is no longer valid
 
@@ -157,7 +160,7 @@ class Project(NamedItem):
             self.framework = ProjectFramework(inputs=framework)
 
         # Define the structure sets
-        self.parsets = NDict()
+        self.parsets = NDict() #: Dictionary of :class:`ParameterSet` instances
         self.progsets = NDict()
         self.scens = NDict()
         self.optims = NDict()
@@ -568,7 +571,7 @@ class Project(NamedItem):
 
         return results
 
-    def calibrate(self, parset=None, adjustables=None, measurables=None, max_time=60, save_to_project=True, new_name=None,
+    def calibrate(self, parset=None, adjustables=None, measurables=None, max_time=60, save_to_project=False, new_name=None,
                   default_min_scale=0.0, default_max_scale=2.0, default_weight=1.0, default_metric="fractional") -> ParameterSet:
         """
         Method to perform automatic calibration.
@@ -617,8 +620,7 @@ class Project(NamedItem):
         for index, measurable in enumerate(measurables):
             if sc.isstring(measurable):  # Assume that a parameter name was passed in if not a tuple.
                 measurables[index] = (measurable, None, default_weight, default_metric)
-        new_parset = calibrate(project=self, parset=parset,
-                               pars_to_adjust=adjustables, output_quantities=measurables, max_time=max_time)
+        new_parset = calibrate(project=self, parset=parset,pars_to_adjust=adjustables, output_quantities=measurables, max_time=max_time)
         new_parset.name = new_name  # The new parset is a calibrated copy of the old, so change id.
         if save_to_project:
             self.parsets.append(new_parset)
