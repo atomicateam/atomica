@@ -2,7 +2,7 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
-## [1.21.4] - 2020-09-09
+## [1.22.0] - 2020-09-09
 
 - Update documentation to support Sphinx 3
 - Added `__all__` variables to modules so that module variables are no longer accidentally imported into the top-level Atomica module. 
