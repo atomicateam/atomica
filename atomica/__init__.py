@@ -72,6 +72,7 @@ from .demo import *
 from .framework import *
 from .function_parser import *
 from .migration import migrations, register_migration
+from .model import *
 from .optimization import *
 from .parameters import *
 from .plotting import *

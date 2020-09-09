@@ -78,6 +78,7 @@ __all__ = [
     'get_cascade_vals',
     'cascade_summary',
     'get_cascade_data',
+    'CascadeEnsemble',
 ]
 
 class InvalidCascade(Exception):
