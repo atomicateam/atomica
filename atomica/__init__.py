@@ -68,7 +68,7 @@ pd.set_option('mode.chained_assignment', None)
 from .calibration import *
 from .cascade import *
 from .data import *
-from .demo import *
+from .demos import *
 from .framework import *
 from .function_parser import *
 from .migration import migrations, register_migration

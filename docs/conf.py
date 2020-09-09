@@ -65,6 +65,12 @@ intersphinx_mapping = {
 autosummary_generate = True  # Turn on sphinx.ext.autosummary
 autoclass_content = "both"  # Add __init__ doc (ie. params) to class summaries
 html_show_sourcelink = False  # Remove 'view source code' from top of page (for html, not python)
+# autodoc_default_options = {
+#     'members': False,
+#     'private-members': False,
+#     'undoc-members': False,
+#     'ignore-module-all': False,
+# }
 
 # Configure nbsphinx
 nbsphinx_kernel_name = 'python'

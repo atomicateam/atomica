@@ -117,45 +117,55 @@ class PlotData:
     and operators ``+`` and ``*`` are not implemented because these operations rarely make sense
     for the data being operated on.
 
-    :param results: which results to plot. Can be
-                  - a Result,
-                  - a list of Results,
-                  - a dict/odict of results (the name of the result is taken from the Result, not the dict)
+    :param results: Specify which results to plot. Can be
+
+        - a Result,
+        - a list of Results,
+        - a dict/odict of results (the name of the result is taken from the Result, not the dict)
+
     :param outputs: The name of an output compartment, characteristic, or
                       parameter, or list of names. Inside a list, a dict can be given to
                       specify an aggregation e.g. ``outputs=['sus',{'total':['sus','vac']}]``
                       where the key is the new name. Or, a formula can be given which will
                       be evaluated by looking up labels within the model object. Links will
                       automatically be summed over
+
     :param pops: The name of an output population, or list of names. Like
                  outputs, can specify a dict with a list of pops to aggregate over them
-    :param output_aggregation: If an output aggregation is requested, combine
-                                the outputs listed using one of
-                                  - 'sum' - just add values together
-                                  - 'average' - unweighted average of quantities
-                                  - 'weighted' - weighted average where the weight is the
-                                    compartment size, characteristic value, or link source
-                                    compartment size (summed over duplicate links). 'weighted'
-                                    method cannot be used with non-transition parameters and a
-                                    KeyError will result in that case
+
+    :param output_aggregation: If an output aggregation is requested, combine the outputs listed using one of
+
+          - 'sum' - just add values together
+          - 'average' - unweighted average of quantities
+          - 'weighted' - weighted average where the weight is the
+            compartment size, characteristic value, or link source
+            compartment size (summed over duplicate links). 'weighted'
+            method cannot be used with non-transition parameters and a
+            KeyError will result in that case
+
     :param pop_aggregation: Same as output_aggregation, except that 'weighted'
                               uses population sizes. Note that output aggregation is performed
                               before population aggregation. This also means that population
                               aggregation can be used to combine already aggregated outputs (e.g.
                               can first sum 'sus'+'vac' within populations, and then take weighted
                               average across populations)
+
     :param project: Optionally provide a :class:`Project` object, which will be used to convert names to labels in the outputs for plotting.
+
     :param time_aggregation: Optionally specify time aggregation method. Supported methods are 'integrate' and 'average' (no weighting). When aggregating
                                 times, *non-annualized* flow rates will be used.
+
     :param t_bins: Optionally specify time bins, which will enable time aggregation. Supported inputs are
+
                       - A vector of bin edges. Time points are included if the time
                         is >= the lower bin value and < upper bin value.
                       - A scalar bin size (e.g. 5) which will be expanded to a vector spanning the data
-                      - The string 'all' will maps to bin edges `[-inf, inf]` aggregating over all time
+                      - The string 'all' will maps to bin edges ``[-inf, inf]`` aggregating over all time
+
     :param accumulate: Optionally accumulate outputs over time. Can be 'sum' or 'integrate' to either sum quantities or integrate by multiplying by the timestep. Accumulation happens *after* time aggregation.
-                   The logic is extremely simple - the quantities in the Series pass through `cumsum`. If 'integrate' is selected, then the quantities are multiplied
-                   by `dt` and the units are multiplied by `years`
-    :return: A `PlotData` instance that can be passed to :func:`plot_series` or :func:`plot_bars`
+                   The logic is extremely simple - the quantities in the Series pass through ``cumsum``. If 'integrate' is selected, then the quantities are multiplied
+                   by ``dt`` and the units are multiplied by ``years``
+    :return: A :class:`PlotData` instance that can be passed to :func:`plot_series` or :func:`plot_bars`
 
     .. automethod:: __getitem__
 

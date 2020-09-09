@@ -6,7 +6,7 @@ This file records changes to the codebase grouped by version release. Unreleased
 
 - Update documentation to support Sphinx 3
 - Added `__all__` variables to modules so that module variables are no longer accidentally imported into the top-level Atomica module. 
-- Renamed `defaults.py` module `demo.py`
+- Renamed `defaults.py` module `demos.py`
 
 *Backwards-compatibility notes*
 

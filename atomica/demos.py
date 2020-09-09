@@ -1,6 +1,8 @@
 """
 Defines some defaults for Atomica projects
+
 Version: 2018sep24
+
 """
 
 import sciris as sc
@@ -19,6 +21,7 @@ def demo(which: str = None, do_run: bool = True, addprogs: bool = True) -> Proje
     :param do_run: If True, run the model and store a set of results
     :param addprogs: If True, load the progbook and create program scenarios
     :return: A Project instance
+
     """
 
     options = [

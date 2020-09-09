@@ -60,6 +60,7 @@
    :toctree:
    :template: custom-module-template.rst
    :recursive:
+   :nosignatures:
 {% for item in modules %}
    {{ item }}
 {%- endfor %}

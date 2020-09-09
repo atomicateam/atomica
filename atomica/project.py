@@ -160,7 +160,7 @@ class Project(NamedItem):
             self.framework = ProjectFramework(inputs=framework)
 
         # Define the structure sets
-        self.parsets = NDict()
+        self.parsets = NDict() #: Dictionary of :class:`ParameterSet` instances
         self.progsets = NDict()
         self.scens = NDict()
         self.optims = NDict()
