@@ -11,6 +11,7 @@ import sciris as sc
 from .model import BadInitialization
 from .system import logger
 from .parameters import ParameterSet
+import logging
 
 __all__ = ['calibrate']
 
@@ -205,6 +206,12 @@ def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, 
 
             if max_time is not None:
                 optim_args['maxtime'] = max_time
+
+            log_level = logger.getEffectiveLevel()
+            if log_level < logging.WARNING:
+                optim_args['verbose'] = 2
+            else:
+                optim_args['verbose'] = 0
 
             opt_result = sc.asd(_calculate_objective, x0, args, **optim_args)
             x1 = opt_result['x']

@@ -15,6 +15,7 @@ import sciris as sc
 from .system import logger
 from .system import FrameworkSettings as FS
 import pandas as pd
+import logging
 
 __all__ = ['reconcile']
 
@@ -281,6 +282,12 @@ def reconcile(project, parset, progset, reconciliation_year: float, max_time=10,
         'verbose': 2,  # default verbosity
         'maxtime': max_time,
     }
+
+    log_level = logger.getEffectiveLevel()
+    if log_level < logging.WARNING:
+        optim_args['verbose'] = 2
+    else:
+        optim_args['verbose'] = 0
 
     opt_result = sc.asd(_objective, x0, args, **optim_args)
     x_opt = opt_result['x']
