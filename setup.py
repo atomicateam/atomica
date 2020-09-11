@@ -44,7 +44,6 @@ setup(
         'numpy>=1.10.1',
         'scipy>=1.2.1',
         'pandas',
-        'six>=1.11.0',
         'xlsxwriter',
         'openpyxl',
         'pyswarm',

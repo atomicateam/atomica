@@ -77,7 +77,7 @@ nbsphinx_kernel_name = 'python'
 nbsphinx_timeout = -1 # Disable timeout for slow cells
 nbsphinx_execute_arguments = [
     "--InlineBackend.figure_formats={'svg', 'pdf'}",
-    "--InlineBackend.rc={'figure.dpi': 96}",
+    "--InlineBackend.rc=figure.dpi=96",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
