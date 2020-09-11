@@ -2,6 +2,10 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.22.1] - 2020-09-11
+
+- Added log level commands to `calibrate()` and `reconcile()` so that they respect `at.Quiet()` in the same way as `optimize()` already does.
+
 ## [1.22.0] - 2020-09-09
 
 - Update documentation to support Sphinx 3
