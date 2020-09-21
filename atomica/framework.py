@@ -38,7 +38,7 @@ class ProjectFramework():
 
     """
 
-    def __init__(self, inputs=None, name: str = None):
+    def __init__(self, inputs=None, name: str = None, validate: bool = True):
         import openpyxl
 
         # Define metadata
@@ -85,8 +85,8 @@ class ProjectFramework():
                 else:
                     if len(df.columns):
                         df.columns = df.columns.str.lower()
-
-        self._validate()
+        if validate:
+            self._validate()
         if name is not None:
             self.name = name
 
