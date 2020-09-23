@@ -183,8 +183,6 @@ class Variable():
 
         return
 
-    def unlink(self):
-        self.pop = self.pop.name
 
     def relink(self, objs):
         self.pop = objs[self.pop]
@@ -234,10 +232,6 @@ class Compartment(Variable):
         self.inlinks = []
         self._cached_outflow = None
 
-    def unlink(self):
-        Variable.unlink(self)
-        self.outlinks = [x.id for x in self.outlinks]
-        self.inlinks = [x.id for x in self.inlinks]
 
     def relink(self, objs):
         Variable.relink(self, objs)
@@ -756,11 +750,6 @@ class TimedCompartment(Compartment):
     def duration_group(self):
         return self.parameter.name
 
-    def unlink(self):
-        Compartment.unlink(self)
-        if self.flush_link:
-            self.flush_link = self.flush_link.id
-
     def relink(self, objs):
         # Given a dictionary of objects, restore the internal references
         Compartment.relink(self, objs)
@@ -1024,11 +1013,6 @@ class Characteristic(Variable):
         if self.denominator is not None:
             self.denominator.set_dynamic()
 
-    def unlink(self):
-        Variable.unlink(self)
-        self.includes = [x.id for x in self.includes]
-        self.denominator = self.denominator.id if self.denominator is not None else None
-
     def relink(self, objs):
         # Given a dictionary of objects, restore the internal references
         Variable.relink(self, objs)
@@ -1187,16 +1171,18 @@ class Parameter(Variable):
         if not self._is_dynamic:
             self._precompute = True
 
-    def unlink(self):
-        Variable.unlink(self)
-        self.links = [x.id for x in self.links]
-        if self.deps is not None:
-            for dep_name in self.deps:
-                self.deps[dep_name] = [x.id for x in self.deps[dep_name]]
-        if self._fcn is not None:
-            self._fcn = None
+    def __getstate__(self):
+        d = self.__dict__
+        d['_fcn'] = None
+        return d
+
+    def __setstate__(self, d):
+        self.__dict__ = d
+        if self.fcn_str:
+            self._fcn = parse_function(self.fcn_str)[0]
 
     def relink(self, objs):
+        # Relink is provided for backwards compatibility
         # Given a dictionary of objects, restore the internal references
         Variable.relink(self, objs)
         self.links = [objs[x] for x in self.links]
@@ -1386,14 +1372,6 @@ class Link(Variable):
 
         self.vals[key] = value
 
-    def unlink(self):
-        Variable.unlink(self)
-        if self.parameter is not None:
-            # Flush links have their values computed from a compartment rather than a parameter
-            # So it is possible to have a transition/Link without an associated parameter
-            self.parameter = self.parameter.id
-        self.source = self.source.id
-        self.dest = self.dest.id
 
     def relink(self, objs):
         # Given a dictionary of objects, restore the internal references
@@ -1568,21 +1546,9 @@ class Population():
         self.popsize_cache_time = None
         self.popsize_cache_val = None
 
-        self.is_linked = True  # Flag to manage double unlinking/relinking
 
     def __repr__(self):
         return '%s "%s"' % (self.__class__.__name__, self.name)
-
-    def unlink(self):
-        if not self.is_linked:
-            return
-        for obj in self.comps + self.characs + self.pars + self.links:
-            obj.unlink()
-        self.comp_lookup = None
-        self.charac_lookup = None
-        self.par_lookup = None
-        self.link_lookup = None
-        self.is_linked = False
 
     def relink(self, objs):
         if self.is_linked:
@@ -1979,32 +1945,6 @@ class Model():
 
         self.build(parset)
 
-    def unlink(self) -> None:
-        """
-        Replace references with IDs
-
-        This method replaces all references with IDs so that there are no circular references
-        that prevent pickling. This operation is reversed using ``Model.relink()``. These get
-        called automatically when pickling and unpickling.
-
-        Note that primary storage of the variables is in the population objects, so that is the
-        one place where the variables remain in-scope.
-
-        """
-
-        # If we are already unlinked, do nothing
-        if self._vars_by_pop is None:
-            return
-
-        for pop in self.pops:
-            pop.unlink()
-
-        # Drop this, it gets set by self._set_vars_by_pop()
-        self._vars_by_pop = None
-
-        # Drop caches - these get set again inside `model.process()`
-        self._program_cache = None
-        self._exec_order = None
 
     def relink(self) -> None:
         """
@@ -2082,27 +2022,6 @@ class Model():
             for var in pop.comps + pop.characs + pop.pars + pop.links:
                 self._vars_by_pop[var.name].append(var)
         self._vars_by_pop = dict(self._vars_by_pop)  # Stop new entries from appearing in here by accident
-
-    def __getstate__(self):
-        self.unlink()
-        d = sc.dcp(self.__dict__)  # Pickling to string results in a copy
-        self.relink()  # Relink, otherwise the original object gets unlinked
-        return d
-
-    def __setstate__(self, d):
-        self.__dict__ = d
-        self.relink()
-
-    def __deepcopy__(self, memodict={}):
-        # Using dcp(self.__dict__) is faster than pickle getstate/setstate
-        # when this is called via copy.deepcopy()
-        self.unlink()
-        d = sc.dcp(self.__dict__)
-        self.relink()
-        new = Model.__new__(Model)
-        new.__dict__.update(d)
-        new.relink()
-        return new
 
     def get_pop(self, pop_name):
         """ Allow model populations to be retrieved by name rather than index. """
