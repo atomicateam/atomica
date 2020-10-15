@@ -85,6 +85,8 @@ supported_functions = {
     'TGT_POP_AVG': None,
     'SRC_POP_SUM': None,
     'TGT_POP_SUM': None,
+    'STITCH_AVG': None,
+    'STITCH_SUM': None,
     'pi': np.pi,
     'cos': np.cos,
     'sin': np.sin,
