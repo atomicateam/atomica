@@ -21,12 +21,13 @@ from .system import logger
 from .utils import format_duration
 from .version import version, gitinfo
 
+__all__ = ['InvalidFramework', 'ProjectFramework', 'generate_framework_doc']
 
 class InvalidFramework(Exception):
     pass
 
 
-class ProjectFramework(object):
+class ProjectFramework():
     """
     Base Framework class
 
@@ -1119,7 +1120,7 @@ class ProjectFramework(object):
                     message = 'No compartments or characteristics appear in the databook, which means it is not possible to initialize the simulation. Please assign at least some of the compartments and/or characteristics to a databook page.'
                 else:
                     message = 'No compartments or characteristics have a setup weight (either because they do not appear in the databook, or the setup weight has been explicitly set to zero) - cannot initialize simulation. Please change some of the setup weights to be nonzero'
-                raise Exception(message)
+                logger.debug(message)
 
             A = np.zeros((len(characs), len(comps)))
             for i, charac in enumerate(characs):
@@ -1386,7 +1387,7 @@ def _sanitize_dataframe(df: pd.DataFrame, required_columns: list, defaults: dict
         df.set_index(set_index, inplace=True)
 
     if any(df.index.isnull()):
-        raise InvalidFramework('The first column contained an empty cell (this probably indicates that a "code name" was left empty')
+        raise InvalidFramework('The first column contained an empty cell (this probably indicates that a "code name" was left empty)')
 
     if not df.index.is_unique:
         raise InvalidFramework(f'Row indices are not unique. The duplicate items are {set(df.index[df.index.duplicated()])}')

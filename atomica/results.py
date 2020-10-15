@@ -23,6 +23,7 @@ from .utils import NamedItem, evaluate_plot_string, nested_loop
 from .function_parser import parse_function
 from .version import version, gitinfo
 
+__all__ = ['Result','export_results','Ensemble']
 
 class Result(NamedItem):
     """

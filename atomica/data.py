@@ -22,6 +22,7 @@ from collections import defaultdict
 
 _DEFAULT_PROVENANCE = 'Framework-supplied default'
 
+__all__ = ['ProjectData']
 
 class ProjectData(sc.prettyobj):
     """

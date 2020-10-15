@@ -121,8 +121,33 @@ def test_junction_remainder():
     assert res.get_variable('s2')[0].vals[1] == 30 + 0.3 * 200 * P.settings.sim_dt
     assert res.get_variable('j1:j2')[0].vals[1] == 0.1 * 200 * P.settings.sim_dt
 
+def test_junction_remainder_2():
+    F = at.ProjectFramework(testdir / "framework_junction_remainder_test_2.xlsx")
+    D = at.ProjectData.new(F, [2018], pops=1, transfers=0)
+
+    P = at.Project(name="test", framework=F, databook=D.to_spreadsheet(), do_run=True)
+    res = P.results[0]
+
+    # Initial flush
+    assert res.get_variable('a1')[0].vals[0] == 20
+    assert res.get_variable('b1')[0].vals[0] == 60
+    assert res.get_variable('c1')[0].vals[0] == 20
+
+    assert res.get_variable('a2')[0].vals[0] == 10
+    assert res.get_variable('b2')[0].vals[0] == 30
+    assert res.get_variable('c2')[0].vals[0] == 60
+
+    assert res.get_variable('a3')[0].vals[0] == 100/3
+    assert res.get_variable('b3')[0].vals[0] == 100/3
+    assert res.get_variable('c3')[0].vals[0] == 100/3
+
+    assert res.get_variable('a4')[0].vals[0] == 50
+    assert res.get_variable('b4')[0].vals[0] == 50
+    assert res.get_variable('c4')[0].vals[0] == 0
+
 
 if __name__ == '__main__':
-    # test_junctions()
-    # test_only_junctions()
+    test_junctions()
+    test_only_junctions()
     test_junction_remainder()
+    test_junction_remainder_2()

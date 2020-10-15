@@ -21,8 +21,10 @@ from .excel import standard_formats, apply_widths, update_widths, read_tables, T
 from .system import logger, FrameworkSettings as FS
 from .utils import NamedItem, TimeSeries
 
+__all__ = ['ProgramInstructions', 'ProgramSet', 'Program', 'Covout']
 
-class ProgramInstructions(object):
+
+class ProgramInstructions():
     """
     Store instructions for applying programs
 
@@ -129,7 +131,7 @@ class ProgramInstructions(object):
         for ts in new.alloc.values():
             ts.vals = [x * scale_factor for x in ts.vals]
             ts.assumption = ts.assumption * scale_factor if ts.assumption is not None else None
-            ts.uncertainty = ts.sigma * scale_factor if ts.sigma is not None else None
+            ts.sigma = ts.sigma * scale_factor if ts.sigma is not None else None
         return new
 
 
@@ -1297,7 +1299,7 @@ class Program(NamedItem):
         return prop_covered
 
 
-class Covout(object):
+class Covout():
     """
     Store and compute program outcomes
 
