@@ -1,5 +1,3 @@
-# Test safe division in function_parser
-
 import numpy as np
 import atomica as at
 

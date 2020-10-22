@@ -1393,7 +1393,7 @@ class Link(Variable):
             # So it is possible to have a transition/Link without an associated parameter
             self.parameter = self.parameter.id
         self.source = self.source.id
-        self.dest = self.destve.id
+        self.dest = self.dest.id
 
     def relink(self, objs):
         # Given a dictionary of objects, restore the internal references
