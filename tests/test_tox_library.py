@@ -233,6 +233,6 @@ def test_model(model):
 if __name__ == '__main__':
 
     np.seterr(all='raise')
-    models = ['combined']
+    models = ['sir']
     for m in models:
         test_model(m)
