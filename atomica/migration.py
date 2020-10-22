@@ -449,7 +449,6 @@ def _rename_capacity_constraint(progset):
 
 @migration('Result', '1.0.27', '1.0.28', 'Rename link labels')
 def _rename_link_labels(result):
-    result.model.relink()
     for pop in result.model.pops:
         for link in pop.links:
             link.id = link.id[0:3] + (link.parameter.name + ':flow',)
@@ -702,6 +701,7 @@ def _add_framework_timed_comps(fw):
 
 @migration('Result', '1.12.2', '1.13.0', 'Timed compartment updates to result')
 def _add_result_timed_attribute(result):
+    result.model.unlink()
     for pop in result.model.pops:
         for i, comp in enumerate(pop.comps):
             if comp.tag_birth:
@@ -765,12 +765,6 @@ def _framework_transitions_defaultdict(proj):
         fw.transitions = defaultdict(list, fw.transitions)
     return proj
 
-@migration('Result', '1.23.0', '1.23.1', 'Models no longer unlink/relink')
-def _relink_legacy_result(result):
-    result.model.relink() # Do a one-off relink
-    for pop in result.model.pops:
-        del pop.is_linked
-    return result
 
 @migration('ProgramSet', '1.23.1', '1.23.2', 'ProgramSet records all compartments including non-targetable ones')
 def _add_progset_non_targetable_flag(progset):
