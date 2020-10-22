@@ -19,6 +19,7 @@ def test_migration():
 
     P = at.Project.load(testdir / 'migration_test_with_scenarios.prj')
     results = P.run_scenarios()
+    P.progsets[0].save(tmpdir / 'migration_test_progbook_save')  # Save original databook
 
     P = at.Project.load(testdir / 'migration_test_with_result.prj')
     results = P.run_sim()

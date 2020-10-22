@@ -9,7 +9,6 @@ set of programs, respectively.
 
 import io
 from datetime import timezone
-from pathlib import Path
 
 import numpy as np
 import xlsxwriter as xw
@@ -20,6 +19,7 @@ import sciris as sc
 from .excel import standard_formats, apply_widths, update_widths, read_tables, TimeDependentValuesEntry, validate_category
 from .system import logger, FrameworkSettings as FS
 from .utils import NamedItem, TimeSeries
+from .version import version, gitinfo
 
 __all__ = ['ProgramInstructions', 'ProgramSet', 'Program', 'Covout']
 
@@ -154,6 +154,8 @@ class ProgramSet(NamedItem):
         assert data is not None, 'Must specify framework and data when instantiating a ProgramSet'
 
         NamedItem.__init__(self, name)
+        self.version = version  # Track versioning information for the result. This might change due to migration (whereas by convention, the model version does not)
+        self.gitinfo = gitinfo
 
         self.tvec = tvec  # This is the data tvec that will be used when writing the progset to a spreadsheet
 
@@ -169,9 +171,9 @@ class ProgramSet(NamedItem):
         self.comps = sc.odict()
         for _, spec in framework.comps.iterrows():
             if spec['is source'] == 'y' or spec['is sink'] == 'y' or spec['is junction'] == 'y':
-                continue
+                self.comps[spec.name] = {'label': spec['display name'], 'type': spec['population type'], 'non_targetable': True}
             else:
-                self.comps[spec.name] = {'label': spec['display name'], 'type': spec['population type']}
+                self.comps[spec.name] = {'label': spec['display name'], 'type': spec['population type'], 'non_targetable': False}
 
         # Get pars from framework
         self.pars = sc.odict()
@@ -190,6 +192,12 @@ class ProgramSet(NamedItem):
         self._book = None
         self._formats = None
         self._references = None
+
+    def __setstate__(self, d):
+        from .migration import migrate
+        self.__dict__ = d
+        progset = migrate(self)
+        self.__dict__ = progset.__dict__
 
     def __repr__(self):
         output = sc.prepr(self)
@@ -601,8 +609,13 @@ class ProgramSet(NamedItem):
         comp_block_offset = 2 + len(self.pops) + 1
         sheet.write(0, comp_block_offset, "Targeted to (compartments)", self._formats['rc_title']['left']['F'])
 
+        comps_in_use = set()
+        for prog in self.programs.values():
+            comps_in_use.update(prog.target_comps)
+        comps_to_write = {k:v for k,v in self.comps.items() if k in comps_in_use or not v['non_targetable']}
+
         pop_col = {n: i + pop_block_offset for i, n in enumerate(self.pops.keys())}
-        comp_col = {n: i + comp_block_offset for i, n in enumerate(self.comps.keys())}
+        comp_col = {n: i + comp_block_offset for i, n in enumerate(comps_to_write.keys())}
 
         # Write the header row
         sheet.write(1, 0, 'Abbreviation', self._formats["center_bold"])
@@ -615,7 +628,11 @@ class ProgramSet(NamedItem):
             self._references[spec['label']] = "='%s'!%s" % (sheet.name, xlrc(1, col, True, True))
             widths[col] = 12  # Wrap population names
 
-        for comp, spec in self.comps.items():
+
+
+        for comp, spec in comps_to_write.items():
+            if spec['non_targetable'] and not comp in comps_in_use:
+                continue
             col = comp_col[comp]
             sheet.write(1, col, spec['label'], self._formats['rc_title']['left']['T'])
             self._references[spec['label']] = "='%s'!%s" % (sheet.name, xlrc(1, col, True, True))
@@ -642,7 +659,7 @@ class ProgramSet(NamedItem):
                 sheet.conditional_format(xlrc(row, col), {'type': 'cell', 'criteria': 'equal to', 'value': '"Y"', 'format': self._formats['unlocked_boolean_true']})
                 # sheet.conditional_format(xlrc(row, col), {'type': 'cell', 'criteria': 'equal to', 'value': '"N"', 'format': self._formats['unlocked_boolean_false']})
 
-            for comp in self.comps.keys():
+            for comp in comps_to_write.keys():
                 col = comp_col[comp]
                 if comp in prog.target_comps:
                     sheet.write(row, col, 'Y', self._formats["center"])

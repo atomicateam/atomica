@@ -17,7 +17,6 @@ from distutils.version import LooseVersion
 from .system import logger
 from .version import version, gitinfo
 import sciris as sc
-from .results import Result
 from .system import FrameworkSettings as FS
 import atomica
 import types
@@ -227,6 +226,7 @@ def all_results(proj):
         do_stuff(result)
 
     """
+    from .results import Result
 
     for result in proj.results.values():
         if isinstance(result, list):
@@ -254,6 +254,7 @@ def all_progsets(proj):
         do_stuff(progset)
 
     """
+    from .results import Result
 
     for progset in proj.progsets.values():
         yield(progset)
@@ -280,6 +281,7 @@ def all_frameworks(proj):
     :return: A framework (via yield)
 
     """
+    from .results import Result
 
     if proj.framework:
         yield proj.framework
@@ -767,3 +769,13 @@ def _relink_legacy_result(result):
     for pop in result.model.pops:
         del pop.is_linked
     return result
+
+@migration('ProgramSet', '1.23.0', '1.23.1', 'ProgramSet records all compartments including non-targetable ones')
+def _add_progset_non_targetable_flag(progset):
+    for code_name, comp in progset.comps.items():
+        if not isinstance(comp, dict):
+            progset.comps[code_name] = {'label': comp, 'type': None}
+            comp = progset.comps[code_name]
+        if 'non_targetable' not in comp:
+            comp['non_targetable'] = False
+    return progset
