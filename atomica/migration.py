@@ -324,37 +324,34 @@ def _add_model_version(proj):
     return proj
 
 
-@migration('Project', '1.0.8', '1.0.9', 'Add currency and units to progset quantities')
-def _add_currency_and_units(proj):
+@migration('ProgramSet', '1.0.8', '1.0.9', 'Add currency and units to progset quantities')
+def _add_currency_and_units(progset):
 
-    def add_units(progset):
-        # Add in the default units
-        progset.currency = '$'
-        for program in progset.programs.values():
-            program.baseline_spend.units = progset.currency + '/year'
-            program.spend_data.units = progset.currency + '/year'
-            program.unit_cost.units = progset.currency + '/person'
-            program.capacity.units = 'people/year'
-            program.saturation.units = FS.DEFAULT_SYMBOL_INAPPLICABLE
-            program.coverage.units = 'people/year'
+    # If the progset was saved prior to 1.23, it would have no version but it might have already
+    # had these migrations applied. Therefore we need to check if they have already been run
+    if hasattr(progset, 'currency'):
+        return progset
 
-    for progset in all_progsets(proj):
-        add_units(progset)
+    progset.currency = '$'
+    for program in progset.programs.values():
+        program.baseline_spend.units = progset.currency + '/year'
+        program.spend_data.units = progset.currency + '/year'
+        program.unit_cost.units = progset.currency + '/person'
+        program.capacity.units = 'people/year'
+        program.saturation.units = FS.DEFAULT_SYMBOL_INAPPLICABLE
+        program.coverage.units = 'people/year'
 
-    return proj
+    return progset
 
 
-@migration('Project', '1.0.9', '1.0.10', 'Remove target_pars from Programs')
-def _remove_target_pars(proj):
+@migration('ProgramSet', '1.0.9', '1.0.10', 'Remove target_pars from Programs')
+def _remove_target_pars(progset):
 
-    def remove_pars(progset):
-        for program in progset.programs.values():
+    for program in progset.programs.values():
+        if hasattr(program, 'target_pars'):
             del program.target_pars
 
-    for progset in all_progsets(proj):
-        remove_pars(progset)
-
-    return proj
+    return progset
 
 
 @migration('Project', '1.0.10', '1.0.11', 'Add result update flag to Project')
@@ -441,13 +438,13 @@ def _convert_spreadsheets(proj):
     return proj
 
 
-@migration('Project', '1.0.16', '1.0.17', 'Rename capacity constraint')
-def _rename_capacity_constraint(proj):
-    for progset in all_progsets(proj):
-        for prog in progset.programs.values():
+@migration('ProgramSet', '1.0.16', '1.0.17', 'Rename capacity constraint')
+def _rename_capacity_constraint(progset):
+    for prog in progset.programs.values():
+        if hasattr(prog, 'capacity'):
             prog.capacity_constraint = prog.capacity
             del prog.capacity
-    return proj
+    return progset
 
 
 @migration('Result', '1.0.27', '1.0.28', 'Rename link labels')
@@ -535,6 +532,21 @@ def _replace_scenarios(proj):
     proj.scens = new_scens
     return proj
 
+@migration('ProgramSet', '1.2.0', '1.3.0', 'Add population type')
+def _add_pop_type_progset(progset):
+    for pop in progset.pops.keys():
+        if sc.isstring(progset.pops[pop]):
+            progset.pops[pop] = {'label': progset.pops[pop], 'type': FS.DEFAULT_POP_TYPE}
+
+    for comp in progset.comps.keys():
+        if sc.isstring(progset.comps[comp]):
+            progset.comps[comp] = {'label': progset.comps[comp], 'type': FS.DEFAULT_POP_TYPE}
+
+    for par in progset.pars.keys():
+        if sc.isstring(progset.pars[par]):
+            progset.pars[par] = {'label': progset.pars[par], 'type': FS.DEFAULT_POP_TYPE}
+            
+    return progset
 
 @migration('Project', '1.2.0', '1.3.0', 'Add population type')
 def _add_pop_type(proj):
@@ -564,16 +576,6 @@ def _add_pop_type(proj):
 
     for parset in proj.parsets.values():
         parset.pop_types = [pop['type'] for pop in proj.data.pops.values()]  # If there are parsets without data, then we don't know what pop types to add. Project is essentially incomplete and considered unusable
-
-    for progset in all_progsets(proj):
-        for pop in progset.pops.keys():
-            progset.pops[pop] = {'label': progset.pops[pop], 'type': FS.DEFAULT_POP_TYPE}
-
-        for comp in progset.comps.keys():
-            progset.comps[comp] = {'label': progset.comps[comp], 'type': FS.DEFAULT_POP_TYPE}
-
-        for par in progset.pars.keys():
-            progset.pars[par] = {'label': progset.pars[par], 'type': FS.DEFAULT_POP_TYPE}
 
     for result in all_results(proj):
         for pop in result.model.pops:
