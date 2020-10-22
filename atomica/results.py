@@ -664,11 +664,12 @@ def _programs_to_df(results, prog_name, tvals, time_aggregate = False):
         if result.used_programs and prog_name in result.model.progset.programs:
             programs_active = (result.model.program_instructions.start_year <= tvals) & (tvals <= result.model.program_instructions.stop_year)
 
-            out_quantities = {  'spending':'Spending ($/year)',
-                                'equivalent_spending': 'Equivalent spending ($/year)',
-                                'coverage_number': 'People covered (people/year)',
-                                'coverage_eligible': 'People eligible',
-                                'coverage_fraction': 'Proportion covered'}
+            out_quantities = {"spending": "Spending ($)" if time_aggregate else "Spending ($/year)",
+                              "equivalent_spending": "Equivalent spending ($)" if time_aggregate else "Equivalent spending ($/year)",
+                              "coverage_number": "People covered" if time_aggregate else "People covered (people/year)",
+                              "coverage_eligible": "People eligible",
+                              "coverage_fraction": "Proportion covered",
+                              }
 
             for quantity, label in out_quantities.items():
                 plot_data = PlotData.programs(result, outputs=prog_name, quantity=quantity)
