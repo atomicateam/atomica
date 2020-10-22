@@ -27,25 +27,25 @@ def test_no_compartments():
     P.settings.update_time_vector(dt=1)
 
     # Test a coverage scenario
-    res_parset = P.run_sim('default')
+    res_parset = P.run_sim("default")
 
     with pytest.raises(Exception):
         instructions = at.ProgramInstructions(2002)
         # Running a progset without compartments and without coverage in the instructions should result in an error
-        P.run_sim(parset='default', progset='default', progset_instructions=instructions, result_name='Baseline (no progset)')
+        P.run_sim(parset="default", progset="default", progset_instructions=instructions, result_name="Baseline (no progset)")
 
-    instructions = at.ProgramInstructions(2002, coverage={'treatment': 0.6})
-    res_progset = P.run_sim(parset='default', progset='default', progset_instructions=instructions, result_name='Increased treatment via progset')
+    instructions = at.ProgramInstructions(2002, coverage={"treatment": 0.6})
+    res_progset = P.run_sim(parset="default", progset="default", progset_instructions=instructions, result_name="Increased treatment via progset")
 
-    d = at.PlotData(results=[res_parset, res_progset], outputs=['deaths', {'Number treated': 'p_treat*n_infections'}])
-    at.plot_series(d, axis='results')
+    d = at.PlotData(results=[res_parset, res_progset], outputs=["deaths", {"Number treated": "p_treat*n_infections"}])
+    at.plot_series(d, axis="results")
 
     # Check the values at the end of the simulation are as expected
-    assert res_parset.get_variable('deaths')[0].vals[-1] == 40 * 0.1 + 60 * 0.4
-    assert res_progset.get_variable('deaths')[0].vals[-1] == 60 * 0.1 + 40 * 0.4
+    assert res_parset.get_variable("deaths")[0].vals[-1] == 40 * 0.1 + 60 * 0.4
+    assert res_progset.get_variable("deaths")[0].vals[-1] == 60 * 0.1 + 40 * 0.4
 
-    print('Test successfully completed')
+    print("Test successfully completed")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_no_compartments()

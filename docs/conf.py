@@ -7,11 +7,13 @@
 # http://www.sphinx-doc.org/en/master/config
 
 import matplotlib
-matplotlib.use('agg')
+
+matplotlib.use("agg")
 
 import os
 import sys
-sys.path.insert(0, os.path.abspath('../'))  # Source code dir relative to this file
+
+sys.path.insert(0, os.path.abspath("../"))  # Source code dir relative to this file
 
 # -- Path setup --------------------------------------------------------------
 
@@ -21,45 +23,43 @@ sys.path.insert(0, os.path.abspath('../'))  # Source code dir relative to this f
 #
 # -- Project information -----------------------------------------------------
 
-project = 'Atomica'
-copyright = '2020, Atomica Team'
-author = 'Atomica Team'
+project = "Atomica"
+copyright = "2020, Atomica Team"
+author = "Atomica Team"
 
 import atomica
+
 # The short X.Y version
 version = atomica.__version__
 # The full version, including alpha/beta/rc tags
-release = ''
+release = ""
 
 
 # -- General configuration ---------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
 #
-needs_sphinx = '3.0'
+needs_sphinx = "3.0"
 
 # Add any Sphinx extension moduale names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    'sphinx.ext.autodoc', # Core Sphinx library for auto html doc generation from docstrings
-    'sphinx.ext.autosummary', # Create neat summary tables for modules/classes/methods etc
-    'sphinx.ext.mathjax',
-    'sphinx.ext.viewcode', # Add a link to the Python source code for classes, functions etc.
-    'sphinx.ext.napoleon',
-    'sphinx.ext.autosectionlabel',
-    'sphinx_autodoc_typehints', # Automatically document param types (less noise in class signature)
-    'sphinx_markdown_tables',
-    'recommonmark',
-    'nbsphinx',
-    'sphinx.ext.intersphinx',  # Link to other project's documentation (see mapping below)
+    "sphinx.ext.autodoc",  # Core Sphinx library for auto html doc generation from docstrings
+    "sphinx.ext.autosummary",  # Create neat summary tables for modules/classes/methods etc
+    "sphinx.ext.mathjax",
+    "sphinx.ext.viewcode",  # Add a link to the Python source code for classes, functions etc.
+    "sphinx.ext.napoleon",
+    "sphinx.ext.autosectionlabel",
+    "sphinx_autodoc_typehints",  # Automatically document param types (less noise in class signature)
+    "sphinx_markdown_tables",
+    "recommonmark",
+    "nbsphinx",
+    "sphinx.ext.intersphinx",  # Link to other project's documentation (see mapping below)
 ]
 
 # Configure intersphinx
-intersphinx_mapping = {
-    "python": ("https://docs.python.org/3/", None),
-    "sciris": ("https://sciris.readthedocs.io/en/latest/", None)  # This doesn't really work though, because things are accessed via sciris.Spreadsheet not sciris.sc_file.Spreadsheet
-}
+intersphinx_mapping = {"python": ("https://docs.python.org/3/", None), "sciris": ("https://sciris.readthedocs.io/en/latest/", None)}  # This doesn't really work though, because things are accessed via sciris.Spreadsheet not sciris.sc_file.Spreadsheet
 
 # Configure autosummary
 autosummary_generate = True  # Turn on sphinx.ext.autosummary
@@ -73,26 +73,26 @@ html_show_sourcelink = False  # Remove 'view source code' from top of page (for 
 # }
 
 # Configure nbsphinx
-nbsphinx_kernel_name = 'python'
-nbsphinx_timeout = -1 # Disable timeout for slow cells
+nbsphinx_kernel_name = "python"
+nbsphinx_timeout = -1  # Disable timeout for slow cells
 nbsphinx_execute_arguments = [
     "--InlineBackend.figure_formats={'svg', 'pdf'}",
     "--InlineBackend.rc=figure.dpi=96",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates']
+templates_path = ["_templates"]
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', '**.ipynb_checkpoints']
-
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "**.ipynb_checkpoints"]
 
 
 # -- Options for HTML output -------------------------------------------------
 
 # Use RTD
 import sphinx_rtd_theme
+
 html_theme = "sphinx_rtd_theme"
 html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
