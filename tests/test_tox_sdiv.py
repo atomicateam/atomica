@@ -25,5 +25,5 @@ def test_sdiv():
     assert np.allclose(sdiv(np.array([[0, 0], [1, 1]]), np.array([[0, 1], [0, 1]])), np.array([[0, 0], [np.inf, 1]]), equal_nan=True)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     test_sdiv()

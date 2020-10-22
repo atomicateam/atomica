@@ -25,8 +25,7 @@ from .programs import ProgramInstructions, ProgramSet
 from .parameters import ParameterSet
 from .results import Result
 
-__all__ = ["Scenario", "CombinedScenario", "BudgetScenario", "CoverageScenario", "ParameterScenario"]
-
+__all__ = ['Scenario', 'CombinedScenario', 'BudgetScenario', 'CoverageScenario', 'ParameterScenario']
 
 class Scenario(NamedItem):
     """
@@ -124,7 +123,7 @@ class Scenario(NamedItem):
 
         if progset is not None:
             if instructions is None:
-                raise Exception("If using programs, the scenario must contain instructions specifying at minimum the program start year")
+                raise Exception('If using programs, the scenario must contain instructions specifying at minimum the program start year')
             result = project.run_sim(parset=parset, progset=progset, progset_instructions=instructions, result_name=self.name, store_results=store_results)
         else:
             result = project.run_sim(parset=parset, result_name=self.name, store_results=store_results)
@@ -151,7 +150,7 @@ class CombinedScenario(Scenario):
 
     """
 
-    def __init__(self, name: str = None, active: bool = True, parsetname: str = None, progsetname: str = None, scenario_values: dict = None, instructions: ProgramInstructions = None, interpolation: str = "linear"):
+    def __init__(self, name: str = None, active: bool = True, parsetname: str = None, progsetname: str = None, scenario_values: dict = None, instructions: ProgramInstructions = None, interpolation: str = 'linear'):
         super().__init__(name, active, parsetname, progsetname)
         self.scenario_values = scenario_values  #: Parameter scenario values (see :class:`ParameterScenario`)
         self.interpolation = interpolation  #: Interpolation method to use for parameter overwrite
@@ -169,6 +168,7 @@ class CombinedScenario(Scenario):
 
 
 class BudgetScenario(Scenario):
+
     def __init__(self, name=None, active: bool = True, parsetname: str = None, progsetname: str = None, alloc: dict = None, start_year=2019):
         super().__init__(name, active, parsetname, progsetname)
         self.start_year = start_year  # Program start year
@@ -179,6 +179,7 @@ class BudgetScenario(Scenario):
 
 
 class CoverageScenario(Scenario):
+
     def __init__(self, name=None, active: bool = True, parsetname: str = None, progsetname: str = None, coverage: dict = None, start_year=2019):
         super().__init__(name, active, parsetname, progsetname)
         self.start_year = start_year  # Program start year
@@ -218,7 +219,7 @@ class ParameterScenario(Scenario):
 
     """
 
-    def __init__(self, name: str = None, scenario_values: dict = None, active: bool = True, parsetname: str = None, interpolation: str = "linear"):
+    def __init__(self, name: str = None, scenario_values: dict = None, active: bool = True, parsetname: str = None, interpolation: str = 'linear'):
 
         super().__init__(name, active, parsetname)
         self.scenario_values = sc.dcp(scenario_values) if scenario_values is not None else dict()  #: Store dictionary containing the overwrite values
@@ -252,13 +253,13 @@ class ParameterScenario(Scenario):
         t = sc.promotetoarray(t).copy()
         y = sc.promotetoarray(y).copy()
 
-        assert len(t) == len(y), "To add an overwrite, the same number of time points and values must be provided"
+        assert len(t) == len(y), 'To add an overwrite, the same number of time points and values must be provided'
 
         if par_name not in self.scenario_values:
             self.scenario_values[par_name] = dict()
         if pop_name not in self.scenario_values[par_name]:
             self.scenario_values[par_name][pop_name] = dict()
-        self.scenario_values[par_name][pop_name] = {"t": t, "y": y}
+        self.scenario_values[par_name][pop_name] = {'t': t, 'y': y}
 
     def get_parset(self, parset: ParameterSet, project) -> ParameterSet:
         """
@@ -278,13 +279,13 @@ class ParameterScenario(Scenario):
         """
 
         new_parset = sc.dcp(parset)
-        new_parset.name = self.name + "_" + parset.name
+        new_parset.name = self.name + '_' + parset.name
         tvec = project.settings.tvec  # Simulation times
 
         for par_label in self.scenario_values.keys():
 
             if par_label in new_parset.pars:
-                has_function = project.framework.pars.at[par_label, "function"]  # Flag whether this is a function parameter in the framework
+                has_function = project.framework.pars.at[par_label, 'function']  # Flag whether this is a function parameter in the framework
             else:
                 has_function = False  # Interactions and transfers do not have functions
 
@@ -299,21 +300,21 @@ class ParameterScenario(Scenario):
 
                 # Sanitize the overwrite values
                 overwrite = sc.dcp(overwrite)
-                overwrite["t"] = sc.promotetoarray(overwrite["t"]).astype("float")  # astype('float') converts None to np.nan
-                overwrite["y"] = sc.promotetoarray(overwrite["y"]).astype("float")
-                idx = ~np.isnan(overwrite["t"]) & ~np.isnan(overwrite["y"])
+                overwrite['t'] = sc.promotetoarray(overwrite['t']).astype('float')  # astype('float') converts None to np.nan
+                overwrite['y'] = sc.promotetoarray(overwrite['y']).astype('float')
+                idx = ~np.isnan(overwrite['t']) & ~np.isnan(overwrite['y'])
                 if not np.any(idx):
                     continue
 
                 # Expand out the baseline values and remove any other values
-                scen_start = min(overwrite["t"])
+                scen_start = min(overwrite['t'])
                 vals = par.interpolate(tvec[tvec < scen_start], pop_label)  # Interpolate parameter onto valid sim times, using default interpolation. To override this, interpolate the parameter before calling ``ParameterScenario.get_parset()``
                 par.ts[pop_label].t = tvec[tvec < scen_start].tolist()
                 par.ts[pop_label].vals = vals.tolist()
 
                 # Insert the overwrites
-                assert len(overwrite["t"]) == len(overwrite["y"]), "Number of time points in overwrite does not match number of values"
-                for t, y in zip(overwrite["t"], overwrite["y"]):
+                assert len(overwrite['t']) == len(overwrite['y']), 'Number of time points in overwrite does not match number of values'
+                for t, y in zip(overwrite['t'], overwrite['y']):
                     par.ts[pop_label].insert(t, y)
                 par.smooth(tvec[tvec >= scen_start], pop_names=pop_label, method=self.interpolation)
 

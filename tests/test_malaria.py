@@ -6,18 +6,18 @@ from atomica.optimization import optimize
 
 # np.seterr('raise')
 
-F = at.ProjectFramework(at.LIBRARY_PATH / "malaria_framework.xlsx")
-P = at.Project(framework=F, sim_dt=1.0 / 365.0)
+F = at.ProjectFramework(at.LIBRARY_PATH / 'malaria_framework.xlsx')
+P = at.Project(framework=F, sim_dt=1. / 365.)
 
 # P.create_databook(databook_path=at.LIBRARY_PATH'malaria_databook.xlsx', num_pops=4, num_transfers=1, data_start=2010.)
-P.load_databook(at.LIBRARY_PATH / "malaria_databook.xlsx", do_run=False)
+P.load_databook(at.LIBRARY_PATH / 'malaria_databook.xlsx', do_run=False)
 
 # P.make_progbook(at.LIBRARY_PATH'malaria_progbook.xlsx', progs=17)
-P.load_progbook(at.LIBRARY_PATH / "malaria_progbook.xlsx" "")
+P.load_progbook(at.LIBRARY_PATH / 'malaria_progbook.xlsx''')
 
 instructions = at.ProgramInstructions(2018)
 
-res = P.run_sim("default", "default", instructions)
+res = P.run_sim('default', 'default', instructions)
 # P.save('malaria')
 P.plot(res)
 

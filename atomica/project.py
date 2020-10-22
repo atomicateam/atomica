@@ -40,10 +40,10 @@ import logging
 from datetime import timezone
 import functools
 
-__all__ = ["ProjectSettings", "Project"]
+__all__ = ['ProjectSettings', 'Project']
 
 
-class ProjectSettings:
+class ProjectSettings():
     def __init__(self, sim_start=2000, sim_end=2035, sim_dt=0.25):
         self._sim_start = sim_start
         self._sim_dt = sim_dt
@@ -75,11 +75,11 @@ class ProjectSettings:
     def sim_end(self, sim_end):
         self._sim_end = self.sim_start + np.ceil((sim_end - self.sim_start) / self.sim_dt) * self.sim_dt
         if sim_end != self._sim_end:
-            logger.warn(f"Changing sim end from {sim_end} to {self._sim_end} ({(self._sim_end - self._sim_start) / self._sim_dt:.0f} timesteps)")
+            logger.warn(f'Changing sim end from {sim_end} to {self._sim_end} ({(self._sim_end - self._sim_start) / self._sim_dt:.0f} timesteps)')
 
     @sim_dt.setter
     def sim_dt(self, sim_dt):
-        assert sim_dt > 0, "Simulation timestep must be greater than 0"
+        assert sim_dt > 0, 'Simulation timestep must be greater than 0'
         self._sim_dt = sim_dt
         self.sim_end = self.sim_end  # Call the setter function to change sim_end if it is no longer valid
 
@@ -154,13 +154,13 @@ class Project(NamedItem):
         if isinstance(framework, ProjectFramework):
             self.framework = framework
         elif framework is None:
-            logger.warning("Project was constructed without a Framework - a framework should be provided")
+            logger.warning('Project was constructed without a Framework - a framework should be provided')
             self.framework = None
         else:
             self.framework = ProjectFramework(inputs=framework)
 
         # Define the structure sets
-        self.parsets = NDict()  #: Dictionary of :class:`ParameterSet` instances
+        self.parsets = NDict() #: Dictionary of :class:`ParameterSet` instances
         self.progsets = NDict()
         self.scens = NDict()
         self.optims = NDict()
@@ -181,7 +181,7 @@ class Project(NamedItem):
         if framework and databook:
             self.load_databook(databook_path=databook, do_run=do_run)
         elif databook:
-            logger.warning("Project was constructed without a Framework - databook spreadsheet is being saved to project, but data is not being loaded")
+            logger.warning('Project was constructed without a Framework - databook spreadsheet is being saved to project, but data is not being loaded')
             self.databook = sc.Spreadsheet(databook)  # Just load the spreadsheet in so that it isn't lost
             self.data = None
         else:
@@ -191,23 +191,23 @@ class Project(NamedItem):
     def __repr__(self):
         """ Print out useful information when called """
         output = sc.objrepr(self)
-        output += "      Project name: %s\n" % self.name
-        output += "    Framework name: %s\n" % self.framework.name
-        output += "\n"
-        output += "    Parameter sets: %i\n" % len(self.parsets)
-        output += "      Program sets: %i\n" % len(self.progsets)
-        output += "         Scenarios: %i\n" % len(self.scens)
-        output += "     Optimizations: %i\n" % len(self.optims)
-        output += "      Results sets: %i\n" % len(self.results)
-        output += "\n"
-        output += "   Atomica version: %s\n" % self.version
-        output += "      Date created: %s\n" % sc.getdate(self.created.replace(tzinfo=timezone.utc).astimezone(tz=None), dateformat="%Y-%b-%d %H:%M:%S %Z")
-        output += "     Date modified: %s\n" % sc.getdate(self.modified.replace(tzinfo=timezone.utc).astimezone(tz=None), dateformat="%Y-%b-%d %H:%M:%S %Z")
+        output += '      Project name: %s\n' % self.name
+        output += '    Framework name: %s\n' % self.framework.name
+        output += '\n'
+        output += '    Parameter sets: %i\n' % len(self.parsets)
+        output += '      Program sets: %i\n' % len(self.progsets)
+        output += '         Scenarios: %i\n' % len(self.scens)
+        output += '     Optimizations: %i\n' % len(self.optims)
+        output += '      Results sets: %i\n' % len(self.results)
+        output += '\n'
+        output += '   Atomica version: %s\n' % self.version
+        output += '      Date created: %s\n' % sc.getdate(self.created.replace(tzinfo=timezone.utc).astimezone(tz=None), dateformat='%Y-%b-%d %H:%M:%S %Z')
+        output += '     Date modified: %s\n' % sc.getdate(self.modified.replace(tzinfo=timezone.utc).astimezone(tz=None), dateformat='%Y-%b-%d %H:%M:%S %Z')
         #        output += '  Datasheet loaded: %s\n' % sc.getdate(self.databookloaddate)
-        output += "        Git branch: %s\n" % self.gitinfo["branch"]
-        output += "          Git hash: %s\n" % self.gitinfo["hash"]
-        output += "               UID: %s\n" % self.uid
-        output += "============================================================\n"
+        output += '        Git branch: %s\n' % self.gitinfo['branch']
+        output += '          Git hash: %s\n' % self.gitinfo['hash']
+        output += '               UID: %s\n' % self.uid
+        output += '============================================================\n'
         return output
 
     # @property
@@ -261,9 +261,9 @@ class Project(NamedItem):
 
         # If there are existing progsets, make sure the new data is consistent with them
         if self.progsets:
-            data_pops = set((x, y["label"]) for x, y in data.pops.items())
+            data_pops = set((x, y['label']) for x, y in data.pops.items())
             for progset in self.progsets.values():
-                assert data_pops == set((x, y["label"]) for x, y in progset.pops.items()), "Existing progsets exist with populations that do not match the new databook"
+                assert data_pops == set((x, y['label']) for x, y in progset.pops.items()), 'Existing progsets exist with populations that do not match the new databook'
 
         self.data = data
         self.data.validate(self.framework)  # Make sure the data is suitable for use in the Project (as opposed to just manipulating the databook)
@@ -271,14 +271,15 @@ class Project(NamedItem):
         self.modified = sc.now(utc=True)
         self.settings.update_time_vector(start=self.data.start_year)  # Align sim start year with data start year.
 
-        if not (self.framework.comps["is source"] == "y").any():
+        if not (self.framework.comps['is source'] == 'y').any():
             self.settings.update_time_vector(end=self.data.end_year + 5.0)  # Project only forecasts 5 years if not dynamic (with births)
 
         if make_default_parset:
             self.make_parset(name="default")
         if do_run:
             if not make_default_parset:
-                logger.warning("Project has been requested to run a simulation after loading databook, " "despite no request to create a default parameter set.")
+                logger.warning("Project has been requested to run a simulation after loading databook, "
+                               "despite no request to create a default parameter set.")
             self.run_sim(parset="default", store_results=True)
 
     def make_parset(self, name="default"):
@@ -302,9 +303,9 @@ class Project(NamedItem):
 
         # Get filepath
         if self.data is None:
-            errormsg = "Please upload a databook before creating a program book. The databook defines which populations will appear in the program book."
+            errormsg = 'Please upload a databook before creating a program book. The databook defines which populations will appear in the program book.'
             raise Exception(errormsg)
-        full_path = sc.makefilepath(filename=progbook_path, default=self.name, ext="xlsx", makedirs=False)  # Directory will be created later in progset.save()
+        full_path = sc.makefilepath(filename=progbook_path, default=self.name, ext='xlsx', makedirs=False)  # Directory will be created later in progset.save()
         if data_start is None:
             data_start = self.data.tvec[0]
         if data_end is None:
@@ -324,11 +325,11 @@ class Project(NamedItem):
         """
 
         if self.data is None:
-            errormsg = "Please upload a databook before uploading a program book. The databook contains the population definitions required to read the program book."
+            errormsg = 'Please upload a databook before uploading a program book. The databook contains the population definitions required to read the program book.'
             raise Exception(errormsg)
 
         if sc.isstring(progbook_path):
-            full_path = sc.makefilepath(filename=progbook_path, default=self.name, ext="xlsx", makedirs=False)
+            full_path = sc.makefilepath(filename=progbook_path, default=self.name, ext='xlsx', makedirs=False)
             progbook_spreadsheet = sc.Spreadsheet(full_path)
         else:
             progbook_spreadsheet = progbook_path
@@ -339,7 +340,7 @@ class Project(NamedItem):
         self.progsets.append(progset)
         return progset
 
-    def make_scenario(self, which: str = "combined", **kwargs) -> Scenario:
+    def make_scenario(self, which: str = 'combined', **kwargs) -> Scenario:
         """
         Make new scenario and store in Project
 
@@ -349,7 +350,7 @@ class Project(NamedItem):
 
         """
 
-        types = {"parameter": ParameterScenario, "budget": BudgetScenario, "coverage": CoverageScenario, "combined": CombinedScenario}
+        types = {'parameter': ParameterScenario, 'budget': BudgetScenario, 'coverage': CoverageScenario, 'combined': CombinedScenario}
         scenario = types[which](**kwargs)
         self.scens.append(scenario)
         return scenario
@@ -359,7 +360,7 @@ class Project(NamedItem):
     #    #######################################################################################################
 
     def parset(self, key=None, verbose=2):
-        """ Shortcut for getting a parset """
+        ''' Shortcut for getting a parset '''
         if key is None:
             key = -1
         if isinstance(key, ParameterSet):
@@ -372,7 +373,7 @@ class Project(NamedItem):
                 return None
 
     def progset(self, key=None, verbose=2):
-        """ Shortcut for getting a progset """
+        ''' Shortcut for getting a progset '''
         if key is None:
             key = -1
         if isinstance(key, ProgramSet):
@@ -385,7 +386,7 @@ class Project(NamedItem):
                 return None
 
     def scen(self, key=None, verbose=2):
-        """ Shortcut for getting a scenario """
+        ''' Shortcut for getting a scenario '''
         if key is None:
             key = -1
         if isinstance(key, Scenario):
@@ -398,7 +399,7 @@ class Project(NamedItem):
                 return None
 
     def optim(self, key=None, verbose=2):
-        """ Shortcut for getting an optimization """
+        ''' Shortcut for getting an optimization '''
         if key is None:
             key = -1
         if isinstance(key, Optimization):
@@ -411,7 +412,7 @@ class Project(NamedItem):
                 return None
 
     def result(self, key=None, verbose=2):
-        """ Shortcut for getting an result -- a little special since they don't have a fixed type """
+        ''' Shortcut for getting an result -- a little special since they don't have a fixed type '''
         if key is None:
             key = -1
         if not sc.isstring(key) and not sc.isnumber(key) and not isinstance(key, tuple):
@@ -437,10 +438,11 @@ class Project(NamedItem):
     #######################################################################################################
 
     def plot(self, results=None, key=None, outputs=None, pops=None):
+
         def get_supported_plots():
-            df = self.framework.sheets["plots"][0]
+            df = self.framework.sheets['plots'][0]
             plots = sc.odict()
-            for name, output in zip(df["name"], df["quantities"]):
+            for name, output in zip(df['name'], df['quantities']):
                 plots[name] = evaluate_plot_string(output)
             return plots
 
@@ -456,10 +458,10 @@ class Project(NamedItem):
                 if not isinstance(list(output.values())[0], list):
                     output = list(output.values())[0]
                 plotdata = PlotData(results, outputs=output, project=self, pops=pops)
-                figs = plot_series(plotdata, axis="pops", plot_type="stacked", legend_mode="together")
+                figs = plot_series(plotdata, axis='pops', plot_type='stacked', legend_mode='together')
                 allfigs += figs
             except Exception as e:
-                print("WARNING, %s failed (%s)" % (output, str(e)))
+                print('WARNING, %s failed (%s)' % (output, str(e)))
         return allfigs
 
     def update_settings(self, sim_start=None, sim_end=None, sim_dt=None):
@@ -500,7 +502,8 @@ class Project(NamedItem):
                 k += 1
 
         tm = sc.tic()
-        result = run_model(settings=self.settings, framework=self.framework, parset=parset, progset=progset, program_instructions=progset_instructions, name=result_name)
+        result = run_model(settings=self.settings, framework=self.framework, parset=parset, progset=progset,
+                           program_instructions=progset_instructions, name=result_name)
         logger.info('Elapsed time for running "%s": %ss', self.name, sc.sigfig(sc.toc(tm, output=True), 3))
         if store_results:
             self.results.append(result)
@@ -545,9 +548,9 @@ class Project(NamedItem):
 
         if not result_names:
             if len(progset_instructions) > 1:
-                result_names = ["instructions_%d" % (i) for i in range(len(progset_instructions))]
+                result_names = ['instructions_%d' % (i) for i in range(len(progset_instructions))]
             else:
-                result_names = ["default"]
+                result_names = ['default']
         else:
             result_names = sc.promotetolist(result_names)
             assert (len(result_names) == 1 and not progset) or (len(progset_instructions) == len(result_names)), "Number of result names must match number of instructions"
@@ -568,7 +571,8 @@ class Project(NamedItem):
 
         return results
 
-    def calibrate(self, parset=None, adjustables=None, measurables=None, max_time=60, save_to_project=False, new_name=None, default_min_scale=0.0, default_max_scale=2.0, default_weight=1.0, default_metric="fractional") -> ParameterSet:
+    def calibrate(self, parset=None, adjustables=None, measurables=None, max_time=60, save_to_project=False, new_name=None,
+                  default_min_scale=0.0, default_max_scale=2.0, default_weight=1.0, default_metric="fractional") -> ParameterSet:
         """
         Method to perform automatic calibration.
 
@@ -602,11 +606,11 @@ class Project(NamedItem):
             parset = self.parsets[parset]
 
         if new_name is None:
-            new_name = parset.name + " (auto-calibrated)"
+            new_name = parset.name + ' (auto-calibrated)'
         if adjustables is None:
-            adjustables = list(self.framework.pars.index[~self.framework.pars["calibrate"].isnull()])
-            adjustables += list(self.framework.comps.index[~self.framework.comps["calibrate"].isnull()])
-            adjustables += list(self.framework.characs.index[~self.framework.characs["calibrate"].isnull()])
+            adjustables = list(self.framework.pars.index[~self.framework.pars['calibrate'].isnull()])
+            adjustables += list(self.framework.comps.index[~self.framework.comps['calibrate'].isnull()])
+            adjustables += list(self.framework.characs.index[~self.framework.characs['calibrate'].isnull()])
         if measurables is None:
             measurables = list(self.framework.comps.index)
             measurables += list(self.framework.characs.index)
@@ -616,7 +620,7 @@ class Project(NamedItem):
         for index, measurable in enumerate(measurables):
             if sc.isstring(measurable):  # Assume that a parameter name was passed in if not a tuple.
                 measurables[index] = (measurable, None, default_weight, default_metric)
-        new_parset = calibrate(project=self, parset=parset, pars_to_adjust=adjustables, output_quantities=measurables, max_time=max_time)
+        new_parset = calibrate(project=self, parset=parset,pars_to_adjust=adjustables, output_quantities=measurables, max_time=max_time)
         new_parset.name = new_name  # The new parset is a calibrated copy of the old, so change id.
         if save_to_project:
             self.parsets.append(new_parset)
@@ -640,7 +644,7 @@ class Project(NamedItem):
         return results
 
     def run_optimization(self, optimname=None, maxtime=None, maxiters=None, store_results=True):
-        """Run an optimization"""
+        '''Run an optimization'''
         optim_ins = self.optim(optimname)
         optim, unoptimized_instructions = optim_ins.make(project=self)
         if maxtime is not None:
@@ -650,12 +654,12 @@ class Project(NamedItem):
         parset = self.parset(optim.parsetname)
         progset = self.progset(optim.progsetname)
         original_end = self.settings.sim_end
-        self.settings.sim_end = optim_ins.json["end_year"]  # Simulation should be run up to the user's end year
+        self.settings.sim_end = optim_ins.json['end_year']  # Simulation should be run up to the user's end year
         try:
             optimized_instructions = optimize(self, optim, parset, progset, unoptimized_instructions)
         except InvalidInitialConditions:
-            if optim_ins.json["optim_type"] == "money":
-                raise Exception("It was not possible to achieve the optimization target even with an increased budget. Specify or raise upper limits for spending, or decrease the optimization target")
+            if optim_ins.json['optim_type'] == 'money':
+                raise Exception('It was not possible to achieve the optimization target even with an increased budget. Specify or raise upper limits for spending, or decrease the optimization target')
             else:
                 raise  # Just raise it as-is
 
@@ -677,7 +681,7 @@ class Project(NamedItem):
 
         """
 
-        fullpath = sc.makefilepath(filename=filename, folder=folder, default=[self.filename, self.name], ext="prj", sanitize=True)
+        fullpath = sc.makefilepath(filename=filename, folder=folder, default=[self.filename, self.name], ext='prj', sanitize=True)
         self.filename = fullpath
         sc.saveobj(fullpath, self)
         return fullpath
@@ -749,4 +753,4 @@ def _run_sampled_sim(proj, parset, progset, progset_instructions: list, result_n
             return results
         except BadInitialization:
             attempts += 1
-    raise Exception("Failed simulation after %d attempts - something might have gone wrong" % (max_attempts))
+    raise Exception('Failed simulation after %d attempts - something might have gone wrong' % (max_attempts))

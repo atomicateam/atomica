@@ -24,7 +24,7 @@ import numpy as np
 import pandas as pd
 from collections import defaultdict
 
-__all__ = ["migration", "migrate", "register_migration"]
+__all__ = ['migration', 'migrate', 'register_migration']
 
 SKIP_MIGRATION = False  # Global migration flag to disable migration
 
@@ -34,13 +34,13 @@ SKIP_MIGRATION = False  # Global migration flag to disable migration
 # to be loaded at all
 
 
-class _Placeholder:
+class _Placeholder():
     pass
 
 
 # First, add any placeholder modules that have been subsequently removed
-atomica.structure = types.ModuleType("structure")  # Removed 'structure' module in 1.0.12 20181107
-sys.modules["atomica.structure"] = atomica.structure
+atomica.structure = types.ModuleType('structure')  # Removed 'structure' module in 1.0.12 20181107
+sys.modules['atomica.structure'] = atomica.structure
 
 # Then, remap any required classes
 atomica.structure.TimeSeries = atomica.utils.TimeSeries  # Moved 'TimeSeries' in 1.0.12 20181107
@@ -62,7 +62,7 @@ atomica.optimization.OptimInstructions = _Placeholder
 
 
 class Migration:
-    """Class representation of a migration
+    """ Class representation of a migration
 
     This class stores a migration function together with all required metadata. It would
     normally be instantiated using the `migration` decorator, which also registers the
@@ -89,7 +89,7 @@ class Migration:
         self.fcn = fcn
 
     def upgrade(self, obj):
-        logger.debug("MIGRATION: Upgrading %s %s -> %s (%s)" % (self.classname, self.original_version, self.new_version, self.description))
+        logger.debug('MIGRATION: Upgrading %s %s -> %s (%s)' % (self.classname, self.original_version, self.new_version, self.description))
         obj = self.fcn(obj)  # Run the migration function
         if obj is None:
             raise Exception('Migration "%s" returned None, it is likely missing a return statement' % (str(self)))
@@ -99,11 +99,11 @@ class Migration:
         return obj
 
     def __repr__(self):
-        return "Migration(%s->%s)" % (self.original_version, self.new_version)
+        return 'Migration(%s->%s)' % (self.original_version, self.new_version)
 
 
 def register_migration(registry, classname, original_version, new_version, description, date=None, update_required=False):
-    """Decorator to register migration functions
+    """ Decorator to register migration functions
 
     This decorator constructs a `Migration` object from a decorated migration function, and registers it
     in the module's list of migrations to be run when calling migrate()
@@ -136,7 +136,6 @@ def register_migration(registry, classname, original_version, new_version, descr
             registry[classname] = []
         registry[classname].append(Migration(classname, original_version, new_version, description, fcn=f, date=date, update_required=update_required))
         return f
-
     return register
 
 
@@ -149,7 +148,7 @@ def migration(*args, **kwargs):
 
 
 def migrate(obj, registry=migrations, version=version, gitinfo=gitinfo):
-    """Update a object to the latest version
+    """ Update a object to the latest version
 
     Run all of the migrations in the list of available migrations. The migrations are run in ascending order, as long
     as the version is <= the migration's original version. This way, migrations don't need to be added if a version number
@@ -175,13 +174,13 @@ def migrate(obj, registry=migrations, version=version, gitinfo=gitinfo):
     if type(obj).__name__ not in registry:
         return obj  # If there are no migrations for the object, then return immediately
 
-    elif not hasattr(obj, "version"):
+    elif not hasattr(obj, 'version'):
         # If the object has no version attribute, then add one with version 0. This is presumably
         # because the original object didn't have a version, but now migrations for it are required.
         # In that case, any object that doesn't have a version would require all migrations to be run.
         # New objects would all have a version already. After any migrations are run, these values will
         # then be updated to the current version
-        obj.version = "0.0.0"
+        obj.version = '0.0.0'
         obj.gitinfo = None
 
     if SKIP_MIGRATION:
@@ -192,10 +191,10 @@ def migrate(obj, registry=migrations, version=version, gitinfo=gitinfo):
     if sc.compareversions(obj.version, version) >= 0:
         return obj
     else:
-        if hasattr(obj, "name"):
+        if hasattr(obj, 'name'):
             logger.info('Migrating %s "%s" from %s->%s', type(obj).__name__, obj.name, obj.version, version)
         else:
-            logger.info("Migrating %s from %s->%s", type(obj).__name__, obj.version, version)
+            logger.info('Migrating %s from %s->%s', type(obj).__name__, obj.version, version)
 
     for m in migrations_to_run:  # Run the migrations in increasing version order
         if sc.compareversions(obj.version, m.new_version) < 0:
@@ -203,13 +202,13 @@ def migrate(obj, registry=migrations, version=version, gitinfo=gitinfo):
 
     obj.version = version  # Set object version to the current Atomica version
     obj.gitinfo = gitinfo  # Update gitinfo to current version
-    if hasattr(obj, "_update_required") and obj._update_required:
-        logger.warning("Caution: due to migration, object may behave different if re-run.")
+    if hasattr(obj, '_update_required') and obj._update_required:
+        logger.warning('Caution: due to migration, object may behave different if re-run.')
     return obj
 
 
 def all_results(proj):
-    """Helper generator to iterate over all results in a project
+    """ Helper generator to iterate over all results in a project
 
     Project results may be
         - Standalone results
@@ -238,7 +237,7 @@ def all_results(proj):
 
 
 def all_progsets(proj):
-    """Helper generator to iterate over all progsets in a project
+    """ Helper generator to iterate over all progsets in a project
 
     Project progsets may be
         - Standalone progsets
@@ -258,7 +257,7 @@ def all_progsets(proj):
     from .results import Result
 
     for progset in proj.progsets.values():
-        yield (progset)
+        yield(progset)
 
     for result in proj.results.values():
         if isinstance(result, list):
@@ -270,7 +269,7 @@ def all_progsets(proj):
 
 
 def all_frameworks(proj):
-    """Helper generator to iterate over all frameworks in a project
+    """ Helper generator to iterate over all frameworks in a project
 
     Project frameworks may be
         - Standalone frameworks
@@ -295,7 +294,7 @@ def all_frameworks(proj):
             yield result.framework
 
 
-@migration("Project", "1.0.5", "1.0.6", "Simplify ParameterSet storage")
+@migration('Project', '1.0.5', '1.0.6', 'Simplify ParameterSet storage')
 def _simplify_parset_storage(proj):
     # ParameterSets in 1.0.5 store the parameters keyed by the type e.g. 'cascade','comp'
     # In 1.0.6 they are flat
@@ -309,7 +308,7 @@ def _simplify_parset_storage(proj):
     return proj
 
 
-@migration("Project", "1.0.7", "1.0.8", "Add version information to model")
+@migration('Project', '1.0.7', '1.0.8', 'Add version information to model')
 def _add_model_version(proj):
     # Note that this is a legacy update via the Project and therefore Results that
     # are stored separately will not receive this migration. It is unlikely that any
@@ -325,63 +324,63 @@ def _add_model_version(proj):
     return proj
 
 
-@migration("ProgramSet", "1.0.8", "1.0.9", "Add currency and units to progset quantities")
+@migration('ProgramSet', '1.0.8', '1.0.9', 'Add currency and units to progset quantities')
 def _add_currency_and_units(progset):
 
     # If the progset was saved prior to 1.23, it would have no version but it might have already
     # had these migrations applied. Therefore we need to check if they have already been run
-    if hasattr(progset, "currency"):
+    if hasattr(progset, 'currency'):
         return progset
 
-    progset.currency = "$"
+    progset.currency = '$'
     for program in progset.programs.values():
-        program.baseline_spend.units = progset.currency + "/year"
-        program.spend_data.units = progset.currency + "/year"
-        program.unit_cost.units = progset.currency + "/person"
-        program.capacity.units = "people/year"
+        program.baseline_spend.units = progset.currency + '/year'
+        program.spend_data.units = progset.currency + '/year'
+        program.unit_cost.units = progset.currency + '/person'
+        program.capacity.units = 'people/year'
         program.saturation.units = FS.DEFAULT_SYMBOL_INAPPLICABLE
-        program.coverage.units = "people/year"
+        program.coverage.units = 'people/year'
 
     return progset
 
 
-@migration("ProgramSet", "1.0.9", "1.0.10", "Remove target_pars from Programs")
+@migration('ProgramSet', '1.0.9', '1.0.10', 'Remove target_pars from Programs')
 def _remove_target_pars(progset):
 
     for program in progset.programs.values():
-        if hasattr(program, "target_pars"):
+        if hasattr(program, 'target_pars'):
             del program.target_pars
 
     return progset
 
 
-@migration("Project", "1.0.10", "1.0.11", "Add result update flag to Project")
+@migration('Project', '1.0.10', '1.0.11', 'Add result update flag to Project')
 def _add_result_update_flag(proj):
     proj._update_required = False
     return proj
 
 
-@migration("Project", "1.0.12", "1.0.13", "Add timescale to parameters")
+@migration('Project', '1.0.12', '1.0.13', 'Add timescale to parameters')
 def _add_timescale(proj):
     for _, spec in proj.framework.pars.iterrows():
         if proj.framework.transitions[spec.name]:
-            proj.framework.pars.at[spec.name, "timescale"] = 1.0  # Default timescale - note that currently only transition parameters are allowed to have a timescale that is not None
+            proj.framework.pars.at[spec.name, 'timescale'] = 1.0  # Default timescale - note that currently only transition parameters are allowed to have a timescale that is not None
 
-            if not spec["format"]:
+            if not spec['format']:
                 if not proj.data:
                     raise Exception('The Framework now needs to define the units for transition parameters, but the current one does not define units for Parameter "%s" and data was not saved either, so cannot infer the unit type. Please modify the Framework spreadsheet to add units' % (spec.name))
                 else:
                     # Get the units from the first ts associated with the table
                     units = set([x.units.lower().strip() for x in proj.data.tdve[spec.name].ts.values()])
                     if len(units) == 1:
-                        proj.framework.pars.at[spec.name, "format"] = list(units)[0]
+                        proj.framework.pars.at[spec.name, 'format'] = list(units)[0]
                     else:
                         raise Exception('Parameters must now have a single unit for all populations. However, the existing data has more than one unit type associated with Parameter "%s" so it is no longer valid.' % (spec.name))
 
     return proj
 
 
-@migration("Project", "1.0.13", "1.0.14", "Parameters use TimeSeries internally")
+@migration('Project', '1.0.13', '1.0.14', 'Parameters use TimeSeries internally')
 def _parameter_use_timeseries(proj):
     for parset in proj.parsets.values():
         for par in parset.all_pars():
@@ -406,7 +405,7 @@ def _parameter_use_timeseries(proj):
     return proj
 
 
-@migration("Project", "1.0.14", "1.0.15", "Internal model tidying")
+@migration('Project', '1.0.14', '1.0.15', 'Internal model tidying')
 def _model_tidying(proj):
     for result in all_results(proj):
         for pop in result.model.pops:
@@ -422,8 +421,9 @@ def _model_tidying(proj):
     return proj
 
 
-@migration("Project", "1.0.15", "1.0.16", "Replace AtomicaSpreadsheet")
+@migration('Project', '1.0.15', '1.0.16', 'Replace AtomicaSpreadsheet')
 def _convert_spreadsheets(proj):
+
     def convert(placeholder):
         new = sc.Spreadsheet(source=io.BytesIO(placeholder.data), filename=placeholder.filename)
         new.created = placeholder.load_date
@@ -438,26 +438,26 @@ def _convert_spreadsheets(proj):
     return proj
 
 
-@migration("ProgramSet", "1.0.16", "1.0.17", "Rename capacity constraint")
+@migration('ProgramSet', '1.0.16', '1.0.17', 'Rename capacity constraint')
 def _rename_capacity_constraint(progset):
     for prog in progset.programs.values():
-        if hasattr(prog, "capacity"):
+        if hasattr(prog, 'capacity'):
             prog.capacity_constraint = prog.capacity
             del prog.capacity
     return progset
 
 
-@migration("Result", "1.0.27", "1.0.28", "Rename link labels")
+@migration('Result', '1.0.27', '1.0.28', 'Rename link labels')
 def _rename_link_labels(result):
     result.model.relink()
     for pop in result.model.pops:
         for link in pop.links:
-            link.id = link.id[0:3] + (link.parameter.name + ":flow",)
+            link.id = link.id[0:3] + (link.parameter.name + ':flow',)
     result.model._set_vars_by_pop()
     return result
 
 
-@migration("Project", "1.0.30", "1.1.3", "Replace scenarios")
+@migration('Project', '1.0.30', '1.1.3', 'Replace scenarios')
 def _replace_scenarios(proj):
     # This migration upgrades existing scenarios to match the latest definitions
     from .scenarios import ParameterScenario, BudgetScenario, CoverageScenario
@@ -532,40 +532,38 @@ def _replace_scenarios(proj):
     proj.scens = new_scens
     return proj
 
-
-@migration("ProgramSet", "1.2.0", "1.3.0", "Add population type")
+@migration('ProgramSet', '1.2.0', '1.3.0', 'Add population type')
 def _add_pop_type_progset(progset):
     for pop in progset.pops.keys():
         if sc.isstring(progset.pops[pop]):
-            progset.pops[pop] = {"label": progset.pops[pop], "type": FS.DEFAULT_POP_TYPE}
+            progset.pops[pop] = {'label': progset.pops[pop], 'type': FS.DEFAULT_POP_TYPE}
 
     for comp in progset.comps.keys():
         if sc.isstring(progset.comps[comp]):
-            progset.comps[comp] = {"label": progset.comps[comp], "type": FS.DEFAULT_POP_TYPE}
+            progset.comps[comp] = {'label': progset.comps[comp], 'type': FS.DEFAULT_POP_TYPE}
 
     for par in progset.pars.keys():
         if sc.isstring(progset.pars[par]):
-            progset.pars[par] = {"label": progset.pars[par], "type": FS.DEFAULT_POP_TYPE}
-
+            progset.pars[par] = {'label': progset.pars[par], 'type': FS.DEFAULT_POP_TYPE}
+            
     return progset
 
-
-@migration("Project", "1.2.0", "1.3.0", "Add population type")
+@migration('Project', '1.2.0', '1.3.0', 'Add population type')
 def _add_pop_type(proj):
 
     for fw in all_frameworks(proj):
 
         # Add default population type sheet
-        fw.sheets["population types"] = [pd.DataFrame.from_records([(FS.DEFAULT_POP_TYPE, "Default")], columns=["code name", "description"])]
-        fw.comps["population type"] = FS.DEFAULT_POP_TYPE
-        fw.characs["population type"] = FS.DEFAULT_POP_TYPE
-        fw.pars["population type"] = FS.DEFAULT_POP_TYPE
-        fw.interactions["to population type"] = FS.DEFAULT_POP_TYPE
-        fw.interactions["from population type"] = FS.DEFAULT_POP_TYPE
+        fw.sheets['population types'] = [pd.DataFrame.from_records([(FS.DEFAULT_POP_TYPE, 'Default')], columns=['code name', 'description'])]
+        fw.comps['population type'] = FS.DEFAULT_POP_TYPE
+        fw.characs['population type'] = FS.DEFAULT_POP_TYPE
+        fw.pars['population type'] = FS.DEFAULT_POP_TYPE
+        fw.interactions['to population type'] = FS.DEFAULT_POP_TYPE
+        fw.interactions['from population type'] = FS.DEFAULT_POP_TYPE
 
     if proj.data:
         for pop_spec in proj.data.pops.values():
-            pop_spec["type"] = FS.DEFAULT_POP_TYPE
+            pop_spec['type'] = FS.DEFAULT_POP_TYPE
 
         # Fix up TDVE types
         # Fix up transfers and interactions
@@ -577,7 +575,7 @@ def _add_pop_type(proj):
             interaction.to_pop_type = FS.DEFAULT_POP_TYPE
 
     for parset in proj.parsets.values():
-        parset.pop_types = [pop["type"] for pop in proj.data.pops.values()]  # If there are parsets without data, then we don't know what pop types to add. Project is essentially incomplete and considered unusable
+        parset.pop_types = [pop['type'] for pop in proj.data.pops.values()]  # If there are parsets without data, then we don't know what pop types to add. Project is essentially incomplete and considered unusable
 
     for result in all_results(proj):
         for pop in result.model.pops:
@@ -586,14 +584,14 @@ def _add_pop_type(proj):
     return proj
 
 
-@migration("Project", "1.3.0", "1.4.0", "Parameter can be derivative")
+@migration('Project', '1.3.0', '1.4.0', 'Parameter can be derivative')
 def _add_project_derivatives(proj):
     for fw in all_frameworks(proj):
-        fw.pars["is derivative"] = "n"
+        fw.pars['is derivative'] = 'n'
     return proj
 
 
-@migration("Result", "1.3.0", "1.4.0", "Parameter can be derivative")
+@migration('Result', '1.3.0', '1.4.0', 'Parameter can be derivative')
 def _add_result_derivatives(result):
     for pop in result.model.pops:
         for par in pop.pars:
@@ -601,7 +599,7 @@ def _add_result_derivatives(result):
     return result
 
 
-@migration("Project", "1.4.3", "1.5.0", "Parameters with functions can be overwritten")
+@migration('Project', '1.4.3', '1.5.0', 'Parameters with functions can be overwritten')
 def _add_parset_disable_function(proj):
     # Add skip_function flag to parset Parameter instances
     for parset in proj.parsets.values():
@@ -610,7 +608,7 @@ def _add_parset_disable_function(proj):
     return proj
 
 
-@migration("Result", "1.4.3", "1.5.0", "Parameters with functions can be overwritten")
+@migration('Result', '1.4.3', '1.5.0', 'Parameters with functions can be overwritten')
 def _result_add_skip_flag(result):
     for pop in result.model.pops:
         for par in pop.pars:
@@ -618,47 +616,47 @@ def _result_add_skip_flag(result):
     return result
 
 
-@migration("Project", "1.5.1", "1.5.2", "OptimInstruction has separate adjustment and start years")
+@migration('Project', '1.5.1', '1.5.2', 'OptimInstruction has separate adjustment and start years')
 def _separate_optiminstruction_years(proj):
-    if hasattr(proj, "optims"):
+    if hasattr(proj, 'optims'):
         for optim in proj.optims.values():
-            if "adjustment_year" not in optim.json:
-                optim.json["adjustment_year"] = optim.json["start_year"]
+            if 'adjustment_year' not in optim.json:
+                optim.json['adjustment_year'] = optim.json['start_year']
     return proj
 
 
-@migration("Project", "1.7.0", "1.8.0", "Parameters store interpolation method, deprecate scenario smooth onset")
+@migration('Project', '1.7.0', '1.8.0', 'Parameters store interpolation method, deprecate scenario smooth onset')
 def _add_parameter_interpolation_method(proj):
     for parset in proj.parsets.values():
         for par in parset.all_pars():
-            par._interpolation_method = "pchip"  # New projects will default to linear, but migrations use pchip to ensure results don't change
+            par._interpolation_method = 'pchip'  # New projects will default to linear, but migrations use pchip to ensure results don't change
     for scen in proj.scens.values():
         if isinstance(scen, atomica.ParameterScenario):
             for par_name in scen.scenario_values.keys():
                 for pop_name in scen.scenario_values[par_name].keys():
-                    if "smooth_onset" in scen.scenario_values[par_name][pop_name]:
-                        logger.warning("Parameter scenario smooth onset is deprecated and will not be used")
+                    if 'smooth_onset' in scen.scenario_values[par_name][pop_name]:
+                        logger.warning('Parameter scenario smooth onset is deprecated and will not be used')
     return proj
 
 
-@migration("Project", "1.8.0", "1.9.0", "OptimInstructions functionality moved to apps")
+@migration('Project', '1.8.0', '1.9.0', 'OptimInstructions functionality moved to apps')
 def _refactor_optiminstructions(proj):
-    if hasattr(proj, "optims"):
+    if hasattr(proj, 'optims'):
         delkeys = []
         for k, v in proj.optims.items():
-            if isinstance(v, _Placeholder) and hasattr(v, "json"):  # If it was previously an OptimInstructions
+            if isinstance(v, _Placeholder) and hasattr(v, 'json'):  # If it was previously an OptimInstructions
                 # This was a project from the FE, which stores the optimization JSON dicts in
-                if not hasattr(proj, "optim_jsons"):
+                if not hasattr(proj, 'optim_jsons'):
                     proj.optim_jsons = []
 
                 json = v.json
-                for prog_name in json["prog_spending"].keys():
-                    spend = json["prog_spending"][prog_name]
+                for prog_name in json['prog_spending'].keys():
+                    spend = json['prog_spending'][prog_name]
                     try:
                         prog_label = proj.progsets[-1].programs[prog_name].label
                     except Exception:
                         prog_label = prog_name
-                    json["prog_spending"][prog_name] = {"min": spend[0], "max": spend[1], "label": prog_label}
+                    json['prog_spending'][prog_name] = {'min': spend[0], 'max': spend[1], 'label': prog_label}
                 proj.optim_jsons.append(json)
                 delkeys.append(k)
         for k in delkeys:
@@ -669,23 +667,23 @@ def _refactor_optiminstructions(proj):
     return proj
 
 
-@migration("Project", "1.10.0", "1.11.0", "TDVE stores headings to write internally")
+@migration('Project', '1.10.0', '1.11.0', 'TDVE stores headings to write internally')
 def _add_internal_flags_to_tdve(proj):
     # This migration adds missing attributes to TDVE and TDC objects
     if proj.data:
         for tdve in proj.data.tdve.values():
-            tdve.assumption_heading = "Constant"
+            tdve.assumption_heading = 'Constant'
             tdve.write_assumption = True
             tdve.write_units = True
             tdve.write_uncertainty = True
             tdve.comment = None
 
         for tdc in proj.data.transfers + proj.data.interpops:
-            tdc.assumption_heading = "Constant"
+            tdc.assumption_heading = 'Constant'
             tdc.write_assumption = True
             tdc.write_units = True
             tdc.write_uncertainty = True
-            if not hasattr(tdc, "from_pops"):  # This was missed in the previous migration `add_pop_type` so add it in here
+            if not hasattr(tdc, 'from_pops'):  # This was missed in the previous migration `add_pop_type` so add it in here
                 # If the pop type is missing, then we must be using a legacy framework with only one pop type
                 tdc.from_pop_type = list(proj.framework.pop_types.keys())[0]
                 tdc.from_pops = list(proj.data.pops.keys())
@@ -695,14 +693,14 @@ def _add_internal_flags_to_tdve(proj):
     return proj
 
 
-@migration("ProjectFramework", "1.12.2", "1.13.0", "Timed compartment updates to framework")
+@migration('ProjectFramework', '1.12.2', '1.13.0', 'Timed compartment updates to framework')
 def _add_framework_timed_comps(fw):
-    fw.pars["timed"] = "n"
-    fw.comps["duration group"] = None
+    fw.pars['timed'] = 'n'
+    fw.comps['duration group'] = None
     return fw
 
 
-@migration("Result", "1.12.2", "1.13.0", "Timed compartment updates to result")
+@migration('Result', '1.12.2', '1.13.0', 'Timed compartment updates to result')
 def _add_result_timed_attribute(result):
     for pop in result.model.pops:
         for i, comp in enumerate(pop.comps):
@@ -720,9 +718,9 @@ def _add_result_timed_attribute(result):
     return result
 
 
-@migration("Project", "1.14.0", "1.15.0", "Refactor migration update flag")
+@migration('Project', '1.14.0', '1.15.0', 'Refactor migration update flag')
 def _rename_update_field(proj):
-    if not hasattr(proj, "_result_update_required"):
+    if not hasattr(proj, '_result_update_required'):
         proj._result_update_required = False
     proj._update_required = proj._result_update_required
     del proj._result_update_required
@@ -732,25 +730,25 @@ def _rename_update_field(proj):
     return proj
 
 
-@migration("Project", "1.15.0", "1.16.0", "Projects may change due to uncapped probabilities")
+@migration('Project', '1.15.0', '1.16.0', 'Projects may change due to uncapped probabilities')
 def _proj_refactor_settings_storage(proj):
     proj._update_required = True
     return proj
 
 
-@migration("Result", "1.15.0", "1.16.0", "Results may change due to uncapped probabilities")
+@migration('Result', '1.15.0', '1.16.0', 'Results may change due to uncapped probabilities')
 def _result_refactor_settings_storage(result):
     result._update_required = True
     return result
 
 
-@migration("Project", "1.16.0", "1.17.0", "Add sim end year validation to project settings")
+@migration('Project', '1.16.0', '1.17.0', 'Add sim end year validation to project settings')
 def _add_end_year_to_project_settings(proj):
     proj.settings = atomica.ProjectSettings(**proj.settings.__dict__)
     return proj
 
 
-@migration("Project", "1.17.0", "1.18.0", "Add data TDC and TDVE attributes")
+@migration('Project', '1.17.0', '1.18.0', 'Add data TDC and TDVE attributes')
 def _add_tdc_tdve_attributes(proj):
     if proj.data:
         for tdve in proj.data.tdve.values():
@@ -761,27 +759,25 @@ def _add_tdc_tdve_attributes(proj):
     return proj
 
 
-@migration("Project", "1.19.0", "1.20.0", "Framework.transitions is a defaultdict")
+@migration('Project', '1.19.0', '1.20.0', 'Framework.transitions is a defaultdict')
 def _framework_transitions_defaultdict(proj):
     for fw in all_frameworks(proj):
         fw.transitions = defaultdict(list, fw.transitions)
     return proj
 
-
-@migration("Result", "1.23.0", "1.23.1", "Models no longer unlink/relink")
+@migration('Result', '1.23.0', '1.23.1', 'Models no longer unlink/relink')
 def _relink_legacy_result(result):
-    result.model.relink()  # Do a one-off relink
+    result.model.relink() # Do a one-off relink
     for pop in result.model.pops:
         del pop.is_linked
     return result
 
-
-@migration("ProgramSet", "1.23.1", "1.23.2", "ProgramSet records all compartments including non-targetable ones")
+@migration('ProgramSet', '1.23.1', '1.23.2', 'ProgramSet records all compartments including non-targetable ones')
 def _add_progset_non_targetable_flag(progset):
     for code_name, comp in progset.comps.items():
         if not isinstance(comp, dict):
-            progset.comps[code_name] = {"label": comp, "type": None}
+            progset.comps[code_name] = {'label': comp, 'type': None}
             comp = progset.comps[code_name]
-        if "non_targetable" not in comp:
-            comp["non_targetable"] = False
+        if 'non_targetable' not in comp:
+            comp['non_targetable'] = False
     return progset

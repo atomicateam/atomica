@@ -25,8 +25,7 @@ using Atomica.
 
 import sys
 import logging
-
-logger = logging.getLogger("atomica")
+logger = logging.getLogger('atomica')
 
 if not logger.hasHandlers():
     # Only add handlers if they don't already exist in the module-level logger
@@ -45,27 +44,25 @@ if not logger.hasHandlers():
     debug_handler.addFilter(type("ThresholdFilter", (object,), {"filter": lambda x, logRecord: logRecord.levelno < logging.INFO})())  # Display anything INFO or higher
     info_handler.addFilter(type("ThresholdFilter", (object,), {"filter": lambda x, logRecord: logRecord.levelno < logging.WARNING})())  # Don't display WARNING or higher
 
-    debug_formatter = logging.Formatter("%(levelname)s {%(filename)s:%(lineno)d} - %(message)s")
+    debug_formatter = logging.Formatter('%(levelname)s {%(filename)s:%(lineno)d} - %(message)s')
     debug_handler.setFormatter(debug_formatter)
 
     logger.addHandler(debug_handler)
     logger.addHandler(info_handler)
     logger.addHandler(warning_handler)
-    logger.setLevel("INFO")  # Set the overall log level
+    logger.setLevel('INFO')  # Set the overall log level
 
 from .version import version as __version__, versiondate as __versiondate__, gitinfo as __gitinfo__
 
 # Check scipy version
 import scipy
 import sciris as sc
-
-if sc.compareversions(scipy.__version__, "1.2.1") < 0:
-    raise Exception(f"Atomica requires Scipy 1.2.1 or later - installed version is {scipy.__version__}")
+if sc.compareversions(scipy.__version__, '1.2.1') < 0:
+    raise Exception(f'Atomica requires Scipy 1.2.1 or later - installed version is {scipy.__version__}')
 
 # Increase Framework performance by not calling garbage collection all the time
 import pandas as pd
-
-pd.set_option("mode.chained_assignment", None)
+pd.set_option('mode.chained_assignment', None)
 
 # The Atomica user interface -- import from submodules
 from .calibration import *
