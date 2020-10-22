@@ -14,7 +14,8 @@ import sciris as sc
 from .utils import NamedItem, TimeSeries
 import scipy.interpolate
 
-__all__ = ['Parameter','ParameterSet']
+__all__ = ["Parameter", "ParameterSet"]
+
 
 class Parameter(NamedItem):
     """
@@ -31,7 +32,7 @@ class Parameter(NamedItem):
         self.y_factor = sc.odict.fromkeys(self.ts, 1.0)  # : Calibration scale factors for the parameter in each population
         self.meta_y_factor = 1.0  # : Calibration scale factor for all populations
         self.skip_function = sc.odict.fromkeys(self.ts, None)  # : This can be a range of years [start,stop] between which the parameter function will not be evaluated
-        self._interpolation_method = 'linear'  #: Fallback interpolation method. It is _strongly_ recommended not to change this, but to call ``Parameter.smooth()` instead
+        self._interpolation_method = "linear"  #: Fallback interpolation method. It is _strongly_ recommended not to change this, but to call ``Parameter.smooth()` instead
 
     @property
     def pops(self):
@@ -101,7 +102,7 @@ class Parameter(NamedItem):
         for k, ts in self.ts.items():
             self.ts[k] = ts.sample(constant)
 
-    def smooth(self, tvec, method='smoothinterp', pop_names=None, **kwargs):
+    def smooth(self, tvec, method="smoothinterp", pop_names=None, **kwargs):
         """
         Smooth the parameter's time values
 
@@ -139,17 +140,19 @@ class Parameter(NamedItem):
             pop_names = self.ts.keys()
 
         if sc.isstring(method):
-            if method == 'smoothinterp':
+            if method == "smoothinterp":
                 # Generating function for smooth-interp interpolator
                 def smoothinterp(x1, y1, **kwargs):
                     def fcn(x2):
                         return sc.smoothinterp(x2, x1, y1, **kwargs)
+
                     return fcn
+
                 method = smoothinterp
-            elif method in ['pchip', 'linear', 'previous']:
+            elif method in ["pchip", "linear", "previous"]:
                 pass
             else:
-                raise Exception('Unknown smoothing method')
+                raise Exception("Unknown smoothing method")
 
         for pop in pop_names:
             ts = self.ts[pop]
@@ -186,7 +189,7 @@ class ParameterSet(NamedItem):
 
         self.pop_names = data.pops.keys()  # : List of all population code names contained in the ``ParameterSet``
         self.pop_labels = [pop["label"] for pop in data.pops.values()]  # : List of corresponding full names for populations
-        self.pop_types = [pop['type'] for pop in data.pops.values()]  # : List of corresponding population types
+        self.pop_types = [pop["type"] for pop in data.pops.values()]  # : List of corresponding population types
 
         self.pars = sc.odict()  # : Stores the Parameter instances contained by this ParameterSet associated with framework comps, characs, and parameters
         self.transfers = sc.odict()  # : Stores the Parameter instances contained by this ParameterSet associated with databook transfers, keyed by source population
@@ -207,19 +210,19 @@ class ParameterSet(NamedItem):
                 ts = dict()
                 units = framework.get_databook_units(spec.name)
                 for pop_name in self.pop_names:
-                    if data.pops[pop_name]['type'] == spec['population type']:
+                    if data.pops[pop_name]["type"] == spec["population type"]:
                         ts[pop_name] = TimeSeries(units=units)
                 self.pars[spec.name] = Parameter(spec.name, ts)
 
         # Instantiate parameters for transfers and interactions
         # As with TDVE quantities, these must be initialized from the databook
         for tdc in data.transfers + data.interpops:
-            if tdc.type == 'transfer':
+            if tdc.type == "transfer":
                 item_storage = self.transfers
-            elif tdc.type == 'interaction':
+            elif tdc.type == "interaction":
                 item_storage = self.interactions
             else:
-                raise Exception('Unknown time-dependent connection type')
+                raise Exception("Unknown time-dependent connection type")
 
             name = tdc.code_name  # The name of this interaction e.g. 'age'
             item_storage[name] = sc.odict()

@@ -24,19 +24,20 @@ import sciris as sc
 from .system import logger
 
 __all__ = [
-    'NamedItem',
-    'NDict',
-    'TimeSeries',
-    'Quiet',
-    'parent_dir',
-    'evaluate_plot_string',
-    'format_duration',
-    'nested_loop',
-    'fast_gitinfo',
-    'datetime_to_year',
-    'parallel_progress',
-    'start_logging',
+    "NamedItem",
+    "NDict",
+    "TimeSeries",
+    "Quiet",
+    "parent_dir",
+    "evaluate_plot_string",
+    "format_duration",
+    "nested_loop",
+    "fast_gitinfo",
+    "datetime_to_year",
+    "parallel_progress",
+    "start_logging",
 ]
+
 
 def parent_dir() -> Path:
     """
@@ -53,7 +54,7 @@ def parent_dir() -> Path:
     return Path(inspect.stack()[1][1]).parent
 
 
-class NamedItem():
+class NamedItem:
     def __init__(self, name: str = None):
         """
         NamedItem constructor
@@ -63,7 +64,7 @@ class NamedItem():
         :param name:
         """
         if name is None:
-            name = '<unnamed>'
+            name = "<unnamed>"
         self.name = name
         self.created = sc.now(utc=True)
         self.modified = sc.now(utc=True)
@@ -127,7 +128,7 @@ class NDict(sc.odict):
         return self[new]
 
 
-class TimeSeries():
+class TimeSeries:
     """
     Class to store time-series data
 
@@ -147,7 +148,7 @@ class TimeSeries():
 
     # Use slots here to guarantee that __deepcopy__() and __eq__() only have to check these
     # specific fields - otherwise, would need to do a more complex recursive dict comparison
-    __slots__ = ['t', 'vals', 'units', 'assumption', 'sigma', '_sampled']
+    __slots__ = ["t", "vals", "units", "assumption", "sigma", "_sampled"]
 
     def __init__(self, t=None, vals=None, units: str = None, assumption: float = None, sigma: float = None):
 
@@ -191,22 +192,21 @@ class TimeSeries():
         return new
 
     def __getstate__(self):
-        return dict([(k, getattr(self,k,None)) for k in self.__slots__])
+        return dict([(k, getattr(self, k, None)) for k in self.__slots__])
 
     def __setstate__(self, data):
 
-        if 'format' in data:
+        if "format" in data:
             # 'format' was changed to 'units' but the attribute was not dropped, however now this is a
             # hard error because of the switch to __slots__ so we need to make sure it gets removed.
             # This can't be done as a Migration because a Migration expects an instance of the
             data = sc.dcp(data)
-            if 'units' not in data:
-                data['units'] = data['format']
-            del data['format']
+            if "units" not in data:
+                data["units"] = data["format"]
+            del data["format"]
 
         for k, v in data.items():
-            setattr(self,k,v)
-
+            setattr(self, k, v)
 
     # The operators for + and * below are prototypes but haven't been added
     # The reason is because they add a lot of complexity to the usage of the class
@@ -380,7 +380,7 @@ class TimeSeries():
         # Check if inputs are iterable
         iterable_input = True
         try:
-            assert len(t) == len(v),  'Cannot insert non-matching lengths or types of time and values %s and %s' % (t, v)
+            assert len(t) == len(v), "Cannot insert non-matching lengths or types of time and values %s and %s" % (t, v)
         except TypeError:
             iterable_input = False
 
@@ -395,7 +395,7 @@ class TimeSeries():
 
         v = float(v)  # Convert input to float
 
-        if t is None: # Store the value in the assumption
+        if t is None:  # Store the value in the assumption
             self.assumption = v
             return
 
@@ -471,7 +471,7 @@ class TimeSeries():
             del self.t[idx]
             del self.vals[idx]
         else:
-            raise Exception('Item not found')
+            raise Exception("Item not found")
 
     def remove_before(self, t_remove) -> None:
         """
@@ -511,7 +511,7 @@ class TimeSeries():
             if t_remove[0] < tval < t_remove[1]:
                 self.remove(tval)
 
-    def interpolate(self, t2: np.array, method='linear', **kwargs) -> np.array:
+    def interpolate(self, t2: np.array, method="linear", **kwargs) -> np.array:
         """
         Return interpolated values
 
@@ -560,16 +560,16 @@ class TimeSeries():
         idx = ~np.isnan(t1) & ~np.isnan(v1)
         t1, v1 = t1[idx], v1[idx]
         if t1.size == 0:
-            raise Exception('No time points remained after removing NaNs from the TimeSeries')
+            raise Exception("No time points remained after removing NaNs from the TimeSeries")
         elif t1.size == 1:
             return np.full(t2.shape, v1[0])
 
         # # Finally, perform interpolation
         if sc.isstring(method):
-            if method == 'linear':
+            if method == "linear":
                 # Default linear interpolation
                 return np.interp(t2, t1, v1, left=v1[0], right=v1[-1])
-            elif method == 'pchip':
+            elif method == "pchip":
                 # Legacy pchip interpolation
                 f = scipy.interpolate.PchipInterpolator(t1, v1, axis=0, extrapolate=False)
                 y2 = np.zeros(t2.shape)
@@ -577,8 +577,8 @@ class TimeSeries():
                 y2[t2 < t1[0]] = v1[0]
                 y2[t2 > t1[-1]] = v1[-1]
                 return y2
-            elif method == 'previous':
-                return scipy.interpolate.interp1d(t1, v1, kind='previous', copy=False, assume_sorted=True, bounds_error=False, fill_value=(v1[0], v1[-1]))(t2)
+            elif method == "previous":
+                return scipy.interpolate.interp1d(t1, v1, kind="previous", copy=False, assume_sorted=True, bounds_error=False, fill_value=(v1[0], v1[-1]))(t2)
             else:
                 raise Exception('Unknown interpolation type - must be one of "linear", "pchip", or "previous"')
 
@@ -601,7 +601,7 @@ class TimeSeries():
         """
 
         if self._sampled:
-            raise Exception('Sampling has already been performed - can only sample once')
+            raise Exception("Sampling has already been performed - can only sample once")
 
         new = self.copy()
         if self.sigma is not None:
@@ -649,14 +649,14 @@ def evaluate_plot_string(plot_string: str):
     :return: Evaluated expression, the same as if it has originally been entered in a .py file
     """
 
-    if '{' in plot_string or '[' in plot_string:
+    if "{" in plot_string or "[" in plot_string:
         # Evaluate the string to set lists and dicts - do at least a little validation
-        assert '__' not in plot_string, 'Cannot use double underscores in functions'
+        assert "__" not in plot_string, "Cannot use double underscores in functions"
         assert len(plot_string) < 1800  # Function string must be less than 1800 characters
-        fcn_ast = ast.parse(plot_string, mode='eval')
+        fcn_ast = ast.parse(plot_string, mode="eval")
         for node in ast.walk(fcn_ast):
             if not (node is fcn_ast):
-                assert isinstance(node, ast.Dict) or isinstance(node, ast.Str) or isinstance(node, ast.List) or isinstance(node, ast.Load), 'Only allowed to initialize lists and dicts of strings here'
+                assert isinstance(node, ast.Dict) or isinstance(node, ast.Str) or isinstance(node, ast.List) or isinstance(node, ast.Load), "Only allowed to initialize lists and dicts of strings here"
         compiled_code = compile(fcn_ast, filename="<ast>", mode="eval")
         return eval(compiled_code)
     else:
@@ -698,30 +698,30 @@ def format_duration(t: float, pluralize=False) -> str:
     # First decide the base units
     if t >= 1.0:
         base_scale = 1
-        timescale = 'year'
+        timescale = "year"
     elif t >= 1 / 12:
         base_scale = 1 / 12
-        timescale = 'month'
+        timescale = "month"
     elif t >= 1 / 26:
         base_scale = 1 / 26
-        timescale = 'fortnight'
+        timescale = "fortnight"
     elif t >= 1 / 52:
         base_scale = 1 / 52
-        timescale = 'week'
+        timescale = "week"
     else:
         base_scale = 1 / 365
-        timescale = 'day'
+        timescale = "day"
 
     # Then, work out how many of the base unit there are
     converted_t = t / base_scale
 
     # If there is only one of the base unit, then return the timescale as the final string
     if abs(converted_t - 1.0) < 1e-5:
-        return (timescale + 's') if pluralize else timescale
+        return (timescale + "s") if pluralize else timescale
     elif converted_t % 1 < 1e-3:  # If it's sufficiently close to an integer, show it as an integer
-        return '%d %ss' % (converted_t, timescale)
+        return "%d %ss" % (converted_t, timescale)
     else:
-        return '%s %ss' % (sc.sigfig(converted_t, keepints=True, sigfigs=3), timescale)
+        return "%s %ss" % (sc.sigfig(converted_t, keepints=True, sigfigs=3), timescale)
 
 
 def nested_loop(inputs, loop_order):
@@ -782,8 +782,8 @@ def fast_gitinfo(path):
         # First, get the .git directory
         curpath = os.path.abspath(path)
         while curpath:
-            if os.path.exists(os.path.join(curpath, '.git')):
-                gitdir = os.path.join(curpath, '.git')
+            if os.path.exists(os.path.join(curpath, ".git")):
+                gitdir = os.path.join(curpath, ".git")
                 break
             else:
                 parent, _ = os.path.split(curpath)
@@ -792,37 +792,37 @@ def fast_gitinfo(path):
                 else:
                     curpath = parent
         else:
-            raise Exception('Could not find .git directory')
+            raise Exception("Could not find .git directory")
 
         # Then, get the branch and commit
-        with open(os.path.join(gitdir, 'HEAD'), 'r') as f1:
+        with open(os.path.join(gitdir, "HEAD"), "r") as f1:
             ref = f1.read()
-            if ref.startswith('ref:'):
-                refdir = ref.split(' ')[1].strip()  # The path to the file with the commit
-                gitbranch = refdir.replace('refs/heads/', '')  # / is always used (not os.sep)
-                with open(os.path.join(gitdir, refdir), 'r') as f2:
+            if ref.startswith("ref:"):
+                refdir = ref.split(" ")[1].strip()  # The path to the file with the commit
+                gitbranch = refdir.replace("refs/heads/", "")  # / is always used (not os.sep)
+                with open(os.path.join(gitdir, refdir), "r") as f2:
                     githash = f2.read().strip()  # The hash of the commit
             else:
-                gitbranch = 'Detached head (no branch)'
+                gitbranch = "Detached head (no branch)"
                 githash = ref.strip()
 
         # Now read the time from the commit
-        compressed_contents = open(os.path.join(gitdir, 'objects', githash[0:2], githash[2:]), 'rb').read()
+        compressed_contents = open(os.path.join(gitdir, "objects", githash[0:2], githash[2:]), "rb").read()
         decompressed_contents = zlib.decompress(compressed_contents).decode()
-        for line in decompressed_contents.split('\n'):
-            if line.startswith('author'):
-                _re_actor_epoch = re.compile(r'^.+? (.*) (\d+) ([+-]\d+).*$')
+        for line in decompressed_contents.split("\n"):
+            if line.startswith("author"):
+                _re_actor_epoch = re.compile(r"^.+? (.*) (\d+) ([+-]\d+).*$")
                 m = _re_actor_epoch.search(line)
                 actor, epoch, offset = m.groups()
                 t = time.gmtime(int(epoch))
                 gitdate = time.strftime("%Y-%m-%d %H:%M:%S UTC", t)
 
     except Exception:
-        gitbranch = 'Git branch N/A'
-        githash = 'Git hash N/A'
-        gitdate = 'Git date N/A'
+        gitbranch = "Git branch N/A"
+        githash = "Git hash N/A"
+        gitdate = "Git date N/A"
 
-    output = {'branch': gitbranch, 'hash': githash, 'date': gitdate}  # Assemble outupt
+    output = {"branch": gitbranch, "hash": githash, "date": gitdate}  # Assemble outupt
     return output
 
 
@@ -909,7 +909,7 @@ def parallel_progress(fcn, inputs, num_workers=None, show_progress=True) -> list
     return results
 
 
-class Quiet():
+class Quiet:
     """
     Atomica quiet context
 
@@ -973,7 +973,7 @@ def start_logging(fname: str) -> None:
     """
 
     for handler in logger.handlers:
-        if handler.name == 'atomica_file_handler':
+        if handler.name == "atomica_file_handler":
             # Logging has already been started, so we can return immediately
             # Otherwise, output could be logged multiple times
             return
@@ -981,20 +981,20 @@ def start_logging(fname: str) -> None:
     from .version import gitinfo, version, versiondate  # Avoid circular import
 
     sc.makefilepath(fname)
-    h = logging.FileHandler(fname, mode='w')
-    h.set_name('atomica_file_handler')
-    fmt = logging.Formatter("%(asctime)-20s %(message)s", datefmt='%d-%m-%y %H:%M:%S')
+    h = logging.FileHandler(fname, mode="w")
+    h.set_name("atomica_file_handler")
+    fmt = logging.Formatter("%(asctime)-20s %(message)s", datefmt="%d-%m-%y %H:%M:%S")
     h.setFormatter(fmt)
 
     logger.addHandler(h)
 
-    logger.critical(f'Atomica log file: {os.path.abspath(fname)}')
-    logger.critical('-' * 80)
-    logger.critical('Atomica %s (%s) -- (c) the Atomica development team' % (version, versiondate))  # Log with the highest level to make sure it appears in the log
-    if gitinfo['branch'] != 'N/A':
-        logger.critical('git branch: %s (%s)' % (gitinfo['branch'], gitinfo['hash'][0:8]))
+    logger.critical(f"Atomica log file: {os.path.abspath(fname)}")
+    logger.critical("-" * 80)
+    logger.critical("Atomica %s (%s) -- (c) the Atomica development team" % (version, versiondate))  # Log with the highest level to make sure it appears in the log
+    if gitinfo["branch"] != "N/A":
+        logger.critical("git branch: %s (%s)" % (gitinfo["branch"], gitinfo["hash"][0:8]))
     logger.critical(datetime.now())
-    logger.critical('-' * 80)
+    logger.critical("-" * 80)
 
     # We also want uncaught exceptions (in the main process) to appear in the log
     # Based on https://stackoverflow.com/a/57587758 by Nabs
@@ -1006,8 +1006,10 @@ def start_logging(fname: str) -> None:
             local_args = run_func()
             hook_func(*local_args)
             return run_func(*args, **kwargs)
+
         return inner
 
     import sys
+
     sys.exc_info = attach_hook(log_exception, sys.exc_info)
     sys.excepthook = log_exception
