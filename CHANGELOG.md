@@ -2,6 +2,14 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.23.2] - 2020-10-22
+
+- `at.ProgramSet` now stores all compartments with a `non_targetable` flag `in at.ProgramSet.comps` so that it can read/write workbooks for models that use coverage scenarios only. 
+
+## [1.23.0] - 2020-10-22
+
+- Exporting results now includes some time-aggregated quantities (summed over the year, rather than providing annualized values as of Jan 1) 
+
 ## [1.22.1] - 2020-09-11
 
 - Added log level commands to `calibrate()` and `reconcile()` so that they respect `at.Quiet()` in the same way as `optimize()` already does.

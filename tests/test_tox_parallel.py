@@ -15,13 +15,13 @@ def test_parallel(do_log, parallel, n_samples):
 
     :return:
     """
-    P = at.demo('sir', do_run=False)
+    P = at.demo("sir", do_run=False)
 
     original_level = at.logger.getEffectiveLevel()
 
     if not do_log:
         at.logger.setLevel(logging.WARNING)
 
-    results = P.run_sampled_sims('default', n_samples=n_samples, parallel=parallel, num_workers=2)
+    results = P.run_sampled_sims("default", n_samples=n_samples, parallel=parallel, num_workers=2)
     assert len(results) == n_samples
     at.logger.setLevel(original_level)

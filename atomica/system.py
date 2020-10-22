@@ -10,9 +10,9 @@ import pathlib
 # Set up a logger that can be imported elsewhere
 import logging
 
-__all__ = ['atomica_path','LIBRARY_PATH','NotFoundError','FrameworkSettings']
+__all__ = ["atomica_path", "LIBRARY_PATH", "NotFoundError", "FrameworkSettings"]
 
-logger = logging.getLogger('atomica')
+logger = logging.getLogger("atomica")
 
 
 def atomica_path(subdir=None) -> pathlib.Path:
@@ -43,7 +43,7 @@ def atomica_path(subdir=None) -> pathlib.Path:
     return path.resolve()
 
 
-LIBRARY_PATH = atomica_path(['atomica', 'library'])
+LIBRARY_PATH = atomica_path(["atomica", "library"])
 
 
 class NotFoundError(Exception):
@@ -83,9 +83,9 @@ class FrameworkSettings:
     STANDARD_UNITS = [QUANTITY_TYPE_PROBABILITY, QUANTITY_TYPE_DURATION, QUANTITY_TYPE_NUMBER, QUANTITY_TYPE_FRACTION, QUANTITY_TYPE_PROPORTION, QUANTITY_TYPE_RATE]
 
     DEFAULT_SYMBOL_INAPPLICABLE = "N.A."
-    DEFAULT_POP_TYPE = 'default'
+    DEFAULT_POP_TYPE = "default"
 
-    RESERVED_KEYWORDS = ['t', 'flow', 'all', 'dt', 'total']  # A code_name in the framework cannot be equal to one of these values
+    RESERVED_KEYWORDS = ["t", "flow", "all", "dt", "total"]  # A code_name in the framework cannot be equal to one of these values
     RESERVED_KEYWORDS += supported_functions.keys()
 
-    RESERVED_SYMBOLS = set(':,;/+-*\'"')  # A code_name in the framework (for characs, comps, pars) cannot contain any of these characters
+    RESERVED_SYMBOLS = set(":,;/+-*'\"")  # A code_name in the framework (for characs, comps, pars) cannot contain any of these characters

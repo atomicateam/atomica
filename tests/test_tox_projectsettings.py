@@ -29,5 +29,5 @@ def test_projectsettings():
     assert np.all(s.tvec == np.array([2000, 2001, 2002, 2003]))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_projectsettings()
