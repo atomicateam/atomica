@@ -763,14 +763,14 @@ def _framework_transitions_defaultdict(proj):
         fw.transitions = defaultdict(list, fw.transitions)
     return proj
 
-@migration('Result', '1.22.1', '1.23.0', 'Models no longer unlink/relink')
+@migration('Result', '1.23.0', '1.23.1', 'Models no longer unlink/relink')
 def _relink_legacy_result(result):
     result.model.relink() # Do a one-off relink
     for pop in result.model.pops:
         del pop.is_linked
     return result
 
-@migration('ProgramSet', '1.23.0', '1.23.1', 'ProgramSet records all compartments including non-targetable ones')
+@migration('ProgramSet', '1.23.1', '1.23.2', 'ProgramSet records all compartments including non-targetable ones')
 def _add_progset_non_targetable_flag(progset):
     for code_name, comp in progset.comps.items():
         if not isinstance(comp, dict):
