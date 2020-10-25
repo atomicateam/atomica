@@ -601,7 +601,7 @@ class Project(NamedItem):
         """
 
         if parset is None:
-            parset = -1
+            parset = self.parsets[-1]
         elif not isinstance(parset, ParameterSet):
             parset = self.parsets[parset]
 
