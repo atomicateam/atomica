@@ -407,6 +407,7 @@ class ProjectData(sc.prettyobj):
         # The only time unexpected behaviour might occur is if the first TDVE table has exotic data points
         # and the user loads the databook, then adds a new transfer/interpop, the new table will have those same
         # modified data points. But what does the user expect, if the databook has mixed times
+        assert len(self.tdve_pages[0])>0, 'Error with blank sheet %s - name with a #ignore if loading this page is not desired'%(self.tdve_pages.keys()[0])
         self.tvec = self.tdve[self.tdve_pages[0][0]].tvec
 
         return self
