@@ -90,6 +90,11 @@ class ProjectFramework():
         if name is not None:
             self.name = name
 
+    def __repr__(self):
+        """ Print object """
+        output = sc.prepr(self)
+        return output
+
     def __setstate__(self, d):
         from .migration import migrate
         self.__dict__ = d
