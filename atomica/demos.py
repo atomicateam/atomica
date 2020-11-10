@@ -11,7 +11,8 @@ from .system import LIBRARY_PATH, logger
 from .scenarios import BudgetScenario
 from .utils import TimeSeries
 
-__all__ = ['demo', 'make_demo_scenarios']
+__all__ = ["demo", "make_demo_scenarios"]
+
 
 def demo(which: str = None, do_run: bool = True, addprogs: bool = True) -> Project:
     """
@@ -25,33 +26,33 @@ def demo(which: str = None, do_run: bool = True, addprogs: bool = True) -> Proje
     """
 
     options = [
-        'udt',
-        'udt_dyn',
-        'usdt',
-        'cervicalcancer',
-        'sir',
-        'diabetes',
-        'combined',
+        "udt",
+        "udt_dyn",
+        "usdt",
+        "cervicalcancer",
+        "sir",
+        "diabetes",
+        "combined",
         # 'service',
-        'hypertension',
-        'hypertension_dyn',
-        'hiv',
-        'hiv_dyn',
-        'tb_simple',
-        'tb_simple_dyn',
-        'environment',
-        'tb',
+        "hypertension",
+        "hypertension_dyn",
+        "hiv",
+        "hiv_dyn",
+        "tb_simple",
+        "tb_simple_dyn",
+        "environment",
+        "tb",
     ]
 
-    dtdict = sc.odict.fromkeys(options, 1.)
-    dtdict['tb'] = 0.5
+    dtdict = sc.odict.fromkeys(options, 1.0)
+    dtdict["tb"] = 0.5
 
     if which is None or which not in options:
-        raise Exception('Supported project types are:\n%s' % ("\n".join(options)))
+        raise Exception("Supported project types are:\n%s" % ("\n".join(options)))
 
-    framework = LIBRARY_PATH / f'{which}_framework.xlsx'
-    databook = LIBRARY_PATH / f'{which}_databook.xlsx'
-    progbook = LIBRARY_PATH / f'{which}_progbook.xlsx'
+    framework = LIBRARY_PATH / f"{which}_framework.xlsx"
+    databook = LIBRARY_PATH / f"{which}_databook.xlsx"
+    progbook = LIBRARY_PATH / f"{which}_progbook.xlsx"
 
     logger.debug("Creating a " + which + " project...")
     P = Project(framework=framework, databook=databook, do_run=False)
@@ -64,10 +65,10 @@ def demo(which: str = None, do_run: bool = True, addprogs: bool = True) -> Proje
         logger.debug("Loading progbook")
         P.load_progbook(progbook)
 
-        logger.debug('Creating program scenarios')
+        logger.debug("Creating program scenarios")
         make_demo_scenarios(P)
 
-    logger.debug('Finished creating demo project')
+    logger.debug("Finished creating demo project")
 
     return P
 
@@ -102,8 +103,7 @@ def make_demo_scenarios(proj: Project) -> None:
 
     # Add default budget scenario
     # proj.scens.append(CombinedScenario(name='Default budget',parsetname=parsetname,progsetname=progset.name,active=True,instructions=ProgramInstructions(start_year,alloc=current_budget)))
-    proj.scens.append(BudgetScenario(name='Default budget', parsetname=parsetname, progsetname=progset.name,
-                                     active=True, alloc=current_budget, start_year=start_year))
+    proj.scens.append(BudgetScenario(name="Default budget", parsetname=parsetname, progsetname=progset.name, active=True, alloc=current_budget, start_year=start_year))
 
     # Add doubled budget
     doubled_budget = sc.dcp(current_budget)
@@ -112,13 +112,11 @@ def make_demo_scenarios(proj: Project) -> None:
         ts.remove_after(start_year)
         ts.insert(start_year + 1, ts.get(start_year) * 2)
     # proj.scens.append(CombinedScenario(name='Doubled budget',parsetname=parsetname,progsetname=progset.name,active=True,instructions=ProgramInstructions(start_year,alloc=doubled_budget)))
-    proj.scens.append(BudgetScenario(name='Doubled budget', parsetname=parsetname, progsetname=progset.name,
-                                     active=True, alloc=doubled_budget, start_year=start_year))
+    proj.scens.append(BudgetScenario(name="Doubled budget", parsetname=parsetname, progsetname=progset.name, active=True, alloc=doubled_budget, start_year=start_year))
 
     # Add zero budget
     zero_budget = sc.dcp(doubled_budget)
     for ts in zero_budget.values():
         ts.insert(start_year + 1, 0.0)
     # proj.scens.append(CombinedScenario(name='Zero budget',parsetname=parsetname,progsetname=progset.name,active=True,instructions=ProgramInstructions(start_year,alloc=zero_budget)))
-    proj.scens.append(BudgetScenario(name='Zero budget', parsetname=parsetname, progsetname=progset.name,
-                                     active=True, alloc=zero_budget, start_year=start_year))
+    proj.scens.append(BudgetScenario(name="Zero budget", parsetname=parsetname, progsetname=progset.name, active=True, alloc=zero_budget, start_year=start_year))

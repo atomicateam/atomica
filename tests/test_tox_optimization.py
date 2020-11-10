@@ -7,6 +7,7 @@ import numpy as np
 import sciris as sc
 import atomica as at
 import logging
+
 logger = logging.getLogger()
 
 # Write the log to a file
@@ -19,17 +20,18 @@ logger = logging.getLogger()
 
 # Atomica has INFO level logging by default which is set when Atomica is imported, so need to change it after importing
 # logger.setLevel('DEBUG')
-test = 'sir'  # Only really works for SIR
+test = "sir"  # Only really works for SIR
 
 
 # np.seterr(all='raise')
 
 
 def run_optimization(proj, optimization, instructions):
-    unoptimized_result = proj.run_sim(parset=proj.parsets["default"], progset=proj.progsets['default'], progset_instructions=instructions, result_name="unoptimized")
-    optimized_instructions = at.optimize(proj, optimization, parset=proj.parsets["default"], progset=proj.progsets['default'], instructions=instructions)
-    optimized_result = proj.run_sim(parset=proj.parsets["default"], progset=proj.progsets['default'], progset_instructions=optimized_instructions, result_name="optimized")
+    unoptimized_result = proj.run_sim(parset=proj.parsets["default"], progset=proj.progsets["default"], progset_instructions=instructions, result_name="unoptimized")
+    optimized_instructions = at.optimize(proj, optimization, parset=proj.parsets["default"], progset=proj.progsets["default"], instructions=instructions)
+    optimized_result = proj.run_sim(parset=proj.parsets["default"], progset=proj.progsets["default"], progset_instructions=optimized_instructions, result_name="optimized")
     return unoptimized_result, optimized_result
+
 
 # STANDARD OUTCOME OPTIMIZATION
 # In this example, Treatment 2 is more effective than Treatment 1. The initial allocation has the budget
@@ -42,27 +44,24 @@ def test_standard():
     P = at.demo(which=test, do_run=False)
     P.update_settings(sim_end=2030.0)
 
-    alloc = sc.odict([('Risk avoidance', 0.),
-                      ('Harm reduction 1', 0.),
-                      ('Harm reduction 2', 0.),
-                      ('Treatment 1', 50.),
-                      ('Treatment 2', 1.)])
+    alloc = sc.odict([("Risk avoidance", 0.0), ("Harm reduction 1", 0.0), ("Harm reduction 2", 0.0), ("Treatment 1", 50.0), ("Treatment 2", 1.0)])
 
     instructions = at.ProgramInstructions(alloc=alloc, start_year=2020)  # Instructions for default spending
     adjustments = list()
-    adjustments.append(at.SpendingAdjustment('Treatment 1', 2020, 'abs', 0., 100.))
-    adjustments.append(at.SpendingAdjustment('Treatment 2', 2020, 'abs', 0., 100.))
-    measurables = at.MaximizeMeasurable('ch_all', [2020, np.inf])
+    adjustments.append(at.SpendingAdjustment("Treatment 1", 2020, "abs", 0.0, 100.0))
+    adjustments.append(at.SpendingAdjustment("Treatment 2", 2020, "abs", 0.0, 100.0))
+    measurables = at.MaximizeMeasurable("ch_all", [2020, np.inf])
     constraints = at.TotalSpendConstraint()  # Cap total spending in all years
-    optimization = at.Optimization(name='default', adjustments=adjustments, measurables=measurables, constraints=constraints)  # Evaluate from 2020 to end of simulation
+    optimization = at.Optimization(name="default", adjustments=adjustments, measurables=measurables, constraints=constraints)  # Evaluate from 2020 to end of simulation
 
     (unoptimized_result, optimized_result) = run_optimization(P, optimization, instructions)
 
     for adjustable in adjustments:
         print("%s - before=%.2f, after=%.2f" % (adjustable.name, unoptimized_result.model.program_instructions.alloc[adjustable.name].get(2020), optimized_result.model.program_instructions.alloc[adjustable.name].get(2020)))  # TODO - add time to alloc
 
-    d = at.PlotData([unoptimized_result, optimized_result], outputs=['ch_all'], project=P)
+    d = at.PlotData([unoptimized_result, optimized_result], outputs=["ch_all"], project=P)
     at.plot_series(d, axis="results")
+
 
 # UNRESOLVABLE CONSTRAINTS
 # If the user specifies bounds on individual spending that are inconsistent with the
@@ -75,34 +74,30 @@ def test_unresolvable():
     P = at.demo(which=test, do_run=False)
     P.update_settings(sim_end=2030.0)
 
-    alloc = sc.odict([('Risk avoidance', 0.),
-                      ('Harm reduction 1', 0.),
-                      ('Harm reduction 2', 0.),
-                      ('Treatment 1', 50.),
-                      ('Treatment 2', 50.)])
+    alloc = sc.odict([("Risk avoidance", 0.0), ("Harm reduction 1", 0.0), ("Harm reduction 2", 0.0), ("Treatment 1", 50.0), ("Treatment 2", 50.0)])
 
     instructions = at.ProgramInstructions(alloc=alloc, start_year=2020)  # Instructions for default spending
 
     adjustments = []
-    adjustments.append(at.SpendingAdjustment('Treatment 1', 2020, 'abs', 10., 100.))
-    adjustments.append(at.SpendingAdjustment('Treatment 2', 2020, 'abs', 10., 100.))
-    measurables = at.MaximizeMeasurable('ch_all', [2020, np.inf])
+    adjustments.append(at.SpendingAdjustment("Treatment 1", 2020, "abs", 10.0, 100.0))
+    adjustments.append(at.SpendingAdjustment("Treatment 2", 2020, "abs", 10.0, 100.0))
+    measurables = at.MaximizeMeasurable("ch_all", [2020, np.inf])
     constraints = at.TotalSpendConstraint(t=2020, total_spend=201)  # Cap total spending in all years
-    optimization = at.Optimization(name='default', adjustments=adjustments, measurables=measurables,
-                                   constraints=constraints)  # Evaluate from 2020 to end of simulation
+    optimization = at.Optimization(name="default", adjustments=adjustments, measurables=measurables, constraints=constraints)  # Evaluate from 2020 to end of simulation
 
     try:
         (unoptimized_result, optimized_result) = run_optimization(P, optimization, instructions)
     except at.UnresolvableConstraint as e:
         print(e)
-        print('Correctly raised UnresolvableConstraint error')
+        print("Correctly raised UnresolvableConstraint error")
 
     constraints.total_spend = sc.promotetoarray(5)
     try:
         (unoptimized_result, optimized_result) = run_optimization(P, optimization, instructions)
     except at.UnresolvableConstraint as e:
         print(e)
-        print('Correctly raised UnresolvableConstraint error')
+        print("Correctly raised UnresolvableConstraint error")
+
 
 # STANDARD OUTCOME OPTIMIZATION, MINIMIZE DEATHS
 # In this example, Treatment 2 is more effective than Treatment 1. The initial allocation has the budget
@@ -115,27 +110,24 @@ def test_standard_mindeaths():
     P = at.demo(which=test, do_run=False)
     P.update_settings(sim_end=2030.0)
 
-    alloc = sc.odict([('Risk avoidance', 0.),
-                      ('Harm reduction 1', 0.),
-                      ('Harm reduction 2', 0.),
-                      ('Treatment 1', 50.),
-                      ('Treatment 2', 1.)])
+    alloc = sc.odict([("Risk avoidance", 0.0), ("Harm reduction 1", 0.0), ("Harm reduction 2", 0.0), ("Treatment 1", 50.0), ("Treatment 2", 1.0)])
 
     instructions = at.ProgramInstructions(alloc=alloc, start_year=2020)  # Instructions for default spending
     adjustments = []
-    adjustments.append(at.SpendingAdjustment('Treatment 1', 2020, 'abs', 0., 100.))
-    adjustments.append(at.SpendingAdjustment('Treatment 2', 2020, 'abs', 0., 100.))
-    measurables = at.MinimizeMeasurable(':dead', 2030)
+    adjustments.append(at.SpendingAdjustment("Treatment 1", 2020, "abs", 0.0, 100.0))
+    adjustments.append(at.SpendingAdjustment("Treatment 2", 2020, "abs", 0.0, 100.0))
+    measurables = at.MinimizeMeasurable(":dead", 2030)
     constraints = at.TotalSpendConstraint()  # Cap total spending in all years
-    optimization = at.Optimization(name='default', adjustments=adjustments, measurables=measurables, constraints=constraints)  # Evaluate from 2020 to end of simulation
+    optimization = at.Optimization(name="default", adjustments=adjustments, measurables=measurables, constraints=constraints)  # Evaluate from 2020 to end of simulation
 
     (unoptimized_result, optimized_result) = run_optimization(P, optimization, instructions)
 
     for adjustable in adjustments:
         print("%s - before=%.2f, after=%.2f" % (adjustable.name, unoptimized_result.model.program_instructions.alloc[adjustable.name].get(2020), optimized_result.model.program_instructions.alloc[adjustable.name].get(2020)))  # TODO - add time to alloc
 
-    d = at.PlotData([unoptimized_result, optimized_result], outputs=[':dead'], project=P)
+    d = at.PlotData([unoptimized_result, optimized_result], outputs=[":dead"], project=P)
     at.plot_series(d, axis="results")
+
 
 # DELAYED OUTCOME OPTIMIZATION
 # In this example, Treatment 2 is more effective than Treatment 1. However, we are given the budget in
@@ -147,19 +139,15 @@ def test_delayed():
     P = at.demo(which=test, do_run=False)
     P.update_settings(sim_end=2030.0)
 
-    alloc = sc.odict([('Risk avoidance', 0.),
-                      ('Harm reduction 1', 0.),
-                      ('Harm reduction 2', 0.),
-                      ('Treatment 1', at.TimeSeries([2020, 2024], [50, 50])),
-                      ('Treatment 2', at.TimeSeries([2020, 2024], [1, 1]))])
+    alloc = sc.odict([("Risk avoidance", 0.0), ("Harm reduction 1", 0.0), ("Harm reduction 2", 0.0), ("Treatment 1", at.TimeSeries([2020, 2024], [50, 50])), ("Treatment 2", at.TimeSeries([2020, 2024], [1, 1]))])
 
     instructions = at.ProgramInstructions(alloc=alloc, start_year=2020)  # Instructions for default spending
     adjustments = []
-    adjustments.append(at.SpendingAdjustment('Treatment 1', 2025, 'abs', 0., 100.))
-    adjustments.append(at.SpendingAdjustment('Treatment 2', 2025, 'abs', 0., 100.))
-    measurables = at.MaximizeMeasurable('ch_all', [2020, np.inf])
+    adjustments.append(at.SpendingAdjustment("Treatment 1", 2025, "abs", 0.0, 100.0))
+    adjustments.append(at.SpendingAdjustment("Treatment 2", 2025, "abs", 0.0, 100.0))
+    measurables = at.MaximizeMeasurable("ch_all", [2020, np.inf])
     constraints = at.TotalSpendConstraint()  # Cap total spending in all years
-    optimization = at.Optimization(name='default', adjustments=adjustments, measurables=measurables, constraints=constraints)  # Evaluate from 2020 to end of simulation
+    optimization = at.Optimization(name="default", adjustments=adjustments, measurables=measurables, constraints=constraints)  # Evaluate from 2020 to end of simulation
 
     (unoptimized_result, optimized_result) = run_optimization(P, optimization, instructions)
 
@@ -168,12 +156,13 @@ def test_delayed():
     optimized_spending = optimized_result.model.progset.get_alloc(t, optimized_result.model.program_instructions)
 
     plt.figure()
-    plt.plot(t, unoptimized_spending['Treatment 1'], label='Unoptimized Treatment 1')
-    plt.plot(t, optimized_spending['Treatment 1'], label='Optimized Treatment 1')
-    plt.plot(t, unoptimized_spending['Treatment 2'], label='Unoptimized Treatment 2')
-    plt.plot(t, optimized_spending['Treatment 2'], label='Optimized Treatment 2')
+    plt.plot(t, unoptimized_spending["Treatment 1"], label="Unoptimized Treatment 1")
+    plt.plot(t, optimized_spending["Treatment 1"], label="Optimized Treatment 1")
+    plt.plot(t, unoptimized_spending["Treatment 2"], label="Unoptimized Treatment 2")
+    plt.plot(t, optimized_spending["Treatment 2"], label="Optimized Treatment 2")
     plt.legend()
-    plt.title('Fixed spending in 2020, optimized from 2025 onwards')
+    plt.title("Fixed spending in 2020, optimized from 2025 onwards")
+
 
 # MULTI YEAR FIXED
 # In this example (requested by applications) the total spend constraint
@@ -196,20 +185,16 @@ def test_multiyear_fixed():
     P = at.demo(which=test, do_run=False)
     P.update_settings(sim_end=2030.0)
 
-    alloc = sc.odict([('Risk avoidance', 0.),
-                      ('Harm reduction 1', 0.),
-                      ('Harm reduction 2', 0.),
-                      ('Treatment 1', at.TimeSeries([2020, 2024], [50, 50])),
-                      ('Treatment 2', at.TimeSeries([2020, 2024], [1, 1]))])
+    alloc = sc.odict([("Risk avoidance", 0.0), ("Harm reduction 1", 0.0), ("Harm reduction 2", 0.0), ("Treatment 1", at.TimeSeries([2020, 2024], [50, 50])), ("Treatment 2", at.TimeSeries([2020, 2024], [1, 1]))])
 
     instructions = at.ProgramInstructions(alloc=alloc, start_year=2020)  # Instructions for default spending
     adjustments = []
-    adjustments.append(at.SpendingAdjustment('Treatment 1', [2020, 2024], 'abs', 5., 100., 5.))
-    adjustments.append(at.SpendingAdjustment('Treatment 2', [2020, 2024], 'abs', 5., 125., 5.))
-    measurables = at.MaximizeMeasurable('ch_all', [2020, np.inf])
+    adjustments.append(at.SpendingAdjustment("Treatment 1", [2020, 2024], "abs", 5.0, 100.0, 5.0))
+    adjustments.append(at.SpendingAdjustment("Treatment 2", [2020, 2024], "abs", 5.0, 125.0, 5.0))
+    measurables = at.MaximizeMeasurable("ch_all", [2020, np.inf])
     constraints = at.TotalSpendConstraint(t=[2020, 2024], total_spend=[100, 150])  # Cap total spending in all years
     # Use PSO because this example seems a bit susceptible to local minima with ASD
-    optimization = at.Optimization(name='default', adjustments=adjustments, measurables=measurables, constraints=constraints, method='pso')  # Evaluate from 2020 to end of simulation
+    optimization = at.Optimization(name="default", adjustments=adjustments, measurables=measurables, constraints=constraints, method="pso")  # Evaluate from 2020 to end of simulation
 
     (unoptimized_result, optimized_result) = run_optimization(P, optimization, instructions)
 
@@ -220,8 +205,9 @@ def test_multiyear_fixed():
     print(optimized_spending)
 
     d = at.PlotData.programs(optimized_result)
-    at.plot_series(d, plot_type='stacked')
-    plt.title('Scale up spending to 100 in 2020 and 150 in 2040')
+    at.plot_series(d, plot_type="stacked")
+    plt.title("Scale up spending to 100 in 2020 and 150 in 2040")
+
 
 # MULTI YEAR RELATIVE
 # This is an interesting example. The total budget in 2020 is fixed at $50
@@ -239,20 +225,16 @@ def test_multiyear_relative():
     P = at.demo(which=test, do_run=False)
     P.update_settings(sim_end=2030.0)
 
-    alloc = sc.odict([('Risk avoidance', 0.),
-                      ('Harm reduction 1', 0.),
-                      ('Harm reduction 2', 0.),
-                      ('Treatment 1', at.TimeSeries([2020], [49])),
-                      ('Treatment 2', at.TimeSeries([2020], [1]))])
+    alloc = sc.odict([("Risk avoidance", 0.0), ("Harm reduction 1", 0.0), ("Harm reduction 2", 0.0), ("Treatment 1", at.TimeSeries([2020], [49])), ("Treatment 2", at.TimeSeries([2020], [1]))])
 
     instructions = at.ProgramInstructions(alloc=alloc, start_year=2020)  # Instructions for default spending
     adjustments = []
-    adjustments.append(at.SpendingAdjustment('Treatment 1', [2022, 2024], 'abs', 1., 100))
-    adjustments.append(at.SpendingAdjustment('Treatment 2', [2022, 2024], 'abs', 1., 100))
-    measurables = at.MaximizeMeasurable('ch_all', [2020, np.inf])
+    adjustments.append(at.SpendingAdjustment("Treatment 1", [2022, 2024], "abs", 1.0, 100))
+    adjustments.append(at.SpendingAdjustment("Treatment 2", [2022, 2024], "abs", 1.0, 100))
+    measurables = at.MaximizeMeasurable("ch_all", [2020, np.inf])
     constraints = at.TotalSpendConstraint(t=[2022, 2024], budget_factor=[1.5, 3.0])  # Cap total spending in all years
     # Use PSO because this example seems a bit susceptible to local minima with ASD
-    optimization = at.Optimization(name='default', adjustments=adjustments, measurables=measurables, constraints=constraints, method='pso')  # Evaluate from 2020 to end of simulation
+    optimization = at.Optimization(name="default", adjustments=adjustments, measurables=measurables, constraints=constraints, method="pso")  # Evaluate from 2020 to end of simulation
 
     (unoptimized_result, optimized_result) = run_optimization(P, optimization, instructions)
 
@@ -263,8 +245,9 @@ def test_multiyear_relative():
     print(optimized_spending)
 
     d = at.PlotData.programs(optimized_result)
-    at.plot_series(d, plot_type='stacked')
-    plt.title('Scale up spending to 1x in 2020 and 1.5x in 2040')
+    at.plot_series(d, plot_type="stacked")
+    plt.title("Scale up spending to 1x in 2020 and 1.5x in 2040")
+
 
 # GRADUAL OUTCOME OPTIMIZATION
 # This is similar to ramped constraints, except the constraint is time-based rather than
@@ -280,19 +263,15 @@ def test_gradual():
     P = at.demo(which=test, do_run=False)
     P.update_settings(sim_end=2030.0)
 
-    alloc = sc.odict([('Risk avoidance', 0.),
-                      ('Harm reduction 1', 0.),
-                      ('Harm reduction 2', 0.),
-                      ('Treatment 1', at.TimeSeries([2020, 2022], [50, 50])),
-                      ('Treatment 2', at.TimeSeries([2020, 2022], [1, 1]))])
+    alloc = sc.odict([("Risk avoidance", 0.0), ("Harm reduction 1", 0.0), ("Harm reduction 2", 0.0), ("Treatment 1", at.TimeSeries([2020, 2022], [50, 50])), ("Treatment 2", at.TimeSeries([2020, 2022], [1, 1]))])
 
     instructions = at.ProgramInstructions(alloc=alloc, start_year=2020)  # Instructions for default spending
     adjustments = []
-    adjustments.append(at.SpendingAdjustment('Treatment 1', 2025, 'abs', 0., 100.))
-    adjustments.append(at.SpendingAdjustment('Treatment 2', 2025, 'abs', 0., 100.))
-    measurables = at.MaximizeMeasurable('ch_all', [2020, np.inf])
+    adjustments.append(at.SpendingAdjustment("Treatment 1", 2025, "abs", 0.0, 100.0))
+    adjustments.append(at.SpendingAdjustment("Treatment 2", 2025, "abs", 0.0, 100.0))
+    measurables = at.MaximizeMeasurable("ch_all", [2020, np.inf])
     constraints = at.TotalSpendConstraint()  # Cap total spending in all years
-    optimization = at.Optimization(name='default', adjustments=adjustments, measurables=measurables, constraints=constraints)  # Evaluate from 2020 to end of simulation
+    optimization = at.Optimization(name="default", adjustments=adjustments, measurables=measurables, constraints=constraints)  # Evaluate from 2020 to end of simulation
 
     (unoptimized_result, optimized_result) = run_optimization(P, optimization, instructions)
 
@@ -301,12 +280,13 @@ def test_gradual():
     optimized_spending = optimized_result.model.progset.get_alloc(t, optimized_result.model.program_instructions)
 
     plt.figure()
-    plt.plot(t, unoptimized_spending['Treatment 1'], label='Unoptimized Treatment 1')
-    plt.plot(t, optimized_spending['Treatment 1'], label='Optimized Treatment 1')
-    plt.plot(t, unoptimized_spending['Treatment 2'], label='Unoptimized Treatment 2')
-    plt.plot(t, optimized_spending['Treatment 2'], label='Optimized Treatment 2')
+    plt.plot(t, unoptimized_spending["Treatment 1"], label="Unoptimized Treatment 1")
+    plt.plot(t, optimized_spending["Treatment 1"], label="Optimized Treatment 1")
+    plt.plot(t, unoptimized_spending["Treatment 2"], label="Unoptimized Treatment 2")
+    plt.plot(t, optimized_spending["Treatment 2"], label="Optimized Treatment 2")
     plt.legend()
-    plt.title('Fixed spending in 2020, optimized in 2025 with 3y onset')
+    plt.title("Fixed spending in 2020, optimized in 2025 with 3y onset")
+
 
 # MIXED TIMING OUTCOME OPTIMIZATION
 # Treatment 2 can have its funding adjusted in both 2023 and 2027. Treatment 1 can have its funding
@@ -323,19 +303,15 @@ def test_mixed_timing():
     P = at.demo(which=test, do_run=False)
     P.update_settings(sim_end=2030.0)
 
-    alloc = sc.odict([('Risk avoidance', 0.),
-                      ('Harm reduction 1', 0.),
-                      ('Harm reduction 2', 0.),
-                      ('Treatment 1', at.TimeSeries([2020, 2022], [50, 25])),
-                      ('Treatment 2', at.TimeSeries([2020, 2022], [1, 25]))])
+    alloc = sc.odict([("Risk avoidance", 0.0), ("Harm reduction 1", 0.0), ("Harm reduction 2", 0.0), ("Treatment 1", at.TimeSeries([2020, 2022], [50, 25])), ("Treatment 2", at.TimeSeries([2020, 2022], [1, 25]))])
 
     instructions = at.ProgramInstructions(alloc=alloc, start_year=2020)  # Instructions for default spending
     adjustments = []
-    adjustments.append(at.SpendingAdjustment('Treatment 1', 2023, 'abs', 0., 100.))
-    adjustments.append(at.SpendingAdjustment('Treatment 2', [2023, 2027], 'abs', 0., 100.))
-    measurables = at.MaximizeMeasurable('ch_all', [2020, np.inf])
+    adjustments.append(at.SpendingAdjustment("Treatment 1", 2023, "abs", 0.0, 100.0))
+    adjustments.append(at.SpendingAdjustment("Treatment 2", [2023, 2027], "abs", 0.0, 100.0))
+    measurables = at.MaximizeMeasurable("ch_all", [2020, np.inf])
     constraints = at.TotalSpendConstraint(t=2023)  # Cap total spending in 2023 only
-    optimization = at.Optimization(name='default', adjustments=adjustments, measurables=measurables, constraints=constraints)  # Evaluate from 2020 to end of simulation
+    optimization = at.Optimization(name="default", adjustments=adjustments, measurables=measurables, constraints=constraints)  # Evaluate from 2020 to end of simulation
 
     (unoptimized_result, optimized_result) = run_optimization(P, optimization, instructions)
 
@@ -344,12 +320,12 @@ def test_mixed_timing():
     optimized_spending = optimized_result.model.progset.get_alloc(t, optimized_result.model.program_instructions)
 
     plt.figure()
-    plt.plot(t, unoptimized_spending['Treatment 1'], label='Unoptimized Treatment 1')
-    plt.plot(t, optimized_spending['Treatment 1'], label='Optimized Treatment 1')
-    plt.plot(t, unoptimized_spending['Treatment 2'], label='Unoptimized Treatment 2')
-    plt.plot(t, optimized_spending['Treatment 2'], label='Optimized Treatment 2')
+    plt.plot(t, unoptimized_spending["Treatment 1"], label="Unoptimized Treatment 1")
+    plt.plot(t, optimized_spending["Treatment 1"], label="Optimized Treatment 1")
+    plt.plot(t, unoptimized_spending["Treatment 2"], label="Unoptimized Treatment 2")
+    plt.plot(t, optimized_spending["Treatment 2"], label="Optimized Treatment 2")
     plt.legend()
-    plt.title('Multi-time optimization in 2023 and 2025 (constrained in 2023)')
+    plt.title("Multi-time optimization in 2023 and 2025 (constrained in 2023)")
 
 
 def test_parametric_paired():
@@ -357,18 +333,14 @@ def test_parametric_paired():
     P = at.demo(which=test, do_run=False)
     P.update_settings(sim_end=2030.0)
 
-    alloc = sc.odict([('Risk avoidance', 0.),
-                      ('Harm reduction 1', 0.),
-                      ('Harm reduction 2', 0.),
-                      ('Treatment 1', 50.),
-                      ('Treatment 2', 1.)])
+    alloc = sc.odict([("Risk avoidance", 0.0), ("Harm reduction 1", 0.0), ("Harm reduction 2", 0.0), ("Treatment 1", 50.0), ("Treatment 2", 1.0)])
 
     instructions = at.ProgramInstructions(alloc=alloc, start_year=2020)  # Instructions for default spending
     adjustments = []
-    adjustments.append(at.PairedLinearSpendingAdjustment(['Treatment 1', 'Treatment 2'], [2020, 2025]))
-    measurables = at.MaximizeMeasurable('ch_all', [2020, np.inf])
+    adjustments.append(at.PairedLinearSpendingAdjustment(["Treatment 1", "Treatment 2"], [2020, 2025]))
+    measurables = at.MaximizeMeasurable("ch_all", [2020, np.inf])
     constraints = None  # Total spending constraint is automatically satisfied by the paired parametric adjustment
-    optimization = at.Optimization(name='default', adjustments=adjustments, measurables=measurables, constraints=constraints)  # Evaluate from 2020 to end of simulation
+    optimization = at.Optimization(name="default", adjustments=adjustments, measurables=measurables, constraints=constraints)  # Evaluate from 2020 to end of simulation
 
     (unoptimized_result, optimized_result) = run_optimization(P, optimization, instructions)
 
@@ -377,12 +349,13 @@ def test_parametric_paired():
     optimized_spending = optimized_result.model.progset.get_alloc(t, optimized_result.model.program_instructions)
 
     plt.figure()
-    plt.plot(t, unoptimized_spending['Treatment 1'], label='Unoptimized Treatment 1')
-    plt.plot(t, optimized_spending['Treatment 1'], label='Optimized Treatment 1')
-    plt.plot(t, unoptimized_spending['Treatment 2'], label='Unoptimized Treatment 2')
-    plt.plot(t, optimized_spending['Treatment 2'], label='Optimized Treatment 2')
+    plt.plot(t, unoptimized_spending["Treatment 1"], label="Unoptimized Treatment 1")
+    plt.plot(t, optimized_spending["Treatment 1"], label="Optimized Treatment 1")
+    plt.plot(t, unoptimized_spending["Treatment 2"], label="Unoptimized Treatment 2")
+    plt.plot(t, optimized_spending["Treatment 2"], label="Optimized Treatment 2")
     plt.legend()
-    plt.title('Paired linear funding transfer from 2020-2025')
+    plt.title("Paired linear funding transfer from 2020-2025")
+
 
 # MONEY MINIMIZATION
 # In this example, Treatment 2 is more effective than Treatment 1. If we spend
@@ -398,33 +371,29 @@ def test_minmoney():
     P = at.demo(which=test, do_run=False)
     P.update_settings(sim_end=2030.0)
 
-    alloc = sc.odict([('Risk avoidance', 0.),
-                      ('Harm reduction 1', 0.),
-                      ('Harm reduction 2', 0.),
-                      ('Treatment 1', 100.),
-                      ('Treatment 2', 100.)])
+    alloc = sc.odict([("Risk avoidance", 0.0), ("Harm reduction 1", 0.0), ("Harm reduction 2", 0.0), ("Treatment 1", 100.0), ("Treatment 2", 100.0)])
 
     instructions = at.ProgramInstructions(alloc=alloc, start_year=2020)  # Instructions for default spending
 
     adjustments = []
-    adjustments.append(at.SpendingAdjustment('Treatment 1', 2020, 'abs', 0., 100.))  # We can adjust Treatment 1
-    adjustments.append(at.SpendingAdjustment('Treatment 2', 2020, 'abs', 0., 100.))  # We can adjust Treatment 2
+    adjustments.append(at.SpendingAdjustment("Treatment 1", 2020, "abs", 0.0, 100.0))  # We can adjust Treatment 1
+    adjustments.append(at.SpendingAdjustment("Treatment 2", 2020, "abs", 0.0, 100.0))  # We can adjust Treatment 2
 
     measurables = []
-    measurables.append(at.AtLeastMeasurable('ch_all', 2030, 729.90))  # Need at least 729.90 people in 2030
-    measurables.append(at.MinimizeMeasurable('Treatment 1', 2020))  # Minimize 2020 spending on Treatment 1
-    measurables.append(at.MinimizeMeasurable('Treatment 2', 2020))  # Minimize 2020 spending on Treatment 2
+    measurables.append(at.AtLeastMeasurable("ch_all", 2030, 729.90))  # Need at least 729.90 people in 2030
+    measurables.append(at.MinimizeMeasurable("Treatment 1", 2020))  # Minimize 2020 spending on Treatment 1
+    measurables.append(at.MinimizeMeasurable("Treatment 2", 2020))  # Minimize 2020 spending on Treatment 2
 
     constraints = None  # No extra constraints aside from individual bounds
 
-    optimization = at.Optimization(name='default', adjustments=adjustments, measurables=measurables, constraints=constraints, method='pso')  # Evaluate from 2020 to end of simulation
+    optimization = at.Optimization(name="default", adjustments=adjustments, measurables=measurables, constraints=constraints, method="pso")  # Evaluate from 2020 to end of simulation
 
     (unoptimized_result, optimized_result) = run_optimization(P, optimization, instructions)
 
     for adjustable in adjustments:
         print("%s - before=%.2f, after=%.2f" % (adjustable.name, unoptimized_result.model.program_instructions.alloc[adjustable.name].get(2020), optimized_result.model.program_instructions.alloc[adjustable.name].get(2020)))  # TODO - add time to alloc
 
-    d = at.PlotData([unoptimized_result, optimized_result], outputs=['ch_all'], project=P)
+    d = at.PlotData([unoptimized_result, optimized_result], outputs=["ch_all"], project=P)
     at.plot_series(d, axis="results")
 
 
@@ -435,40 +404,38 @@ def test_minmoney():
 # budget as $50 on each program, and explicitly set the initial spend to $2000 on each program, and request a
 # 0.2% increase in ``ch_all``. The optimization should spend close to $0 on Treatment 1 and about $1000 on Treatment 2
 
+
 def test_minmoney_relative():
 
     P = at.demo(which=test, do_run=False)
     P.update_settings(sim_end=2030.0)
 
-    alloc = sc.odict([('Risk avoidance', 0.),
-                      ('Harm reduction 1', 0.),
-                      ('Harm reduction 2', 0.),
-                      ('Treatment 1', 50.),
-                      ('Treatment 2', 50.)])
+    alloc = sc.odict([("Risk avoidance", 0.0), ("Harm reduction 1", 0.0), ("Harm reduction 2", 0.0), ("Treatment 1", 50.0), ("Treatment 2", 50.0)])
 
     instructions = at.ProgramInstructions(alloc=alloc, start_year=2020)  # Instructions for default spending. Note that this does NOT have the scaled up initial spends for money minimization
 
     adjustments = []
-    adjustments.append(at.SpendingAdjustment('Treatment 1', 2020, 'abs', 0., 2000., initial=2000.))  # We can adjust Treatment 1
-    adjustments.append(at.SpendingAdjustment('Treatment 2', 2020, 'abs', 0., 2000., initial=2000.))  # We can adjust Treatment 2
+    adjustments.append(at.SpendingAdjustment("Treatment 1", 2020, "abs", 0.0, 2000.0, initial=2000.0))  # We can adjust Treatment 1
+    adjustments.append(at.SpendingAdjustment("Treatment 2", 2020, "abs", 0.0, 2000.0, initial=2000.0))  # We can adjust Treatment 2
 
     measurables = []
-    measurables.append(at.IncreaseByMeasurable('ch_all', 2030, 0.002))  # Get a 0.02% increase in ch_all in 2030
-    measurables.append(at.MinimizeMeasurable('Treatment 1', 2020))  # Minimize 2020 spending on Treatment 1
-    measurables.append(at.MinimizeMeasurable('Treatment 2', 2020))  # Minimize 2020 spending on Treatment 2
+    measurables.append(at.IncreaseByMeasurable("ch_all", 2030, 0.002))  # Get a 0.02% increase in ch_all in 2030
+    measurables.append(at.MinimizeMeasurable("Treatment 1", 2020))  # Minimize 2020 spending on Treatment 1
+    measurables.append(at.MinimizeMeasurable("Treatment 2", 2020))  # Minimize 2020 spending on Treatment 2
 
     constraints = None  # No extra constraints aside from individual bounds
 
-    optimization = at.Optimization(name='default', adjustments=adjustments, measurables=measurables, constraints=constraints, method='pso')  # Evaluate from 2020 to end of simulation
+    optimization = at.Optimization(name="default", adjustments=adjustments, measurables=measurables, constraints=constraints, method="pso")  # Evaluate from 2020 to end of simulation
 
     (unoptimized_result, optimized_result) = run_optimization(P, optimization, instructions)
 
     for adjustable in adjustments:
         print("%s - before=%.2f, after=%.2f" % (adjustable.name, unoptimized_result.model.program_instructions.alloc[adjustable.name].get(2020), optimized_result.model.program_instructions.alloc[adjustable.name].get(2020)))  # TODO - add time to alloc
 
-    d = at.PlotData([unoptimized_result, optimized_result], outputs=['ch_all'], project=P)
+    d = at.PlotData([unoptimized_result, optimized_result], outputs=["ch_all"], project=P)
     at.plot_series(d, axis="results")
-    print('Change: %.4f' % (d.series[1].vals[-1] / d.series[0].vals[-1]))
+    print("Change: %.4f" % (d.series[1].vals[-1] / d.series[0].vals[-1]))
+
 
 # MONEY MINIMIZATION 3
 # Essentially the same example as ``test_minmoney_relative`` but now we want an absolute increase
@@ -480,35 +447,31 @@ def test_minmoney_absolute():
     P = at.demo(which=test, do_run=False)
     P.update_settings(sim_end=2030.0)
 
-    alloc = sc.odict([('Risk avoidance', 0.),
-                      ('Harm reduction 1', 0.),
-                      ('Harm reduction 2', 0.),
-                      ('Treatment 1', 50.),
-                      ('Treatment 2', 50.)])
+    alloc = sc.odict([("Risk avoidance", 0.0), ("Harm reduction 1", 0.0), ("Harm reduction 2", 0.0), ("Treatment 1", 50.0), ("Treatment 2", 50.0)])
 
     instructions = at.ProgramInstructions(alloc=alloc, start_year=2020)  # Instructions for default spending. Note that this does NOT have the scaled up initial spends for money minimization
 
     adjustments = []
-    adjustments.append(at.SpendingAdjustment('Treatment 1', 2020, 'abs', 0., 2000., initial=2000.))  # We can adjust Treatment 1
-    adjustments.append(at.SpendingAdjustment('Treatment 2', 2020, 'abs', 0., 2000., initial=2000.))  # We can adjust Treatment 2
+    adjustments.append(at.SpendingAdjustment("Treatment 1", 2020, "abs", 0.0, 2000.0, initial=2000.0))  # We can adjust Treatment 1
+    adjustments.append(at.SpendingAdjustment("Treatment 2", 2020, "abs", 0.0, 2000.0, initial=2000.0))  # We can adjust Treatment 2
 
     measurables = []
-    measurables.append(at.IncreaseByMeasurable('ch_all', 2030, 1, target_type='abs'))  # Get a 0.02% increase in ch_all in 2030
-    measurables.append(at.MinimizeMeasurable('Treatment 1', 2020))  # Minimize 2020 spending on Treatment 1
-    measurables.append(at.MinimizeMeasurable('Treatment 2', 2020))  # Minimize 2020 spending on Treatment 2
+    measurables.append(at.IncreaseByMeasurable("ch_all", 2030, 1, target_type="abs"))  # Get a 0.02% increase in ch_all in 2030
+    measurables.append(at.MinimizeMeasurable("Treatment 1", 2020))  # Minimize 2020 spending on Treatment 1
+    measurables.append(at.MinimizeMeasurable("Treatment 2", 2020))  # Minimize 2020 spending on Treatment 2
 
     constraints = None  # No extra constraints aside from individual bounds
 
-    optimization = at.Optimization(name='default', adjustments=adjustments, measurables=measurables, constraints=constraints, method='pso')  # Evaluate from 2020 to end of simulation
+    optimization = at.Optimization(name="default", adjustments=adjustments, measurables=measurables, constraints=constraints, method="pso")  # Evaluate from 2020 to end of simulation
 
     (unoptimized_result, optimized_result) = run_optimization(P, optimization, instructions)
 
     for adjustable in adjustments:
         print("%s - before=%.2f, after=%.2f" % (adjustable.name, unoptimized_result.model.program_instructions.alloc[adjustable.name].get(2020), optimized_result.model.program_instructions.alloc[adjustable.name].get(2020)))  # TODO - add time to alloc
 
-    d = at.PlotData([unoptimized_result, optimized_result], outputs=['ch_all'], project=P)
+    d = at.PlotData([unoptimized_result, optimized_result], outputs=["ch_all"], project=P)
     at.plot_series(d, axis="results")
-    print('Before: %.2f, After: %.2f' % (d.series[0].vals[-1], d.series[1].vals[-1]))
+    print("Before: %.2f, After: %.2f" % (d.series[0].vals[-1], d.series[1].vals[-1]))
 
 
 def test_cascade_final_stage():
@@ -518,32 +481,28 @@ def test_cascade_final_stage():
 
     # This is the same as the 'standard' example, just setting up the fact that we can adjust spending on Treatment 1 and Treatment 2
     # and want a total spending constraint
-    alloc = sc.odict([('Risk avoidance', 0.),
-                      ('Harm reduction 1', 0.),
-                      ('Harm reduction 2', 0.),
-                      ('Treatment 1', 50.),
-                      ('Treatment 2', 1.)])
+    alloc = sc.odict([("Risk avoidance", 0.0), ("Harm reduction 1", 0.0), ("Harm reduction 2", 0.0), ("Treatment 1", 50.0), ("Treatment 2", 1.0)])
 
     instructions = at.ProgramInstructions(alloc=alloc, start_year=2020)  # Instructions for default spending
     adjustments = []
-    adjustments.append(at.SpendingAdjustment('Treatment 1', 2020, 'abs', 0., 100.))
-    adjustments.append(at.SpendingAdjustment('Treatment 2', 2020, 'abs', 0., 100.))
+    adjustments.append(at.SpendingAdjustment("Treatment 1", 2020, "abs", 0.0, 100.0))
+    adjustments.append(at.SpendingAdjustment("Treatment 2", 2020, "abs", 0.0, 100.0))
     constraints = at.TotalSpendConstraint()  # Cap total spending in all years
 
     # CASCADE MEASURABLE
     # This measurable will maximize the number of people in the final cascade stage, whatever it is
-    measurables = at.MaximizeCascadeStage('main', [2030], pop_names='all')  # NB. make sure the objective year is later than the program start year, otherwise no time for any changes
+    measurables = at.MaximizeCascadeStage("main", [2030], pop_names="all")  # NB. make sure the objective year is later than the program start year, otherwise no time for any changes
 
     # This is the same as the 'standard' example, just running the optimization and comparing the results
-    optimization = at.Optimization(name='default', adjustments=adjustments, measurables=measurables, constraints=constraints)
-    unoptimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=instructions, result_name="unoptimized")
-    optimized_instructions = at.optimize(P, optimization, parset=P.parsets["default"], progset=P.progsets['default'], instructions=instructions)
-    optimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=optimized_instructions, result_name="optimized")
+    optimization = at.Optimization(name="default", adjustments=adjustments, measurables=measurables, constraints=constraints)
+    unoptimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets["default"], progset_instructions=instructions, result_name="unoptimized")
+    optimized_instructions = at.optimize(P, optimization, parset=P.parsets["default"], progset=P.progsets["default"], instructions=instructions)
+    optimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets["default"], progset_instructions=optimized_instructions, result_name="optimized")
 
     for adjustable in adjustments:
         print("%s - before=%.2f, after=%.2f" % (adjustable.name, unoptimized_result.model.program_instructions.alloc[adjustable.name].get(2020), optimized_result.model.program_instructions.alloc[adjustable.name].get(2020)))  # TODO - add time to alloc
 
-    at.plot_multi_cascade([unoptimized_result, optimized_result], 'main', pops='all', year=2020)
+    at.plot_multi_cascade([unoptimized_result, optimized_result], "main", pops="all", year=2020)
 
 
 def test_cascade_multi_stage():
@@ -551,24 +510,20 @@ def test_cascade_multi_stage():
     P = at.demo(which=test, do_run=False)
     P.update_settings(sim_end=2030.0)
 
-    alloc = sc.odict([('Risk avoidance', 0.),
-                      ('Harm reduction 1', 0.),
-                      ('Harm reduction 2', 0.),
-                      ('Treatment 1', 50.),
-                      ('Treatment 2', 1.)])
+    alloc = sc.odict([("Risk avoidance", 0.0), ("Harm reduction 1", 0.0), ("Harm reduction 2", 0.0), ("Treatment 1", 50.0), ("Treatment 2", 1.0)])
 
     instructions = at.ProgramInstructions(alloc=alloc, start_year=2020)  # Instructions for default spending
     adjustments = []
-    adjustments.append(at.SpendingAdjustment('Treatment 1', 2020, 'abs', 0., 100.))
-    adjustments.append(at.SpendingAdjustment('Treatment 2', 2020, 'abs', 0., 100.))
+    adjustments.append(at.SpendingAdjustment("Treatment 1", 2020, "abs", 0.0, 100.0))
+    adjustments.append(at.SpendingAdjustment("Treatment 2", 2020, "abs", 0.0, 100.0))
 
     # CASCADE MEASURABLE
-    measurables = at.MaximizeCascadeStage(None, [2017, 2018], pop_names='all', cascade_stage=['Number ever infected', 'Recovered'])  # NB. make sure the objective year is later than the program start year, otherwise no time for any changes
+    measurables = at.MaximizeCascadeStage(None, [2017, 2018], pop_names="all", cascade_stage=["Number ever infected", "Recovered"])  # NB. make sure the objective year is later than the program start year, otherwise no time for any changes
     # This is the same as the 'standard' example, just running the optimization and comparing the results
-    optimization = at.Optimization(name='default', adjustments=adjustments, measurables=measurables)
-    P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=instructions, result_name="baseline")
-    optimized_instructions = at.optimize(P, optimization, parset=P.parsets["default"], progset=P.progsets['default'], instructions=instructions)
-    P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=optimized_instructions, result_name="optimized")
+    optimization = at.Optimization(name="default", adjustments=adjustments, measurables=measurables)
+    P.run_sim(parset=P.parsets["default"], progset=P.progsets["default"], progset_instructions=instructions, result_name="baseline")
+    optimized_instructions = at.optimize(P, optimization, parset=P.parsets["default"], progset=P.progsets["default"], instructions=instructions)
+    P.run_sim(parset=P.parsets["default"], progset=P.progsets["default"], progset_instructions=optimized_instructions, result_name="optimized")
 
 
 def test_cascade_conversions():
@@ -579,38 +534,34 @@ def test_cascade_conversions():
     # This is the same as the 'standard' example, just setting up the fact that we can adjust spending on Treatment 1 and Treatment 2
     # and want a total spending constraint
 
-    alloc = sc.odict([('Risk avoidance', 0.),
-                      ('Harm reduction 1', 0.),
-                      ('Harm reduction 2', 0.),
-                      ('Treatment 1', 50.),
-                      ('Treatment 2', 1.)])
+    alloc = sc.odict([("Risk avoidance", 0.0), ("Harm reduction 1", 0.0), ("Harm reduction 2", 0.0), ("Treatment 1", 50.0), ("Treatment 2", 1.0)])
 
     instructions = at.ProgramInstructions(alloc=alloc, start_year=2020)  # Instructions for default spending
     adjustments = []
-    adjustments.append(at.SpendingAdjustment('Treatment 1', 2020, 'abs', 0., 100.))
-    adjustments.append(at.SpendingAdjustment('Treatment 2', 2020, 'abs', 0., 100.))
+    adjustments.append(at.SpendingAdjustment("Treatment 1", 2020, "abs", 0.0, 100.0))
+    adjustments.append(at.SpendingAdjustment("Treatment 2", 2020, "abs", 0.0, 100.0))
     constraints = at.TotalSpendConstraint()  # Cap total spending in all years
 
     # CASCADE MEASURABLE
     # This measurable will be
-    measurables = at.MaximizeCascadeConversionRate('main', [2030], pop_names='all')  # NB. make sure the objective year is later than the program start year, otherwise no time for any changes
+    measurables = at.MaximizeCascadeConversionRate("main", [2030], pop_names="all")  # NB. make sure the objective year is later than the program start year, otherwise no time for any changes
 
     # This is the same as the 'standard' example, just running the optimization and comparing the results
-    optimization = at.Optimization(name='default', adjustments=adjustments, measurables=measurables, constraints=constraints)
-    unoptimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=instructions, result_name="unoptimized")
-    optimized_instructions = at.optimize(P, optimization, parset=P.parsets["default"], progset=P.progsets['default'], instructions=instructions)
-    optimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets['default'], progset_instructions=optimized_instructions, result_name="optimized")
+    optimization = at.Optimization(name="default", adjustments=adjustments, measurables=measurables, constraints=constraints)
+    unoptimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets["default"], progset_instructions=instructions, result_name="unoptimized")
+    optimized_instructions = at.optimize(P, optimization, parset=P.parsets["default"], progset=P.progsets["default"], instructions=instructions)
+    optimized_result = P.run_sim(parset=P.parsets["default"], progset=P.progsets["default"], progset_instructions=optimized_instructions, result_name="optimized")
 
     for adjustable in adjustments:
         print("%s - before=%.2f, after=%.2f" % (adjustable.name, unoptimized_result.model.program_instructions.alloc[adjustable.name].get(2020), optimized_result.model.program_instructions.alloc[adjustable.name].get(2020)))  # TODO - add time to alloc
 
-    at.plot_cascade(unoptimized_result, 'main', pops='all', year=2030)
-    plt.title('Unoptimized')
-    at.plot_cascade(optimized_result, 'main', pops='all', year=2030)
-    plt.title('Optimized')
+    at.plot_cascade(unoptimized_result, "main", pops="all", year=2030)
+    plt.title("Unoptimized")
+    at.plot_cascade(optimized_result, "main", pops="all", year=2030)
+    plt.title("Optimized")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_standard()
     test_unresolvable()
     test_standard_mindeaths()
