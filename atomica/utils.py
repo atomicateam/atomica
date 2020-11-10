@@ -36,6 +36,7 @@ __all__ = [
     "datetime_to_year",
     "parallel_progress",
     "start_logging",
+    "stop_logging",
 ]
 
 
@@ -947,7 +948,7 @@ class Quiet:
         logger.setLevel(self.previous_level)
 
 
-def start_logging(fname: str) -> None:
+def start_logging(fname: str, reset=False) -> None:
     """
     Log Atomica output to a file
 
@@ -969,8 +970,12 @@ def start_logging(fname: str) -> None:
           would typically corrupt the progress bar in the console anyway.
 
     :param fname: File name to write log file to
-
+    :param reset: If True, the previous file handler will be cleared and a new one opened. If the new log file
+                  has the same name as the old log file, the file will be cleared.
     """
+
+    if reset:
+        stop_logging()
 
     for handler in logger.handlers:
         if handler.name == "atomica_file_handler":
@@ -1013,3 +1018,21 @@ def start_logging(fname: str) -> None:
 
     sys.exc_info = attach_hook(log_exception, sys.exc_info)
     sys.excepthook = log_exception
+
+
+def stop_logging() -> None:
+    """
+    Stop logging output to file
+
+    This function will clear the `atomica_file_handler` and close
+    the last-opened log file. If file logging has not started, this
+    function will return normally without raising an error
+
+    """
+
+    for handler in logger.handlers:
+        if handler.name == "atomica_file_handler":
+            handler.close()
+            logger.removeHandler(handler)
+            # Don't terminate the loop, if by some change there is more than one handler
+            # (not supposed to happen though) then we would want to close them all
