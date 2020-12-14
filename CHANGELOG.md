@@ -2,6 +2,10 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.23.4] - 2020-12-14
+
+- Fix bug where program outcomes were not correctly applied if overwriting a function parameter that does not impact any transitions
+
 ## [1.23.3] - 2020-11-10
 
 - Added `at.stop_logging()` and an optional `reset` argument to `at.start_logging()`
