@@ -1014,10 +1014,10 @@ def start_logging(fname: str, reset=False) -> None:
 
         return inner
 
-    import sys
-
-    sys.exc_info = attach_hook(log_exception, sys.exc_info)
-    sys.excepthook = log_exception
+    if not reset: #do not double up on error messages
+        import sys
+        sys.exc_info = attach_hook(log_exception, sys.exc_info)
+        sys.excepthook = log_exception
 
 
 def stop_logging() -> None:
