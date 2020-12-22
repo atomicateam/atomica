@@ -1214,7 +1214,7 @@ class ProjectFramework:
                 elif len(upstream_attachments) or len(downstream_attachments):
                     # If there is at least one upstream or downstream attachment, then there can be no overlap between the upstream and downstream groups.
                     if downstream_groups.intersection(upstream_groups):
-                        raise InvalidFramework(f'Junction "{junc_name}" has inputs and outputs to multiple duration groups. As these are untimed flows, there can be no overlap in the upstream and downstream groups. Upstream compartments are {upstream_comps} with groups {upstream_groups}. Downstream compartments are {downstream_comps} with groups {upstream_groups}')
+                        raise InvalidFramework(f'Junction "{junc_name}" has inputs and outputs to multiple duration groups. As these are untimed flows, there can be no overlap in the upstream and downstream groups. Upstream compartments are {upstream_comps} with groups {upstream_groups}. Downstream compartments are {downstream_comps} with groups {downstream_groups}')
 
     def get_databook_units(self, code_name: str) -> str:
         """
