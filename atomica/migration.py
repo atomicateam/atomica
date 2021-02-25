@@ -23,6 +23,8 @@ import types
 import numpy as np
 import pandas as pd
 from collections import defaultdict
+import pathlib
+import os
 
 __all__ = ["migration", "migrate", "register_migration"]
 
@@ -33,6 +35,11 @@ SKIP_MIGRATION = False  # Global migration flag to disable migration
 # In this section, make changes to the Atomica module structure to enable pickle files
 # to be loaded at all
 
+# On Windows, pathlib.PosixPath is not implemented which can cause problems when unpickling
+# It looks like it works whether we instantitate PurePosixPath or WindowsPath but presumably
+# using PurePosixPath is more compatible when going in the other direction
+if os.name == 'nt':
+    pathlib.PosixPath = pathlib.PurePosixPath
 
 class _Placeholder:
     pass
@@ -59,7 +66,6 @@ atomica.optimization.OptimInstructions = _Placeholder
 # This dict stores the migrations associated with each versioned class
 # We migrate projects and results separately because they might be stored
 # separately e.g. in a database
-
 
 class Migration:
     """Class representation of a migration
