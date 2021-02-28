@@ -36,6 +36,8 @@ class ProjectFramework:
 
     :param inputs: A string (which will load an Excel file from disk) or an sc.Spreadsheet. If not provided, the internal sheets will be set to an empty dict ready for content
     :param name: Optionally explicitly set the framework name. Otherwise, it will be assigned from the 'about' sheet, if present
+    :param validate: If True (default) then the framework will be validated upon loading. This can be overridden if operating on invalid/partial frameworks is required. However,
+                     the framework should still be validated before it is used.
 
     """
 
@@ -541,9 +543,10 @@ class ProjectFramework:
             "is source": {"y", "n"},
             "is junction": {"y", "n"},
         }
+        numeric_columns = ["databook order","default value"]
 
         try:
-            self.comps = _sanitize_dataframe(self.comps, required_columns, defaults, valid_content, set_index="code name")
+            self.comps = _sanitize_dataframe(self.comps, required_columns, defaults, valid_content, set_index="code name", numeric_columns=numeric_columns)
         except Exception as e:
             message = 'An error was detected on the "Compartments" sheet in the Framework file'
             raise Exception("%s -> %s" % (message, e)) from e
@@ -568,12 +571,6 @@ class ProjectFramework:
             default_calibrate = ~self.comps["databook page"].isnull()
             self.comps["calibrate"] = None
             self.comps["calibrate"][default_calibrate] = "y"
-
-        try:
-            pd.to_numeric(self.comps["databook order"])
-        except Exception as e:
-            message = 'An error was detected on the "Compartments" sheet in the Framework file - databook order must be a number'
-            raise Exception("%s -> %s" % (message, e)) from e
 
         # VALIDATE COMPARTMENTS
         for comp_name, row in zip(self.comps.index, self.comps.to_dict(orient="records")):
@@ -614,21 +611,16 @@ class ProjectFramework:
             "display name": None,
             "components": None,
         }
+        numeric_columns = ["databook order","default value"]
 
         try:
-            self.characs = _sanitize_dataframe(self.characs, required_columns, defaults, valid_content, set_index="code name")
+            self.characs = _sanitize_dataframe(self.characs, required_columns, defaults, valid_content, set_index="code name", numeric_columns=numeric_columns)
         except Exception as e:
             message = 'An error was detected on the "Characteristics" sheet in the Framework file'
             raise Exception("%s -> %s" % (message, e)) from e
 
         # Assign first population type to any empty population types
         self.characs["population type"] = self.characs["population type"].fillna(available_pop_types[0])
-
-        try:
-            pd.to_numeric(self.characs["databook order"])
-        except Exception as e:
-            message = 'An error was detected on the "Characteristics" sheet in the Framework file - databook order must be a number'
-            raise Exception("%s -> %s" % (message, e)) from e
 
         if "setup weight" not in self.characs:
             self.characs["setup weight"] = (~self.characs["databook page"].isnull()).astype(int)
@@ -731,9 +723,10 @@ class ProjectFramework:
             "is derivative": {"y", "n"},
             "timed": {"y", "n"},
         }
+        numeric_columns = ["databook order", "default value","minimum value","maximum value","timescale"]
 
         try:
-            self.pars = _sanitize_dataframe(self.pars, required_columns, defaults, valid_content, set_index="code name")
+            self.pars = _sanitize_dataframe(self.pars, required_columns, defaults, valid_content, set_index="code name", numeric_columns=numeric_columns)
         except Exception as e:
             message = 'An error was detected on the "Parameters" sheet in the Framework file'
             raise Exception("%s -> %s" % (message, e)) from e
@@ -741,11 +734,7 @@ class ProjectFramework:
         # Assign first population type to any empty population types
         self.pars["population type"] = self.pars["population type"].fillna(available_pop_types[0])
         self.pars["format"] = self.pars["format"].map(lambda x: x.strip() if sc.isstring(x) else x)
-        try:
-            pd.to_numeric(self.pars["databook order"])
-        except Exception as e:
-            message = 'An error was detected on the "Parameters" sheet in the Framework file - databook order must be a number'
-            raise Exception("%s -> %s" % (message, e)) from e
+
 
         if "calibrate" not in self.pars:
             default_calibrate = self.pars["targetable"] == "y"
@@ -783,16 +772,16 @@ class ProjectFramework:
             if par["is derivative"] == "y" and par["databook page"] is None:
                 raise InvalidFramework('Parameter "%s" is marked "is derivative" but it does not have a databook page - it needs to appear in the databook so that an initial value can be provided.' % (par_name))
 
-            if par["timescale"] is None:
+            if not np.isfinite(par["timescale"]):
                 if par["format"] in {FS.QUANTITY_TYPE_DURATION}:
                     # Durations should always have a timescale, assumed to be annual by default
                     # This ensures the time units get printed in the databook, even for non-transition parameters
                     self.pars.at[par_name, "timescale"] = 1.0  # Assign default timescale for probability and duration (but not number, since a number might be absolute rather than annual for non-transition parameters)
-                elif self.transitions[par_name] and par["timescale"] is None and par["format"] in {FS.QUANTITY_TYPE_NUMBER, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_RATE}:
+                elif self.transitions[par_name] and not np.isfinite(par["timescale"]) and par["format"] in {FS.QUANTITY_TYPE_NUMBER, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_RATE}:
                     # For number and probability, non-transition parameters might not be be in units per time period, therefore having a timescale
                     # is optional *unless* it is a transition parameter
                     self.pars.at[par_name, "timescale"] = 1.0
-                elif par["timescale"] is not None and par["format"] == FS.QUANTITY_TYPE_PROPORTION:
+                elif np.isfinite(par["timescale"]) and par["format"] == FS.QUANTITY_TYPE_PROPORTION:
                     # Proportion units should never have a timescale since they are time-invariant
                     raise InvalidFramework("Parameter %s is in proportion units, therefore it cannot have a timescale entered for it" % par_name)
 
@@ -1253,7 +1242,7 @@ class ProjectFramework:
                 return FS.QUANTITY_TYPE_NUMBER.title()
         elif item_type == FS.KEY_PARAMETER:
             units = item_spec["format"].strip() if item_spec["format"] is not None else None
-            if item_spec["timescale"]:
+            if np.isfinite(item_spec["timescale"]):
                 if units is None:
                     raise InvalidFramework(f"A timescale was provided for Framework quantity {code_name} but no units were provided")
                 elif units.lower() == FS.QUANTITY_TYPE_DURATION:
@@ -1343,7 +1332,12 @@ class ProjectFramework:
         ss.save(fname)
 
 
-def _sanitize_dataframe(df: pd.DataFrame, required_columns: list, defaults: dict, valid_content: dict, set_index: str = None) -> pd.DataFrame:
+def _sanitize_dataframe(df: pd.DataFrame,
+                        required_columns: list,
+                        defaults: dict,
+                        valid_content: dict,
+                        set_index: str = None,
+                        numeric_columns: list = None) -> pd.DataFrame:
     """
     Take in a DataFrame and sanitize it
 
@@ -1357,6 +1351,7 @@ def _sanitize_dataframe(df: pd.DataFrame, required_columns: list, defaults: dict
     :param valid_content: A dict mapping column names to valid content. If specified, all elements of the column must be members of the iterable (normally this would be a set)
                       If 'valid_content' is None, then instead it will be checked that all of the values are NOT null i.e. use valid_content=None to specify it cannot be empty
     :param set_index: Optional, if provided, sets the dataframe's index to this column. This column should *not* be in the list of ``required_columns`` as it will not be present after the index is changed
+    :param numeric_columns: A list of column names that should be cast to a numeric type
     :return: Sanitized dataframe
 
     """
@@ -1407,6 +1402,14 @@ def _sanitize_dataframe(df: pd.DataFrame, required_columns: list, defaults: dict
         raise InvalidFramework("There cannot be any empty cells in the header row")
     df.columns = [x.strip() for x in df.columns]
 
+    if numeric_columns is not None:
+        for col in numeric_columns:
+            try:
+                df[col] = pd.to_numeric(df[col])
+            except ValueError as E:
+                raise InvalidFramework(f'Column "{col}" must contain numeric values. Invalid values are {[x for x in df[col] if x is not None and not sc.isnumber(x)]}') from E
+            except Exception as E:
+                raise InvalidFramework(f'Error validating column "{col}" when checking that it only contains numeric values') from E
     return df
 
 

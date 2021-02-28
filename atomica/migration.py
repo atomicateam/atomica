@@ -783,3 +783,16 @@ def _add_progset_non_targetable_flag(progset):
         if "non_targetable" not in comp:
             comp["non_targetable"] = False
     return progset
+
+# @migration("ProjectFramework", "1.23.4", "1.24.0", "Change framework columns to numeric types")
+# def _convert_framework_columns(framework):
+#     numeric_columns = ["databook order", "default value"]
+#     numeric_columns = ["databook order", "default value"]
+#
+#     for code_name, comp in progset.comps.items():
+#         if not isinstance(comp, dict):
+#             progset.comps[code_name] = {"label": comp, "type": None}
+#             comp = progset.comps[code_name]
+#         if "non_targetable" not in comp:
+#             comp["non_targetable"] = False
+#     return progset

@@ -277,7 +277,7 @@ class ProjectData(sc.prettyobj):
 
         for _, spec in framework.interactions.iterrows():
             interpop = data.add_interaction(spec.name, spec["display name"], from_pop_type=spec["from population type"], to_pop_type=spec["to population type"])
-            if "default value" in spec and spec["default value"]:
+            if "default value" in spec and np.isfinite(spec["default value"]):
                 for from_pop in interpop.from_pops:
                     for to_pop in interpop.to_pops:
                         ts = TimeSeries(units=interpop.allowed_units[0])
@@ -291,7 +291,7 @@ class ProjectData(sc.prettyobj):
                 # In order to write a default value
                 # - The default value should be present and not None
                 # - The quantity should appear in the databook
-                if "default value" in spec and (spec["default value"] is not None) and spec["databook page"]:
+                if "default value" in spec and np.isfinite(spec["default value"]) and spec["databook page"]:
                     tdve = data.tdve[spec.name]
                     for key, ts in tdve.ts.items():
                         ts.insert(None, spec["default value"])
@@ -455,7 +455,7 @@ class ProjectData(sc.prettyobj):
 
                 if spec["databook page"] is not None:
                     if spec_name not in self.tdve:
-                        if spec["default value"] is None:
+                        if np.isfinite(spec["default value"]):
                             raise Exception('The databook did not contain a required TDVE table named "%s" (code name "%s")' % (spec["display name"], spec_name))
                         else:
                             logger.warning('TDVE table "%s" (code name "%s") is missing from the databook. Using default values from the framework' % (spec["display name"], spec_name))

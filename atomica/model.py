@@ -1798,12 +1798,8 @@ class Population:
             min_value = pars.at[par.name, "minimum value"]
             max_value = pars.at[par.name, "maximum value"]
 
-            if (min_value is not None) or (max_value is not None):
-                par.limits = [-np.inf, np.inf]
-                if min_value is not None:
-                    par.limits[0] = min_value
-                if max_value is not None:
-                    par.limits[1] = max_value
+            if np.isfinite(min_value) or np.isfinite(max_value):
+                par.limits = [max(-np.inf, min_value), min(np.inf, max_value)]
 
             fcn_str = pars.at[par.name, "function"]
             if fcn_str is not None:
