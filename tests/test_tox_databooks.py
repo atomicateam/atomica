@@ -106,6 +106,31 @@ def test_databooks():
     d3 = at.ProjectData.from_spreadsheet(tmpdir / "d_blug_uncertainty_stripped.xlsx", F)
     assert d3.tdve["alive"].ts[0].sigma is None
 
+def test_mixed_years_1():
+    F = ProjectFramework(at.LIBRARY_PATH / "sir_framework.xlsx")
+
+    D = at.ProjectData.from_spreadsheet(testdir/'test_databook_mixed_years_1.xlsx', framework=F)
+    assert 2020 in D.tvec # This should get picked up from the second table
+    D.add_interaction("d_ctc", "New interpop")
+    D.save(tmpdir / "test_databook_mixed_years_1.xlsx")
+
+def test_mixed_years_2():
+    F = ProjectFramework(testdir / "test_no_compartment_framework.xlsx")
+    D = at.ProjectData.from_spreadsheet(testdir / 'test_no_compartment_databook_mixed.xlsx', framework=F)
+    assert len(D.tvec)==0
+    D.add_interaction("d_ctc", "New interpop")
+    D.save(tmpdir / "test_databook_mixed_years_2a.xlsx")
+    D = at.ProjectData.from_spreadsheet(tmpdir / "test_databook_mixed_years_2a.xlsx", framework=F)
+    assert len(D.tvec)==0
+
+    D = at.ProjectData.from_spreadsheet(testdir / 'test_no_compartment_databook.xlsx', framework=F)
+    D.add_interaction("d_ctc", "New interpop")
+    D.save(tmpdir / "test_databook_mixed_years_2b.xlsx")
+    D = at.ProjectData.from_spreadsheet(tmpdir / "test_databook_mixed_years_2b.xlsx", framework=F)
+    assert len(D.tvec)==1
+
 
 if __name__ == "__main__":
+    test_mixed_years_2()
+    test_mixed_years_1()
     test_databooks()

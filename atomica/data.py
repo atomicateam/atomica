@@ -403,13 +403,12 @@ class ProjectData(sc.prettyobj):
                     # Store the TDVE on the page it was actually on, rather than the one in the framework. Then, if users move anything around, the change will persist
                     self.tdve_pages[sheet.title].append(code_name)
 
-        # Set the ProjectData's tvec based on the first TDVE table
-        # 99.9% of the time, all of the tables will have the same values and so this is generally safe
-        # The only time unexpected behaviour might occur is if the first TDVE table has exotic data points
-        # and the user loads the databook, then adds a new transfer/interpop, the new table will have those same
-        # modified data points. But what does the user expect, if the databook has mixed times
-        assert len(self.tdve_pages[0])>0, 'Error with blank sheet %s - name with a #ignore if loading this page is not desired'%(self.tdve_pages.keys()[0])
-        self.tvec = self.tdve[self.tdve_pages[0][0]].tvec
+        tvals = set()
+        for tdve in self.tdve.values():
+            tvals.update(tdve.tvec)
+        for tdc in self.transfers + self.interpops:
+            tvals.update(tdc.tvec)
+        self.tvec = np.array(sorted(tvals))
 
         return self
 
