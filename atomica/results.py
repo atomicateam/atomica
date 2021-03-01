@@ -584,20 +584,22 @@ def export_results(results, filename=None, output_ordering=("output", "result", 
 
     # Write the plots sheet if any plots are available
     if "plots" in results[0].framework.sheets:
-        plot_df = []
         plots_available = results[0].framework.sheets["plots"][0]
-        for _, spec in plots_available.iterrows():
-            if "type" in spec and spec["type"] == "bar":
-                continue  # For now, don't do bars - not implemented yet
-            plot_df.append(_output_to_df(results, output_name=spec["name"], output=evaluate_plot_string(spec["quantities"]), tvals=new_tvals, time_aggregate=False))
-        _write_df(writer, formats, "Plot data annualized", pd.concat(plot_df), output_ordering)
 
-        plot_df = []
-        for _, spec in plots_available.iterrows():
-            if "type" in spec and spec["type"] == "bar":
-                continue  # For now, don't do bars - not implemented yet
-            plot_df.append(_output_to_df(results, output_name=spec["name"], output=evaluate_plot_string(spec["quantities"]), tvals=new_tvals, time_aggregate=True))
-        _write_df(writer, formats, "Plot data annual aggregated", pd.concat(plot_df), output_ordering)
+        if not plots_available.empty:
+            plot_df = []
+            for _, spec in plots_available.iterrows():
+                if "type" in spec and spec["type"] == "bar":
+                    continue  # For now, don't do bars - not implemented yet
+                plot_df.append(_output_to_df(results, output_name=spec["name"], output=evaluate_plot_string(spec["quantities"]), tvals=new_tvals, time_aggregate=False))
+            _write_df(writer, formats, "Plot data annualized", pd.concat(plot_df), output_ordering)
+
+            plot_df = []
+            for _, spec in plots_available.iterrows():
+                if "type" in spec and spec["type"] == "bar":
+                    continue  # For now, don't do bars - not implemented yet
+                plot_df.append(_output_to_df(results, output_name=spec["name"], output=evaluate_plot_string(spec["quantities"]), tvals=new_tvals, time_aggregate=True))
+            _write_df(writer, formats, "Plot data annual aggregated", pd.concat(plot_df), output_ordering)
 
     # Write cascades into separate sheets
     cascade_df = []

@@ -18,7 +18,8 @@ from .excel import read_tables, validate_category, standard_formats, read_datafr
 from .function_parser import parse_function
 from .system import NotFoundError, FrameworkSettings as FS
 from .system import logger
-from .utils import format_duration
+from .utils import format_duration, evaluate_plot_string
+from .plotting import _extract_labels
 from .version import version, gitinfo
 
 __all__ = ["InvalidFramework", "ProjectFramework", "generate_framework_doc"]
@@ -1059,6 +1060,35 @@ class ProjectFramework:
         # This will also check the fallback cascade
         for cascade_name in self.cascades.keys():
             validate_cascade(self, cascade_name, fallback_used=used_fallback_cascade)
+
+        # VALIDATE PLOTS
+        if "plots" not in self.sheets or not self.sheets["plots"] or self.sheets["plots"][0].empty:
+            self.sheets["plots"] = [pd.DataFrame(columns=["name","type","quantities","plot group"])]
+
+        required_columns = ["name","quantities"]
+        defaults = {
+            "type": "series",
+            "plot group": None,
+        }
+
+        try:
+            self.sheets["plots"][0] = _sanitize_dataframe(self.sheets["plots"][0], required_columns, defaults=defaults, valid_content={})
+        except Exception as e:
+            message = 'An error was detected on the "Plots" sheet in the Framework file'
+            raise Exception("%s -> %s" % (message, e)) from e
+
+        for quantity in self.sheets["plots"][0]["quantities"]:
+            for variables in _extract_labels(sc.promotetolist(evaluate_plot_string(quantity))):
+                if variables.endswith(':flow'):
+                    variables = [variables.replace(':flow','')]
+                elif ':' in variables:
+                    variables = variables.split(':')
+                else:
+                    variables = [variables]
+
+                for variable in variables:
+                    if variable and variable not in self:
+                        raise InvalidFramework(f'Error on "Plots" sheet -> quantity "{variable}" is referenced on the plots sheet but is not defined in the framework')
 
         # VALIDATE INITIALIZATION
         for pop_type in available_pop_types:
