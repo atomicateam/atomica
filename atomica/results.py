@@ -638,7 +638,6 @@ def export_results(results, filename=None, output_ordering=("output", "result", 
             prog_df.append(_programs_to_df(results, prog_name, new_tvals, time_aggregate=True))
         _write_df(writer, formats, "Programs annual aggregated", pd.concat(prog_df), program_ordering)
 
-    writer.save()
     writer.close()
 
     return output_fname
