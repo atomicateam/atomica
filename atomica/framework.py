@@ -1329,7 +1329,6 @@ class ProjectFramework:
                 row += df.shape[0] + 2
 
         # Close the workbook
-        writer.save()
         writer.close()
 
         # Dump the file content into a ScirisSpreadsheet
