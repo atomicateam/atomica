@@ -1014,8 +1014,9 @@ def start_logging(fname: str, reset=False) -> None:
 
         return inner
 
-    if not reset: #do not double up on error messages
+    if not reset:  # do not double up on error messages
         import sys
+
         sys.exc_info = attach_hook(log_exception, sys.exc_info)
         sys.excepthook = log_exception
 

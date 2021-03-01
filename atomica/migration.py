@@ -38,7 +38,7 @@ SKIP_MIGRATION = False  # Global migration flag to disable migration
 # On Windows, pathlib.PosixPath is not implemented which can cause problems when unpickling
 # Therefore, we need to turn PosixPath into WindowsPath on loading. The reverse is true on
 # Unix systems
-if os.name == 'nt':
+if os.name == "nt":
     pathlib.PosixPath = pathlib.WindowsPath
 else:
     pathlib.WindowsPath = pathlib.PosixPath
@@ -69,6 +69,7 @@ atomica.optimization.OptimInstructions = _Placeholder
 # This dict stores the migrations associated with each versioned class
 # We migrate projects and results separately because they might be stored
 # separately e.g. in a database
+
 
 class Migration:
     """Class representation of a migration
@@ -101,7 +102,7 @@ class Migration:
         logger.debug("MIGRATION: Upgrading %s %s -> %s (%s)" % (self.classname, self.original_version, self.new_version, self.description))
         obj = self.fcn(obj)  # Run the migration function
         if obj is None:
-            raise Exception('%s returned None, it is likely missing a return statement' % (str(self)))
+            raise Exception("%s returned None, it is likely missing a return statement" % (str(self)))
         obj.version = self.new_version  # Update the version
         if self.update_required:
             obj._update_required = True
@@ -437,6 +438,7 @@ def _convert_atomica_spreadsheet(placeholder):
     new.modified = placeholder.load_date
     return new
 
+
 @migration("Project", "1.0.15", "1.0.16", "Replace AtomicaSpreadsheet in project")
 def _convert_project_spreadsheets(proj):
     if proj.databook is not None:
@@ -445,11 +447,13 @@ def _convert_project_spreadsheets(proj):
         proj.progbook = _convert_atomica_spreadsheet(proj.progbook)
     return proj
 
+
 @migration("ProjectFramework", "1.0.15", "1.0.16", "Replace AtomicaSpreadsheet in framework")
 def _convert_framework_spreadsheets(framework):
     if framework.spreadsheet is not None:
         framework.spreadsheet = _convert_atomica_spreadsheet(framework.spreadsheet)
     return framework
+
 
 @migration("ProgramSet", "1.0.16", "1.0.17", "Rename capacity constraint")
 def _rename_capacity_constraint(progset):
@@ -791,11 +795,12 @@ def _add_progset_non_targetable_flag(progset):
             comp["non_targetable"] = False
     return progset
 
+
 @migration("ProjectFramework", "1.23.4", "1.24.0", "Change framework columns to numeric types")
 def _convert_framework_columns(framework):
     # This migration can be performed by simple revalidation. It will also allow
     # any other validation-related changes to be updated
-    for df in framework.sheets['transitions']:
+    for df in framework.sheets["transitions"]:
         if not pd.isna(df.index.name):
             df.reset_index(inplace=True)
 

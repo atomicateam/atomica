@@ -541,7 +541,7 @@ class ProjectFramework:
             "is source": {"y", "n"},
             "is junction": {"y", "n"},
         }
-        numeric_columns = ["databook order","default value"]
+        numeric_columns = ["databook order", "default value"]
 
         try:
             self.comps = _sanitize_dataframe(self.comps, required_columns, defaults, valid_content, set_index="code name", numeric_columns=numeric_columns)
@@ -609,7 +609,7 @@ class ProjectFramework:
             "display name": None,
             "components": None,
         }
-        numeric_columns = ["databook order","default value"]
+        numeric_columns = ["databook order", "default value"]
 
         try:
             self.characs = _sanitize_dataframe(self.characs, required_columns, defaults, valid_content, set_index="code name", numeric_columns=numeric_columns)
@@ -721,7 +721,7 @@ class ProjectFramework:
             "is derivative": {"y", "n"},
             "timed": {"y", "n"},
         }
-        numeric_columns = ["databook order", "default value","minimum value","maximum value","timescale"]
+        numeric_columns = ["databook order", "default value", "minimum value", "maximum value", "timescale"]
 
         try:
             self.pars = _sanitize_dataframe(self.pars, required_columns, defaults, valid_content, set_index="code name", numeric_columns=numeric_columns)
@@ -732,7 +732,6 @@ class ProjectFramework:
         # Assign first population type to any empty population types
         self.pars["population type"] = self.pars["population type"].fillna(available_pop_types[0])
         self.pars["format"] = self.pars["format"].map(lambda x: x.strip() if sc.isstring(x) else x)
-
 
         if "calibrate" not in self.pars:
             default_calibrate = self.pars["targetable"] == "y"
@@ -1063,9 +1062,9 @@ class ProjectFramework:
 
         # VALIDATE PLOTS
         if "plots" not in self.sheets or not self.sheets["plots"] or self.sheets["plots"][0].empty:
-            self.sheets["plots"] = [pd.DataFrame(columns=["name","type","quantities","plot group"])]
+            self.sheets["plots"] = [pd.DataFrame(columns=["name", "type", "quantities", "plot group"])]
 
-        required_columns = ["name","quantities"]
+        required_columns = ["name", "quantities"]
         defaults = {
             "type": "series",
             "plot group": None,
@@ -1079,10 +1078,10 @@ class ProjectFramework:
 
         for quantity in self.sheets["plots"][0]["quantities"]:
             for variables in _extract_labels(sc.promotetolist(evaluate_plot_string(quantity))):
-                if variables.endswith(':flow'):
-                    variables = [variables.replace(':flow','')]
-                elif ':' in variables:
-                    variables = variables.split(':')
+                if variables.endswith(":flow"):
+                    variables = [variables.replace(":flow", "")]
+                elif ":" in variables:
+                    variables = variables.split(":")
                 else:
                     variables = [variables]
 
@@ -1191,11 +1190,11 @@ class ProjectFramework:
                         attachments = set()
 
                     if direction == "upstream":
-                        edges = G.in_edges(comp_name,data=True)
-                        items = [(x[0],x[2]['par']) for x in edges]
+                        edges = G.in_edges(comp_name, data=True)
+                        items = [(x[0], x[2]["par"]) for x in edges]
                     elif direction == "downstream":
-                        edges = G.out_edges(comp_name,data=True)
-                        items = [(x[1],x[2]['par']) for x in edges]
+                        edges = G.out_edges(comp_name, data=True)
+                        items = [(x[1], x[2]["par"]) for x in edges]
 
                     for comp, par in items:
                         if par is None:
@@ -1354,12 +1353,7 @@ class ProjectFramework:
         ss.save(fname)
 
 
-def _sanitize_dataframe(df: pd.DataFrame,
-                        required_columns: list,
-                        defaults: dict,
-                        valid_content: dict,
-                        set_index: str = None,
-                        numeric_columns: list = None) -> pd.DataFrame:
+def _sanitize_dataframe(df: pd.DataFrame, required_columns: list, defaults: dict, valid_content: dict, set_index: str = None, numeric_columns: list = None) -> pd.DataFrame:
     """
     Take in a DataFrame and sanitize it
 

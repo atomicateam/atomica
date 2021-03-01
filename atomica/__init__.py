@@ -64,11 +64,13 @@ if sc.compareversions(scipy.__version__, "1.2.1") < 0:
 
 # Increase Framework performance by not calling garbage collection all the time
 import pandas as pd
+
 pd.set_option("mode.chained_assignment", None)
 
 # Suppress openpyxl deprecation warnings
 import warnings
-warnings.filterwarnings(action='ignore', category=UserWarning, module='.*openpyxl')
+
+warnings.filterwarnings(action="ignore", category=UserWarning, module=".*openpyxl")
 
 
 # The Atomica user interface -- import from submodules

@@ -637,7 +637,7 @@ class TimeDependentConnections:
             constant_index = offset
             offset += 1
             if len(self.tvec):
-                offset += 1 # Additional offset for the 'OR' column
+                offset += 1  # Additional offset for the 'OR' column
 
         headings += [float(x) for x in self.tvec]
         for i, entry in enumerate(headings):
