@@ -579,21 +579,21 @@ class ProjectFramework:
             if (row["setup weight"] > 0) & (row["is source"] == "y" or row["is sink"] == "y"):
                 raise InvalidFramework('Compartment "%s" is a source or a sink, but has a nonzero setup weight' % comp_name)
 
-            if (row["setup weight"] > 0) & (row["databook page"] is None):
+            if (row["setup weight"] > 0) & (pd.isna(row["databook page"])):
                 raise InvalidFramework('Compartment "%s" has a nonzero setup weight, but does not appear in the databook' % comp_name)
 
-            if (row["databook page"] is not None) & (row["is source"] == "y" or row["is sink"] == "y"):
+            if (not pd.isna(row["databook page"])) & (row["is source"] == "y" or row["is sink"] == "y"):
                 raise InvalidFramework('Compartment "%s" is a source or a sink, but has a databook page' % comp_name)
 
             # It only makes sense to calibrate comps and characs that appear in the databook, because these are the only ones that
             # will appear in the parset
-            if (row["databook page"] is None) & (row["calibrate"] is not None):
+            if (pd.isna(row["databook page"])) & (not pd.isna(row["calibrate"])):
                 raise InvalidFramework('Compartment "%s" is marked as being eligible for calibration, but it does not appear in the databook' % comp_name)
 
-            if (row["databook page"] is None) and (row["databook order"] is not None):
-                logger.warning('Compartment "%s" has a databook order, but no databook page', comp_name)
+            if pd.isna(row["databook page"]) and not pd.isna(row["databook order"]):
+                logger.warning('Compartment "%s" has a databook order (%s), but no databook page', comp_name, row["databook order"])
 
-            if (row["databook page"] is not None) and not (row["databook page"] in self.sheets["databook pages"][0]["datasheet code name"].values):
+            if (not pd.isna(row["databook page"])) and not (row["databook page"] in self.sheets["databook pages"][0]["datasheet code name"].values):
                 raise InvalidFramework('Compartment "%s" has databook page "%s" but that page does not appear on the "databook pages" sheet' % (comp_name, row["databook page"]))
 
             if row["population type"] not in available_pop_types:
