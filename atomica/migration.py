@@ -36,10 +36,13 @@ SKIP_MIGRATION = False  # Global migration flag to disable migration
 # to be loaded at all
 
 # On Windows, pathlib.PosixPath is not implemented which can cause problems when unpickling
-# It looks like it works whether we instantitate PurePosixPath or WindowsPath but presumably
-# using PurePosixPath is more compatible when going in the other direction
+# Therefore, we need to turn PosixPath into WindowsPath on loading. The reverse is true on
+# Unix systems
 if os.name == 'nt':
-    pathlib.PosixPath = pathlib.PurePosixPath
+    pathlib.PosixPath = pathlib.WindowsPath
+else:
+    pathlib.WindowsPath = pathlib.PosixPath
+
 
 class _Placeholder:
     pass
@@ -98,14 +101,14 @@ class Migration:
         logger.debug("MIGRATION: Upgrading %s %s -> %s (%s)" % (self.classname, self.original_version, self.new_version, self.description))
         obj = self.fcn(obj)  # Run the migration function
         if obj is None:
-            raise Exception('Migration "%s" returned None, it is likely missing a return statement' % (str(self)))
+            raise Exception('%s returned None, it is likely missing a return statement' % (str(self)))
         obj.version = self.new_version  # Update the version
         if self.update_required:
             obj._update_required = True
         return obj
 
     def __repr__(self):
-        return "Migration(%s->%s)" % (self.original_version, self.new_version)
+        return f"Migration({self.classname}, {self.original_version}->{self.new_version})"
 
 
 def register_migration(registry, classname, original_version, new_version, description, date=None, update_required=False):
@@ -428,21 +431,25 @@ def _model_tidying(proj):
     return proj
 
 
-@migration("Project", "1.0.15", "1.0.16", "Replace AtomicaSpreadsheet")
-def _convert_spreadsheets(proj):
-    def convert(placeholder):
-        new = sc.Spreadsheet(source=io.BytesIO(placeholder.data), filename=placeholder.filename)
-        new.created = placeholder.load_date
-        new.modified = placeholder.load_date
-        return new
+def _convert_atomica_spreadsheet(placeholder):
+    new = sc.Spreadsheet(source=io.BytesIO(placeholder.data), filename=placeholder.filename)
+    new.created = placeholder.load_date
+    new.modified = placeholder.load_date
+    return new
 
+@migration("Project", "1.0.15", "1.0.16", "Replace AtomicaSpreadsheet in project")
+def _convert_project_spreadsheets(proj):
     if proj.databook is not None:
-        proj.databook = convert(proj.databook)
+        proj.databook = _convert_atomica_spreadsheet(proj.databook)
     if proj.progbook is not None:
-        proj.progbook = convert(proj.progbook)
-
+        proj.progbook = _convert_atomica_spreadsheet(proj.progbook)
     return proj
 
+@migration("ProjectFramework", "1.0.15", "1.0.16", "Replace AtomicaSpreadsheet in framework")
+def _convert_framework_spreadsheets(framework):
+    if framework.spreadsheet is not None:
+        framework.spreadsheet = _convert_atomica_spreadsheet(framework.spreadsheet)
+    return framework
 
 @migration("ProgramSet", "1.0.16", "1.0.17", "Rename capacity constraint")
 def _rename_capacity_constraint(progset):
@@ -784,15 +791,9 @@ def _add_progset_non_targetable_flag(progset):
             comp["non_targetable"] = False
     return progset
 
-# @migration("ProjectFramework", "1.23.4", "1.24.0", "Change framework columns to numeric types")
-# def _convert_framework_columns(framework):
-#     numeric_columns = ["databook order", "default value"]
-#     numeric_columns = ["databook order", "default value"]
-#
-#     for code_name, comp in progset.comps.items():
-#         if not isinstance(comp, dict):
-#             progset.comps[code_name] = {"label": comp, "type": None}
-#             comp = progset.comps[code_name]
-#         if "non_targetable" not in comp:
-#             comp["non_targetable"] = False
-#     return progset
+@migration("ProjectFramework", "1.23.4", "1.24.0", "Change framework columns to numeric types")
+def _convert_framework_columns(framework):
+    # This migration can be performed by simple revalidation. It will also allow
+    # any other validation-related changes to be updated
+    framework._validate()
+    return framework
