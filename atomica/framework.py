@@ -1110,18 +1110,13 @@ class ProjectFramework:
             # For each junction, work out if there are any upstream or downstream timed compartments
             for junc_name in self.comps.index[self.comps["is junction"] == "y"]:
 
-                # TODO - This won't work for split transition matrices with duration groups if the duration group
-                # is split up. Instead, the duration groups need to be assigned based on self.transitions
-
-                # Retrieve the transition matrix for the given population type
-                for s in self.sheets["transitions"]:
-                    if junc_name in s.index:
-                        transition_matrix = s
-                        break
+                G = nx.MultiDiGraph()
+                for par, edges in self.transitions.items():
+                    G.add_edges_from(edges, par=par)
 
                 # We are a member of the duration group if there is a path to a timed compartment
                 # that does not go via a timed parameter
-                def get_attached_comps(comp_name, direction, comps=None, groups=None, attachments=None):
+                def get_attached_comps(G, comp_name, direction, comps=None, groups=None, attachments=None):
                     """
                     Return attached compartments, groups, and attachments
 
@@ -1166,27 +1161,28 @@ class ProjectFramework:
                         attachments = set()
 
                     if direction == "upstream":
-                        items = zip(transition_matrix.columns.tolist(), transition_matrix[comp_name].tolist())
+                        edges = G.in_edges(comp_name,data=True)
+                        items = [(x[0],x[2]['par']) for x in edges]
                     elif direction == "downstream":
-                        items = zip(transition_matrix.index.tolist(), transition_matrix.loc[comp_name].tolist())
+                        edges = G.out_edges(comp_name,data=True)
+                        items = [(x[1],x[2]['par']) for x in edges]
 
-                    for inflow_comp, inflow_par in items:
-                        if inflow_par is None:
+                    for comp, par in items:
+                        if par is None:
                             continue
-                        elif self.comps.at[inflow_comp, "is junction"] == "y":
-                            get_attached_comps(inflow_comp, direction, comps, groups, attachments)
+                        elif self.comps.at[comp, "is junction"] == "y":
+                            get_attached_comps(G, comp, direction, comps, groups, attachments)
                         else:
-                            comps.add(inflow_comp)  # Add the inflow comp regardless of how it's connected
-                            group = self.comps.at[inflow_comp, "duration group"]
+                            comps.add(comp)  # Add the inflow comp regardless of how it's connected
+                            group = self.comps.at[comp, "duration group"]
                             if group is not None:
                                 groups.add(group)
-                                # TODO - is there a cleaner way to check for '>' being the special symbol for a residual transition?
-                                if inflow_par == ">" or self.pars.at[inflow_par, "timed"] != "y":
+                                if par == ">" or self.pars.at[par, "timed"] != "y":
                                     attachments.add(group)
                     return comps, groups, attachments
 
-                upstream_comps, upstream_groups, upstream_attachments = get_attached_comps(junc_name, "upstream")
-                downstream_comps, downstream_groups, downstream_attachments = get_attached_comps(junc_name, "downstream")
+                upstream_comps, upstream_groups, upstream_attachments = get_attached_comps(G, junc_name, "upstream")
+                downstream_comps, downstream_groups, downstream_attachments = get_attached_comps(G, junc_name, "downstream")
 
                 # The logic is
                 # - If there is more than one upstream or downstream group, the junction doesn't belong to the duration group
