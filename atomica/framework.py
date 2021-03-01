@@ -435,10 +435,7 @@ class ProjectFramework:
                 elif comps[comp] != df.index.name:
                     raise InvalidFramework('Compartment "%s" belongs to pop type "%s" but it appears in the transition matrix for "%s"' % (comp, comps[comp], df.index.name))
 
-            self.sheets["transitions"][i] = df
-
-        # Next, import each dataframe
-        for df in self.sheets["transitions"]:
+            # Next, import each dataframe
             for _, from_row in df.iterrows():  # For each row in the transition matrix
                 from_row.dropna(inplace=True)
                 from_comp = from_row.name
@@ -1355,6 +1352,12 @@ def _sanitize_dataframe(df: pd.DataFrame,
     :return: Sanitized dataframe
 
     """
+
+    if set_index:
+        # If a dataframe has been sanitized and an index column was set, then the index needs to be
+        # restored first before re-sanitizing. If no index was assigned, then attempting to reset
+        # the index will keep creating new columns, so we do not want to reset the index in that case
+        df.reset_index(inplace=True)
 
     # First check if there are any duplicate columns in the heading
     if len(set(df.columns)) < len(df.columns):
