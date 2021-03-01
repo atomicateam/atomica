@@ -420,7 +420,7 @@ class ProjectFramework:
         for i, df in enumerate(self.sheets["transitions"]):
             # If the population type isn't set (in the top left of the matrix) then assign the matrix to the first pop type
             cols = list(df.columns)
-            if cols[0] is None or cols[0].lower().strip() == "transition matrix":  # The template for single population type frameworks has 'Transition matrix' where the population type would normally go
+            if pd.isna(cols[0]) or cols[0].lower().strip() == "transition matrix":  # The template for single population type frameworks has 'Transition matrix' where the population type would normally go
                 cols[0] = self.pop_types.keys()[0]
                 df.columns = cols
             df = df.set_index(df.columns[0])

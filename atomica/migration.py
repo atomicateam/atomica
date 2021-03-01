@@ -795,5 +795,9 @@ def _add_progset_non_targetable_flag(progset):
 def _convert_framework_columns(framework):
     # This migration can be performed by simple revalidation. It will also allow
     # any other validation-related changes to be updated
+    for df in framework.sheets['transitions']:
+        if not pd.isna(df.index.name):
+            df.reset_index(inplace=True)
+
     framework._validate()
     return framework
