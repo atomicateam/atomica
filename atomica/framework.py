@@ -583,7 +583,6 @@ class ProjectFramework:
                 raise InvalidFramework('Compartment "%s" has a nonzero setup weight, but does not appear in the databook' % comp_name)
 
             if (not pd.isna(row["databook page"])) & (row["is source"] == "y" or row["is sink"] == "y"):
-                print(row)
                 raise InvalidFramework('Compartment "%s" is a source or a sink, but has a databook page' % comp_name)
 
             # It only makes sense to calibrate comps and characs that appear in the databook, because these are the only ones that
