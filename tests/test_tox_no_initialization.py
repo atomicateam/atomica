@@ -27,6 +27,10 @@ def test_no_initialization():
     assert ja.vals[0] == 0
     assert ja.outflow[0] == 0
     assert ja.outflow[1] == 5
+    assert sink.vals[0] == 0
+    assert sink.vals[1] == 0
+    assert sink.vals[2] == 5
+    assert sink.vals[3] == 10
 
 
 if __name__ == "__main__":
