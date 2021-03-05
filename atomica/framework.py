@@ -583,6 +583,7 @@ class ProjectFramework:
                 raise InvalidFramework('Compartment "%s" has a nonzero setup weight, but does not appear in the databook' % comp_name)
 
             if (not pd.isna(row["databook page"])) & (row["is source"] == "y" or row["is sink"] == "y"):
+                print(row)
                 raise InvalidFramework('Compartment "%s" is a source or a sink, but has a databook page' % comp_name)
 
             # It only makes sense to calibrate comps and characs that appear in the databook, because these are the only ones that
@@ -1109,27 +1110,17 @@ class ProjectFramework:
             if not comps:
                 # If this population type has no compartments, then no need to initialize anything
                 continue
+            elif len(characs) == 0:
+                # If there are compartments but no characs (i.e. characteristics OR compartments that appear in the databook) then initialize with zeros
+                logger.debug("No compartments or characteristics appear in the databook. All compartments will be assigned an initial value of 0")
+            else:
+                A = np.zeros((len(characs), len(comps)))
+                for i, charac in enumerate(characs):
+                    for include in self.get_charac_includes(charac):
+                        A[i, comps.index(include)] = 1.0
 
-            # Note - the underdetermined initialization logic means that it _is_ well defined to
-            # have no characteristics/compartments in the databook - this would simply initialize all compartments
-            # with zeros. However, although this is a valid use case, it is more likely that a missing initialization
-            # would occur by accident, and require a warning/error to be raised. Therefore, if the user does
-            # want to initialize everything as zero, they do still have to explicitly initialize at least one of the
-            # non-source/sink compartments.
-            if len(characs) == 0:
-                if not self.comps["databook page"].any() and self.comps["databook page"].any():
-                    message = "No compartments or characteristics appear in the databook, which means it is not possible to initialize the simulation. Please assign at least some of the compartments and/or characteristics to a databook page."
-                else:
-                    message = "No compartments or characteristics have a setup weight (either because they do not appear in the databook, or the setup weight has been explicitly set to zero) - cannot initialize simulation. Please change some of the setup weights to be nonzero"
-                logger.debug(message)
-
-            A = np.zeros((len(characs), len(comps)))
-            for i, charac in enumerate(characs):
-                for include in self.get_charac_includes(charac):
-                    A[i, comps.index(include)] = 1.0
-
-            if np.linalg.matrix_rank(A) < len(comps):
-                logger.debug("Initialization characteristics are underdetermined - this may be intentional, but check the initial compartment sizes carefully")
+                if np.linalg.matrix_rank(A) < len(comps):
+                    logger.debug("Initialization characteristics are underdetermined - this may be intentional, but check the initial compartment sizes carefully")
 
         # ASSIGN DURATION GROUPS
         # This needs to be done for compartments, as well as junctions
