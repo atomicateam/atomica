@@ -13,14 +13,14 @@ def test_no_initialization():
     at.logger.setLevel("DEBUG")
 
     F = at.ProjectFramework(testdir / "test_no_initialization.xlsx")
-    D = at.ProjectData.new(F,[2020],1,0)
-    P = at.Project(framework=F,databook=D,do_run=False)
+    D = at.ProjectData.new(F, [2020], 1, 0)
+    P = at.Project(framework=F, databook=D, do_run=False)
     P.settings.update_time_vector(dt=1)
     res = P.run_sim()
 
-    ca = res.get_variable('ca')[0]
-    ja = res.get_variable('ja')[0]
-    sink = res.get_variable('sink')[0]
+    ca = res.get_variable("ca")[0]
+    ja = res.get_variable("ja")[0]
+    sink = res.get_variable("sink")[0]
 
     assert ca.vals[0] == 0
     assert ca.vals[1] == 10
