@@ -635,7 +635,9 @@ class TimeDependentConnections:
             headings.append(self.assumption_heading)
             headings.append("")
             constant_index = offset
-            offset += 2
+            offset += 1
+            if len(self.tvec):
+                offset += 1  # Additional offset for the 'OR' column
 
         headings += [float(x) for x in self.tvec]
         for i, entry in enumerate(headings):
@@ -705,8 +707,9 @@ class TimeDependentConnections:
 
                     if self.write_assumption:
                         worksheet.write(current_row, constant_index, ts.assumption, format)
-                        worksheet.write_formula(current_row, constant_index + 1, gate_content("OR", entry_cell), formats["center"], value="OR")
-                        update_widths(widths, constant_index + 1, "OR")
+                        if len(self.tvec):
+                            worksheet.write_formula(current_row, constant_index + 1, gate_content("OR", entry_cell), formats["center"], value="OR")
+                            update_widths(widths, constant_index + 1, "OR")
 
                 else:
                     worksheet.write_formula(current_row, 0, gate_content(references[from_pop], entry_cell), formats["center_bold"], value="...")
@@ -723,8 +726,9 @@ class TimeDependentConnections:
 
                     if self.write_assumption:
                         worksheet.write_blank(current_row, constant_index, "", format)
-                        worksheet.write_formula(current_row, constant_index + 1, gate_content("OR", entry_cell), formats["center"], value="...")
-                        update_widths(widths, constant_index + 1, "...")
+                        if len(self.tvec):
+                            worksheet.write_formula(current_row, constant_index + 1, gate_content("OR", entry_cell), formats["center"], value="...")
+                            update_widths(widths, constant_index + 1, "...")
 
                 content = [None] * len(self.tvec)
 
@@ -740,14 +744,16 @@ class TimeDependentConnections:
                         worksheet.write(current_row, offset + idx, v, format)
                     widths[offset + idx] = max(widths[offset + idx], 7) if offset + idx in widths else 7
 
-                if self.write_assumption:
+                if not content:
+                    idx = 0
+
+                if self.write_assumption and len(self.tvec):
                     # Conditional formatting for the assumption, depending on whether time-values were entered
                     fcn_empty_times = 'COUNTIF(%s:%s,"<>" & "")>0' % (xlrc(current_row, offset), xlrc(current_row, offset + idx))
                     worksheet.conditional_format(xlrc(current_row, constant_index), {"type": "formula", "criteria": "=" + fcn_empty_times, "format": formats["ignored"]})
                     worksheet.conditional_format(xlrc(current_row, constant_index), {"type": "formula", "criteria": "=AND(%s,NOT(ISBLANK(%s)))" % (fcn_empty_times, xlrc(current_row, constant_index)), "format": formats["ignored_warning"]})
 
                 # Conditional formatting for the row - it has a white background if the gating cell is 'N'
-                # worksheet.conditional_format('%s:%s' % (xlrc(current_row, 3), xlrc(current_row, 4)), {'type': 'formula', 'criteria': '=%s<>"Y"' % (entry_cell), 'format': formats['white_bg']})
                 worksheet.conditional_format("%s:%s" % (xlrc(current_row, 3), xlrc(current_row, offset + idx)), {"type": "formula", "criteria": '=%s<>"Y"' % (entry_cell), "format": formats["white_bg"]})
 
         current_row += 2

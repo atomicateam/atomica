@@ -204,7 +204,7 @@ class Result(NamedItem):
             if self.model.progset.programs[prog].capacity_constraint.has_data:
                 cap = self.model.progset.programs[prog].capacity_constraint.interpolate(year)
                 # If prop_covered is higher than the capacity constraint then set it to nan as it wouldn't be possible to reach that coverage
-                pc[pc * num_eligible[prog] >= cap] = np.nan
+                pc[pc * num_eligible[prog] > cap] = np.nan
 
             # multiply the proportion of naively costed coverage by the number of actually eligible people (catching the case where number covered would be higher than the number eligible)
             num_costed_coverage = pc * num_eligible[prog]
@@ -584,20 +584,22 @@ def export_results(results, filename=None, output_ordering=("output", "result", 
 
     # Write the plots sheet if any plots are available
     if "plots" in results[0].framework.sheets:
-        plot_df = []
         plots_available = results[0].framework.sheets["plots"][0]
-        for _, spec in plots_available.iterrows():
-            if "type" in spec and spec["type"] == "bar":
-                continue  # For now, don't do bars - not implemented yet
-            plot_df.append(_output_to_df(results, output_name=spec["name"], output=evaluate_plot_string(spec["quantities"]), tvals=new_tvals, time_aggregate=False))
-        _write_df(writer, formats, "Plot data annualized", pd.concat(plot_df), output_ordering)
 
-        plot_df = []
-        for _, spec in plots_available.iterrows():
-            if "type" in spec and spec["type"] == "bar":
-                continue  # For now, don't do bars - not implemented yet
-            plot_df.append(_output_to_df(results, output_name=spec["name"], output=evaluate_plot_string(spec["quantities"]), tvals=new_tvals, time_aggregate=True))
-        _write_df(writer, formats, "Plot data annual aggregated", pd.concat(plot_df), output_ordering)
+        if not plots_available.empty:
+            plot_df = []
+            for _, spec in plots_available.iterrows():
+                if "type" in spec and spec["type"] == "bar":
+                    continue  # For now, don't do bars - not implemented yet
+                plot_df.append(_output_to_df(results, output_name=spec["name"], output=evaluate_plot_string(spec["quantities"]), tvals=new_tvals, time_aggregate=False))
+            _write_df(writer, formats, "Plot data annualized", pd.concat(plot_df), output_ordering)
+
+            plot_df = []
+            for _, spec in plots_available.iterrows():
+                if "type" in spec and spec["type"] == "bar":
+                    continue  # For now, don't do bars - not implemented yet
+                plot_df.append(_output_to_df(results, output_name=spec["name"], output=evaluate_plot_string(spec["quantities"]), tvals=new_tvals, time_aggregate=True))
+            _write_df(writer, formats, "Plot data annual aggregated", pd.concat(plot_df), output_ordering)
 
     # Write cascades into separate sheets
     cascade_df = []
@@ -636,7 +638,6 @@ def export_results(results, filename=None, output_ordering=("output", "result", 
             prog_df.append(_programs_to_df(results, prog_name, new_tvals, time_aggregate=True))
         _write_df(writer, formats, "Programs annual aggregated", pd.concat(prog_df), program_ordering)
 
-    writer.save()
     writer.close()
 
     return output_fname
