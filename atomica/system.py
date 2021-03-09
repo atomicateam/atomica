@@ -88,4 +88,4 @@ class FrameworkSettings:
     RESERVED_KEYWORDS = ["t", "flow", "all", "dt", "total"]  # A code_name in the framework cannot be equal to one of these values
     RESERVED_KEYWORDS += supported_functions.keys()
 
-    RESERVED_SYMBOLS = set(":,;/+-*'\"")  # A code_name in the framework (for characs, comps, pars) cannot contain any of these characters
+    RESERVED_SYMBOLS = set(":,;/+-*'\" @")  # A code_name in the framework (for characs, comps, pars) cannot contain any of these characters

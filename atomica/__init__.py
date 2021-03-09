@@ -67,6 +67,12 @@ import pandas as pd
 
 pd.set_option("mode.chained_assignment", None)
 
+# Suppress openpyxl deprecation warnings
+import warnings
+
+warnings.filterwarnings(action="ignore", category=UserWarning, module=".*openpyxl")
+
+
 # The Atomica user interface -- import from submodules
 from .calibration import *
 from .cascade import *

@@ -17,7 +17,7 @@ with open(os.path.join(cwd, "README.md"), "r") as f:
 CLASSIFIERS = [
     "Environment :: Console",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python",
     "Topic :: Software Development :: Libraries :: Python Modules",
@@ -39,5 +39,5 @@ setup(
     classifiers=CLASSIFIERS,
     packages=find_packages(),
     include_package_data=True,
-    install_requires=["matplotlib>=3.0", "numpy>=1.10.1", "scipy>=1.2.1", "pandas", "xlsxwriter", "openpyxl", "pyswarm", "hyperopt", "sciris", "tqdm"],
+    install_requires=["matplotlib>=3.0,<=3.3.4", "numpy>=1.10.1", "scipy>=1.2.1", "pandas", "xlsxwriter", "openpyxl", "pyswarm", "hyperopt", "sciris", "tqdm"],
 )

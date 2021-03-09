@@ -18,7 +18,8 @@ from .excel import read_tables, validate_category, standard_formats, read_datafr
 from .function_parser import parse_function
 from .system import NotFoundError, FrameworkSettings as FS
 from .system import logger
-from .utils import format_duration
+from .utils import format_duration, evaluate_plot_string
+from .plotting import _extract_labels
 from .version import version, gitinfo
 
 __all__ = ["InvalidFramework", "ProjectFramework", "generate_framework_doc"]
@@ -36,10 +37,12 @@ class ProjectFramework:
 
     :param inputs: A string (which will load an Excel file from disk) or an sc.Spreadsheet. If not provided, the internal sheets will be set to an empty dict ready for content
     :param name: Optionally explicitly set the framework name. Otherwise, it will be assigned from the 'about' sheet, if present
+    :param validate: If True (default) then the framework will be validated upon loading. This can be overridden if operating on invalid/partial frameworks is required. However,
+                     the framework should still be validated before it is used.
 
     """
 
-    def __init__(self, inputs=None, name: str = None):
+    def __init__(self, inputs=None, name: str = None, validate: bool = True):
         import openpyxl
 
         # Define metadata
@@ -86,10 +89,15 @@ class ProjectFramework:
                 else:
                     if len(df.columns):
                         df.columns = df.columns.str.lower()
-
-        self._validate()
+        if validate:
+            self._validate()
         if name is not None:
             self.name = name
+
+    def __repr__(self):
+        """ Print object """
+        output = sc.prepr(self)
+        return output
 
     def __setstate__(self, d):
         from .migration import migrate
@@ -413,7 +421,7 @@ class ProjectFramework:
         for i, df in enumerate(self.sheets["transitions"]):
             # If the population type isn't set (in the top left of the matrix) then assign the matrix to the first pop type
             cols = list(df.columns)
-            if cols[0] is None or cols[0].lower().strip() == "transition matrix":  # The template for single population type frameworks has 'Transition matrix' where the population type would normally go
+            if pd.isna(cols[0]) or cols[0].lower().strip() == "transition matrix":  # The template for single population type frameworks has 'Transition matrix' where the population type would normally go
                 cols[0] = self.pop_types.keys()[0]
                 df.columns = cols
             df = df.set_index(df.columns[0])
@@ -428,10 +436,7 @@ class ProjectFramework:
                 elif comps[comp] != df.index.name:
                     raise InvalidFramework('Compartment "%s" belongs to pop type "%s" but it appears in the transition matrix for "%s"' % (comp, comps[comp], df.index.name))
 
-            self.sheets["transitions"][i] = df
-
-        # Next, import each dataframe
-        for df in self.sheets["transitions"]:
+            # Next, import each dataframe
             for _, from_row in df.iterrows():  # For each row in the transition matrix
                 from_row.dropna(inplace=True)
                 from_comp = from_row.name
@@ -536,9 +541,10 @@ class ProjectFramework:
             "is source": {"y", "n"},
             "is junction": {"y", "n"},
         }
+        numeric_columns = ["databook order", "default value"]
 
         try:
-            self.comps = _sanitize_dataframe(self.comps, required_columns, defaults, valid_content, set_index="code name")
+            self.comps = _sanitize_dataframe(self.comps, required_columns, defaults, valid_content, set_index="code name", numeric_columns=numeric_columns)
         except Exception as e:
             message = 'An error was detected on the "Compartments" sheet in the Framework file'
             raise Exception("%s -> %s" % (message, e)) from e
@@ -564,12 +570,6 @@ class ProjectFramework:
             self.comps["calibrate"] = None
             self.comps["calibrate"][default_calibrate] = "y"
 
-        try:
-            pd.to_numeric(self.comps["databook order"])
-        except Exception as e:
-            message = 'An error was detected on the "Compartments" sheet in the Framework file - databook order must be a number'
-            raise Exception("%s -> %s" % (message, e)) from e
-
         # VALIDATE COMPARTMENTS
         for comp_name, row in zip(self.comps.index, self.comps.to_dict(orient="records")):
 
@@ -579,21 +579,21 @@ class ProjectFramework:
             if (row["setup weight"] > 0) & (row["is source"] == "y" or row["is sink"] == "y"):
                 raise InvalidFramework('Compartment "%s" is a source or a sink, but has a nonzero setup weight' % comp_name)
 
-            if (row["setup weight"] > 0) & (row["databook page"] is None):
+            if (row["setup weight"] > 0) & (pd.isna(row["databook page"])):
                 raise InvalidFramework('Compartment "%s" has a nonzero setup weight, but does not appear in the databook' % comp_name)
 
-            if (row["databook page"] is not None) & (row["is source"] == "y" or row["is sink"] == "y"):
+            if (not pd.isna(row["databook page"])) & (row["is source"] == "y" or row["is sink"] == "y"):
                 raise InvalidFramework('Compartment "%s" is a source or a sink, but has a databook page' % comp_name)
 
             # It only makes sense to calibrate comps and characs that appear in the databook, because these are the only ones that
             # will appear in the parset
-            if (row["databook page"] is None) & (row["calibrate"] is not None):
+            if (pd.isna(row["databook page"])) & (not pd.isna(row["calibrate"])):
                 raise InvalidFramework('Compartment "%s" is marked as being eligible for calibration, but it does not appear in the databook' % comp_name)
 
-            if (row["databook page"] is None) and (row["databook order"] is not None):
-                logger.warning('Compartment "%s" has a databook order, but no databook page', comp_name)
+            if pd.isna(row["databook page"]) and not pd.isna(row["databook order"]):
+                logger.warning('Compartment "%s" has a databook order (%s), but no databook page', comp_name, row["databook order"])
 
-            if (row["databook page"] is not None) and not (row["databook page"] in self.sheets["databook pages"][0]["datasheet code name"].values):
+            if (not pd.isna(row["databook page"])) and not (row["databook page"] in self.sheets["databook pages"][0]["datasheet code name"].values):
                 raise InvalidFramework('Compartment "%s" has databook page "%s" but that page does not appear on the "databook pages" sheet' % (comp_name, row["databook page"]))
 
             if row["population type"] not in available_pop_types:
@@ -609,21 +609,16 @@ class ProjectFramework:
             "display name": None,
             "components": None,
         }
+        numeric_columns = ["databook order", "default value"]
 
         try:
-            self.characs = _sanitize_dataframe(self.characs, required_columns, defaults, valid_content, set_index="code name")
+            self.characs = _sanitize_dataframe(self.characs, required_columns, defaults, valid_content, set_index="code name", numeric_columns=numeric_columns)
         except Exception as e:
             message = 'An error was detected on the "Characteristics" sheet in the Framework file'
             raise Exception("%s -> %s" % (message, e)) from e
 
         # Assign first population type to any empty population types
         self.characs["population type"] = self.characs["population type"].fillna(available_pop_types[0])
-
-        try:
-            pd.to_numeric(self.characs["databook order"])
-        except Exception as e:
-            message = 'An error was detected on the "Characteristics" sheet in the Framework file - databook order must be a number'
-            raise Exception("%s -> %s" % (message, e)) from e
 
         if "setup weight" not in self.characs:
             self.characs["setup weight"] = (~self.characs["databook page"].isnull()).astype(int)
@@ -726,9 +721,10 @@ class ProjectFramework:
             "is derivative": {"y", "n"},
             "timed": {"y", "n"},
         }
+        numeric_columns = ["databook order", "default value", "minimum value", "maximum value", "timescale"]
 
         try:
-            self.pars = _sanitize_dataframe(self.pars, required_columns, defaults, valid_content, set_index="code name")
+            self.pars = _sanitize_dataframe(self.pars, required_columns, defaults, valid_content, set_index="code name", numeric_columns=numeric_columns)
         except Exception as e:
             message = 'An error was detected on the "Parameters" sheet in the Framework file'
             raise Exception("%s -> %s" % (message, e)) from e
@@ -736,11 +732,6 @@ class ProjectFramework:
         # Assign first population type to any empty population types
         self.pars["population type"] = self.pars["population type"].fillna(available_pop_types[0])
         self.pars["format"] = self.pars["format"].map(lambda x: x.strip() if sc.isstring(x) else x)
-        try:
-            pd.to_numeric(self.pars["databook order"])
-        except Exception as e:
-            message = 'An error was detected on the "Parameters" sheet in the Framework file - databook order must be a number'
-            raise Exception("%s -> %s" % (message, e)) from e
 
         if "calibrate" not in self.pars:
             default_calibrate = self.pars["targetable"] == "y"
@@ -778,16 +769,16 @@ class ProjectFramework:
             if par["is derivative"] == "y" and par["databook page"] is None:
                 raise InvalidFramework('Parameter "%s" is marked "is derivative" but it does not have a databook page - it needs to appear in the databook so that an initial value can be provided.' % (par_name))
 
-            if par["timescale"] is None:
+            if not np.isfinite(par["timescale"]):
                 if par["format"] in {FS.QUANTITY_TYPE_DURATION}:
                     # Durations should always have a timescale, assumed to be annual by default
                     # This ensures the time units get printed in the databook, even for non-transition parameters
                     self.pars.at[par_name, "timescale"] = 1.0  # Assign default timescale for probability and duration (but not number, since a number might be absolute rather than annual for non-transition parameters)
-                elif self.transitions[par_name] and par["timescale"] is None and par["format"] in {FS.QUANTITY_TYPE_NUMBER, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_RATE}:
+                elif self.transitions[par_name] and not np.isfinite(par["timescale"]) and par["format"] in {FS.QUANTITY_TYPE_NUMBER, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_RATE}:
                     # For number and probability, non-transition parameters might not be be in units per time period, therefore having a timescale
                     # is optional *unless* it is a transition parameter
                     self.pars.at[par_name, "timescale"] = 1.0
-                elif par["timescale"] is not None and par["format"] == FS.QUANTITY_TYPE_PROPORTION:
+                elif np.isfinite(par["timescale"]) and par["format"] == FS.QUANTITY_TYPE_PROPORTION:
                     # Proportion units should never have a timescale since they are time-invariant
                     raise InvalidFramework("Parameter %s is in proportion units, therefore it cannot have a timescale entered for it" % par_name)
 
@@ -1069,6 +1060,35 @@ class ProjectFramework:
         for cascade_name in self.cascades.keys():
             validate_cascade(self, cascade_name, fallback_used=used_fallback_cascade)
 
+        # VALIDATE PLOTS
+        if "plots" not in self.sheets or not self.sheets["plots"] or self.sheets["plots"][0].empty:
+            self.sheets["plots"] = [pd.DataFrame(columns=["name", "type", "quantities", "plot group"])]
+
+        required_columns = ["name", "quantities"]
+        defaults = {
+            "type": "series",
+            "plot group": None,
+        }
+
+        try:
+            self.sheets["plots"][0] = _sanitize_dataframe(self.sheets["plots"][0], required_columns, defaults=defaults, valid_content={})
+        except Exception as e:
+            message = 'An error was detected on the "Plots" sheet in the Framework file'
+            raise Exception("%s -> %s" % (message, e)) from e
+
+        for quantity in self.sheets["plots"][0]["quantities"]:
+            for variables in _extract_labels(sc.promotetolist(evaluate_plot_string(quantity))):
+                if variables.endswith(":flow"):
+                    variables = [variables.replace(":flow", "")]
+                elif ":" in variables:
+                    variables = variables.split(":")
+                else:
+                    variables = [variables]
+
+                for variable in variables:
+                    if variable and variable not in self:
+                        raise InvalidFramework(f'Error on "Plots" sheet -> quantity "{variable}" is referenced on the plots sheet but is not defined in the framework')
+
         # VALIDATE INITIALIZATION
         for pop_type in available_pop_types:
 
@@ -1089,27 +1109,17 @@ class ProjectFramework:
             if not comps:
                 # If this population type has no compartments, then no need to initialize anything
                 continue
+            elif len(characs) == 0:
+                # If there are compartments but no characs (i.e. characteristics OR compartments that appear in the databook) then initialize with zeros
+                logger.debug("No compartments or characteristics appear in the databook. All compartments will be assigned an initial value of 0")
+            else:
+                A = np.zeros((len(characs), len(comps)))
+                for i, charac in enumerate(characs):
+                    for include in self.get_charac_includes(charac):
+                        A[i, comps.index(include)] = 1.0
 
-            # Note - the underdetermined initialization logic means that it _is_ well defined to
-            # have no characteristics/compartments in the databook - this would simply initialize all compartments
-            # with zeros. However, although this is a valid use case, it is more likely that a missing initialization
-            # would occur by accident, and require a warning/error to be raised. Therefore, if the user does
-            # want to initialize everything as zero, they do still have to explicitly initialize at least one of the
-            # non-source/sink compartments.
-            if len(characs) == 0:
-                if not self.comps["databook page"].any() and self.comps["databook page"].any():
-                    message = "No compartments or characteristics appear in the databook, which means it is not possible to initialize the simulation. Please assign at least some of the compartments and/or characteristics to a databook page."
-                else:
-                    message = "No compartments or characteristics have a setup weight (either because they do not appear in the databook, or the setup weight has been explicitly set to zero) - cannot initialize simulation. Please change some of the setup weights to be nonzero"
-                logger.debug(message)
-
-            A = np.zeros((len(characs), len(comps)))
-            for i, charac in enumerate(characs):
-                for include in self.get_charac_includes(charac):
-                    A[i, comps.index(include)] = 1.0
-
-            if np.linalg.matrix_rank(A) < len(comps):
-                logger.debug("Initialization characteristics are underdetermined - this may be intentional, but check the initial compartment sizes carefully")
+                if np.linalg.matrix_rank(A) < len(comps):
+                    logger.debug("Initialization characteristics are underdetermined - this may be intentional, but check the initial compartment sizes carefully")
 
         # ASSIGN DURATION GROUPS
         # This needs to be done for compartments, as well as junctions
@@ -1119,18 +1129,13 @@ class ProjectFramework:
             # For each junction, work out if there are any upstream or downstream timed compartments
             for junc_name in self.comps.index[self.comps["is junction"] == "y"]:
 
-                # TODO - This won't work for split transition matrices with duration groups if the duration group
-                # is split up. Instead, the duration groups need to be assigned based on self.transitions
-
-                # Retrieve the transition matrix for the given population type
-                for s in self.sheets["transitions"]:
-                    if junc_name in s.index:
-                        transition_matrix = s
-                        break
+                G = nx.MultiDiGraph()
+                for par, edges in self.transitions.items():
+                    G.add_edges_from(edges, par=par)
 
                 # We are a member of the duration group if there is a path to a timed compartment
                 # that does not go via a timed parameter
-                def get_attached_comps(comp_name, direction, comps=None, groups=None, attachments=None):
+                def get_attached_comps(G, comp_name, direction, comps=None, groups=None, attachments=None):
                     """
                     Return attached compartments, groups, and attachments
 
@@ -1175,27 +1180,28 @@ class ProjectFramework:
                         attachments = set()
 
                     if direction == "upstream":
-                        items = zip(transition_matrix.columns.tolist(), transition_matrix[comp_name].tolist())
+                        edges = G.in_edges(comp_name, data=True)
+                        items = [(x[0], x[2]["par"]) for x in edges]
                     elif direction == "downstream":
-                        items = zip(transition_matrix.index.tolist(), transition_matrix.loc[comp_name].tolist())
+                        edges = G.out_edges(comp_name, data=True)
+                        items = [(x[1], x[2]["par"]) for x in edges]
 
-                    for inflow_comp, inflow_par in items:
-                        if inflow_par is None:
+                    for comp, par in items:
+                        if par is None:
                             continue
-                        elif self.comps.at[inflow_comp, "is junction"] == "y":
-                            get_attached_comps(inflow_comp, direction, comps, groups, attachments)
+                        elif self.comps.at[comp, "is junction"] == "y":
+                            get_attached_comps(G, comp, direction, comps, groups, attachments)
                         else:
-                            comps.add(inflow_comp)  # Add the inflow comp regardless of how it's connected
-                            group = self.comps.at[inflow_comp, "duration group"]
+                            comps.add(comp)  # Add the inflow comp regardless of how it's connected
+                            group = self.comps.at[comp, "duration group"]
                             if group is not None:
                                 groups.add(group)
-                                # TODO - is there a cleaner way to check for '>' being the special symbol for a residual transition?
-                                if inflow_par == ">" or self.pars.at[inflow_par, "timed"] != "y":
+                                if par == ">" or self.pars.at[par, "timed"] != "y":
                                     attachments.add(group)
                     return comps, groups, attachments
 
-                upstream_comps, upstream_groups, upstream_attachments = get_attached_comps(junc_name, "upstream")
-                downstream_comps, downstream_groups, downstream_attachments = get_attached_comps(junc_name, "downstream")
+                upstream_comps, upstream_groups, upstream_attachments = get_attached_comps(G, junc_name, "upstream")
+                downstream_comps, downstream_groups, downstream_attachments = get_attached_comps(G, junc_name, "downstream")
 
                 # The logic is
                 # - If there is more than one upstream or downstream group, the junction doesn't belong to the duration group
@@ -1209,7 +1215,7 @@ class ProjectFramework:
                 elif len(upstream_attachments) or len(downstream_attachments):
                     # If there is at least one upstream or downstream attachment, then there can be no overlap between the upstream and downstream groups.
                     if downstream_groups.intersection(upstream_groups):
-                        raise InvalidFramework(f'Junction "{junc_name}" has inputs and outputs to multiple duration groups. As these are untimed flows, there can be no overlap in the upstream and downstream groups. Upstream compartments are {upstream_comps} with groups {upstream_groups}. Downstream compartments are {downstream_comps} with groups {upstream_groups}')
+                        raise InvalidFramework(f'Junction "{junc_name}" has inputs and outputs to multiple duration groups. As these are untimed flows, there can be no overlap in the upstream and downstream groups. Upstream compartments are {upstream_comps} with groups {upstream_groups}. Downstream compartments are {downstream_comps} with groups {downstream_groups}')
 
     def get_databook_units(self, code_name: str) -> str:
         """
@@ -1248,7 +1254,7 @@ class ProjectFramework:
                 return FS.QUANTITY_TYPE_NUMBER.title()
         elif item_type == FS.KEY_PARAMETER:
             units = item_spec["format"].strip() if item_spec["format"] is not None else None
-            if item_spec["timescale"]:
+            if np.isfinite(item_spec["timescale"]):
                 if units is None:
                     raise InvalidFramework(f"A timescale was provided for Framework quantity {code_name} but no units were provided")
                 elif units.lower() == FS.QUANTITY_TYPE_DURATION:
@@ -1312,7 +1318,6 @@ class ProjectFramework:
                 row += df.shape[0] + 2
 
         # Close the workbook
-        writer.save()
         writer.close()
 
         # Dump the file content into a ScirisSpreadsheet
@@ -1338,7 +1343,7 @@ class ProjectFramework:
         ss.save(fname)
 
 
-def _sanitize_dataframe(df: pd.DataFrame, required_columns: list, defaults: dict, valid_content: dict, set_index: str = None) -> pd.DataFrame:
+def _sanitize_dataframe(df: pd.DataFrame, required_columns: list, defaults: dict, valid_content: dict, set_index: str = None, numeric_columns: list = None) -> pd.DataFrame:
     """
     Take in a DataFrame and sanitize it
 
@@ -1352,9 +1357,16 @@ def _sanitize_dataframe(df: pd.DataFrame, required_columns: list, defaults: dict
     :param valid_content: A dict mapping column names to valid content. If specified, all elements of the column must be members of the iterable (normally this would be a set)
                       If 'valid_content' is None, then instead it will be checked that all of the values are NOT null i.e. use valid_content=None to specify it cannot be empty
     :param set_index: Optional, if provided, sets the dataframe's index to this column. This column should *not* be in the list of ``required_columns`` as it will not be present after the index is changed
+    :param numeric_columns: A list of column names that should be cast to a numeric type
     :return: Sanitized dataframe
 
     """
+
+    if set_index:
+        # If a dataframe has been sanitized and an index column was set, then the index needs to be
+        # restored first before re-sanitizing. If no index was assigned, then attempting to reset
+        # the index will keep creating new columns, so we do not want to reset the index in that case
+        df.reset_index(inplace=True)
 
     # First check if there are any duplicate columns in the heading
     if len(set(df.columns)) < len(df.columns):
@@ -1402,6 +1414,14 @@ def _sanitize_dataframe(df: pd.DataFrame, required_columns: list, defaults: dict
         raise InvalidFramework("There cannot be any empty cells in the header row")
     df.columns = [x.strip() for x in df.columns]
 
+    if numeric_columns is not None:
+        for col in numeric_columns:
+            try:
+                df[col] = pd.to_numeric(df[col])
+            except ValueError as E:
+                raise InvalidFramework(f'Column "{col}" must contain numeric values. Invalid values are {[x for x in df[col] if x is not None and not sc.isnumber(x)]}') from E
+            except Exception as E:
+                raise InvalidFramework(f'Error validating column "{col}" when checking that it only contains numeric values') from E
     return df
 
 

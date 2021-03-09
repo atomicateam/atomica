@@ -1671,7 +1671,7 @@ class Population:
                 links = self.links
 
             if par:
-                links = [link for link in links if link.parameter.name == par]
+                links = [link for link in links if (link.parameter and link.parameter.name == par)]
 
             return links
         else:
@@ -1798,12 +1798,8 @@ class Population:
             min_value = pars.at[par.name, "minimum value"]
             max_value = pars.at[par.name, "maximum value"]
 
-            if (min_value is not None) or (max_value is not None):
-                par.limits = [-np.inf, np.inf]
-                if min_value is not None:
-                    par.limits[0] = min_value
-                if max_value is not None:
-                    par.limits[1] = max_value
+            if np.isfinite(min_value) or np.isfinite(max_value):
+                par.limits = [max(-np.inf, min_value), min(np.inf, max_value)]
 
             fcn_str = pars.at[par.name, "function"]
             if fcn_str is not None:
@@ -1816,7 +1812,7 @@ class Population:
         # A timed parameter doesn't _directly_ have links associated with it (because it does not supply values
         # for the links) but it does need to be precomputed
         for par in self.pars:
-            if par.fcn_str and (par.links or par.derivative or framework.pars.at[par.name, "timed"] == "y"):
+            if par.fcn_str and (par.links or par.derivative or framework.pars.at[par.name, "timed"] == "y" or (progset is not None and (par.name, self.name) in progset.covouts)):
                 par.set_dynamic(progset)
 
     def initialize_compartments(self, parset: ParameterSet, framework, t_init: float) -> None:
