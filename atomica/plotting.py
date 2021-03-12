@@ -380,8 +380,9 @@ class PlotData:
                             vals = sum(aggregated_outputs[x][output_name] for x in pop_labels)  # Add together all the outputs
                             vals /= len(pop_labels)
                         elif pop_aggregation == "weighted":
-                            vals = sum(aggregated_outputs[x][output_name] * popsize[x] for x in pop_labels)  # Add together all the outputs
-                            vals /= sum([popsize[x] for x in pop_labels])
+                            numerator = sum(aggregated_outputs[x][output_name] * popsize[x] for x in pop_labels)  # Add together all the outputs
+                            denominator = sum([popsize[x] for x in pop_labels])
+                            vals = np.divide(numerator, denominator, out=np.full(numerator.shape, np.nan, dtype=float), where=numerator != 0)
                         else:
                             raise Exception("Unknown pop aggregation method")
                         self.series.append(Series(tvecs[result_label], vals, result_label, pop_name, output_name, data_label[output_name], units=aggregated_units[output_name], timescale=aggregated_timescales[output_name], data_pop=pop_name))
