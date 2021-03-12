@@ -417,16 +417,17 @@ class Result(NamedItem):
             for link in pop.links:
                 # Sum over duplicate links and annualize flow rate
                 if link.parameter is None:
-                    par_label = "-"
+                    link_name = "-"
+                    link_label = f'{link.source.name} to {link.dest.name} (flow, no parameter)'
                 else:
-                    par_label = gl(link.parameter.name)
+                    link_name = link.name
+                    link_label = gl(link.parameter.name)
+                    if link_label == '-' and link.source.pop is not link.dest.pop:
+                        link_label = f'Transfer {link.source.pop.name} to {link.dest.pop.name} (flow)'
+                    else:
+                        link_label += " (flow)"
 
-                if par_label == "-":
-                    link_label = par_label
-                else:
-                    link_label = "%s (flow)" % (par_label)
-
-                key = ("Flow rates", pop.name, link.name, link_label)
+                key = ("Flow rates", pop.name, link_name, link_label)
                 if key not in d:
                     d[key] = np.zeros(self.t.shape)
                 d[key] += link.vals / self.dt
