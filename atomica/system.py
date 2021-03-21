@@ -12,7 +12,7 @@ from . import locale
 import logging
 import gettext
 
-__all__ = ['atomica_path', 'LIBRARY_PATH', 'LOCALE_PATH', 'NotFoundError', 'FrameworkSettings', '_']
+__all__ = ['atomica_path', 'LIBRARY_PATH', 'LOCALE_PATH', 'NotFoundError', 'FrameworkSettings', '_','_l','set_translator']
 logger = logging.getLogger("atomica")
 
 def atomica_path(subdir=None) -> pathlib.Path:
@@ -46,9 +46,24 @@ def atomica_path(subdir=None) -> pathlib.Path:
 LIBRARY_PATH = atomica_path(["atomica", "library"])
 LOCALE_PATH = atomica_path(["atomica", "locale"])
 
-translate = gettext.translation('atomica', LOCALE_PATH, fallback=True)
-_ = translate.gettext
+_translator = None
+
+def set_translator(language=None):
+    global _translator
+    if language:
+        _translator = gettext.translation('atomica', LOCALE_PATH, fallback=False, languages=[language])
+    else:
+        _translator = None
+
+def _(x):
+    if _translator:
+        return _translator.gettext(x)
+    else:
+        return x
+
 _l = lambda x: _(x).lower()
+
+
 
 class NotFoundError(Exception):
     """

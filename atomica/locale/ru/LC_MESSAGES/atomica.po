@@ -1,0 +1,44 @@
+# Russian translations for atomica.
+# Copyright (C) 2021 ORGANIZATION
+# This file is distributed under the same license as the atomica project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2021.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: atomica 1.24.2\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2021-03-21 14:46+1100\n"
+"PO-Revision-Date: 2021-03-21 14:48+1100\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: ru\n"
+"Language-Team: ru <LL@li.org>\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
+"n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2)\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.9.0\n"
+
+#: atomica/excel.py:878
+msgid "Provenance"
+msgstr "Происхождения"
+
+#: atomica/excel.py:882 atomica/excel.py:1024
+msgid "Constant"
+msgstr "Постоянно"
+
+#: atomica/excel.py:962 atomica/excel.py:1024
+msgid "Assumption"
+msgstr "Предположение"
+
+#: atomica/excel.py:1024
+msgid "Unsupported assumption heading"
+msgstr "Неподдерживаемое предположение заголовок"
+
+#: atomica/excel.py:1048
+msgid "Units"
+msgstr "Единицы"
+
+#: atomica/excel.py:1053
+msgid "Uncertainty"
+msgstr "Неопределенности"

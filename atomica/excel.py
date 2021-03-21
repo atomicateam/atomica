@@ -1021,7 +1021,9 @@ class TimeDependentValuesEntry:
 
         """
 
-        assert self.assumption_heading in {_("Constant"), _("Assumption")}, _("Unsupported assumption heading")
+        # This check gets broken if the language has been changed after creation but before writing
+        # It's probably safe enough to assume that the assumption heading is OK
+        # assert self.assumption_heading in {_("Constant"), _("Assumption")}, _("Unsupported assumption heading")
 
         write_units = self.write_units if self.write_units is not None else any((ts.units is not None for ts in self.ts.values()))
         write_uncertainty = self.write_uncertainty if self.write_uncertainty is not None else any((ts.sigma is not None for ts in self.ts.values()))
