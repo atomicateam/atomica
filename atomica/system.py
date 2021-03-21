@@ -6,14 +6,14 @@ Define internal system constants and functions
 import sciris as sc
 from .function_parser import supported_functions
 import pathlib
+from . import locale
 
 # Set up a logger that can be imported elsewhere
 import logging
+import gettext
 
-__all__ = ["atomica_path", "LIBRARY_PATH", "NotFoundError", "FrameworkSettings"]
-
+__all__ = ['atomica_path', 'LIBRARY_PATH', 'LOCALE_PATH', 'NotFoundError', 'FrameworkSettings', '_']
 logger = logging.getLogger("atomica")
-
 
 def atomica_path(subdir=None) -> pathlib.Path:
     """
@@ -44,7 +44,11 @@ def atomica_path(subdir=None) -> pathlib.Path:
 
 
 LIBRARY_PATH = atomica_path(["atomica", "library"])
+LOCALE_PATH = atomica_path(["atomica", "locale"])
 
+translate = gettext.translation('atomica', LOCALE_PATH, fallback=True)
+_ = translate.gettext
+_l = lambda x: _(x).lower()
 
 class NotFoundError(Exception):
     """

@@ -1,13 +1,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from setuptools import setup, find_packages
+from setuptools import setup,\
+    find_packages
 import os
 
 cwd = os.path.abspath(os.path.dirname(__file__))
 
 # Read version
-with open(os.path.join(cwd, "atomica", "version.py"), "r") as f:
+with open(os.path.join(cwd,
+                       "atomica", "version.py"), "r") as f:
     version = [x.split("=")[1].replace('"', "").strip() for x in f if x.startswith("version =")][0]
 
 # Read README.md for description
@@ -39,5 +41,17 @@ setup(
     classifiers=CLASSIFIERS,
     packages=find_packages(),
     include_package_data=True,
-    install_requires=["matplotlib>=3.0,<=3.3.4", "numpy>=1.10.1", "scipy>=1.2.1", "pandas", "xlsxwriter", "openpyxl", "pyswarm", "hyperopt", "sciris", "tqdm"],
+    install_requires=["matplotlib>=3.0,<=3.3.4",
+                      "numpy>=1.10.1",
+                      "scipy>=1.2.1",
+                      "pandas",
+                      "xlsxwriter",
+                      "openpyxl",
+                      "pyswarm",
+                      "hyperopt",
+                      "sciris",
+                      "tqdm",
+                      "babel",
+                      ],
+
 )

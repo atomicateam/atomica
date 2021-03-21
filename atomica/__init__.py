@@ -69,9 +69,11 @@ pd.set_option("mode.chained_assignment", None)
 
 # Suppress openpyxl deprecation warnings
 import warnings
-
 warnings.filterwarnings(action="ignore", category=UserWarning, module=".*openpyxl")
 
+# Set the locale
+import os
+locale = os.getenv('ATOMICA_LOCALE','en') # Get the locale/language
 
 # The Atomica user interface -- import from submodules
 from .calibration import *

@@ -16,6 +16,7 @@ from .system import FrameworkSettings as FS
 import pandas as pd
 from .utils import format_duration, datetime_to_year
 import xlsxwriter
+from .system import _, _l
 
 # Suppress known warning in Openpyxl
 # Warnings are:
@@ -874,11 +875,11 @@ class TimeDependentValuesEntry:
         self.allowed_units = [x.title() if x in FS.STANDARD_UNITS else x for x in allowed_units] if allowed_units is not None else None  # Otherwise, can be an odict with keys corresponding to ts - leave as None for no restriction
 
         self.ts_attributes = {}  #: Dictionary containing extra attributes to write along with each TimeSeries object.
-        self.ts_attributes["Provenance"] = {}  # Include provenance attribute by default
+        self.ts_attributes[_("Provenance")] = {}  # Include provenance attribute by default
 
         #  Keys are attribute name, values can be either a scalar or a dict keyed by the same keys as self.ts. Compared to units, uncertainty etc.
         #  attributes are store in the TDVE rather than in the TimeSeries
-        self.assumption_heading = "Constant"  #: Heading to use for assumption column
+        self.assumption_heading = _("Constant")  #: Heading to use for assumption column
 
         self.write_units = None  #: Write a column for units (if None, units will be written if any of the TimeSeries have units)
         self.write_uncertainty = None  #: Write a column for units (if None, units will be written if any of the TimeSeries have uncertainty)
@@ -931,7 +932,7 @@ class TimeDependentValuesEntry:
         # Read the headings
         headings = {}
         times = {}
-        known_headings = {"units", "uncertainty", "constant", "assumption"}
+        known_headings = {_l("Units"), _l("Uncertainty"), _l("Constant"), _l("Assumption")}
         for i, cell in enumerate(rows[0]):
             v = cell.value
             if i == 0 or v is None:
@@ -951,14 +952,14 @@ class TimeDependentValuesEntry:
         tdve.tvec = np.array(sorted(times), dtype=float)
 
         # Validate and process headings
-        if not times and "constant" not in headings:
+        if not times and _l("Constant") not in headings:
             raise Exception("Could not find an assumption or time-specific value - all tables must contain at least one of these values")
-        tdve.write_units = True if "units" in headings else None
-        tdve.write_uncertainty = True if "uncertainty" in headings else None
-        tdve.write_assumption = True if "constant" in headings else None
-        if "assumption" in headings:
+        tdve.write_units = True if _l("Units") in headings else None
+        tdve.write_uncertainty = True if _l("Uncertainty") in headings else None
+        tdve.write_assumption = True if _l("Constant") in headings else None
+        if _l("assumption") in headings:
             tdve.write_assumption = True
-            tdve.assumption_heading = "Assumption"
+            tdve.assumption_heading = _("Assumption")
         for heading in headings:
             if heading not in known_headings:
                 # If it's not a known heading and it's a string, then it must be an attribute
@@ -972,23 +973,23 @@ class TimeDependentValuesEntry:
                 raise Exception("In cell %s of the spreadsheet, the name of the entry was expected to be a string, but it was not. The left-most column is expected to be a name. If you are certain the value is correct, add an single quote character at the start of the cell to ensure it remains as text" % row[0].coordinate)
             series_name = row[0].value.strip()
 
-            if "units" in headings:
-                units = cell_get_string(row[headings["units"]], allow_empty=True)
+            if _l("Units") in headings:
+                units = cell_get_string(row[headings[_l("units")]], allow_empty=True)
                 if units.lower().strip() in FS.STANDARD_UNITS:
                     units = units.lower().strip()  # Only lower and strip units if they are standard units
             else:
                 units = None
             ts = TimeSeries(units=units)
 
-            if "uncertainty" in headings:
-                ts.sigma = cell_get_number(row[headings["uncertainty"]])
+            if _l("Uncertainty") in headings:
+                ts.sigma = cell_get_number(row[headings[_l("Uncertainty")]])
             else:
                 ts.sigma = None
 
-            if "constant" in headings:
-                ts.assumption = cell_get_number(row[headings["constant"]])
-            elif "assumption" in headings:
-                ts.assumption = cell_get_number(row[headings["assumption"]])
+            if _l("Constant") in headings:
+                ts.assumption = cell_get_number(row[headings[_l("constant")]])
+            elif _l("Assumption") in headings:
+                ts.assumption = cell_get_number(row[headings[_l("assumption")]])
             else:
                 ts.assumption = None
 
@@ -1020,7 +1021,7 @@ class TimeDependentValuesEntry:
 
         """
 
-        assert self.assumption_heading in {"Constant", "Assumption"}, "Unsupported assumption heading"
+        assert self.assumption_heading in {_("Constant"), _("Assumption")}, _("Unsupported assumption heading")
 
         write_units = self.write_units if self.write_units is not None else any((ts.units is not None for ts in self.ts.values()))
         write_uncertainty = self.write_uncertainty if self.write_uncertainty is not None else any((ts.sigma is not None for ts in self.ts.values()))
@@ -1044,12 +1045,12 @@ class TimeDependentValuesEntry:
             offset += 1
 
         if write_units:
-            headings.append("Units")
+            headings.append(_("Units"))
             units_index = offset  # Column to write the units in
             offset += 1
 
         if write_uncertainty:
-            headings.append("Uncertainty")
+            headings.append(_("Uncertainty"))
             uncertainty_index = offset  # Column to write the units in
             offset += 1
 
