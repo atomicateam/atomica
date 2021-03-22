@@ -19,17 +19,17 @@ Short name | Long name
 `ltex`	| Early latent (undiagnosable)
 `ltlx`	| Late latent (undiagnosable)
 
-All of the people in these compartments have recieved a vaccine, because the `ltex` and `ltlx` compartments are specific to vaccinated individuals. Thus, the `vac` *compartment* corresponds to people who have been vaccinated, but who have _not_ acquired a latent TB infection. However, data is likely to be available for the total number of vaccinated people regardless of their latent infection status. Thus, the data is likely to correspond to a characteristic defined as `vac+ltex+ltlx`. Similarly, there is typically good demographic data available for the total population size. However, the total population size is given by the sum of all of the compartments in the model.
+All of the people in these compartments have received a vaccine, because the `ltex` and `ltlx` compartments are specific to vaccinated individuals. Thus, the `vac` *compartment* corresponds to people who have been vaccinated, but who have _not_ acquired a latent TB infection. However, data is likely to be available for the total number of vaccinated people regardless of their latent infection status. Thus, the data is likely to correspond to a characteristic defined as `vac+ltex+ltlx`. Similarly, there is typically good demographic data available for the total population size. However, the total population size is given by the sum of all of the compartments in the model.
 
 Given a set of characteristics, the goal is then to compute the corresponding compartment sizes. For example, if we know
 
-    nvac = vac+ltex+ltlt (total number of vaccinated individuals)
+    nvac = vac+ltex+ltlx (total number of vaccinated individuals)
     ltx = ltex+ltlx (total number of latent infections in the vaccinated population)
     ltlx (number of late latent infections)
 
 where `nvac` and `ltx` are the names of the characteristics, then we can readily use substitutions to infer the initial compartment sizes. However, the equations for the characteristics
 
-    nvac = vac+ltex+ltlt
+    nvac = vac+ltex+ltlx
     ltx = ltex+ltlx
     ltlx
 
@@ -61,7 +61,7 @@ then the value for `vac` is clearly critically inconsistent with the value for `
     nvac = vac + ltex + ltlt
     ...
 
-then a negative value for `sus` would be a consequence of the value for the characteristic `nvac` which itself could be the result of a computation. Thus, the user has to look at a set of characteristics and compartments to trace where the original inconsistency occurred. As a result, the most helpful output for the user to debug this is a dump of all of the compartment and characteristic values, which is the same in both the original and the linear algebra based approach.
+then a negative value for `sus` would be a consequence of the value for the characteristic `nvac` which itself could be the result of a computation. Thus, the user has to look at a set of characteristics and compartments to trace where the original inconsistency occurred. As a result, the most helpful output for the user to debug this is a dump of all of the compartment and characteristic values, which is the same in both the original and the linear algebra-based approach.
 
 #### Underdetermined system
 
@@ -76,7 +76,7 @@ By inspection, there is clearly insufficient information provided to be able to 
     [ltx ] = [0 1 1] *  [ltex]
                         [ltlx]
 
-(which is of course a valid matrix equation, with dimensions `(2x1) = (2x3)*(3x1)`). The fact that there is insufficient information can be detected by comparing the rank of the `A` matrix with the number of compartments. Specifically, `y=A*x` is underdetermined if the rank of `A` is less than the length of `x`. This can be trivially checked using Numpy's built in `numpy.linalg.matrix_rank` function. Note that this is a stricter condition than simply counting the number of characteristics on the left hand side, because it is possible for a characteristic to not to provide any unique information if that characteristic can be expressed as a linear combination of other characteristics in the system. 
+(which is of course a valid matrix equation, with dimensions `(2x1) = (2x3)*(3x1)`). The fact that there is insufficient information can be detected by comparing the rank of the `A` matrix with the number of compartments. Specifically, `y=A*x` is underdetermined if the rank of `A` is less than the length of `x`. This can be trivially checked using Numpy's built in `numpy.linalg.matrix_rank` function. Note that this is a stricter condition than simply counting the number of characteristics on the left-hand side, because it is possible for a characteristic to not to provide any unique information if that characteristic can be expressed as a linear combination of other characteristics in the system. 
 
 In Atomica, underdetermined systems are handled by returning the minimum norm solution, so any compartments missing entirely will be initialized with 0, and in cases where compartments are nonzero but not uniquely constrained, people will be uniformly distributed across those compartments. 
 
@@ -131,7 +131,7 @@ In this case though, the consequence of the inconsistency is *not* that a compar
     [sus  ] = [1 0] *  [vac ]
     [vac  ]   [0 1]
 
-Notice how this system is obviously overdetermined, because the column vector on the left is longer than the column vector on the right. We can solve this overdetermined system using a standard least squares approach (e.g. `np.linalg.lstsq`). In the case where all of the information provided is consistent, the residual for the fit will be `0`. If the values are inconsistent, the least squares solution will solve for the compartment sizes on the right that best match the set of characteristics on the left. In this case, this would be
+Notice how this system is obviously overdetermined because the column vector on the left is longer than the column vector on the right. We can solve this overdetermined system using a standard least squares approach (e.g. `np.linalg.lstsq`). In the case where all of the information provided is consistent, the residual for the fit will be `0`. If the values are inconsistent, the least squares solution will solve for the compartment sizes on the right that best match the set of characteristics on the left. In this case, this would be
 
     sus = 56.66
     vac = 46.66
@@ -158,7 +158,7 @@ the overall residual has been minimized across all of the provided characteristi
     vac = 49.9
     alive = 100.2
 
-where the initialization penalizes discrepancies in `alive` and `vac` more than discrepancies in `sus`. This is a simple case of weighted least squares, and can be readily incorporated into the algorithm. To cater for this, the user needs to specify a **setup weight** for each characteristic. **However, using the provided setup weights has not been implemented in Atomica yet**. 
+where the initialization penalizes discrepancies in `alive` and `vac` more than discrepancies in `sus`. This is a simple case of weighted least squares and can be readily incorporated into the algorithm. To cater for this, the user needs to specify a **setup weight** for each characteristic. **However, using the provided setup weights has not been implemented in Atomica yet**. 
 
 ## Computing initial values at arbitrary times
 
