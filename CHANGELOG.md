@@ -2,6 +2,16 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.24.1] - 2021-03-09
+
+- Added validation of plots sheet in framework file
+- Allow validating a framework multiple times
+- Fix an edge case with timed transitions and split transition matrices
+
+*Backwards-compatibility notes*
+
+- In rare cases, if an existing framework file contains an error that was not previously detected, it may now produce an error when loaded. Such errors indicate problems in the framework that should be debugged as usual. 
+
 ## [1.23.4] - 2020-12-14
 
 - Fix bug where program outcomes were not correctly applied if overwriting a function parameter that does not impact any transitions
