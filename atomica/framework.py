@@ -778,9 +778,9 @@ class ProjectFramework:
                     # For number and probability, non-transition parameters might not be be in units per time period, therefore having a timescale
                     # is optional *unless* it is a transition parameter
                     self.pars.at[par_name, "timescale"] = 1.0
-                elif np.isfinite(par["timescale"]) and par["format"] == FS.QUANTITY_TYPE_PROPORTION:
-                    # Proportion units should never have a timescale since they are time-invariant
-                    raise InvalidFramework("Parameter %s is in proportion units, therefore it cannot have a timescale entered for it" % par_name)
+            elif par["format"] == FS.QUANTITY_TYPE_PROPORTION:
+                # Proportion units should never have a timescale since they are time-invariant
+                raise InvalidFramework("Parameter %s is in proportion units, therefore it cannot have a timescale entered for it" % par_name)
 
             if par["timed"] == "y":
                 if par["format"] != FS.QUANTITY_TYPE_DURATION:
