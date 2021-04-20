@@ -10,6 +10,7 @@ import itertools
 import os
 import errno
 from collections import defaultdict
+from pandas import isna
 
 import numpy as np
 import scipy.interpolate
@@ -522,7 +523,7 @@ class PlotData:
                 if method == "integrate" and s.units in {FS.QUANTITY_TYPE_DURATION, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_RATE, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_FRACTION}:
                     logger.warning('Units for series "%s" are "%s" so time aggregation should probably be "average", not "integrate"', s, s.units)
 
-            if s.timescale is not None:
+            if not isna(s.timescale):
                 scale = s.timescale
             else:
                 scale = 1.0
