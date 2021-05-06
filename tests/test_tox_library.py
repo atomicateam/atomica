@@ -193,6 +193,9 @@ def test_model(model):
     # Test loading the databook and doing a basic run
     P.load_databook(databook_file, make_default_parset=True, do_run=True)
 
+    # Test exporting the calibration
+    P.parsets[0].calibration_spreadsheet()
+
     # Test doing auto-calibration
     # run_auto_calibration(P)
 
