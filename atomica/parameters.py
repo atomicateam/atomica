@@ -7,11 +7,14 @@ values that are used to scale model parameters. Therefore, every parameter
 in the model appears in the parset, not just the parameters in the databook.
 
 """
-
+import io
 from collections import defaultdict
 import numpy as np
+import pandas as pd
+
 import sciris as sc
 from .utils import NamedItem, TimeSeries
+from .system import logger
 import scipy.interpolate
 
 __all__ = ["Parameter", "ParameterSet"]
@@ -266,13 +269,13 @@ class ParameterSet(NamedItem):
         """
 
         if name in self.pars:
-            assert pop is None, f'"{name}" is a parameter so the ``pop`` should not be specified'
+            assert pd.isna(pop), f'"{name}" is a parameter so the ``pop`` should not be specified'
             return self.pars[name]
         elif name in self.transfers:
-            assert pop is not None, f'"{name}" is a transfer, so the ``pop`` must be specified'
+            assert not pd.isna(pop), f'"{name}" is a transfer, so the ``pop`` must be specified'
             return self.transfers[name][pop]
         elif name in self.interactions:
-            assert pop is not None, f'"{name}" is an interaction, so the ``pop`` must be specified'
+            assert not pd.isna(pop), f'"{name}" is an interaction, so the ``pop`` must be specified'
             return self.interactions[name][pop]
         else:
             raise Exception(f'Parameter "{name}" not found')
@@ -291,3 +294,67 @@ class ParameterSet(NamedItem):
         for par in new.all_pars():
             par.sample(constant)
         return new
+
+    ### SAVE AND LOAD CALIBRATION (Y-FACTORS)
+
+    def calibration_spreadsheet(self) -> sc.Spreadsheet:
+        """
+        Return y-values in a spreadsheet
+
+        :return: Spreadsheet containing y-factors in tabular form
+        """
+
+        records = []
+        for par in self.pars.values():
+            vals = dict(par=par.name, pop=None)
+            vals['meta_y_factor'] = par.meta_y_factor
+            vals = sc.mergedicts(vals, par.y_factor)
+            records.append(vals)
+
+        for par_name, d in self.interactions.items() + self.transfers.items():
+            for pop_name, par in d.items():
+                vals = dict(par=par_name, pop=pop_name)
+                vals['meta_y_factor'] = par.meta_y_factor
+                vals = sc.mergedicts(vals, par.y_factor)
+                records.append(vals)
+
+        df = pd.DataFrame.from_dict(records)
+        df.set_index(['par','pop'], inplace=True)
+
+        b = io.BytesIO()
+        df.to_excel(b, merge_cells=False)
+
+        return sc.Spreadsheet(b)
+
+    def save_calibration(self, fname) -> None:
+        """
+        Save y-values to file
+
+        :param fname: ``str`` or ``Path`` specifying location of file to save
+
+        """
+        ss = self.calibration_spreadsheet()
+        ss.save(fname)
+
+    def load_calibration(self, spreadsheet: sc.Spreadsheet) -> None:
+        if not isinstance(spreadsheet, sc.Spreadsheet):
+            spreadsheet = sc.Spreadsheet(spreadsheet)
+
+        df = spreadsheet.pandas().parse()
+        df.set_index(['par','pop'], inplace=True)
+
+        for (par_name, pop_name), values in df.to_dict(orient='index').items():
+            par = self.get_par(par_name, pop_name)
+            for k, v in values.items():
+                if pd.isna(v):
+                    continue
+
+                if k == 'meta_y_factor' :
+                    par.meta_y_factor = v
+                else:
+                    if k in par.y_factor:
+                        par.y_factor[k] = v
+                    else:
+                        raise Exception(f'Attempted to set a y-factor for {par.name} in {k} but the ParameterSet does not define a y-factor for that population (e.g., because the population type does not match the parameter)')
+
+        logger.debug('Loaded calibration from file')
