@@ -2,6 +2,23 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.25.0] - 2021-05-06
+
+- Added methods `ParameterSet.calibration_spreadsheet()`, `ParameterSet.save_calibration()` and `ParameterSet.load_calibration()` to allow saving calibration scale factors to spreadsheets that can be edited externally.
+
+## [1.24.4] - 2021-05-06
+
+- Fix plotting routines that were previously checking for missing timescales by checking for `None` values, and were thus missing `np.nan` values. This change was introduced around version 1.24.1 when framework validation now guarantees that the parameter timescale is a numeric type. This causes missing timescales to be populated with `nan` rather than `None`.
+- Add library framework for malaria 
+
+*Backwards-compatibility notes*
+
+- Any code checking for missing timescales by checking for a `None` value should instead use `pd.isna()` to check for `nan` _or_ `None` values 
+
+## [1.24.3] - 2021-03-25
+
+- Fixes a bug in validation that ensures parameters in 'proportion' units cannot have a timescale. Previously frameworks with this error would incorrectly pass validation
+
 ## [1.24.1] - 2021-03-09
 
 - Added validation of plots sheet in framework file

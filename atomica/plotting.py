@@ -10,6 +10,7 @@ import itertools
 import os
 import errno
 from collections import defaultdict
+from pandas import isna
 
 import numpy as np
 import scipy.interpolate
@@ -431,7 +432,7 @@ class PlotData:
 
         for s in self.series:
             if accumulation_method == "sum":
-                if s.timescale is not None:
+                if not isna(s.timescale):
                     raise Exception('Quantity "%s" has timescale %g which means it should be accumulated by integration, not summation' % (s.output, s.timescale))
                 s.vals = np.cumsum(s.vals)
             elif accumulation_method == "integrate":
@@ -443,7 +444,7 @@ class PlotData:
 
                 # If integrating a quantity with a timescale, then lose the timescale factor
                 # Otherwise, the units pick up a factor of time
-                if s.timescale is not None:
+                if not isna(s.timescale):
                     s.timescale = None
                 else:
                     if s.units == "Number of people":
@@ -522,7 +523,7 @@ class PlotData:
                 if method == "integrate" and s.units in {FS.QUANTITY_TYPE_DURATION, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_RATE, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_FRACTION}:
                     logger.warning('Units for series "%s" are "%s" so time aggregation should probably be "average", not "integrate"', s, s.units)
 
-            if s.timescale is not None:
+            if not isna(s.timescale):
                 scale = s.timescale
             else:
                 scale = 1.0
@@ -548,7 +549,7 @@ class PlotData:
                 s.vals = np.array(vals)
 
                 # If integrating the units might change
-                if s.timescale is not None:
+                if not isna(s.timescale):
                     # Any flow rates get integrated over the bin width, so change the timescale to None
                     # If the units were 'duration', this doesn't make sense, but integrating a duration doesn't
                     # make sense either. This would only happen if the user explicitly requests it anyway. For example,
@@ -1023,7 +1024,7 @@ class Series:
             logger.warning("%s contains NaNs", self)
 
     @property
-    def unit_string(self):
+    def unit_string(self) -> str:
         """
         Return the units for the quantity including timescale
 
@@ -1033,11 +1034,13 @@ class Series:
         The unit of the quantity is interpreted as a numerator if the Timescale is not None. For example,
         Compartments have units of 'number', while Links have units of 'number/timestep' which is stored as
         ``Series.units='number'`` and ``Series.timescale=0.25`` (if ``dt=0.25``). The `unit_string` attribute
+        returns a string that is suitable to use for plots e.g. 'number per week'.
 
-        :return:
+        :return: A string representation of the units for use in plotting
+
         """
 
-        if self.timescale is not None:
+        if not isna(self.timescale):
             if self.units == FS.QUANTITY_TYPE_DURATION:
                 return "%s" % (format_duration(self.timescale, True))
             else:
