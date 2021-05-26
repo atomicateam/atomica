@@ -2,6 +2,10 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.25.1] - 2021-05-06
+
+- Fix bug in `ProgramSet.remove_program()` - this function would previously raise an error
+
 ## [1.25.0] - 2021-05-06
 
 - Added methods `ParameterSet.calibration_spreadsheet()`, `ParameterSet.save_calibration()` and `ParameterSet.load_calibration()` to allow saving calibration scale factors to spreadsheets that can be edited externally.
