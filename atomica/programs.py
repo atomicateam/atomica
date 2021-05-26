@@ -275,7 +275,7 @@ class ProgramSet(NamedItem):
         # Remove affected covouts
         for par in self.pars:
             for pop in self.pops:
-                if (par, pop) in self.covouts and code_name in self.covouts.progs:
+                if (par, pop) in self.covouts and code_name in self.covouts[(par, pop)].progs:
                     del self.covouts[(par, pop)].progs[code_name]
 
     def add_pop(self, code_name: str, full_name: str, pop_type: str = None) -> None:
