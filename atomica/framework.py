@@ -464,7 +464,7 @@ class ProjectFramework:
 
                             if self.comps.at[from_comp, "is source"] == "y" or self.comps.at[from_comp, "is sink"] == "y" or self.comps.at[from_comp, "is junction"] == "y":
                                 raise InvalidFramework(f'Parameter "{par_name}" defines a timed outflow from Compartment "{from_comp}" but timed outflows cannot be applied to source, sink, or junction compartments')
-                            elif par_name in set(df.loc[to_comp]):
+                            elif self.comps.at[to_comp, "duration group"] == par_name:
                                 raise InvalidFramework(f'Compartment "{from_comp}" belongs to the duration group "{par_name}" but it flushes into "{to_comp}" which is a member of the same group. Flushing into the same duration group is not permitted')
 
                         self.transitions[par_name].append((from_comp, to_comp))

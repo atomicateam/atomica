@@ -2,6 +2,19 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.25.3] - 2021-06-03
+
+- Implemented `Population.__contains__` to easily check whether variables are defined in a population
+- Improved error message when plotting if requesting an output that is not defined in all populations
+
+## [1.25.2] - 2021-05-26
+
+- Add `ParameterSet.y_factors` as a property attribute to quickly access and set y-factors. 
+
+## [1.25.1] - 2021-05-26
+
+- Fix bug in `ProgramSet.remove_program()` - this function would previously raise an error
+
 ## [1.25.0] - 2021-05-06
 
 - Added methods `ParameterSet.calibration_spreadsheet()`, `ParameterSet.save_calibration()` and `ParameterSet.load_calibration()` to allow saving calibration scale factors to spreadsheets that can be edited externally.

@@ -1,15 +1,33 @@
 import atomica as at
 import numpy as np
 import sciris as sc
+import pytest
 
 testdir = at.parent_dir()
 tmpdir = testdir / "temp"
 
 
-def test_progbooks():
+def load_inputs():
     F = at.ProjectFramework(at.LIBRARY_PATH / "tb_framework.xlsx")
     D = at.ProjectData.from_spreadsheet(at.LIBRARY_PATH / "tb_databook.xlsx", framework=F)
     D.validate(F)  # Need to validate the databook before it can be used for anything other than databook IO
+    return F, D
+
+
+def test_remove_program():
+    P = at.demo("tb", do_run=False)
+    pset = P.progsets[0].copy()
+    pset.remove_program("BCG")
+    assert "BCG" not in pset.programs
+    for covout in pset.covouts.values():
+        assert "BCG" not in covout.progs
+    P.run_sim(P.parsets[0], pset, at.ProgramInstructions(start_year=2019))
+
+
+def test_new_workbook():
+    F, D = load_inputs()
+    P = at.Project(framework=F, databook=D)
+
     pset = at.ProgramSet.from_spreadsheet(at.LIBRARY_PATH / "tb_progbook.xlsx", F, D)
     pset.save(tmpdir / "progbook_test.xlsx")
     pset = at.ProgramSet.from_spreadsheet(tmpdir / "progbook_test.xlsx", F, D)
@@ -19,6 +37,18 @@ def test_progbooks():
     P = at.Project(framework=at.LIBRARY_PATH / "tb_framework.xlsx", databook=at.LIBRARY_PATH / "tb_databook.xlsx", do_run=False)
     P.load_progbook(tmpdir / "progbook_test2.xlsx")
     P.run_sim(P.parsets[0], P.progsets[0], at.ProgramInstructions(start_year=2019))
+
+
+def test_save_new_progbook():
+    # Test making a new one
+    F, D = load_inputs()
+    pset = at.ProgramSet.new(tvec=np.arange(2015, 2018), progs=2, framework=F, data=D)
+    pset.save(tmpdir / "progbook_test5.xlsx")
+
+
+def test_progbooks():
+    F, D = load_inputs()
+    pset = at.ProgramSet.from_spreadsheet(at.LIBRARY_PATH / "tb_progbook.xlsx", F, D)
 
     # Test adding things
     pset.add_program("newprog", "New Program")
@@ -31,6 +61,7 @@ def test_progbooks():
     pset.remove_comp("Susceptible")
     pset.remove_par("v_num")
     pset.remove_par("LTBI treatment average duration of full course")
+    pset.remove_program("BCG")
     pset.save(tmpdir / "progbook_test4.xlsx")
 
     # Test making a new one
@@ -79,4 +110,7 @@ def test_progbooks():
 
 
 if __name__ == "__main__":
+    test_remove_program()
+    test_new_workbook()
+    test_save_new_progbook()
     test_progbooks()

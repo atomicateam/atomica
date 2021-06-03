@@ -24,10 +24,11 @@ from matplotlib.lines import Line2D
 from matplotlib.patches import Rectangle, Patch
 from matplotlib.ticker import FuncFormatter
 
+import atomica
 import sciris as sc
 from .model import Compartment, Characteristic, Parameter, Link, TimedLink, SourceCompartment, JunctionCompartment, SinkCompartment
 from .results import Result
-from .system import logger
+from .system import logger, NotFoundError
 from .function_parser import parse_function
 from .system import FrameworkSettings as FS
 from .utils import format_duration, nested_loop
@@ -233,7 +234,13 @@ class PlotData:
 
                 # First pass, extract the original output quantities, summing links and annualizing as required
                 for output_label in outputs_required:
-                    vars = pop.get_variable(output_label)
+
+                    try:
+                        vars = pop.get_variable(output_label)
+                    except NotFoundError as e:
+                        in_pops = [x.name for x in result.model.pops if output_label in x]
+                        message = f'Variable "{output_label}" was requested in population "{pop.name}" but it is only defined in these populations: {in_pops}'
+                        raise NotFoundError(message) from e
 
                     if vars[0].vals is None:
                         raise Exception('Requested output "%s" was not recorded because only partial results were saved' % (vars[0].name))
