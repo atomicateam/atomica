@@ -1573,6 +1573,25 @@ class Population:
     def __repr__(self):
         return '%s "%s"' % (self.__class__.__name__, self.name)
 
+    def __contains__(self, item: str) -> bool:
+        """
+        Check whether variables can be resolved
+
+        This function returns True if ``Population.get_variable(item)`` would result
+        in some variables being returned. This facilitates checking whether a population
+        contains particular variables - for example, transfer links may only exist in
+        a subset of the model populations, or if population types are being used, not all
+        variables will be defined in any one population.
+
+        :param item: The name of a parameter or a link specification (supported by ``get_variable``)
+        :return: True if ``Population.get_variable`` would return at least one variable, otherwise False
+        """
+        try:
+            self.get_variable(item)
+            return True
+        except NotFoundError:
+            return False
+
     def unlink(self):
         if not self.is_linked:
             return
@@ -1654,8 +1673,7 @@ class Population:
             return [self.par_lookup[name]]
         elif name in self.link_lookup:
             return self.link_lookup[name]
-        elif ":" in name:
-
+        elif ":" in name and not name.endswith(":flow"):
             name_tokens = name.split(":")
             if len(name_tokens) == 2:
                 name_tokens.append("")
