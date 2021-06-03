@@ -6,6 +6,7 @@ import pytest
 testdir = at.parent_dir()
 tmpdir = testdir / "temp"
 
+
 def load_inputs():
     F = at.ProjectFramework(at.LIBRARY_PATH / "tb_framework.xlsx")
     D = at.ProjectData.from_spreadsheet(at.LIBRARY_PATH / "tb_databook.xlsx", framework=F)
@@ -14,13 +15,14 @@ def load_inputs():
 
 
 def test_remove_program():
-    P = at.demo('tb',do_run=False)
+    P = at.demo("tb", do_run=False)
     pset = P.progsets[0].copy()
-    pset.remove_program('BCG')
-    assert 'BCG' not in pset.programs
+    pset.remove_program("BCG")
+    assert "BCG" not in pset.programs
     for covout in pset.covouts.values():
-        assert 'BCG' not in covout.progs
+        assert "BCG" not in covout.progs
     P.run_sim(P.parsets[0], pset, at.ProgramInstructions(start_year=2019))
+
 
 def test_new_workbook():
     F, D = load_inputs()
@@ -36,11 +38,13 @@ def test_new_workbook():
     P.load_progbook(tmpdir / "progbook_test2.xlsx")
     P.run_sim(P.parsets[0], P.progsets[0], at.ProgramInstructions(start_year=2019))
 
+
 def test_save_new_progbook():
     # Test making a new one
     F, D = load_inputs()
     pset = at.ProgramSet.new(tvec=np.arange(2015, 2018), progs=2, framework=F, data=D)
     pset.save(tmpdir / "progbook_test5.xlsx")
+
 
 def test_progbooks():
     F, D = load_inputs()
@@ -57,9 +61,8 @@ def test_progbooks():
     pset.remove_comp("Susceptible")
     pset.remove_par("v_num")
     pset.remove_par("LTBI treatment average duration of full course")
-    pset.remove_program('BCG')
+    pset.remove_program("BCG")
     pset.save(tmpdir / "progbook_test4.xlsx")
-
 
     # Test making a new one
     pset = at.ProgramSet.new(tvec=np.arange(2015, 2018), progs=2, framework=F, data=D)

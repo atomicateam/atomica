@@ -296,30 +296,41 @@ class ParameterSet(NamedItem):
         return new
 
     ### SAVE AND LOAD CALIBRATION (Y-FACTORS)
+    @property
+    def y_factors(self) -> dict:
+        """
+        Return y-values in a dictionary
+
+        Note that any missing populations reflect population types. For example, the
+        dictionary for a parameter in one population type will not contain any entries
+        for populations that belong to another type
+
+        :return: Dictionary keyed by ``(par, pop)`` containing a dict of y-values
+        """
+        y_factors = {}
+
+        for par_name, par in self.pars.items():
+            y_factors[(par_name, None)] = sc.mergedicts({"meta_y_factor": par.meta_y_factor}, par.y_factor)
+
+        for par_name, d in self.interactions.items() + self.transfers.items():
+            for pop_name, par in d.items():
+                y_factors[(par_name, pop_name)] = sc.mergedicts({"meta_y_factor": par.meta_y_factor}, par.y_factor)
+
+        return y_factors
 
     def calibration_spreadsheet(self) -> sc.Spreadsheet:
         """
         Return y-values in a spreadsheet
 
+        Note that the tabular structure contains missing entries for any interactions
+        that don't exist (e.g. due to missing population types) - these can be identified
+        with ``pd.isna``
+
         :return: Spreadsheet containing y-factors in tabular form
         """
 
-        records = []
-        for par in self.pars.values():
-            vals = dict(par=par.name, pop=None)
-            vals['meta_y_factor'] = par.meta_y_factor
-            vals = sc.mergedicts(vals, par.y_factor)
-            records.append(vals)
-
-        for par_name, d in self.interactions.items() + self.transfers.items():
-            for pop_name, par in d.items():
-                vals = dict(par=par_name, pop=pop_name)
-                vals['meta_y_factor'] = par.meta_y_factor
-                vals = sc.mergedicts(vals, par.y_factor)
-                records.append(vals)
-
-        df = pd.DataFrame.from_dict(records)
-        df.set_index(['par','pop'], inplace=True)
+        df = pd.DataFrame(self.y_factors).T
+        df.index.set_names(["par", "pop"], inplace=True)
 
         b = io.BytesIO()
         df.to_excel(b, merge_cells=False)
@@ -341,20 +352,20 @@ class ParameterSet(NamedItem):
             spreadsheet = sc.Spreadsheet(spreadsheet)
 
         df = spreadsheet.pandas().parse()
-        df.set_index(['par','pop'], inplace=True)
+        df.set_index(["par", "pop"], inplace=True)
 
-        for (par_name, pop_name), values in df.to_dict(orient='index').items():
+        for (par_name, pop_name), values in df.to_dict(orient="index").items():
             par = self.get_par(par_name, pop_name)
             for k, v in values.items():
                 if pd.isna(v):
                     continue
 
-                if k == 'meta_y_factor' :
+                if k == "meta_y_factor":
                     par.meta_y_factor = v
                 else:
                     if k in par.y_factor:
                         par.y_factor[k] = v
                     else:
-                        raise Exception(f'Attempted to set a y-factor for {par.name} in {k} but the ParameterSet does not define a y-factor for that population (e.g., because the population type does not match the parameter)')
+                        raise Exception(f"Attempted to set a y-factor for {par.name} in {k} but the ParameterSet does not define a y-factor for that population (e.g., because the population type does not match the parameter)")
 
-        logger.debug('Loaded calibration from file')
+        logger.debug("Loaded calibration from file")
