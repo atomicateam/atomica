@@ -2,6 +2,11 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.25.4] - 2021-06-28
+
+- Improved framework validation (informative errors raised in some additional cases)
+- Calibrations can be loaded for mismatched frameworks/databooks - missing or extra entries will be skipped without raising an error
+
 ## [1.25.3] - 2021-06-03
 
 - Implemented `Population.__contains__` to easily check whether variables are defined in a population

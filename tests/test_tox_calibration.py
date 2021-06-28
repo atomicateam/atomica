@@ -33,9 +33,8 @@ def test_load_legacy_calibrations():
         P = at.demo(model, do_run=False)
         P.parsets[0].load_calibration(testdir / "calibration" / f"test_calibration_{model}.xlsx")
 
-    with pytest.raises(Exception):
-        P = at.demo("combined", do_run=False)
-        P.parsets[0].load_calibration(testdir / "calibration" / f"test_calibration_combined_invalid.xlsx")
+    P = at.demo("combined", do_run=False)
+    P.parsets[0].load_calibration(testdir / "calibration" / f"test_calibration_combined_inexact.xlsx")
 
 
 def test_save_load_calibrations():
@@ -72,5 +71,5 @@ def test_save_load_calibrations():
 
 if __name__ == "__main__":
     # test_scale_factors()
-    # test_load_legacy_calibrations()
-    test_save_load_calibrations()
+    test_load_legacy_calibrations()
+    # test_save_load_calibrations()
