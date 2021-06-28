@@ -1087,6 +1087,10 @@ class ProjectFramework:
             message = 'An error was detected on the "Plots" sheet in the Framework file'
             raise Exception("%s -> %s" % (message, e)) from e
 
+        if not self.sheets["plots"][0]["name"].is_unique:
+            duplicates = list(self.sheets["plots"][0]["name"][self.sheets["plots"][0]["name"].duplicated()])
+            raise InvalidFramework(f'Error on "Plots" sheet -> the "Name" column contains duplicate items: {duplicates}')
+
         for quantity in self.sheets["plots"][0]["quantities"]:
             for variables in _extract_labels(sc.promotetolist(evaluate_plot_string(quantity))):
                 if variables.endswith(":flow"):

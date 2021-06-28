@@ -3,7 +3,6 @@
 # (e.g. badly formatted messages) only happen in production. Thus we just test a subset
 # of bad inputs here to make sure the correct error is raised
 
-import os
 import atomica as at
 import pytest
 
@@ -12,15 +11,15 @@ fdir = testdir / "bad_frameworks"
 
 # List available models based on which framework files exist
 framework_files = list()
-for f in os.listdir(fdir):
-    if f.endswith(".xlsx") and not f.startswith("~$"):
+for f in fdir.iterdir():
+    if f.name.endswith(".xlsx") and not f.name.startswith("~$"):
         framework_files.append(f)
 
 
 @pytest.mark.parametrize("framework_file", framework_files)
 def test_bad_framework(framework_file):
     with pytest.raises(at.InvalidFramework):
-        at.ProjectFramework(fdir / framework_file)
+        at.ProjectFramework(framework_file)
 
 
 if __name__ == "__main__":
