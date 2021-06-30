@@ -373,9 +373,9 @@ class ParameterSet(NamedItem):
                 par = self.get_par(par_name, pop_name)
             except KeyError:
                 if pop_name:
-                    logger.debug(f'{par.name} in {pop_name} was not found, ignoring y-factors for this quantity')
+                    logger.debug(f"{par.name} in {pop_name} was not found, ignoring y-factors for this quantity")
                 else:
-                    logger.debug(f'{par.name} was not found, ignoring y-factors for this quantity')
+                    logger.debug(f"{par.name} was not found, ignoring y-factors for this quantity")
                 continue
 
             for k, v in values.items():
