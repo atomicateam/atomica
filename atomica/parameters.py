@@ -278,7 +278,7 @@ class ParameterSet(NamedItem):
             assert not pd.isna(pop), f'"{name}" is an interaction, so the ``pop`` must be specified'
             return self.interactions[name][pop]
         else:
-            raise Exception(f'Parameter "{name}" not found')
+            raise KeyError(f'Parameter "{name}" not found')
 
     def sample(self, constant=True):
         """
@@ -348,6 +348,19 @@ class ParameterSet(NamedItem):
         ss.save(fname)
 
     def load_calibration(self, spreadsheet: sc.Spreadsheet) -> None:
+        """
+        Load calibration y-factors
+
+        This function reads a spreadsheet created by ``ParameterSet.save_calibration()`` and
+        inserts the y-factors. It is permissive in that
+
+        - If y-factors are present in the spreadsheet and not in the ``ParameterSet`` then they
+          will be skipped
+        - If y-factors are missing in the spreadsheet, the existing values will be maintained
+
+        :param spreadsheet:
+        :return:
+        """
         if not isinstance(spreadsheet, sc.Spreadsheet):
             spreadsheet = sc.Spreadsheet(spreadsheet)
 
@@ -355,7 +368,16 @@ class ParameterSet(NamedItem):
         df.set_index(["par", "pop"], inplace=True)
 
         for (par_name, pop_name), values in df.to_dict(orient="index").items():
-            par = self.get_par(par_name, pop_name)
+
+            try:
+                par = self.get_par(par_name, pop_name)
+            except KeyError:
+                if pop_name:
+                    logger.debug(f"{par.name} in {pop_name} was not found, ignoring y-factors for this quantity")
+                else:
+                    logger.debug(f"{par.name} was not found, ignoring y-factors for this quantity")
+                continue
+
             for k, v in values.items():
                 if pd.isna(v):
                     continue
@@ -366,6 +388,6 @@ class ParameterSet(NamedItem):
                     if k in par.y_factor:
                         par.y_factor[k] = v
                     else:
-                        raise Exception(f"Attempted to set a y-factor for {par.name} in {k} but the ParameterSet does not define a y-factor for that population (e.g., because the population type does not match the parameter)")
+                        logger.debug(f"The ParameterSet does not define a y-factor for {par.name} in the {k} population (e.g., because the population type does not match the parameter) - skipping")
 
         logger.debug("Loaded calibration from file")
