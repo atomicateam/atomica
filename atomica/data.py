@@ -454,7 +454,7 @@ class ProjectData(sc.prettyobj):
 
                 if spec["databook page"] is not None:
                     if spec_name not in self.tdve:
-                        if np.isfinite(spec["default value"]):
+                        if not np.isfinite(spec["default value"]):
                             raise Exception('The databook did not contain a required TDVE table named "%s" (code name "%s")' % (spec["display name"], spec_name))
                         else:
                             logger.warning('TDVE table "%s" (code name "%s") is missing from the databook. Using default values from the framework' % (spec["display name"], spec_name))
