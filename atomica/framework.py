@@ -644,11 +644,22 @@ class ProjectFramework:
                 if row["denominator"] in self.comps.index:
                     if row["population type"] != self.comps.at[row["denominator"], "population type"]:
                         raise InvalidFramework('In Characteristic "%s", included compartment "%s" does not have a matching population type' % (charac_name, row["denominator"]))
+
+                    if (row["setup weight"] > 0) and self.comps.at[row["denominator"], "databook page"] is None:
+                        # Check that denominators appear in the databook as described in https://github.com/atomicateam/atomica/issues/433
+                        raise InvalidFramework('Characteristic "%s" is being used for initialization, but the denominator compartment "%s" does not appear in the databook. Denominators that are used in initialization must appear in the databook ' % (charac_name, row["denominator"]))
+
                 elif row["denominator"] in self.characs.index:
                     if row["population type"] != self.characs.at[row["denominator"], "population type"]:
                         raise InvalidFramework('In Characteristic "%s", included characteristic "%s" does not have a matching population type' % (charac_name, row["denominator"]))
+
                     if not (self.characs.loc[row["denominator"]]["denominator"] is None):
                         raise InvalidFramework('Characteristic "%s" uses the characteristic "%s" as a denominator. However, "%s" also has a denominator, which means that it cannot be used as a denominator for "%s"' % (charac_name, row["denominator"], row["denominator"], charac_name))
+
+                    if (row["setup weight"] > 0) and self.characs.at[row["denominator"], "databook page"] is None:
+                        # Check that denominators appear in the databook as described in https://github.com/atomicateam/atomica/issues/433
+                        raise InvalidFramework('Characteristic "%s" is being used for initialization, but the denominator characteristic "%s" does not appear in the databook. Denominators that are used in initialization must appear in the databook ' % (charac_name, row["denominator"]))
+
                 else:
                     raise InvalidFramework('In Characteristic "%s", denominator "%s" was not recognized as a Compartment or Characteristic' % (charac_name, row["denominator"]))
 
@@ -1075,6 +1086,10 @@ class ProjectFramework:
         except Exception as e:
             message = 'An error was detected on the "Plots" sheet in the Framework file'
             raise Exception("%s -> %s" % (message, e)) from e
+
+        if not self.sheets["plots"][0]["name"].is_unique:
+            duplicates = list(self.sheets["plots"][0]["name"][self.sheets["plots"][0]["name"].duplicated()])
+            raise InvalidFramework(f'Error on "Plots" sheet -> the "Name" column contains duplicate items: {duplicates}')
 
         for quantity in self.sheets["plots"][0]["quantities"]:
             for variables in _extract_labels(sc.promotetolist(evaluate_plot_string(quantity))):
