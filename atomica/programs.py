@@ -1046,7 +1046,7 @@ class ProgramSet(NamedItem):
 
         return capacities
 
-    def get_prop_coverage(self, tvec, capacities: dict, num_eligible: dict, dt: float, instructions=None) -> dict:
+    def get_prop_coverage(self, tvec, capacities: dict, num_eligible: dict, instructions=None) -> dict:
         """
         Return fractional coverage
 
@@ -1082,12 +1082,8 @@ class ProgramSet(NamedItem):
                 # timestep coverage to use for each program, not the annual coverage
                 prop_coverage[prog.name] = prog.get_prop_covered(tvec, capacities[prog.name], num_eligible[prog.name])
             else:
+                # Note that coverage overwrites are specified in dimensionless units, therefore no dt adjustment is made here
                 prop_coverage[prog.name] = instructions.coverage[prog.name].interpolate(tvec, method="previous")
-                if prog.is_one_off:
-                    # Scale by dt beforehand, so that a timestep coverage of 1 can be achieved with an annual coverage
-                    # greater than 1 - that is, the number of people covered in a year relative to the CURRENT
-                    # compartment size
-                    prop_coverage[prog.name] *= dt
                 prop_coverage[prog.name] = minimum(prop_coverage[prog.name], 1.0)
 
         return prop_coverage
