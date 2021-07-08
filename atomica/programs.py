@@ -1069,7 +1069,6 @@ class ProgramSet(NamedItem):
                            Note that since the capacity and eligible compartment sizes are being compared here,
                            the capacity needs to be in units of 'people' (not 'people/year') at this point
         :param num_eligible: dict of number of people covered by each program, computed externally and with one entry for each program
-        :param dt: simulation timestep
         :param instructions: optionally specify instructions, which can supply a coverage overwrite
         :return: Dict like ``{prog_name: np.array()}`` with fractional coverage values (dimensionless)
 
