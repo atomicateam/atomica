@@ -26,7 +26,7 @@ from matplotlib.ticker import FuncFormatter
 
 import atomica
 import sciris as sc
-from .model import Compartment, Characteristic, Parameter, Link, TimedLink, SourceCompartment, JunctionCompartment, SinkCompartment
+from .model import Compartment, Characteristic, Parameter, Link, SourceCompartment, JunctionCompartment, SinkCompartment
 from .results import Result
 from .system import logger, NotFoundError
 from .function_parser import parse_function
@@ -846,6 +846,8 @@ class PlotData:
             plotdata.outputs[key] = results[0].model.progset.programs[key].label if key in results[0].model.progset.programs else key
 
         if t_bins is not None:
+            # TODO - time aggregation of coverage_number by integration should only be applied to one-off programs
+            # TODO - confirm time aggregation of spending is correct for the units entered in databook or in overwrites
             if quantity in {"spending", "equivalent_spending", "coverage_number"}:
                 plotdata.time_aggregate(t_bins, "integrate", interpolation_method="previous")
             elif quantity in {"coverage_eligible", "coverage_fraction"}:
@@ -1343,7 +1345,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer=None, legend_
         ax.set_yticks([x[0] for x in block_labels])
         ax.set_yticklabels([x[1] for x in block_labels])
         ax.invert_yaxis()
-        ax.xaxis.set_major_formatter(FuncFormatter(sc.SItickformatter))
+        sc.SIticks(ax=ax, axis="x")
     else:
         ax.set_xlim(left=-2 * gaps[0], right=block_offset + base_offset)
         fig.set_figwidth(1.1 + 1.1 * (block_offset + base_offset))
@@ -1354,7 +1356,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer=None, legend_
             ax.spines["top"].set_position("zero")
         ax.set_xticks([x[0] for x in block_labels])
         ax.set_xticklabels([x[1] for x in block_labels])
-        ax.yaxis.set_major_formatter(FuncFormatter(sc.SItickformatter))
+        sc.SIticks(ax=ax, axis="y")
 
     # Calculate the units. As all bar patches are shown on the same axis, they are all expected to have the
     # same units. If they do not, the plot could be misleading
@@ -1635,7 +1637,7 @@ def _apply_series_formatting(ax, plot_type) -> None:
         ax.set_ylabel("Proportion " + ax.get_ylabel())
     else:
         ax.set_ylim(top=ax.get_ylim()[1] * 1.05)
-    ax.yaxis.set_major_formatter(FuncFormatter(sc.SItickformatter))
+    sc.SIticks(ax=ax, axis="y")
 
 
 def _turn_off_border(ax) -> None:
