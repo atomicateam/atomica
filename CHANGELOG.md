@@ -2,6 +2,10 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.25.5] - 2021-07-21
+
+- Updated plotting to avoid deprecated Sciris functions
+
 ## [1.25.4] - 2021-06-28
 
 - Improved framework validation (informative errors raised in some additional cases)
