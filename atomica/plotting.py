@@ -1345,7 +1345,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer=None, legend_
         ax.set_yticks([x[0] for x in block_labels])
         ax.set_yticklabels([x[1] for x in block_labels])
         ax.invert_yaxis()
-        sc.SIticks(ax, axis='x')
+        sc.SIticks(ax, axis="x")
     else:
         ax.set_xlim(left=-2 * gaps[0], right=block_offset + base_offset)
         fig.set_figwidth(1.1 + 1.1 * (block_offset + base_offset))
@@ -1356,7 +1356,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer=None, legend_
             ax.spines["top"].set_position("zero")
         ax.set_xticks([x[0] for x in block_labels])
         ax.set_xticklabels([x[1] for x in block_labels])
-        sc.SIticks(ax, axis='y')
+        sc.SIticks(ax, axis="y")
 
     # Calculate the units. As all bar patches are shown on the same axis, they are all expected to have the
     # same units. If they do not, the plot could be misleading
@@ -1637,7 +1637,7 @@ def _apply_series_formatting(ax, plot_type) -> None:
         ax.set_ylabel("Proportion " + ax.get_ylabel())
     else:
         ax.set_ylim(top=ax.get_ylim()[1] * 1.05)
-    sc.SIticks(ax, axis='y')
+    sc.SIticks(ax, axis="y")
 
 
 def _turn_off_border(ax) -> None:
