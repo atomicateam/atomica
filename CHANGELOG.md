@@ -2,7 +2,12 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.25.6] - 2021-07-26
+
+- Unfreeze `pandas` dependency because they have fixed some regressions that affected `atomica`
+
 ## [1.25.5] - 2021-07-08
+
 - Replace deprecated ``sc.SItickformatter`` usage
 - Fix bug in program coverage overwrite timestep scaling. Coverage overwrites must always be provided in dimensionless units
 
