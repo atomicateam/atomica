@@ -1343,6 +1343,8 @@ def optimize(project, optimization, parset: ParameterSet, progset: ProgramSet, i
             "fulloutput": False,
             "xmin": xmin,
             "xmax": xmax,
+            "reltol": 1e-5,
+            "randseed": 5,
         }
 
         # Set ASD verbosity based on Atomica logging level
