@@ -5,6 +5,8 @@ This file records changes to the codebase grouped by version release. Unreleased
 ## [1.25.7] - 2021-09-02
 
 - Update calls to `sc.asd()` to be compatible with Sciris v1.2.3
+- Update installation instructions to use `pip` rather than `setup.py` directly
+- Improve handling of unspecified timescales in plotting routines
 
 ## [1.25.6] - 2021-07-26
 

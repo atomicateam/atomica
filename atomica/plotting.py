@@ -329,7 +329,7 @@ class PlotData:
                             continue
 
                         units = list(set([output_units[x] for x in labels]))
-                        timescales = list(set([output_timescales[x] for x in labels]))
+                        timescales = list(set([np.nan if isna(output_timescales[x]) else output_timescales[x] for x in labels])) # Ensure that None and nan don't appear as different timescales
 
                         # Set default aggregation method depending on the units of the quantity
                         if output_aggregation is None:
@@ -481,8 +481,8 @@ class PlotData:
         time aggregation can be chained with other operations, the same as `PlotData.interpolate()`.
 
         :param t_bins: Vector of bin edges OR a scalar bin size, which will be automatically expanded to a vector of bin edges
-        :param time_aggregation: can be 'sum' or 'average'. Note that for quantities that have a timescale, 'sum' behaves like integration
-                                 so flow parameters in number units will be adjusted accordingly (e.g. a parameter in units of 'people/day'
+        :param time_aggregation: can be 'integrate' or 'average'. Note that for quantities that have a timescale, flow parameters
+                                 in number units will be adjusted accordingly (e.g. a parameter in units of 'people/day'
                                  aggregated over a 1 year period will display as the equivalent number of people that year)
         :param interpolation_method: Assumption on how the quantity behaves in between timesteps - in general, 'linear' should be suitable for
                                      most dynamic quantities, while 'previous' should be used for spending and other program-related quantities.
