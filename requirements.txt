@@ -6,7 +6,7 @@ pytest-env
 pytest-cov
 nbsmoke<0.5
 git+https://github.com/sciris/mpld3
-nbsphinx
+nbsphinx<0.8.7
 ipykernel
 pandoc
 pypandoc

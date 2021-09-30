@@ -151,7 +151,7 @@ def _prepare_asd_inputs(progset, bounds):
 def _objective(x, mapping, progset, eval_years, target_vals, num_eligible, dt):
     _update_progset(x, mapping, progset)  # Apply the changes to the progset
     capacities = progset.get_capacities(tvec=eval_years, dt=dt)  # Get number coverage using latest unit costs but default spending
-    prop_coverage = progset.get_prop_coverage(tvec=eval_years, capacities=capacities, num_eligible=num_eligible)
+    prop_coverage = progset.get_prop_coverage(tvec=eval_years, dt=dt, capacities=capacities, num_eligible=num_eligible)
 
     obj = 0.0
     for i in range(0, len(eval_years)):
@@ -303,8 +303,8 @@ def reconcile(project, parset, progset, reconciliation_year: float, max_time=10,
     records = []
     old_capacities = progset.get_capacities(tvec=eval_years, dt=project.settings.sim_dt)
     new_capacities = new_progset.get_capacities(tvec=eval_years, dt=project.settings.sim_dt)
-    old_prop_coverage = progset.get_prop_coverage(tvec=eval_years, capacities=old_capacities, num_eligible=num_eligible)
-    new_prop_coverage = new_progset.get_prop_coverage(tvec=eval_years, capacities=new_capacities, num_eligible=num_eligible)
+    old_prop_coverage = progset.get_prop_coverage(tvec=eval_years, dt=project.settings.sim_dt, capacities=old_capacities, num_eligible=num_eligible)
+    new_prop_coverage = new_progset.get_prop_coverage(tvec=eval_years, dt=project.settings.sim_dt, capacities=new_capacities, num_eligible=num_eligible)
     for i, year in enumerate(eval_years):
         old_outcomes = progset.get_outcomes(prop_coverage={prog: cov[[i]] for prog, cov in old_prop_coverage.items()})  # Program outcomes for this year
         new_outcomes = new_progset.get_outcomes(prop_coverage={prog: cov[[i]] for prog, cov in new_prop_coverage.items()})  # Program outcomes for this year

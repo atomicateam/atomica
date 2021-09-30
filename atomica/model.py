@@ -2067,8 +2067,6 @@ class Model:
             self._program_cache["prop_coverage"] = dict()
             for prog_name, coverage_ts in self.program_instructions.coverage.items():
                 self._program_cache["prop_coverage"][prog_name] = coverage_ts.interpolate(self.t)
-                if self.progset.programs[prog_name].is_one_off:
-                    self._program_cache["prop_coverage"][prog_name] *= self.dt
 
             # Check that any programs with no coverage denominator have been given coverage overwrites
             # Otherwise, the coverage denominator will be treated as 0 and will result in 100% coverage
@@ -2502,7 +2500,7 @@ class Model:
         """
         Flush initialization values from junctions
 
-        If junctions have been initialized with nonzero values as a proxy for initializing the
+        If junctions have been initialized with nonzero values as a mcv1 for initializing the
         downstream compartments, then the junctions need to be flushed into the downstream
         compartments at the start of the simulation. This is done using the ``.flush()`` method
         of the ``JunctionCompartment``. The order of the loop is important if junctions flow into
