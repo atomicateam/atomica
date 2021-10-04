@@ -8,7 +8,6 @@ be numerically integrated. It also implements the methods to actually perform th
 
 """
 
-
 from .system import NotFoundError
 from .system import logger
 from .system import FrameworkSettings as FS
@@ -907,7 +906,7 @@ class TimedCompartment(Compartment):
                     # This compartment has a shorter duration, so first insert the values we've got
                     # then sum up and add the extra values to the initial subcompartment
                     self._vals[:, ti] += link._vals[: self._vals.shape[0], tr]
-                    self._vals[-1, ti] += sum(link._vals[self._vals.shape[0] :, tr].tolist())
+                    self._vals[-1, ti] += sum(link._vals[self._vals.shape[0]:, tr].tolist())
 
         # Advance the keyring
         # If this TimedCompartment has only one row, then anyone coming in via TimedLinks will be placed directly
@@ -2064,9 +2063,12 @@ class Model:
             self._program_cache["capacities"] = self.progset.get_capacities(tvec=self.t, dt=self.dt, instructions=self.program_instructions)
 
             # Cache the proportion coverage for coverage scenarios so that we don't call interpolate() every timestep
-            self._program_cache["prop_coverage"] = dict()
-            for prog_name, coverage_ts in self.program_instructions.coverage.items():
-                self._program_cache["prop_coverage"][prog_name] = coverage_ts.interpolate(self.t)
+            coverage = self.progset.get_prop_coverage(tvec=self.t,
+                                                      dt=self.dt,
+                                                      capacities=self._program_cache["capacities"],
+                                                      num_eligible={k: np.nan for k in self.progset.programs},
+                                                      instructions=self.program_instructions)
+            self._program_cache["prop_coverage"] = {k:coverage[k] for k in self.program_instructions.coverage}
 
             # Check that any programs with no coverage denominator have been given coverage overwrites
             # Otherwise, the coverage denominator will be treated as 0 and will result in 100% coverage
