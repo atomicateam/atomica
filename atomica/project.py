@@ -44,10 +44,11 @@ __all__ = ["ProjectSettings", "Project"]
 
 
 class ProjectSettings:
-    def __init__(self, sim_start=2000, sim_end=2035, sim_dt=0.25):
+    def __init__(self, sim_start=2000, sim_end=2035, sim_dt=0.25, stochastic=False):
         self._sim_start = sim_start
         self._sim_dt = sim_dt
         self._sim_end = 0.0
+        self._stochastic = stochastic
         self.update_time_vector(end=sim_end)
 
     def __repr__(self):
@@ -66,6 +67,10 @@ class ProjectSettings:
     @property
     def sim_dt(self):
         return self._sim_dt
+    
+    @property
+    def stochastic(self):
+        return self._stochastic
 
     @sim_start.setter
     def sim_start(self, sim_start):
@@ -82,6 +87,10 @@ class ProjectSettings:
         assert sim_dt > 0, "Simulation timestep must be greater than 0"
         self._sim_dt = sim_dt
         self.sim_end = self.sim_end  # Call the setter function to change sim_end if it is no longer valid
+        
+    @stochastic.setter
+    def stochastic(self, stochastic:bool=False):
+        self._stochastic = stochastic
 
     @property
     def tvec(self) -> np.ndarray:

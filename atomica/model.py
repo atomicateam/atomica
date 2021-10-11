@@ -228,11 +228,12 @@ class Variable:
 class Compartment(Variable):
     """ A class to wrap up data for one compartment within a cascade network. """
 
-    def __init__(self, pop, name):
+    def __init__(self, pop, name, stochastic:bool = False):
         Variable.__init__(self, pop=pop, id=(pop.name, name))
         self.units = "Number of people"
         self.outlinks = []
         self.inlinks = []
+        self.stochastic = stochastic
         self._cached_outflow = None
 
     def unlink(self):
@@ -351,12 +352,24 @@ class Compartment(Variable):
             rescale = 1 / outflow
         else:
             rescale = 1
-
-        n = rescale * self.vals[ti]
+        
         self._cached_outflow = 0
-        for link in self.outlinks:
-            link.vals[ti] = link._cache * n
-            self._cached_outflow += link.vals[ti]
+        
+        if self.stochastic:
+            #for every person in the compartment, we now have probabilities for each possible outflow or staying as the remainder
+            stays = max(0., 1. - outflow)
+            rescaled_frac_flows = [rescale * link._cache for link in self.outlinks] + [stays]
+            number_outflows = np.random.multinomial(self[ti], rescaled_frac_flows, size=1)[0]
+            for ln, link in enumerate(self.outlinks):
+                link.vals[ti] = number_outflows[ln]
+                self._cached_outflow += link.vals[ti]
+        else:
+            n = rescale * self.vals[ti]
+            for link in self.outlinks:
+                link.vals[ti] = link._cache * n
+                self._cached_outflow += link.vals[ti]
+        
+        
 
     def update(self, ti: int) -> None:
         """
@@ -398,7 +411,7 @@ class Compartment(Variable):
 
 
 class JunctionCompartment(Compartment):
-    def __init__(self, pop, name: str, duration_group: str = None):
+    def __init__(self, pop, name: str, duration_group: str = None, stochastic:bool = False):
         """
 
         A TimedCompartment has a duration group by virtue of having a `.parameter` attribute and a flush link.
@@ -417,7 +430,7 @@ class JunctionCompartment(Compartment):
         :param duration_group: Optionally specify a duration group
 
         """
-        super().__init__(pop, name)
+        super().__init__(pop, name, stochastic=stochastic)
         self.duration_group = duration_group  #: Store the name of the duration group, if the junction belongs to one
 
     def connect(self, dest, par) -> None:
@@ -515,13 +528,19 @@ class JunctionCompartment(Compartment):
         # Next, get the total outflow. Note that the parameters are guaranteed to be in proportion units here
         outflow_fractions = [link.parameter.vals[ti] for link in self.outlinks]
         total_outflow = sum(outflow_fractions)
+        
+        outflow_fractions /= total_outflow #proportionately accounting for the total outflow downscaling
+        
+        # assign outflow stochastically to compartments based on the probabilities
+        if self.stochastic and net_inflow > 0.:
+            outflow_fractions = np.random.multinomial(net_inflow, outflow_fractions, size=1)[0]/net_inflow
 
-        # Finally, assign the inflow to the outflow proportionately accounting for the total outflow downscaling
+        # Finally, assign the inflow to the outflow proportionately
         for frac, link in zip(outflow_fractions, self.outlinks):
             if self.duration_group:
-                link._vals[:, ti] = net_inflow * frac / total_outflow
+                link._vals[:, ti] = net_inflow * frac
             else:
-                link.vals[ti] = net_inflow * frac / total_outflow
+                link.vals[ti] = net_inflow * frac
 
     def initial_flush(self) -> None:
         """
@@ -541,6 +560,10 @@ class JunctionCompartment(Compartment):
             # Work out the outflow fractions
             outflow_fractions = np.array([link.parameter.vals[0] for link in self.outlinks])
             outflow_fractions /= np.sum(outflow_fractions)
+            
+            # assign outflow stochastically to compartments based on the probabilities
+            if self.stochastic:
+                outflow_fractions = np.random.multinomial(self.vals[0], outflow_fractions, size=1)[0]/self.vals[0]
 
             # Assign the inflow directly to the outflow compartments
             # This is done using the [] indexing on the downstream compartment so it is agnostic
@@ -593,6 +616,10 @@ class ResidualJunctionCompartment(JunctionCompartment):
             outflow_fractions /= total_outflow
             has_residual = False
 
+        # assign outflow stochastically to compartments based on the probabilities
+        if self.stochastic and net_inflow > 0.:
+            outflow_fractions = np.random.multinomial(net_inflow, outflow_fractions, size=1)[0]/(net_inflow * sum(outflow_fractions))
+            
         # Finally, assign the inflow to the outflow proportionately accounting for the total outflow downscaling
         for frac, link in zip(outflow_fractions, self.outlinks):
             if link.parameter is None:
@@ -631,6 +658,10 @@ class ResidualJunctionCompartment(JunctionCompartment):
                 outflow_fractions /= total_outflow
                 has_residual = False
 
+            # assign outflow stochastically to compartments based on the probabilities
+            if self.stochastic and total_outflow > 0.:
+                outflow_fractions = np.random.multinomial(self.vals[0], outflow_fractions, size=1)[0]/(self.vals[0] * sum(outflow_fractions))
+                
             # Assign the inflow directly to the outflow compartments
             # This is done using the [] indexing on the downstream compartment so it is agnostic
             # to the downstream compartment type
@@ -661,8 +692,8 @@ class SourceCompartment(Compartment):
 
     """
 
-    def __init__(self, pop, name):
-        super().__init__(pop, name)
+    def __init__(self, pop, name, stochastic:bool = False):
+        super().__init__(pop, name, stochastic=stochastic)
 
     def preallocate(self, tvec: np.array, dt: float) -> None:
         super().preallocate(tvec, dt)
@@ -677,8 +708,8 @@ class SourceCompartment(Compartment):
 
 
 class SinkCompartment(Compartment):
-    def __init__(self, pop, name):
-        super().__init__(pop, name)
+    def __init__(self, pop, name, stochastic:bool = False):
+        super().__init__(pop, name, stochastic=stochastic)
 
     def preallocate(self, tvec: np.array, dt: float) -> None:
         """
@@ -734,7 +765,7 @@ class SinkCompartment(Compartment):
 
 
 class TimedCompartment(Compartment):
-    def __init__(self, pop, name: str, parameter: ParsetParameter):
+    def __init__(self, pop, name: str, parameter: ParsetParameter, stochastic:bool = False):
         """
         Instantiate the TimedCompartment
 
@@ -747,7 +778,7 @@ class TimedCompartment(Compartment):
 
         """
 
-        Compartment.__init__(self, pop=pop, name=name)
+        Compartment.__init__(self, pop=pop, name=name, stochastic=stochastic)
         self._vals = None  #: Primary storage, a matrix of size (duration x timesteps). The first row is the one that people leave from, the last row is the one that people arrive in
         self.parameter = parameter  #: The parameter to read the duration from - this needs to be done after parameters are precomputed though, in case the duration is coming from a (constant) function
         self.flush_link = None  #: Reference to the timed outflow link that flushes the compartment. Note that this needs to be set externally because Links are instantiated after Compartments
@@ -1533,7 +1564,7 @@ class Population:
     Each model population must contain a set of compartments with equivalent names.
     """
 
-    def __init__(self, framework, name: str, label: str, progset: ProgramSet, pop_type: str):
+    def __init__(self, framework, name: str, label: str, progset: ProgramSet, pop_type: str, stochastic: bool=False):
         """
         Construct a Population
 
@@ -1552,6 +1583,7 @@ class Population:
         self.name = name  #: The code name of the population
         self.label = label  #: The full name/label of the population
         self.type = pop_type  #: The population's type
+        self.stochastic = stochastic #: Whether the population should be handled stochastically as discrete integer people instead of fractions
 
         self.comps = list()  #: List of Compartment objects
         self.characs = list()  #: List of Characteristic objects
@@ -1762,17 +1794,17 @@ class Population:
         for comp_name in list(comps.index):
             if comps.at[comp_name, "population type"] == self.type:
                 if comp_name in residual_junctions:
-                    self.comps.append(ResidualJunctionCompartment(pop=self, name=comp_name, duration_group=comps.at[comp_name, "duration group"]))
+                    self.comps.append(ResidualJunctionCompartment(pop=self, name=comp_name, stochastic = self.stochastic, duration_group=comps.at[comp_name, "duration group"]))
                 elif comps.at[comp_name, "is junction"] == "y":
-                    self.comps.append(JunctionCompartment(pop=self, name=comp_name, duration_group=comps.at[comp_name, "duration group"]))
+                    self.comps.append(JunctionCompartment(pop=self, name=comp_name, stochastic = self.stochastic, duration_group=comps.at[comp_name, "duration group"]))
                 elif comps.at[comp_name, "duration group"]:
-                    self.comps.append(TimedCompartment(pop=self, name=comp_name, parameter=self.par_lookup[comps.at[comp_name, "duration group"]]))
+                    self.comps.append(TimedCompartment(pop=self, name=comp_name, stochastic = self.stochastic, parameter=self.par_lookup[comps.at[comp_name, "duration group"]]))
                 elif comps.at[comp_name, "is source"] == "y":
-                    self.comps.append(SourceCompartment(pop=self, name=comp_name))
+                    self.comps.append(SourceCompartment(pop=self, name=comp_name, stochastic = self.stochastic))
                 elif comps.at[comp_name, "is sink"] == "y":
-                    self.comps.append(SinkCompartment(pop=self, name=comp_name))
+                    self.comps.append(SinkCompartment(pop=self, name=comp_name, stochastic = self.stochastic))
                 else:
-                    self.comps.append(Compartment(pop=self, name=comp_name))
+                    self.comps.append(Compartment(pop=self, name=comp_name, stochastic = self.stochastic))
 
         self.comp_lookup = {comp.name: comp for comp in self.comps}
 
@@ -1848,7 +1880,6 @@ class Population:
         :param t_init: The year to use for initialization. This should generally be set to the sim start year
 
         """
-
         # Given a set of characteristics and their initial values, compute the initial
         # values for the compartments by solving the set of characteristics simultaneously
 
@@ -1955,7 +1986,11 @@ class Population:
 
         # Otherwise, insert the values
         for i, c in enumerate(comps):
-            c[0] = max(0.0, x[i])
+            if self.stochastic:
+                rem = np.random.binomial(1, x[i]-np.floor(x[i]), size=1)[0] if x[i] > np.floor(x[i]) else 0.
+                c[0] = np.floor((max(0.0, x[i]))) + rem #integer values (still represented as floats)
+            else:
+                c[0] = max(0.0, x[i])
 
 
 class Model:
@@ -1981,6 +2016,7 @@ class Model:
         self.program_instructions = sc.dcp(program_instructions)  # program instructions
         self.t = settings.tvec  #: Simulation time vector (this is a brand new instance from the `settings.tvec` property method)
         self.dt = settings.sim_dt  #: Simulation time step
+        self.stochastic = settings.stochastic #: Run with discrete numbers of people per compartment instead of fractions.
 
         self._t_index = 0  # Keeps track of array index for current timepoint data within all compartments.
         self._vars_by_pop = None  # Cache to look up lists of variables by name across populations
@@ -2128,7 +2164,7 @@ class Model:
 
         # First construct populations
         for k, (pop_name, pop_label, pop_type) in enumerate(zip(parset.pop_names, parset.pop_labels, parset.pop_types)):
-            self.pops.append(Population(framework=self.framework, name=pop_name, label=pop_label, progset=self.progset, pop_type=pop_type))
+            self.pops.append(Population(framework=self.framework, name=pop_name, label=pop_label, progset=self.progset, pop_type=pop_type, stochastic=self.stochastic))
             self._pop_ids[pop_name] = k
 
         # Expand interactions into matrix form
@@ -2402,7 +2438,7 @@ class Model:
         """
 
         ti = self._t_index
-
+        
         # First, populate all of the link values without any outflow constraints
         for par in self._exec_order["transition_pars"]:
 
@@ -2442,7 +2478,7 @@ class Model:
             elif par.units == FS.QUANTITY_TYPE_NUMBER:
                 # Disaggregate proportionally across all source compartment sizes related to all links.
                 converted_amt = transition * (self.dt / par.timescale)  # Number flow in this timestep, so it includes a timescale factor
-
+                
                 if isinstance(par.links[0].source, SourceCompartment):
                     # For a source compartment, the link value should be explicitly set directly
                     # Also, there is guaranteed to only be one link per parameter for outflows from source compartments
