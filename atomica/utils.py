@@ -1037,3 +1037,15 @@ def stop_logging() -> None:
             logger.removeHandler(handler)
             # Don't terminate the loop, if by some change there is more than one handler
             # (not supposed to happen though) then we would want to close them all
+
+def stochastic_rounding(x):
+    """
+    Stochastically round a float up or down to an integer-equivalent value (note: returns still as a float)
+    :param x: value to be rounded
+    """
+    floor = np.floor(x)
+    remainder = x - floor
+    if remainder:
+        x = floor + int(np.random.random()<remainder)
+    return x
+    

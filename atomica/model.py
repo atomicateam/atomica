@@ -23,6 +23,7 @@ from .programs import ProgramSet, ProgramInstructions
 from .parameters import Parameter as ParsetParameter
 from .parameters import ParameterSet as ParameterSet
 import math
+from .utils import stochastic_rounding
 
 model_settings = dict()
 model_settings["tolerance"] = 1e-6
@@ -533,7 +534,10 @@ class JunctionCompartment(Compartment):
         
         # assign outflow stochastically to compartments based on the probabilities
         if self.stochastic and net_inflow > 0.:
-            outflow_fractions = np.random.multinomial(net_inflow, outflow_fractions, size=1)[0]/net_inflow
+            if self.duration_group:
+                raise Exception('Need to implement code here to make sure outflows from EACH part of the duration group are integers')
+            else:
+                outflow_fractions = np.random.multinomial(net_inflow, outflow_fractions, size=1)[0]/net_inflow
 
         # Finally, assign the inflow to the outflow proportionately
         for frac, link in zip(outflow_fractions, self.outlinks):
@@ -697,11 +701,15 @@ class SourceCompartment(Compartment):
 
     def preallocate(self, tvec: np.array, dt: float) -> None:
         super().preallocate(tvec, dt)
-        self.vals.fill(0.0)  #: Source compartments have an unlimited number of people in them. TODO: If this complicates validation, set to 0.0
+        self.vals.fill(0.0)  #: Source compartments have an unlimited number of people in them. Set to 0.0 to simplify validation.
 
     def resolve_outflows(self, ti: int) -> None:
+        #Unlike other Compartments, link._cache will still be in Number form and not converted to a proportion
         for link in self.outlinks:
-            link.vals[ti] = link._cache
+            if self.stochastic:
+                link.vals[ti] = stochastic_rounding(link._cache)
+            else:
+                link.vals[ti] = link._cache
 
     def update(self, ti: int) -> None:
         pass
@@ -881,6 +889,9 @@ class TimedCompartment(Compartment):
         :param ti: Time index at which to update link outflows
 
         """
+        
+        #TODO adjust for stochastic variables
+        assert self.stochastic == False, 'resolve_outflows needs to be updated to work with stochastic transitions'
 
         # First, work out the scale factors as usual
         self.flush_link._cache = 0.0  # At this stage, no outflow goes via the flush link
@@ -1987,8 +1998,7 @@ class Population:
         # Otherwise, insert the values
         for i, c in enumerate(comps):
             if self.stochastic:
-                rem = np.random.binomial(1, x[i]-np.floor(x[i]), size=1)[0] if x[i] > np.floor(x[i]) else 0.
-                c[0] = np.floor((max(0.0, x[i]))) + rem #integer values (still represented as floats)
+                c[0] = stochastic_rounding(max(0.0, x[i]))#integer values (still represented as floats)
             else:
                 c[0] = max(0.0, x[i])
 
