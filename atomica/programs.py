@@ -1367,25 +1367,29 @@ class Covout:
 
         return len(self.progs)
 
-    def sample(self) -> None:
+    def sample(self, rand_seed:int = None) -> None:
         """
         Perturb the values entered in the databook
 
         The :class:`Covout` instance is modified in-place. Note that the program outcomes are scalars
         that do not vary over time - therefore, :meth:`Covout.sample()` does not have a ``constant``
         argument.
+        
+        :param rand_seed: used to generate consistent random results
 
         """
 
         if self.sigma is None:
             return
+        
+        rng = np.random.default_rng(seed=rand_seed)
 
         for k, v in self.progs.items():
-            self.progs[k] = v + self.sigma * np.random.randn(1)[0]
+            self.progs[k] = v + self.sigma * rng.standard_normal(1)[0]
         # Perturb the interactions
         if self._interactions:
             for k, v in self.interactions.items():
-                self.interactions[k] = v + self.sigma * np.random.randn(1)[0]
+                self.interactions[k] = v + self.sigma * rng.standard_normal(1)[0]
             tokens = ["%s=%.4f" % ("+".join(k), v) for k, v in self.interactions.items()]
             self.imp_interaction = ",".join(tokens)
 
