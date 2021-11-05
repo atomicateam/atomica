@@ -588,7 +588,7 @@ class TimeSeries:
         interpolator = method(t1, v1, **kwargs)
         return interpolator(t2)
 
-    def sample(self, constant=True):
+    def sample(self, constant:bool = True, rand_seed:int = None):
         """
         Return a sampled copy of the TimeSeries
 
@@ -597,16 +597,20 @@ class TimeSeries:
 
         :param constant: If True, time series will be perturbed by a single constant offset. If False,
                          an different perturbation will be applied to each time specific value independently.
+        :param rand_seed: To generate a consistent "random" sample
+                         
         :return: A copied ``TimeSeries`` with perturbed values
 
         """
 
         if self._sampled:
             raise Exception("Sampling has already been performed - can only sample once")
+            
+        rng = np.random.default_rng(seed = rand_seed)
 
         new = self.copy()
         if self.sigma is not None:
-            delta = self.sigma * np.random.randn(1)[0]
+            delta = self.sigma * rng.standard_normal(1)[0]
             if self.assumption is not None:
                 new.assumption += delta
 
@@ -615,7 +619,7 @@ class TimeSeries:
                 new.vals = [v + delta for v in new.vals]
             else:
                 # Sample again for each data point
-                for i, (v, delta) in enumerate(zip(new.vals, self.sigma * np.random.randn(len(new.vals)))):
+                for i, (v, delta) in enumerate(zip(new.vals, self.sigma * rng.standard_normal(len(new.vals)))):
                     new.vals[i] = v + delta
 
         # Sampling flag only needs to be set if the TimeSeries had data to change

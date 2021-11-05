@@ -516,7 +516,7 @@ class Project(NamedItem):
 
         return result
 
-    def run_sampled_sims(self, parset, progset=None, progset_instructions=None, result_names=None, n_samples: int = 1, parallel=False, max_attempts=None, num_workers=None) -> list:
+    def run_sampled_sims(self, parset, progset=None, progset_instructions=None, result_names=None, n_samples: int = 1, rand_seed: int = None, parallel=False, max_attempts=None, num_workers=None) -> list:
         """
         Run sampled simulations
 
@@ -540,6 +540,7 @@ class Project(NamedItem):
         :param parallel: If True, run simulations in parallel (on Windows, must have ``if __name__ == '__main__'`` gating the calling code)
         :param max_attempts: Number of retry attempts for bad initializations
         :param num_workers: If ``parallel`` is True, this determines the number of parallel workers to use (default is usually number of CPUs)
+        :param rand_seed: random seed to provide consistent results
         :return: A list of Results that can be passed to `Ensemble.update()`. If multiple instructions are provided, the return value of this
                  function will be a list of lists, where the inner list iterates over different instructions for the same parset/progset samples.
                  It is expected in that case that the Ensemble's mapping function would take in a list of results
@@ -562,18 +563,24 @@ class Project(NamedItem):
             assert (len(result_names) == 1 and not progset) or (len(progset_instructions) == len(result_names)), "Number of result names must match number of instructions"
 
         show_progress = n_samples > 1 and logger.getEffectiveLevel() <= logging.INFO
+        
+        if rand_seed is not None:
+            rng = np.random.default_rng(seed = rand_seed)
+            seed_samples = rng.integers(1e15, size=n_samples)
+        else:
+            seed_samples = [None]*n_samples
 
         if parallel:
             fcn = functools.partial(_run_sampled_sim, proj=self, parset=parset, progset=progset, progset_instructions=progset_instructions, result_names=result_names, max_attempts=max_attempts)
-            results = parallel_progress(fcn, n_samples, show_progress=show_progress, num_workers=num_workers)
+            results = parallel_progress(fcn, seed_samples, show_progress=show_progress, num_workers=num_workers)
         elif show_progress:
             # Print the progress bar if the logging level was INFO or lower
             # This means that the user can still set the logging level higher e.g. WARNING to suppress output from Atomica in general
             # (including any progress bars)
             with Quiet():
-                results = [_run_sampled_sim(self, parset, progset, progset_instructions, result_names, max_attempts=max_attempts) for _ in tqdm.trange(n_samples)]
+                results = [_run_sampled_sim(self, parset, progset, progset_instructions, result_names, max_attempts=max_attempts, rand_seed=seed) for seed in tqdm.tqdm(seed_samples)]
         else:
-            results = [_run_sampled_sim(self, parset, progset, progset_instructions, result_names, max_attempts=max_attempts) for _ in range(n_samples)]
+            results = [_run_sampled_sim(self, parset, progset, progset_instructions, result_names, max_attempts=max_attempts, rand_seed=seed) for seed in seed_samples]
 
         return results
 
@@ -714,8 +721,7 @@ class Project(NamedItem):
         P = migrate(self)
         self.__dict__ = P.__dict__
 
-
-def _run_sampled_sim(proj, parset, progset, progset_instructions: list, result_names: list, max_attempts: int = None):
+def _run_sampled_sim(proj, parset, progset, progset_instructions: list, result_names: list, max_attempts: int = None, rand_seed: int =  None):
     """
     Internal function to run simulation with sampling
 
@@ -736,6 +742,7 @@ def _run_sampled_sim(proj, parset, progset, progset_instructions: list, result_n
     :param progset_instructions: A list of instructions to run against a single sample
     :param result_names: A list of result names (strings)
     :param max_attempts: Maximum number of sampling attempts before raising an error
+    :param rand_seed: A random seed used to get a consistent sampled parset
     :return: A list of results that either contains 1 result, or the same number of results as instructions
 
     """
@@ -748,14 +755,14 @@ def _run_sampled_sim(proj, parset, progset, progset_instructions: list, result_n
     attempts = 0
     while attempts < max_attempts:
         try:
+            sampled_parset = parset.sample(rand_seed)
             if progset:
-                sampled_parset = parset.sample()
                 sampled_progset = progset.sample()
                 results = [proj.run_sim(parset=sampled_parset, progset=sampled_progset, progset_instructions=x, result_name=y) for x, y in zip(progset_instructions, result_names)]
             else:
-                sampled_parset = parset.sample()
                 results = [proj.run_sim(parset=sampled_parset, result_name=y) for y in result_names]
             return results
         except BadInitialization:
             attempts += 1
+            rand_seed += 1 #this will avoid some bad initializations due to parset sampling while remaining consistent
     raise Exception("Failed simulation after %d attempts - something might have gone wrong" % (max_attempts))

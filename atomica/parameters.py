@@ -90,7 +90,7 @@ class Parameter(NamedItem):
 
         return self.ts[pop_name].interpolate(tvec, method=self._interpolation_method)
 
-    def sample(self, constant: bool) -> None:
+    def sample(self, constant: bool, rand_seed: int = None) -> None:
         """
         Perturb parameter based on uncertainties
 
@@ -99,11 +99,15 @@ class Parameter(NamedItem):
 
         :param constant: If True, time series will be perturbed by a single constant offset. If False,
                          an different perturbation will be applied to each time specific value independently.
-
+        :param rand_seed: To generate a consistent "random" sample
         """
+        if rand_seed is not None:
+            rng = np.random.default_rng(seed = rand_seed)
 
         for k, ts in self.ts.items():
-            self.ts[k] = ts.sample(constant)
+            if rand_seed is not None:
+                rand_seed = rng.integers(1e15)
+            self.ts[k] = ts.sample(constant, rand_seed)
 
     def smooth(self, tvec, method="smoothinterp", pop_names=None, **kwargs):
         """
@@ -280,7 +284,7 @@ class ParameterSet(NamedItem):
         else:
             raise KeyError(f'Parameter "{name}" not found')
 
-    def sample(self, constant=True):
+    def sample(self, constant:bool = True, rand_seed:int = None):
         """
         Return a sampled copy of the ParameterSet
 
@@ -291,8 +295,13 @@ class ParameterSet(NamedItem):
         """
 
         new = sc.dcp(self)
-        for par in new.all_pars():
-            par.sample(constant)
+        if rand_seed is not None:
+            rng = np.random.default_rng(seed = rand_seed)
+
+        for i, par in enumerate(new.all_pars()):
+            if rand_seed is not None:
+                rand_seed = rng.integers(1e15) 
+            par.sample(constant = constant, rand_seed = rand_seed)
         return new
 
     ### SAVE AND LOAD CALIBRATION (Y-FACTORS)
