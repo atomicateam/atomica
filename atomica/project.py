@@ -755,7 +755,6 @@ def _run_sampled_sim(proj, parset, progset, progset_instructions: list, result_n
     attempts = 0
     while attempts < max_attempts:
         try:
-            sampled_parset = parset.sample(rand_seed)
             sampled_parset = parset.sample(rand_seed = rand_seed)
             if progset:
                 sampled_progset = progset.sample()
