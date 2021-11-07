@@ -90,7 +90,7 @@ class Parameter(NamedItem):
 
         return self.ts[pop_name].interpolate(tvec, method=self._interpolation_method)
 
-    def sample(self, constant: bool, rand_seed: int = None) -> None:
+    def sample(self, constant: bool, rng_sampler = None) -> None:
         """
         Perturb parameter based on uncertainties
 
@@ -99,15 +99,11 @@ class Parameter(NamedItem):
 
         :param constant: If True, time series will be perturbed by a single constant offset. If False,
                          an different perturbation will be applied to each time specific value independently.
-        :param rand_seed: To generate a consistent "random" sample
+        :param rng_sampler: Optional random number generator that may have been seeded to generate consistent results
         """
-        if rand_seed is not None:
-            rng = np.random.default_rng(seed = rand_seed)
 
         for k, ts in self.ts.items():
-            if rand_seed is not None:
-                rand_seed = rng.integers(1e15)
-            self.ts[k] = ts.sample(constant, rand_seed)
+            self.ts[k] = ts.sample(constant, rng_sampler)
 
     def smooth(self, tvec, method="smoothinterp", pop_names=None, **kwargs):
         """
@@ -284,24 +280,21 @@ class ParameterSet(NamedItem):
         else:
             raise KeyError(f'Parameter "{name}" not found')
 
-    def sample(self, constant:bool = True, rand_seed:int = None):
+    def sample(self, constant:bool = True, rng_sampler = None):
         """
         Return a sampled copy of the ParameterSet
 
         :param constant: If True, time series will be perturbed by a single constant offset. If False,
                          an different perturbation will be applied to each time specific value independently.
+        :param rng_sampler: Optional random number generator that may have been seeded to generate consistent results
+        
         :return: A new :class:`ParameterSet` with perturbed values
 
         """
-
         new = sc.dcp(self)
-        if rand_seed is not None:
-            rng = np.random.default_rng(seed = rand_seed)
 
         for i, par in enumerate(new.all_pars()):
-            if rand_seed is not None:
-                rand_seed = rng.integers(1e15) 
-            par.sample(constant = constant, rand_seed = rand_seed)
+            par.sample(constant = constant, rng_sampler = rng_sampler)
         return new
 
     ### SAVE AND LOAD CALIBRATION (Y-FACTORS)

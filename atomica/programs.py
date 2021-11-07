@@ -1191,7 +1191,7 @@ class Program(NamedItem):
         """
         return "/year" not in self.unit_cost.units
 
-    def sample(self, constant: bool) -> None:
+    def sample(self, constant: bool, rng_sampler = None) -> None:
         """
         Perturb program values based on uncertainties
 
@@ -1201,11 +1201,12 @@ class Program(NamedItem):
 
         :param constant: If True, time series will be perturbed by a single constant offset. If False,
                          an different perturbation will be applied to each time specific value independently.
+        :param rng_sampler: Optional random number generator that may have been seeded to generate consistent results
         """
 
         self.spend_data = self.spend_data.sample(constant)
         self.unit_cost = self.unit_cost.sample(constant)
-        self.capacity_constraint = self.capacity_constraint.sample(constant)
+        self.capacity_constraint = self.capacity_constraint.sample(constant, rng_sampler)
         self.saturation = self.saturation.sample(constant)
         self.coverage = self.coverage.sample(constant)
 
@@ -1367,29 +1368,28 @@ class Covout:
 
         return len(self.progs)
 
-    def sample(self, rand_seed:int = None) -> None:
+    def sample(self, rng_sampler = None) -> None:
         """
         Perturb the values entered in the databook
 
         The :class:`Covout` instance is modified in-place. Note that the program outcomes are scalars
         that do not vary over time - therefore, :meth:`Covout.sample()` does not have a ``constant``
         argument.
-        
-        :param rand_seed: used to generate consistent random results
-
+        :param rng_sampler: Optional random number generator that may have been seeded to generate consistent results
         """
 
         if self.sigma is None:
             return
         
-        rng = np.random.default_rng(seed=rand_seed)
+        if rng_sampler is None:
+            rng_sampler = np.random.default_rng()
 
         for k, v in self.progs.items():
-            self.progs[k] = v + self.sigma * rng.standard_normal(1)[0]
+            self.progs[k] = v + self.sigma * rng_sampler.standard_normal(1)[0]
         # Perturb the interactions
         if self._interactions:
             for k, v in self.interactions.items():
-                self.interactions[k] = v + self.sigma * rng.standard_normal(1)[0]
+                self.interactions[k] = v + self.sigma * rng_sampler.standard_normal(1)[0]
             tokens = ["%s=%.4f" % ("+".join(k), v) for k, v in self.interactions.items()]
             self.imp_interaction = ",".join(tokens)
 

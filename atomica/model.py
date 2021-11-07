@@ -229,12 +229,15 @@ class Variable:
 class Compartment(Variable):
     """ A class to wrap up data for one compartment within a cascade network. """
 
-    def __init__(self, pop, name, stochastic:bool = False):
+    def __init__(self, pop, name, stochastic:bool = False, rng_sampler = None):
         Variable.__init__(self, pop=pop, id=(pop.name, name))
         self.units = "Number of people"
         self.outlinks = []
         self.inlinks = []
         self.stochastic = stochastic
+        self.rng_sampler = rng_sampler
+        if self.stochastic and rng_sampler is None:
+            self.rng_sampler = np.random.default_rng()
         self._cached_outflow = None
 
     def unlink(self):
@@ -360,7 +363,7 @@ class Compartment(Variable):
             #for every person in the compartment, we now have probabilities for each possible outflow or staying as the remainder
             stays = max(0., 1. - outflow)
             rescaled_frac_flows = [rescale * link._cache for link in self.outlinks] + [stays]
-            number_outflows = np.random.multinomial(self[ti], rescaled_frac_flows, size=1)[0]
+            number_outflows = self.rng_sampler.multinomial(self[ti], rescaled_frac_flows, size=1)[0]
             for ln, link in enumerate(self.outlinks):
                 link.vals[ti] = number_outflows[ln]
                 self._cached_outflow += link.vals[ti]
@@ -412,7 +415,7 @@ class Compartment(Variable):
 
 
 class JunctionCompartment(Compartment):
-    def __init__(self, pop, name: str, duration_group: str = None, stochastic:bool = False):
+    def __init__(self, pop, name: str, duration_group: str = None, stochastic:bool = False, rng_sampler = None):
         """
 
         A TimedCompartment has a duration group by virtue of having a `.parameter` attribute and a flush link.
@@ -431,7 +434,7 @@ class JunctionCompartment(Compartment):
         :param duration_group: Optionally specify a duration group
 
         """
-        super().__init__(pop, name, stochastic=stochastic)
+        super().__init__(pop, name, stochastic=stochastic, rng_sampler=rng_sampler)
         self.duration_group = duration_group  #: Store the name of the duration group, if the junction belongs to one
 
     def connect(self, dest, par) -> None:
@@ -537,7 +540,7 @@ class JunctionCompartment(Compartment):
             if self.duration_group:
                 raise Exception('Need to implement code here to make sure outflows from EACH part of the duration group are integers')
             else:
-                outflow_fractions = np.random.multinomial(net_inflow, outflow_fractions, size=1)[0]/net_inflow
+                outflow_fractions = self.rng_sampler.multinomial(net_inflow, outflow_fractions, size=1)[0]/net_inflow
 
         # Finally, assign the inflow to the outflow proportionately
         for frac, link in zip(outflow_fractions, self.outlinks):
@@ -567,7 +570,7 @@ class JunctionCompartment(Compartment):
             
             # assign outflow stochastically to compartments based on the probabilities
             if self.stochastic:
-                outflow_fractions = np.random.multinomial(self.vals[0], outflow_fractions, size=1)[0]/self.vals[0]
+                outflow_fractions = self.rng_sampler.multinomial(self.vals[0], outflow_fractions, size=1)[0]/self.vals[0]
 
             # Assign the inflow directly to the outflow compartments
             # This is done using the [] indexing on the downstream compartment so it is agnostic
@@ -622,7 +625,7 @@ class ResidualJunctionCompartment(JunctionCompartment):
 
         # assign outflow stochastically to compartments based on the probabilities
         if self.stochastic and net_inflow > 0.:
-            outflow_fractions = np.random.multinomial(net_inflow, outflow_fractions, size=1)[0]/(net_inflow * sum(outflow_fractions))
+            outflow_fractions = self.rng_sampler.multinomial(net_inflow, outflow_fractions, size=1)[0]/(net_inflow * sum(outflow_fractions))
             
         # Finally, assign the inflow to the outflow proportionately accounting for the total outflow downscaling
         for frac, link in zip(outflow_fractions, self.outlinks):
@@ -664,7 +667,7 @@ class ResidualJunctionCompartment(JunctionCompartment):
 
             # assign outflow stochastically to compartments based on the probabilities
             if self.stochastic and total_outflow > 0.:
-                outflow_fractions = np.random.multinomial(self.vals[0], outflow_fractions, size=1)[0]/(self.vals[0] * sum(outflow_fractions))
+                outflow_fractions = self.rng_sampler.multinomial(self.vals[0], outflow_fractions, size=1)[0]/(self.vals[0] * sum(outflow_fractions))
                 
             # Assign the inflow directly to the outflow compartments
             # This is done using the [] indexing on the downstream compartment so it is agnostic
@@ -696,8 +699,8 @@ class SourceCompartment(Compartment):
 
     """
 
-    def __init__(self, pop, name, stochastic:bool = False):
-        super().__init__(pop, name, stochastic=stochastic)
+    def __init__(self, pop, name, stochastic:bool = False, rng_sampler = None):
+        super().__init__(pop, name, stochastic=stochastic, rng_sampler=rng_sampler)
 
     def preallocate(self, tvec: np.array, dt: float) -> None:
         super().preallocate(tvec, dt)
@@ -707,7 +710,7 @@ class SourceCompartment(Compartment):
         #Unlike other Compartments, link._cache will still be in Number form and not converted to a proportion
         for link in self.outlinks:
             if self.stochastic:
-                link.vals[ti] = stochastic_rounding(link._cache)
+                link.vals[ti] = stochastic_rounding(link._cache, rng_sampler = self.rng_sampler)
             else:
                 link.vals[ti] = link._cache
 
@@ -716,8 +719,8 @@ class SourceCompartment(Compartment):
 
 
 class SinkCompartment(Compartment):
-    def __init__(self, pop, name, stochastic:bool = False):
-        super().__init__(pop, name, stochastic=stochastic)
+    def __init__(self, pop, name, stochastic:bool = False, rng_sampler = None):
+        super().__init__(pop, name, stochastic=stochastic, rng_sampler=rng_sampler)
 
     def preallocate(self, tvec: np.array, dt: float) -> None:
         """
@@ -773,7 +776,7 @@ class SinkCompartment(Compartment):
 
 
 class TimedCompartment(Compartment):
-    def __init__(self, pop, name: str, parameter: ParsetParameter, stochastic:bool = False):
+    def __init__(self, pop, name: str, parameter: ParsetParameter, stochastic:bool = False, rng_sampler= None):
         """
         Instantiate the TimedCompartment
 
@@ -786,7 +789,7 @@ class TimedCompartment(Compartment):
 
         """
 
-        Compartment.__init__(self, pop=pop, name=name, stochastic=stochastic)
+        Compartment.__init__(self, pop=pop, name=name, stochastic=stochastic, rng_sampler=rng_sampler)
         self._vals = None  #: Primary storage, a matrix of size (duration x timesteps). The first row is the one that people leave from, the last row is the one that people arrive in
         self.parameter = parameter  #: The parameter to read the duration from - this needs to be done after parameters are precomputed though, in case the duration is coming from a (constant) function
         self.flush_link = None  #: Reference to the timed outflow link that flushes the compartment. Note that this needs to be set externally because Links are instantiated after Compartments
@@ -1575,7 +1578,7 @@ class Population:
     Each model population must contain a set of compartments with equivalent names.
     """
 
-    def __init__(self, framework, name: str, label: str, progset: ProgramSet, pop_type: str, stochastic: bool=False):
+    def __init__(self, framework, name: str, label: str, progset: ProgramSet, pop_type: str, stochastic: bool=False, rng_sampler=None):
         """
         Construct a Population
 
@@ -1588,6 +1591,9 @@ class Population:
         :param name: The code name of the population
         :param label: The full name of the population
         :param progset: A ProgramSet instance
+        
+        :param stochastic: whether to use stochasticity in determining population movement
+        :param rng_sampler: optional Generator for random numbers to give consistent results between model runs
 
         """
 
@@ -1595,6 +1601,7 @@ class Population:
         self.label = label  #: The full name/label of the population
         self.type = pop_type  #: The population's type
         self.stochastic = stochastic #: Whether the population should be handled stochastically as discrete integer people instead of fractions
+        self.rng_sampler = rng_sampler
 
         self.comps = list()  #: List of Compartment objects
         self.characs = list()  #: List of Characteristic objects
@@ -1805,17 +1812,17 @@ class Population:
         for comp_name in list(comps.index):
             if comps.at[comp_name, "population type"] == self.type:
                 if comp_name in residual_junctions:
-                    self.comps.append(ResidualJunctionCompartment(pop=self, name=comp_name, stochastic = self.stochastic, duration_group=comps.at[comp_name, "duration group"]))
+                    self.comps.append(ResidualJunctionCompartment(pop=self, name=comp_name, stochastic = self.stochastic, rng_sampler=self.rng_sampler, duration_group=comps.at[comp_name, "duration group"]))
                 elif comps.at[comp_name, "is junction"] == "y":
-                    self.comps.append(JunctionCompartment(pop=self, name=comp_name, stochastic = self.stochastic, duration_group=comps.at[comp_name, "duration group"]))
+                    self.comps.append(JunctionCompartment(pop=self, name=comp_name, stochastic = self.stochastic, rng_sampler=self.rng_sampler, duration_group=comps.at[comp_name, "duration group"]))
                 elif comps.at[comp_name, "duration group"]:
-                    self.comps.append(TimedCompartment(pop=self, name=comp_name, stochastic = self.stochastic, parameter=self.par_lookup[comps.at[comp_name, "duration group"]]))
+                    self.comps.append(TimedCompartment(pop=self, name=comp_name, stochastic = self.stochastic, rng_sampler=self.rng_sampler, parameter=self.par_lookup[comps.at[comp_name, "duration group"]]))
                 elif comps.at[comp_name, "is source"] == "y":
-                    self.comps.append(SourceCompartment(pop=self, name=comp_name, stochastic = self.stochastic))
+                    self.comps.append(SourceCompartment(pop=self, name=comp_name, stochastic = self.stochastic, rng_sampler=self.rng_sampler))
                 elif comps.at[comp_name, "is sink"] == "y":
-                    self.comps.append(SinkCompartment(pop=self, name=comp_name, stochastic = self.stochastic))
+                    self.comps.append(SinkCompartment(pop=self, name=comp_name, stochastic = self.stochastic, rng_sampler=self.rng_sampler))
                 else:
-                    self.comps.append(Compartment(pop=self, name=comp_name, stochastic = self.stochastic))
+                    self.comps.append(Compartment(pop=self, name=comp_name, stochastic = self.stochastic, rng_sampler=self.rng_sampler))
 
         self.comp_lookup = {comp.name: comp for comp in self.comps}
 
@@ -1998,7 +2005,7 @@ class Population:
         # Otherwise, insert the values
         for i, c in enumerate(comps):
             if self.stochastic:
-                c[0] = stochastic_rounding(max(0.0, x[i]))#integer values (still represented as floats)
+                c[0] = stochastic_rounding(max(0.0, x[i]), rng_sampler = self.rng_sampler)#integer values (still represented as floats)
             else:
                 c[0] = max(0.0, x[i])
 
@@ -2006,7 +2013,7 @@ class Population:
 class Model:
     """ A class to wrap up multiple populations within model and handle cross-population transitions. """
 
-    def __init__(self, settings, framework, parset, progset=None, program_instructions=None):
+    def __init__(self, settings, framework, parset, progset=None, program_instructions=None, rng_sampler=None):
 
         # Note that if a progset is provided and program instructions are not, then programs will not be
         # turned on. However, the progset is still available so that the coverage can still be probed
@@ -2027,6 +2034,11 @@ class Model:
         self.t = settings.tvec  #: Simulation time vector (this is a brand new instance from the `settings.tvec` property method)
         self.dt = settings.sim_dt  #: Simulation time step
         self.stochastic = settings.stochastic #: Run with discrete numbers of people per compartment instead of fractions.
+        
+
+        if rng_sampler is None:
+            rng_sampler = np.random.default_rng()
+        self.rng_sampler = rng_sampler
 
         self._t_index = 0  # Keeps track of array index for current timepoint data within all compartments.
         self._vars_by_pop = None  # Cache to look up lists of variables by name across populations
@@ -2174,7 +2186,7 @@ class Model:
 
         # First construct populations
         for k, (pop_name, pop_label, pop_type) in enumerate(zip(parset.pop_names, parset.pop_labels, parset.pop_types)):
-            self.pops.append(Population(framework=self.framework, name=pop_name, label=pop_label, progset=self.progset, pop_type=pop_type, stochastic=self.stochastic))
+            self.pops.append(Population(framework=self.framework, name=pop_name, label=pop_label, progset=self.progset, pop_type=pop_type, stochastic=self.stochastic, rng_sampler=self.rng_sampler))
             self._pop_ids[pop_name] = k
 
         # Expand interactions into matrix form
@@ -2677,7 +2689,7 @@ class Model:
                     par.constrain(ti)
 
 
-def run_model(settings, framework, parset: ParameterSet, progset: ProgramSet = None, program_instructions: ProgramInstructions = None, name: str = None):
+def run_model(settings, framework, parset: ParameterSet, progset: ProgramSet = None, program_instructions: ProgramInstructions = None, name: str = None, rng_sampler = None):
     """
     Build and process model
 
@@ -2701,10 +2713,11 @@ def run_model(settings, framework, parset: ParameterSet, progset: ProgramSet = N
     :param progset: Optionally provide a :class:`ProgramSet` instance to use programs
     :param program_instructions: Optional :class:`ProgramInstructions` instance. If ``progset`` is specified, then instructions must be provided
     :param name: Optionally specify the name to assign to the output result
+    :param rng_sampler: Optionally specify a random number generator that may have been seeded to generate consistent results
     :return: A :class:`Result` object containing the processed model
 
     """
 
-    m = Model(settings, framework, parset, progset, program_instructions)
+    m = Model(settings, framework, parset, progset, program_instructions, rng_sampler=rng_sampler)
     m.process()
     return Result(model=m, parset=parset, name=name)
