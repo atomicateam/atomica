@@ -787,8 +787,6 @@ def _run_sampled_sim(proj, parset, progset, progset_instructions: list, result_n
                     t_inds = np.where(np.logical_and(res_par.t>=t_range[0], res_par.t<=t_range[1]))
                     res_t_val = np.mean(res_par.vals[t_inds]) #annualized so always average
                     if res_t_val <= val[0] or res_t_val >= val[1]:
-                        print (f'Rejecting run as sampled sim value {res_t_val} outside of acceptable bound {val} for parameter {par}, population {pop} at time {t_range}')
-                                  
                         raise BadInitialization(f'Rejecting run as sampled sim value {res_t_val} outside of acceptable bound {val} for parameter {par}, population {pop} at time {t_range}')
                 
             return results
