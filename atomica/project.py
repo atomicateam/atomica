@@ -475,7 +475,7 @@ class Project(NamedItem):
         """ Modify the project settings, e.g. the simulation time vector. """
         self.settings.update_time_vector(start=sim_start, end=sim_end, dt=sim_dt)
 
-    def run_sim(self, parset=None, progset=None, progset_instructions=None, store_results=False, result_name: str = None, rng_sampler = None):
+    def run_sim(self, parset=None, progset=None, progset_instructions=None, store_results=False, result_name: str = None, rng = None):
         """
         Run a single simulation
 
@@ -488,10 +488,11 @@ class Project(NamedItem):
         :param progset_instructions: A :class:`ProgramInstructions` instance. Programs will only be used if a instructions are provided
         :param store_results: If True, then the result will automatically be stored in ``self.results``
         :param result_name: Optionally assign a specific name to the result (otherwise, a unique default name will automatically be selected)
-        :param rng_sampler: A random number generator that may have been seeded to generate consistent results
+        :param rng: Optionally a random number generator that may have been seeded to generate consistent results, or a random_seed used to generate a Generator
         :return: A :class:`Result` instance
 
         """
+        rng_sampler = rng if isinstance(rng, np.random._generator.Generator) else np.random.default_rng(rng)
 
         parset = self.parset(parset)
         if progset is not None:
@@ -572,8 +573,6 @@ class Project(NamedItem):
             seed_samples = [None]*n_samples
             
         model_rngs = [np.random.default_rng(seed = seed) for seed in seed_samples] #generate a RNG for each model
-
-        print (seed_samples)
 
         if parallel:
             fcn = functools.partial(_run_sampled_sim, proj=self, parset=parset, progset=progset, progset_instructions=progset_instructions, result_names=result_names, max_attempts=max_attempts)
@@ -747,7 +746,7 @@ def _run_sampled_sim(proj, parset, progset, progset_instructions: list, result_n
     :param progset_instructions: A list of instructions to run against a single sample
     :param result_names: A list of result names (strings)
     :param max_attempts: Maximum number of sampling attempts before raising an error
-    :param rng_sampler: A Generator used to 
+    :param rng_sampler: Optional random number generator that may have been seeded to generate consistent results
     :return: A list of results that either contains 1 result, or the same number of results as instructions
 
     """
@@ -766,9 +765,9 @@ def _run_sampled_sim(proj, parset, progset, progset_instructions: list, result_n
             sampled_parset = parset.sample(rng_sampler=rng_sampler)
             if progset:
                 sampled_progset = progset.sample(rng_sampler=rng_sampler)
-                results = [proj.run_sim(parset=sampled_parset, progset=sampled_progset, progset_instructions=x, result_name=y) for x, y in zip(progset_instructions, result_names)]
+                results = [proj.run_sim(parset=sampled_parset, progset=sampled_progset, progset_instructions=x, result_name=y, rng=rng_sampler) for x, y in zip(progset_instructions, result_names)]
             else:
-                results = [proj.run_sim(parset=sampled_parset, result_name=y) for y in result_names]
+                results = [proj.run_sim(parset=sampled_parset, result_name=y, rng=rng_sampler) for y in result_names]
             return results
         except BadInitialization:
             attempts += 1
