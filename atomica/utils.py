@@ -904,7 +904,10 @@ def parallel_progress(fcn, inputs, num_workers=None, show_progress=True) -> list
             pool.apply_async(fcn, callback=partial(callback, idx=i))
     else:
         for i, x in enumerate(inputs):
-            pool.apply_async(fcn, args=(x,), callback=partial(callback, idx=i))
+            if isinstance(x, dict):
+                pool.apply_async(fcn, args=(), kwds=x, callback=partial(callback, idx=i)) #if the list of inputs is given as a dictionary then pass as kwargs (kwds) instead
+            else:
+                pool.apply_async(fcn, args=(x,), callback=partial(callback, idx=i))
 
     pool.close()
     pool.join()

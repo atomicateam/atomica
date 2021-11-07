@@ -576,7 +576,9 @@ class Project(NamedItem):
 
         if parallel:
             fcn = functools.partial(_run_sampled_sim, proj=self, parset=parset, progset=progset, progset_instructions=progset_instructions, result_names=result_names, max_attempts=max_attempts)
-            results = parallel_progress(fcn, model_rngs, show_progress=show_progress, num_workers=num_workers)
+            #as multiprocessing does not handle partial functions as compiled functions, need to send the rngs as kwargs in a dictionary, not as args to the partial function
+            model_rng_kwargs = [{'rng_sampler': rng} for rng in model_rngs]
+            results = parallel_progress(fcn, model_rng_kwargs, show_progress=show_progress, num_workers=num_workers)
         elif show_progress:
             # Print the progress bar if the logging level was INFO or lower
             # This means that the user can still set the logging level higher e.g. WARNING to suppress output from Atomica in general
