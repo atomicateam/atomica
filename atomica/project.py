@@ -518,7 +518,7 @@ class Project(NamedItem):
 
         return result
 
-    def run_sampled_sims(self, parset, progset=None, progset_instructions=None, result_names=None, n_samples: int = 1, rand_seed: int = None, parallel=False, max_attempts=None, num_workers=None) -> list:
+    def run_sampled_sims(self, parset, progset=None, progset_instructions=None, result_names=None, n_samples: int = 1, rand_seed: int = None, parallel=False, max_attempts=None, num_workers=None, acceptance_criteria=[]) -> list:
         """
         Run sampled simulations
 
@@ -543,6 +543,10 @@ class Project(NamedItem):
         :param max_attempts: Number of retry attempts for bad initializations
         :param num_workers: If ``parallel`` is True, this determines the number of parallel workers to use (default is usually number of CPUs)
         :param rng_sampler: Optional random number generator that may have been seeded to generate consistent results
+        :param acceptance_criteria: Optional criteria to assert that outputs are within a given tolerance of a given value for given parameters in given years
+            tolerance e.g.  = [{'parameter': 'incidence', 'population': 'adults', 'value': (0.02, 0.025), 't': 2018}]
+
+        
         :return: A list of Results that can be passed to `Ensemble.update()`. If multiple instructions are provided, the return value of this
                  function will be a list of lists, where the inner list iterates over different instructions for the same parset/progset samples.
                  It is expected in that case that the Ensemble's mapping function would take in a list of results
@@ -575,7 +579,7 @@ class Project(NamedItem):
         model_rngs = [np.random.default_rng(seed = seed) for seed in seed_samples] #generate a RNG for each model
 
         if parallel:
-            fcn = functools.partial(_run_sampled_sim, proj=self, parset=parset, progset=progset, progset_instructions=progset_instructions, result_names=result_names, max_attempts=max_attempts)
+            fcn = functools.partial(_run_sampled_sim, proj=self, parset=parset, progset=progset, progset_instructions=progset_instructions, result_names=result_names, max_attempts=max_attempts, acceptance_criteria=acceptance_criteria)
             #as multiprocessing does not handle partial functions as compiled functions, need to send the rngs as kwargs in a dictionary, not as args to the partial function
             model_rng_kwargs = [{'rng_sampler': rng} for rng in model_rngs]
             results = parallel_progress(fcn, model_rng_kwargs, show_progress=show_progress, num_workers=num_workers)
@@ -584,9 +588,9 @@ class Project(NamedItem):
             # This means that the user can still set the logging level higher e.g. WARNING to suppress output from Atomica in general
             # (including any progress bars)
             with Quiet():
-                results = [_run_sampled_sim(self, parset, progset, progset_instructions, result_names, max_attempts=max_attempts, rng_sampler=rng) for rng in tqdm.tqdm(model_rngs)]
+                results = [_run_sampled_sim(self, parset, progset, progset_instructions, result_names, max_attempts=max_attempts, rng_sampler=rng, acceptance_criteria=acceptance_criteria) for rng in tqdm.tqdm(model_rngs)]
         else:
-            results = [_run_sampled_sim(self, parset, progset, progset_instructions, result_names, max_attempts=max_attempts, rng_sampler=rng) for rng in model_rngs]
+            results = [_run_sampled_sim(self, parset, progset, progset_instructions, result_names, max_attempts=max_attempts, rng_sampler=rng, acceptance_criteria=acceptance_criteria) for rng in model_rngs]
 
         return results
 
@@ -727,7 +731,7 @@ class Project(NamedItem):
         P = migrate(self)
         self.__dict__ = P.__dict__
 
-def _run_sampled_sim(proj, parset, progset, progset_instructions: list, result_names: list, max_attempts: int = None, rng_sampler =  None):
+def _run_sampled_sim(proj, parset, progset, progset_instructions: list, result_names: list, max_attempts: int = None, rng_sampler =  None, acceptance_criteria = []):
     """
     Internal function to run simulation with sampling
 
@@ -749,6 +753,8 @@ def _run_sampled_sim(proj, parset, progset, progset_instructions: list, result_n
     :param result_names: A list of result names (strings)
     :param max_attempts: Maximum number of sampling attempts before raising an error
     :param rng_sampler: Optional random number generator that may have been seeded to generate consistent results
+    :param acceptance_criteria: Optional criteria to assert that outputs are within a given tolerance of a given value for given parameters over a given period of time
+        tolerance e.g.  = [{'parameter': 'incidence', 'population': 'adults', 'value': (0.02, 0.025), 't_range': (2018, 2018.99)}]
     :return: A list of results that either contains 1 result, or the same number of results as instructions
 
     """
@@ -770,6 +776,21 @@ def _run_sampled_sim(proj, parset, progset, progset_instructions: list, result_n
                 results = [proj.run_sim(parset=sampled_parset, progset=sampled_progset, progset_instructions=x, result_name=y, rng=rng_sampler) for x, y in zip(progset_instructions, result_names)]
             else:
                 results = [proj.run_sim(parset=sampled_parset, result_name=y, rng=rng_sampler) for y in result_names]
+                
+            for criteria in acceptance_criteria:
+                par = criteria['parameter']
+                pop = criteria['population']
+                val = criteria['value']
+                t_range = criteria['t_range']
+                for res in results:
+                    res_par = res.get_variable(par, pop)[0]
+                    t_inds = np.where(np.logical_and(res_par.t>=t_range[0], res_par.t<=t_range[1]))
+                    res_t_val = np.mean(res_par.vals[t_inds]) #annualized so always average
+                    if res_t_val <= val[0] or res_t_val >= val[1]:
+                        print (f'Rejecting run as sampled sim value {res_t_val} outside of acceptable bound {val} for parameter {par}, population {pop} at time {t_range}')
+                                  
+                        raise BadInitialization(f'Rejecting run as sampled sim value {res_t_val} outside of acceptable bound {val} for parameter {par}, population {pop} at time {t_range}')
+                
             return results
         except BadInitialization:
             attempts += 1
