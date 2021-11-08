@@ -475,7 +475,7 @@ class Project(NamedItem):
         """ Modify the project settings, e.g. the simulation time vector. """
         self.settings.update_time_vector(start=sim_start, end=sim_end, dt=sim_dt)
 
-    def run_sim(self, parset=None, progset=None, progset_instructions=None, store_results=False, result_name: str = None, rng = None):
+    def run_sim(self, parset=None, progset=None, progset_instructions=None, store_results=False, result_name: str = None, rng = None, acceptance_criteria=[]):
         """
         Run a single simulation
 
@@ -489,6 +489,9 @@ class Project(NamedItem):
         :param store_results: If True, then the result will automatically be stored in ``self.results``
         :param result_name: Optionally assign a specific name to the result (otherwise, a unique default name will automatically be selected)
         :param rng: Optionally a random number generator that may have been seeded to generate consistent results, or a random_seed used to generate a Generator
+        :param acceptance_criteria: Optional criteria to assert that outputs are within a given tolerance of a given value for given parameters over a given period of time
+        tolerance e.g.  = [{'parameter': 'incidence', 'population': 'adults', 'value': (0.02, 0.025), 't_range': (2018, 2018.99)}]
+        
         :return: A :class:`Result` instance
 
         """
@@ -511,7 +514,7 @@ class Project(NamedItem):
                 k += 1
 
         tm = sc.tic()
-        result = run_model(settings=self.settings, framework=self.framework, parset=parset, progset=progset, program_instructions=progset_instructions, name=result_name, rng_sampler=rng_sampler)
+        result = run_model(settings=self.settings, framework=self.framework, parset=parset, progset=progset, program_instructions=progset_instructions, name=result_name, rng_sampler=rng_sampler, acceptance_criteria=acceptance_criteria)
         logger.info('Elapsed time for running "%s": %ss', self.name, sc.sigfig(sc.toc(tm, output=True), 3))
         if store_results:
             self.results.append(result)
@@ -766,29 +769,21 @@ def _run_sampled_sim(proj, parset, progset, progset_instructions: list, result_n
     
     if rng_sampler is None:
         rng_sampler = np.random.default_rng()
+    
+    #Set up separate seeds for each attempt and seed a rng for each one (in case scenarios diverge in later timepoints, it's important to START from the same seeds)
+    rand_seeds = rng_sampler.integers(1e15, size=max_attempts)
 
     attempts = 0
     while attempts < max_attempts:
         try:
-            sampled_parset = parset.sample(rng_sampler=rng_sampler)
+            rng_attempt = np.random.default_rng(seed=rand_seeds[attempts])
+            sampled_parset = parset.sample(rng_sampler=rng_attempt)
             if progset:
-                sampled_progset = progset.sample(rng_sampler=rng_sampler)
-                results = [proj.run_sim(parset=sampled_parset, progset=sampled_progset, progset_instructions=x, result_name=y, rng=rng_sampler) for x, y in zip(progset_instructions, result_names)]
+                sampled_progset = progset.sample(rng_sampler=rng_attempt)
+                results = [proj.run_sim(parset=sampled_parset, progset=sampled_progset, progset_instructions=x, result_name=y, rng=rng_attempt, acceptance_criteria=acceptance_criteria) for x, y in zip(progset_instructions, result_names)]
             else:
-                results = [proj.run_sim(parset=sampled_parset, result_name=y, rng=rng_sampler) for y in result_names]
-                
-            for criteria in acceptance_criteria:
-                par = criteria['parameter']
-                pop = criteria['population']
-                val = criteria['value']
-                t_range = criteria['t_range']
-                for res in results:
-                    res_par = res.get_variable(par, pop)[0]
-                    t_inds = np.where(np.logical_and(res_par.t>=t_range[0], res_par.t<=t_range[1]))
-                    res_t_val = np.mean(res_par.vals[t_inds]) #annualized so always average
-                    if res_t_val <= val[0] or res_t_val >= val[1]:
-                        raise BadInitialization(f'Rejecting run as sampled sim value {res_t_val} outside of acceptable bound {val} for parameter {par}, population {pop} at time {t_range}')
-                
+                results = [proj.run_sim(parset=sampled_parset, result_name=y, rng=rng_attempt, acceptance_criteria=acceptance_criteria) for y in result_names]
+            
             return results
         except BadInitialization:
             attempts += 1

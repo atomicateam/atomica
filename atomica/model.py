@@ -1212,6 +1212,7 @@ class Parameter(Variable):
             # Pop aggregations and derivatives are handled in `update_pars()` so we set the dynamic flag
             # because the values are modified during integration
             self._is_dynamic = True
+            
 
         if self.deps:  # If there are no dependencies, then we know that this is precompute-only
             for deps in self.deps.values():  # deps is {'dep_name':[dep_objects]}
@@ -2013,7 +2014,7 @@ class Population:
 class Model:
     """ A class to wrap up multiple populations within model and handle cross-population transitions. """
 
-    def __init__(self, settings, framework, parset, progset=None, program_instructions=None, rng_sampler=None):
+    def __init__(self, settings, framework, parset, progset=None, program_instructions=None, rng_sampler=None, acceptance_criteria=[]):
 
         # Note that if a progset is provided and program instructions are not, then programs will not be
         # turned on. However, the progset is still available so that the coverage can still be probed
@@ -2035,6 +2036,7 @@ class Model:
         self.dt = settings.sim_dt  #: Simulation time step
         self.stochastic = settings.stochastic #: Run with discrete numbers of people per compartment instead of fractions.
         
+        self.acceptance_criteria = sc.dcp(acceptance_criteria) #: If the model fails to adhere to these criteria, raise a BadInitialization exception
 
         if rng_sampler is None:
             rng_sampler = np.random.default_rng()
@@ -2258,7 +2260,7 @@ class Model:
                 # Make the parameter dynamic, because it needs to be computed during integration
                 for par in pars:
                     par.set_dynamic()
-
+                    
                 # Also make the variable being aggregated dynamic
                 for var in self._vars_by_pop[pars[0].pop_aggregation[1]]:
                     var.set_dynamic(progset=self.progset)
@@ -2267,6 +2269,8 @@ class Model:
                 if len(pars[0].pop_aggregation) > 3:
                     for var in self._vars_by_pop[pars[0].pop_aggregation[3]]:
                         var.set_dynamic(progset=self.progset)
+                        
+                
 
         # Set execution order - needs to be done _after_ pop aggregations have been flagged as dynamic
         self._set_exec_order()
@@ -2309,6 +2313,23 @@ class Model:
             for obj in pop.comps + pop.characs + pop.links:
                 obj.preallocate(self.t, self.dt)
             pop.initialize_compartments(parset, self.framework, self.t[0])
+            
+        #More finally, set up acceptance criteria for those which should be checked at runtime (variables that have ._is_dynamic = True), and those which can only be checked after conclusion
+        if self.acceptance_criteria:
+            for criteria in self.acceptance_criteria:
+                pars = self._vars_by_pop[criteria['parameter']]
+                for par in pars:
+                    if par.pop.name == criteria['population']:
+                        if par._is_dynamic:
+                            criteria['evaluate_at'] = self.t[np.where(self.t > criteria['t_range'][1])][0]
+                        else:
+                            criteria['evaluate_at'] = np.inf #can only evaluate postcompute
+                            
+            #sort by evaluation time - now we only have to look at the first element every timestep
+            self.acceptance_criteria = sorted(self.acceptance_criteria, key=lambda item: item['evaluate_at'])
+            self.acceptance_index = 0 #which index to evaluate
+            
+
 
     def _set_exec_order(self) -> None:
         """
@@ -2433,6 +2454,8 @@ class Model:
             self.update_comps()
             self.update_pars()
             self.update_links()
+            if self.acceptance_criteria:
+                self.update_acceptance()
 
         # Update postcompute parameters - note that it needs to be done in execution order
         for par_name in self._exec_order["all_pars"]:
@@ -2440,6 +2463,9 @@ class Model:
                 if par.fcn_str and not (par._is_dynamic or par._precompute):
                     par.update()
                     par.constrain()
+                    
+        if self.acceptance_criteria: #call update_acceptance once more for any variables that could only be assessed postcompute
+                self.update_acceptance(evaluate_all = True)
 
         # Clear characteristic internal storage and switch to dynamic computation to save space
         for pop in self.pops:
@@ -2447,6 +2473,7 @@ class Model:
                 charac._vals = None
 
         self._program_cache = None  # Drop the program cache afterwards to save space
+        
 
     def update_links(self) -> None:
         """
@@ -2555,6 +2582,41 @@ class Model:
         for pop in self.pops:
             for comp in pop.comps:
                 comp.update(ti)
+                
+    def update_acceptance(self, evaluate_all = False) -> None:
+        """
+        Update any acceptance criteria for the model run, raise BadInitialization error if the model run is failing
+        
+        :param evaluate_all: Final evaluation of all acceptance criteria.
+        
+        """
+        
+        time = self.t[self._t_index] #actual time
+
+        #We know that these are sorted by evaluation time so we only need to look at the first index
+        while (self.acceptance_index < len(self.acceptance_criteria) ) and (evaluate_all or time >= self.acceptance_criteria[self.acceptance_index]['evaluate_at']):
+            #time ranges for assessment are in order, so only need to check the first one
+            assessable = self.acceptance_criteria[self.acceptance_index]
+            #we have passed the time window, assess if the criteria was met - either return a fail condition or remove this acceptance criteria
+            a_par = assessable['parameter']
+            a_pop = assessable['population']
+            a_times = assessable['t_range']
+            accept_vals = assessable['value']
+            a_t_inds = np.where(np.logical_and(self.t>=a_times[0], self.t<=a_times[1])) #self.t is the full tvec for the model
+            
+            pars = self._vars_by_pop[a_par]
+            for par in pars: #TODO should be more efficient way to directly access the par values for the pop rather than looping
+                if par.pop.name == a_pop: 
+                    a_t_val = np.mean(par[a_t_inds]) #mean across the time range
+                    if a_t_val <= accept_vals[0] or a_t_val >= accept_vals[1]:
+                        # print(f'{time} Rejecting run as sampled sim value {a_t_val} outside of acceptable bound {accept_vals} for parameter {a_par}, population {a_pop} at time {a_times}')
+                        raise BadInitialization(f'Rejecting run as sampled sim value {a_t_val} outside of acceptable bound {accept_vals} for parameter {a_par}, population {a_pop} at time {a_times}')
+                    # else:
+                        # print(f'{time} ACCEPTING run as sampled sim value {a_t_val} inside of acceptable bound {accept_vals} for parameter {a_par}, population {a_pop} at time {a_times}')
+            assessable['assessed_value'] = a_t_val
+            self.acceptance_index += 1
+                  
+        
 
     def flush_junctions(self) -> None:
         """
@@ -2689,7 +2751,7 @@ class Model:
                     par.constrain(ti)
 
 
-def run_model(settings, framework, parset: ParameterSet, progset: ProgramSet = None, program_instructions: ProgramInstructions = None, name: str = None, rng_sampler = None):
+def run_model(settings, framework, parset: ParameterSet, progset: ProgramSet = None, program_instructions: ProgramInstructions = None, name: str = None, rng_sampler = None, acceptance_criteria = []):
     """
     Build and process model
 
@@ -2714,10 +2776,11 @@ def run_model(settings, framework, parset: ParameterSet, progset: ProgramSet = N
     :param program_instructions: Optional :class:`ProgramInstructions` instance. If ``progset`` is specified, then instructions must be provided
     :param name: Optionally specify the name to assign to the output result
     :param rng_sampler: Optionally specify a random number generator that may have been seeded to generate consistent results
+    
     :return: A :class:`Result` object containing the processed model
 
     """
 
-    m = Model(settings, framework, parset, progset, program_instructions, rng_sampler=rng_sampler)
+    m = Model(settings, framework, parset, progset, program_instructions, rng_sampler=rng_sampler, acceptance_criteria=acceptance_criteria)
     m.process()
     return Result(model=m, parset=parset, name=name)
