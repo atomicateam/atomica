@@ -1051,7 +1051,7 @@ class ProgramSet(NamedItem):
 
     def get_prop_coverage(self, tvec, dt, capacities: dict, num_eligible: dict, instructions=None) -> dict:
         """
-        Return fractional coverage
+        Return dimensionless (timestep) fractional coverage
 
         Note that this function is primarily for internal usage (i.e. during
         model integration or reconciliation). Since the proportion covered depends
@@ -1065,7 +1065,8 @@ class ProgramSet(NamedItem):
         - instructions can override the coverage (for coverage scenarios)
         - Programs can contain saturation constraints
 
-        This function returns *dimensionless* coverage (i.e. not coverage/year). This coverage is also capped at 1.
+        Note that while converage overwrites might be specified in '/year' units for one-off programs,
+        *this function always returns dimensionless coverage* (i.e. not coverage/year). This coverage is also capped at 1.
 
         :param tvec: scalar year, or array of years - this is required to interpolate time-varying saturation values
         :param capacities: dict of program coverages, should match the available programs (typically the output of ``ProgramSet.get_capacities()``)
