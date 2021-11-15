@@ -1340,7 +1340,6 @@ def optimize(project, optimization, parset: ParameterSet, progset: ProgramSet, i
             "maxtime": optimization.maxtime,
             # 'sinc': proj.settings.autofit_params['sinc'],
             # 'sdec': proj.settings.autofit_params['sdec'],
-            "fulloutput": False,
             "xmin": xmin,
             "xmax": xmax,
         }

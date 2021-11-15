@@ -43,7 +43,7 @@ setup(
         "matplotlib>=3.0,<=3.3.4",
         "numpy>=1.10.1",
         "scipy>=1.2.1",
-        "pandas<1.2.5",
+        "pandas",
         "xlsxwriter",
         "openpyxl",
         "pyswarm",

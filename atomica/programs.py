@@ -43,7 +43,9 @@ class ProgramInstructions:
 
     - Spending (in units of people/year)
     - Capacity (in units of people/year)
-    - Fraction/proportion coverage (dimensionless - NOT in units of '/year')
+    - Fraction/proportion coverage
+        - For continuous programs, specified as a dimensionless fraction
+        - For one-off programs, specified as a 'fraction/year' coverage
 
     which thus provides the underlying implementation for program-related scenarios. The
     :class:`ProgramSet` and :class:`Program` methods access and use the :class:`ProgramInstructions`
@@ -79,8 +81,9 @@ class ProgramInstructions:
     :param capacity: Overwrites to capacity. This is a dict keyed by program name, containing a scalar capacity or a TimeSeries of capacity values
                      For convenience, the capacity overwrite should be in units of 'people/year' and it will be automatically
                      converted to a per-timestep value based on the units for the program's unit cost.
-    :param coverage: Overwrites to proportion coverage. This is a dict keyed by program name, containing a scalar coverage or a TimeSeries of coverage values.
-                     This
+    :param coverage: Overwrites to proportion coverage. This is a dict keyed by program name, containing a scalar coverage or a TimeSeries
+                     of coverage values. The overwrite is specified in dimensionless units for continuous programs, and '/year' units for
+                     one-off programs.
 
     """
 
@@ -631,7 +634,7 @@ class ProgramSet(NamedItem):
             widths[col] = 12  # Wrap population names
 
         for comp, spec in comps_to_write.items():
-            if spec["non_targetable"] and not comp in comps_in_use:
+            if spec["non_targetable"] and comp not in comps_in_use:
                 continue
             col = comp_col[comp]
             sheet.write(1, col, spec["label"], self._formats["rc_title"]["left"]["T"])
@@ -1041,14 +1044,14 @@ class ProgramSet(NamedItem):
             else:
                 capacities[prog.name] = instructions.capacity[prog.name].interpolate(tvec, method="previous")
                 # Capacity overwrites are input in units of people/year so convert to units of people here
-                if "/year" not in prog.unit_cost.units:
+                if prog.is_one_off:
                     capacities[prog.name] *= dt
 
         return capacities
 
-    def get_prop_coverage(self, tvec, capacities: dict, num_eligible: dict, instructions=None) -> dict:
+    def get_prop_coverage(self, tvec, dt, capacities: dict, num_eligible: dict, instructions=None) -> dict:
         """
-        Return fractional coverage
+        Return dimensionless (timestep) fractional coverage
 
         Note that this function is primarily for internal usage (i.e. during
         model integration or reconciliation). Since the proportion covered depends
@@ -1062,7 +1065,8 @@ class ProgramSet(NamedItem):
         - instructions can override the coverage (for coverage scenarios)
         - Programs can contain saturation constraints
 
-        This function returns *dimensionless* coverage (i.e. not coverage/year)
+        Note that while converage overwrites might be specified in '/year' units for one-off programs,
+        *this function always returns dimensionless coverage* (i.e. not coverage/year). This coverage is also capped at 1.
 
         :param tvec: scalar year, or array of years - this is required to interpolate time-varying saturation values
         :param capacities: dict of program coverages, should match the available programs (typically the output of ``ProgramSet.get_capacities()``)
@@ -1075,15 +1079,18 @@ class ProgramSet(NamedItem):
         """
 
         prop_coverage = sc.odict()  # Initialise outputs
+
         for prog in self.programs.values():
             if instructions is None or prog.name not in instructions.coverage:
-                # Note that since the coverage overwrite does not get scaled by dt, the coverage overwrite is specified as the
-                # timestep coverage to use for each program, not the annual coverage
+                # The capacities have already been converted to timestep values, so no further transformation is necessary
                 prop_coverage[prog.name] = prog.get_prop_covered(tvec, capacities[prog.name], num_eligible[prog.name])
             else:
-                # Note that coverage overwrites are specified in dimensionless units, therefore no dt adjustment is made here
                 prop_coverage[prog.name] = instructions.coverage[prog.name].interpolate(tvec, method="previous")
-                prop_coverage[prog.name] = minimum(prop_coverage[prog.name], 1.0)
+                if prog.is_one_off:
+                    # Coverage overwrites for one off programs are specified in /year units, therefore they get adjusted by dt here
+                    prop_coverage[prog.name] *= dt
+
+        prop_coverage[prog.name] = minimum(prop_coverage[prog.name], 1.0)
 
         return prop_coverage
 
@@ -1262,9 +1269,9 @@ class Program(NamedItem):
         spending = sc.promotetoarray(spending)
 
         unit_cost = self.unit_cost.interpolate(tvec, method="previous")
-        if "/year" not in self.unit_cost.units:
-            # The spending is $/year, and the /year gets eliminated if the unit cost is also per year. If that's not the case, then
-            # we need to multiply the spending by the timestep to get the correct units
+        if self.is_one_off:
+            # The spending is $/year, and the /year gets eliminated if the unit cost is also per year. For one-off programs, the unit cost is not
+            # /year, therefore we need to multiply the spending by the timestep to the capacity as people rather than people/year
             spending *= dt
 
         capacity = spending / unit_cost

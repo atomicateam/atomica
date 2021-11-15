@@ -32,7 +32,7 @@ If you want to install a different branch of Atomica, or plan to make changes to
 ```
 git clone https://github.com/atomicateam/atomica.git
 cd atomica
-python setup.py develop
+pip install -e .
 ```
 
 ## Running tests
@@ -86,7 +86,7 @@ to test Python 3.7 only.
 
 ### Installation fails due to missing `numpy`
 
-If running `python setup.py develop` in a new environment, `numpy` must be installed prior to `scipy`. In some cases,
+If running `pip install -e .` in a new environment, `numpy` must be installed prior to `scipy`. In some cases,
 installing `numpy` may fail due to missing compiler options. In that case, you may wish to install `numpy` via Anaconda
 (by installing Python through Anaconda, and using `conda install numpy scipy matplotlib`). In general, our experience
 has been that it is easier to set up the C binaries for `numpy` and the QT dependencies for `matplotlib` via Anaconda

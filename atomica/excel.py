@@ -32,7 +32,7 @@ warnings.filterwarnings(action="ignore", category=UserWarning, module="openpyxl.
 def standard_formats(workbook):
     # Add standard formatting to a workbook and return the set of format objects
     # for use when writing within the workbook
-    """ the formats used in the spreadsheet """
+    """the formats used in the spreadsheet"""
     #    darkgray = '#413839'
     #    optima_blue = '#18C1FF'
     atomica_blue = "#98E0FA"
