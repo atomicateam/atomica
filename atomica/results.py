@@ -439,7 +439,7 @@ class Result(NamedItem):
         # Optionally save it
         if filename is not None:
             output_fname = Path(filename).with_suffix(".xlsx").resolve()
-            df.T.to_excel(output_fname)
+            df.T.to_excel(output_fname, merge_cells=False)
 
         return df
 
@@ -851,7 +851,7 @@ def _write_df(writer, formats, sheet_name, df, level_ordering):
         for i in range(1, len(level_ordering)):
             table = table.reindex(order[level_ordering[i]], level=i - 1)
         table.index = table.index.set_names([level_substitutions[x] if x in level_substitutions else x.title() for x in table.index.names])
-        table.to_excel(writer, sheet_name, startcol=0, startrow=row)
+        table.to_excel(writer, sheet_name, startcol=0, startrow=row, merge_cells=False)
         row += table.shape[0] + 2
 
         required_width[0] = max(required_width[0], len(title))
