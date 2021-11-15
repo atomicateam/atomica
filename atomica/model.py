@@ -8,7 +8,6 @@ be numerically integrated. It also implements the methods to actually perform th
 
 """
 
-
 from .system import NotFoundError
 from .system import logger
 from .system import FrameworkSettings as FS
@@ -2064,11 +2063,8 @@ class Model:
             self._program_cache["capacities"] = self.progset.get_capacities(tvec=self.t, dt=self.dt, instructions=self.program_instructions)
 
             # Cache the proportion coverage for coverage scenarios so that we don't call interpolate() every timestep
-            self._program_cache["prop_coverage"] = dict()
-            for prog_name, coverage_ts in self.program_instructions.coverage.items():
-                self._program_cache["prop_coverage"][prog_name] = coverage_ts.interpolate(self.t)
-                if self.progset.programs[prog_name].is_one_off:
-                    self._program_cache["prop_coverage"][prog_name] *= self.dt
+            coverage = self.progset.get_prop_coverage(tvec=self.t, dt=self.dt, capacities=self._program_cache["capacities"], num_eligible={k: np.nan for k in self.progset.programs}, instructions=self.program_instructions)
+            self._program_cache["prop_coverage"] = {k: coverage[k] for k in self.program_instructions.coverage}
 
             # Check that any programs with no coverage denominator have been given coverage overwrites
             # Otherwise, the coverage denominator will be treated as 0 and will result in 100% coverage
@@ -2502,7 +2498,7 @@ class Model:
         """
         Flush initialization values from junctions
 
-        If junctions have been initialized with nonzero values as a proxy for initializing the
+        If junctions have been initialized with nonzero values as a mcv1 for initializing the
         downstream compartments, then the junctions need to be flushed into the downstream
         compartments at the start of the simulation. This is done using the ``.flush()`` method
         of the ``JunctionCompartment``. The order of the loop is important if junctions flow into

@@ -75,7 +75,7 @@ class ProjectSettings:
     def sim_end(self, sim_end):
         self._sim_end = self.sim_start + np.ceil((sim_end - self.sim_start) / self.sim_dt) * self.sim_dt
         if sim_end != self._sim_end:
-            logger.warn(f"Changing sim end from {sim_end} to {self._sim_end} ({(self._sim_end - self._sim_start) / self._sim_dt:.0f} timesteps)")
+            logger.info(f"Changing sim end from {sim_end} to {self._sim_end} ({(self._sim_end - self._sim_start) / self._sim_dt:.0f} timesteps)")
 
     @sim_dt.setter
     def sim_dt(self, sim_dt):

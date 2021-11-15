@@ -531,7 +531,7 @@ class TimeSeries:
 
         so for example, if you wanted to use the base Scipy pchip method with no extrapolation, then could pass in
 
-        >>> TimeSeries.interpolate(...,method=scipy.interpolate.PchipInterpolator)
+            TimeSeries.interpolate(...,method=scipy.interpolate.PchipInterpolator)
 
         Note that the following special behaviours apply:
 

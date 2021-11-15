@@ -269,7 +269,7 @@ class Result(NamedItem):
             # Note that `ProgramSet.get_prop_coverage()` takes in capacity in units of 'people' which matches
             # the units of 'num_eligible' so we therefore use the returned value from `ProgramSet.get_capacities()`
             # as-is without doing any annualization
-            prop_coverage = self.model.progset.get_prop_coverage(tvec=self.t, capacities=capacities, num_eligible=num_eligible, instructions=self.model.program_instructions)
+            prop_coverage = self.model.progset.get_prop_coverage(tvec=self.t, dt=self.dt, capacities=capacities, num_eligible=num_eligible, instructions=self.model.program_instructions)
 
             if quantity in {"fraction", "annual_fraction"}:
                 output = prop_coverage
