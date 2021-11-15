@@ -95,7 +95,7 @@ class ProjectFramework:
             self.name = name
 
     def __repr__(self):
-        """ Print object """
+        """Print object"""
         output = sc.prepr(self)
         return output
 

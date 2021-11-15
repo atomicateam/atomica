@@ -634,7 +634,7 @@ class ProgramSet(NamedItem):
             widths[col] = 12  # Wrap population names
 
         for comp, spec in comps_to_write.items():
-            if spec["non_targetable"] and not comp in comps_in_use:
+            if spec["non_targetable"] and comp not in comps_in_use:
                 continue
             col = comp_col[comp]
             sheet.write(1, col, spec["label"], self._formats["rc_title"]["left"]["T"])

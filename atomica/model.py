@@ -225,7 +225,7 @@ class Variable:
 
 
 class Compartment(Variable):
-    """ A class to wrap up data for one compartment within a cascade network. """
+    """A class to wrap up data for one compartment within a cascade network."""
 
     def __init__(self, pop, name):
         Variable.__init__(self, pop=pop, id=(pop.name, name))
@@ -906,7 +906,7 @@ class TimedCompartment(Compartment):
                     # This compartment has a shorter duration, so first insert the values we've got
                     # then sum up and add the extra values to the initial subcompartment
                     self._vals[:, ti] += link._vals[: self._vals.shape[0], tr]
-                    self._vals[-1, ti] += sum(link._vals[self._vals.shape[0]:, tr].tolist())
+                    self._vals[-1, ti] += sum(link._vals[self._vals.shape[0] :, tr].tolist())
 
         # Advance the keyring
         # If this TimedCompartment has only one row, then anyone coming in via TimedLinks will be placed directly
@@ -956,7 +956,7 @@ class TimedCompartment(Compartment):
 
 
 class Characteristic(Variable):
-    """ A characteristic represents a grouping of compartments. """
+    """A characteristic represents a grouping of compartments."""
 
     def __init__(self, pop, name):
         # includes is a list of Compartments, whose values are summed
@@ -1695,14 +1695,14 @@ class Population:
             raise NotFoundError(f"Object '{name}' not found in population '{self.name}'")
 
     def get_comp(self, comp_name):
-        """ Allow compartments to be retrieved by name rather than index. Returns a Compartment. """
+        """Allow compartments to be retrieved by name rather than index. Returns a Compartment."""
         try:
             return self.comp_lookup[comp_name]
         except KeyError:
             raise NotFoundError(f"Compartment {comp_name} not found")
 
     def get_links(self, name) -> list:
-        """ Retrieve Links. """
+        """Retrieve Links."""
         # Links can be looked up by parameter name or by link name, unlike get_variable. This is because
         # get_links() is guaranteed to return a list of Link objects
         # As opposed to get_variable which would retrieve the Parameter for 'doth rate' and the Links for 'z'
@@ -1714,14 +1714,14 @@ class Population:
             raise NotFoundError("Object '{0}' not found.".format(name))
 
     def get_charac(self, charac_name):
-        """ Allow dependencies to be retrieved by name rather than index. Returns a Variable. """
+        """Allow dependencies to be retrieved by name rather than index. Returns a Variable."""
         try:
             return self.charac_lookup[charac_name]
         except KeyError:
             raise NotFoundError(f"Characteristic {charac_name} not found")
 
     def get_par(self, par_name):
-        """ Allow dependencies to be retrieved by name rather than index. Returns a Variable. """
+        """Allow dependencies to be retrieved by name rather than index. Returns a Variable."""
         try:
             return self.par_lookup[par_name]
         except KeyError:
@@ -1958,7 +1958,7 @@ class Population:
 
 
 class Model:
-    """ A class to wrap up multiple populations within model and handle cross-population transitions. """
+    """A class to wrap up multiple populations within model and handle cross-population transitions."""
 
     def __init__(self, settings, framework, parset, progset=None, program_instructions=None):
 
@@ -2063,12 +2063,8 @@ class Model:
             self._program_cache["capacities"] = self.progset.get_capacities(tvec=self.t, dt=self.dt, instructions=self.program_instructions)
 
             # Cache the proportion coverage for coverage scenarios so that we don't call interpolate() every timestep
-            coverage = self.progset.get_prop_coverage(tvec=self.t,
-                                                      dt=self.dt,
-                                                      capacities=self._program_cache["capacities"],
-                                                      num_eligible={k: np.nan for k in self.progset.programs},
-                                                      instructions=self.program_instructions)
-            self._program_cache["prop_coverage"] = {k:coverage[k] for k in self.program_instructions.coverage}
+            coverage = self.progset.get_prop_coverage(tvec=self.t, dt=self.dt, capacities=self._program_cache["capacities"], num_eligible={k: np.nan for k in self.progset.programs}, instructions=self.program_instructions)
+            self._program_cache["prop_coverage"] = {k: coverage[k] for k in self.program_instructions.coverage}
 
             # Check that any programs with no coverage denominator have been given coverage overwrites
             # Otherwise, the coverage denominator will be treated as 0 and will result in 100% coverage
@@ -2119,12 +2115,12 @@ class Model:
         return new
 
     def get_pop(self, pop_name):
-        """ Allow model populations to be retrieved by name rather than index. """
+        """Allow model populations to be retrieved by name rather than index."""
         pop_index = self._pop_ids[pop_name]
         return self.pops[pop_index]
 
     def build(self, parset):
-        """ Build the full model. """
+        """Build the full model."""
 
         # First construct populations
         for k, (pop_name, pop_label, pop_type) in enumerate(zip(parset.pop_names, parset.pop_labels, parset.pop_types)):
@@ -2356,7 +2352,7 @@ class Model:
         self._exec_order = exec_order
 
     def process(self) -> None:
-        """ Run the full model. """
+        """Run the full model."""
 
         assert self._t_index == 0  # Only makes sense to process a simulation once, starting at ti=0 - this might be relaxed later on
         self._set_exec_order()  # Set the execution order again in case the user has updated the parameters etc. It is critically important that this is correct during integration

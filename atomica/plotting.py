@@ -329,7 +329,7 @@ class PlotData:
                             continue
 
                         units = list(set([output_units[x] for x in labels]))
-                        timescales = list(set([np.nan if isna(output_timescales[x]) else output_timescales[x] for x in labels])) # Ensure that None and nan don't appear as different timescales
+                        timescales = list(set([np.nan if isna(output_timescales[x]) else output_timescales[x] for x in labels]))  # Ensure that None and nan don't appear as different timescales
 
                         # Set default aggregation method depending on the units of the quantity
                         if output_aggregation is None:
