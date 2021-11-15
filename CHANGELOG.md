@@ -2,6 +2,10 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.25.8] - 2021-11-16
+
+- Improve exported results link labelling for transfers
+
 ## [1.25.7] - 2021-09-02
 
 - Update calls to `sc.asd()` to be compatible with Sciris v1.2.3
