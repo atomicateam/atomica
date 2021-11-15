@@ -15,8 +15,8 @@ def test_program_coverage_calculation():
     # ps = at.ProgramSet.new(project=P,progs=3,tvec=[2019])
     # ps.save(testdir+'test_program_calc_progbook.xlsx')
     P.load_progbook(testdir / "test_program_calc_progbook.xlsx")
-
     P.settings.update_time_vector(start=2019, end=2020, dt=0.25)
+
     ins = at.ProgramInstructions(start_year=2019)
     res = P.run_sim(parset=0, progset=0, progset_instructions=ins)
 
@@ -65,35 +65,38 @@ def test_program_coverage_calculation():
 
     assert res2.get_variable("prop_art")[0].vals[0] == 0.4  # Parameter value should correspond to 40% coverage
 
-    # TODO: Tests below for continuous programs
-    #
-    # #Test if a continuous coverage program applies correctly - this should _not_ have a dt adjusted probability or number
-    # ins3 = at.ProgramInstructions(start_year=2019, coverage={'tx_prob':0.0,'tx_num':0.0,'art':0.4, 'tx_cont':1.0})
-    # res3 = P.run_sim(parset=0,progset=0, progset_instructions=ins3)
-    #
-    # assert res3.get_variable('txrate1')[0].vals[0] == 0.5 # At this timestep, should have ANNUALIZED probability of 0.5 (100% of coverage with an effect of 0.5)
-    # assert res3.get_variable('txrate2')[0].vals[0] == 50  # At this timestep, should have ANNUALIZED flow corresponding to 100% coverage at 0.5 effect i.e. 50 people
-    #
-    # assert res3.get_variable('txrate1:flow')[0].vals[0] == 12.5
-    # assert res3.get_variable('txrate2:flow')[0].vals[0] == 12.5
-    #
-    # # Actual flow rates should be the same regardless of whether the parameter was in number or probability units
-    # assert np.all(res3.get_variable('txrate1:flow')[0].vals == res3.get_variable('txrate2:flow')[0].vals)
-    #
-    #
-    # #Test the combination of continuous coverage and one-off coverage programs
-    # ins4 = at.ProgramInstructions(start_year=2019, coverage={'tx_prob':0.5,'tx_num':0.5,'art':0.4, 'tx_cont':1.0})
-    # res4 = P.run_sim(parset=0,progset=0, progset_instructions=ins4)
-    #
-    # assert res4.get_variable('txrate1')[0].vals[0] == 0.75 # At this timestep, should have ANNUALIZED probability of 0.75 (50% coverage at 1.0 effect from tx_prob,
-    #                                                        #50% non-overlapping coverage at 0.5 effect from tx_cont)
-    # assert res4.get_variable('txrate2')[0].vals[0] == 75  # At this timestep, should have ANNUALIZED flow corresponding to the above
-    #
-    # assert res4.get_variable('txrate1:flow')[0].vals[0] == 18.75
-    # assert res4.get_variable('txrate2:flow')[0].vals[0] == 18.75
-    #
-    # # Actual flow rates should be the same regardless of whether the parameter was in number or probability units
-    # assert np.all(res4.get_variable('txrate1:flow')[0].vals == res4.get_variable('txrate2:flow')[0].vals)
+    # Coverage overwrite for continuous programs
+
+    # Test if a continuous coverage program applies correctly - this should _not_ have a dt adjusted probability or number
+    # Note that coverage that is emitted by `ProgramSet.get_prop_coverage` is
+    ins3 = at.ProgramInstructions(start_year=2019, coverage={"tx_prob": 0.0, "tx_num": 0.0, "art": 0.4, "tx_cont": 1.0})
+    res3 = P.run_sim(parset=0, progset=0, progset_instructions=ins3)
+
+    assert res3.get_variable("txrate1")[0].vals[0] == 2.0  # At this timestep, should have ANNUALIZED probability of 2.0 (100% of coverage with an effect of 0.5)
+    assert res3.get_variable("txrate2")[0].vals[0] == 200  # At this timestep, should have ANNUALIZED flow corresponding to 100% coverage at 0.5 effect i.e. 200 people/year
+
+    assert res3.get_variable("txrate1:flow")[0].vals[0] == 50
+    assert res3.get_variable("txrate2:flow")[0].vals[0] == 50
+
+    # Actual flow rates should be the same regardless of whether the parameter was in number or probability units
+    assert np.all(res3.get_variable("txrate1:flow")[0].vals == res3.get_variable("txrate2:flow")[0].vals)
+
+    # Test the combination of continuous coverage and one-off coverage programs
+    ins4 = at.ProgramInstructions(start_year=2019, coverage={"tx_prob": 0.5, "tx_num": 0.5, "art": 0.4, "tx_cont": 1.0})
+    res4 = P.run_sim(parset=0, progset=0, progset_instructions=ins4)
+
+    # 100% timestep coverage of the continuous program, with 0.5 effect
+    # 50% annual coverage = 12.5% timestep coverage of tx_prob with 1.0 effect
+    # Equates to 1*0.125+0.5*(1-0.125)=0.5625/timestep. Or 2.25 annually
+    annual_rate = (1 * 0.125 + 0.5 * (1 - 0.125)) * 4
+    assert res4.get_variable("txrate1")[0].vals[0] == annual_rate
+    assert res4.get_variable("txrate2")[0].vals[0] == annual_rate * 100  # At this timestep, should have ANNUALIZED flow corresponding to the above
+
+    assert res4.get_variable("txrate1:flow")[0].vals[0] == annual_rate * 100 / 4
+    assert res4.get_variable("txrate2:flow")[0].vals[0] == annual_rate * 100 / 4
+
+    # Actual flow rates should be the same regardless of whether the parameter was in number or probability units
+    assert np.all(res4.get_variable("txrate1:flow")[0].vals == res4.get_variable("txrate2:flow")[0].vals)
 
 
 if __name__ == "__main__":

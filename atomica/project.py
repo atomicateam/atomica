@@ -51,7 +51,7 @@ class ProjectSettings:
         self.update_time_vector(end=sim_end)
 
     def __repr__(self):
-        """ Print object """
+        """Print object"""
         output = sc.prepr(self)
         return output
 
@@ -189,7 +189,7 @@ class Project(NamedItem):
             self.data = None
 
     def __repr__(self):
-        """ Print out useful information when called """
+        """Print out useful information when called"""
         output = sc.objrepr(self)
         output += "      Project name: %s\n" % self.name
         output += "    Framework name: %s\n" % self.framework.name
@@ -228,7 +228,7 @@ class Project(NamedItem):
     # Methods for I/O and spreadsheet loading
     #######################################################################################################
     def create_databook(self, databook_path=None, num_pops=1, num_transfers=0, data_start=2000.0, data_end=2020.0, data_dt=1.0):
-        """ Generate an empty data-input Excel spreadsheet corresponding to the framework of this project. """
+        """Generate an empty data-input Excel spreadsheet corresponding to the framework of this project."""
         if databook_path is None:
             databook_path = "./databook_" + self.name + ".xlsx"
         data = ProjectData.new(self.framework, np.arange(data_start, data_end + data_dt, data_dt), pops=num_pops, transfers=num_transfers)
@@ -282,7 +282,7 @@ class Project(NamedItem):
             self.run_sim(parset="default", store_results=True)
 
     def make_parset(self, name="default"):
-        """ Transform project data into a set of parameters that can be used in model simulations. """
+        """Transform project data into a set of parameters that can be used in model simulations."""
         self.parsets.append(ParameterSet(self.framework, self.data, name))
         return self.parsets[name]
 
@@ -359,7 +359,7 @@ class Project(NamedItem):
     #    #######################################################################################################
 
     def parset(self, key=None, verbose=2):
-        """ Shortcut for getting a parset """
+        """Shortcut for getting a parset"""
         if key is None:
             key = -1
         if isinstance(key, ParameterSet):
@@ -372,7 +372,7 @@ class Project(NamedItem):
                 return None
 
     def progset(self, key=None, verbose=2):
-        """ Shortcut for getting a progset """
+        """Shortcut for getting a progset"""
         if key is None:
             key = -1
         if isinstance(key, ProgramSet):
@@ -385,7 +385,7 @@ class Project(NamedItem):
                 return None
 
     def scen(self, key=None, verbose=2):
-        """ Shortcut for getting a scenario """
+        """Shortcut for getting a scenario"""
         if key is None:
             key = -1
         if isinstance(key, Scenario):
@@ -398,7 +398,7 @@ class Project(NamedItem):
                 return None
 
     def optim(self, key=None, verbose=2):
-        """ Shortcut for getting an optimization """
+        """Shortcut for getting an optimization"""
         if key is None:
             key = -1
         if isinstance(key, Optimization):
@@ -411,7 +411,7 @@ class Project(NamedItem):
                 return None
 
     def result(self, key=None, verbose=2):
-        """ Shortcut for getting an result -- a little special since they don't have a fixed type """
+        """Shortcut for getting an result -- a little special since they don't have a fixed type"""
         if key is None:
             key = -1
         if not sc.isstring(key) and not sc.isnumber(key) and not isinstance(key, tuple):
@@ -463,7 +463,7 @@ class Project(NamedItem):
         return allfigs
 
     def update_settings(self, sim_start=None, sim_end=None, sim_dt=None):
-        """ Modify the project settings, e.g. the simulation time vector. """
+        """Modify the project settings, e.g. the simulation time vector."""
         self.settings.update_time_vector(start=sim_start, end=sim_end, dt=sim_dt)
 
     def run_sim(self, parset=None, progset=None, progset_instructions=None, store_results=False, result_name: str = None):

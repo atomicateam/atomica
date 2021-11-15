@@ -269,7 +269,7 @@ class Result(NamedItem):
             # Note that `ProgramSet.get_prop_coverage()` takes in capacity in units of 'people' which matches
             # the units of 'num_eligible' so we therefore use the returned value from `ProgramSet.get_capacities()`
             # as-is without doing any annualization
-            prop_coverage = self.model.progset.get_prop_coverage(tvec=self.t, capacities=capacities, num_eligible=num_eligible, dt=self.dt, instructions=self.model.program_instructions)
+            prop_coverage = self.model.progset.get_prop_coverage(tvec=self.t, capacities=capacities, num_eligible=num_eligible, instructions=self.model.program_instructions)
 
             if quantity in {"fraction", "annual_fraction"}:
                 output = prop_coverage
@@ -418,12 +418,12 @@ class Result(NamedItem):
                 # Sum over duplicate links and annualize flow rate
                 if link.parameter is None:
                     link_name = "-"
-                    link_label = f'{link.source.name} to {link.dest.name} (flow, no parameter)'
+                    link_label = f"{link.source.name} to {link.dest.name} (flow, no parameter)"
                 else:
                     link_name = link.name
                     link_label = gl(link.parameter.name)
-                    if link_label == '-' and link.source.pop is not link.dest.pop:
-                        link_label = f'Transfer {link.source.pop.name} to {link.dest.pop.name} (flow)'
+                    if link_label == "-" and link.source.pop is not link.dest.pop:
+                        link_label = f"Transfer {link.source.pop.name} to {link.dest.pop.name} (flow)"
                     else:
                         link_label += " (flow)"
 

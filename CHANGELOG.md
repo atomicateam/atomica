@@ -2,6 +2,66 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.25.7] - 2021-09-02
+
+- Update calls to `sc.asd()` to be compatible with Sciris v1.2.3
+- Update installation instructions to use `pip` rather than `setup.py` directly
+- Improve handling of unspecified timescales in plotting routines
+
+## [1.25.6] - 2021-07-26
+
+- Unfreeze `pandas` dependency because they have fixed some regressions that affected `atomica`
+
+## [1.25.5] - 2021-07-08
+
+- Replace deprecated ``sc.SItickformatter`` usage
+- Fix bug in program coverage overwrite timestep scaling. Coverage overwrites must always be provided in dimensionless units
+
+## [1.25.4] - 2021-06-28
+
+- Improved framework validation (informative errors raised in some additional cases)
+- Calibrations can be loaded for mismatched frameworks/databooks - missing or extra entries will be skipped without raising an error
+
+## [1.25.3] - 2021-06-03
+
+- Implemented `Population.__contains__` to easily check whether variables are defined in a population
+- Improved error message when plotting if requesting an output that is not defined in all populations
+
+## [1.25.2] - 2021-05-26
+
+- Add `ParameterSet.y_factors` as a property attribute to quickly access and set y-factors. 
+
+## [1.25.1] - 2021-05-26
+
+- Fix bug in `ProgramSet.remove_program()` - this function would previously raise an error
+
+## [1.25.0] - 2021-05-06
+
+- Added methods `ParameterSet.calibration_spreadsheet()`, `ParameterSet.save_calibration()` and `ParameterSet.load_calibration()` to allow saving calibration scale factors to spreadsheets that can be edited externally.
+
+## [1.24.4] - 2021-05-06
+
+- Fix plotting routines that were previously checking for missing timescales by checking for `None` values, and were thus missing `np.nan` values. This change was introduced around version 1.24.1 when framework validation now guarantees that the parameter timescale is a numeric type. This causes missing timescales to be populated with `nan` rather than `None`.
+- Add library framework for malaria 
+
+*Backwards-compatibility notes*
+
+- Any code checking for missing timescales by checking for a `None` value should instead use `pd.isna()` to check for `nan` _or_ `None` values 
+
+## [1.24.3] - 2021-03-25
+
+- Fixes a bug in validation that ensures parameters in 'proportion' units cannot have a timescale. Previously frameworks with this error would incorrectly pass validation
+
+## [1.24.1] - 2021-03-09
+
+- Added validation of plots sheet in framework file
+- Allow validating a framework multiple times
+- Fix an edge case with timed transitions and split transition matrices
+
+*Backwards-compatibility notes*
+
+- In rare cases, if an existing framework file contains an error that was not previously detected, it may now produce an error when loaded. Such errors indicate problems in the framework that should be debugged as usual. 
+
 ## [1.23.4] - 2020-12-14
 
 - Fix bug where program outcomes were not correctly applied if overwriting a function parameter that does not impact any transitions

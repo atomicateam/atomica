@@ -7,11 +7,14 @@ values that are used to scale model parameters. Therefore, every parameter
 in the model appears in the parset, not just the parameters in the databook.
 
 """
-
+import io
 from collections import defaultdict
 import numpy as np
+import pandas as pd
+
 import sciris as sc
 from .utils import NamedItem, TimeSeries
+from .system import logger
 import scipy.interpolate
 
 __all__ = ["Parameter", "ParameterSet"]
@@ -266,16 +269,16 @@ class ParameterSet(NamedItem):
         """
 
         if name in self.pars:
-            assert pop is None, f'"{name}" is a parameter so the ``pop`` should not be specified'
+            assert pd.isna(pop), f'"{name}" is a parameter so the ``pop`` should not be specified'
             return self.pars[name]
         elif name in self.transfers:
-            assert pop is not None, f'"{name}" is a transfer, so the ``pop`` must be specified'
+            assert not pd.isna(pop), f'"{name}" is a transfer, so the ``pop`` must be specified'
             return self.transfers[name][pop]
         elif name in self.interactions:
-            assert pop is not None, f'"{name}" is an interaction, so the ``pop`` must be specified'
+            assert not pd.isna(pop), f'"{name}" is an interaction, so the ``pop`` must be specified'
             return self.interactions[name][pop]
         else:
-            raise Exception(f'Parameter "{name}" not found')
+            raise KeyError(f'Parameter "{name}" not found')
 
     def sample(self, constant=True):
         """
@@ -291,3 +294,100 @@ class ParameterSet(NamedItem):
         for par in new.all_pars():
             par.sample(constant)
         return new
+
+    ### SAVE AND LOAD CALIBRATION (Y-FACTORS)
+    @property
+    def y_factors(self) -> dict:
+        """
+        Return y-values in a dictionary
+
+        Note that any missing populations reflect population types. For example, the
+        dictionary for a parameter in one population type will not contain any entries
+        for populations that belong to another type
+
+        :return: Dictionary keyed by ``(par, pop)`` containing a dict of y-values
+        """
+        y_factors = {}
+
+        for par_name, par in self.pars.items():
+            y_factors[(par_name, None)] = sc.mergedicts({"meta_y_factor": par.meta_y_factor}, par.y_factor)
+
+        for par_name, d in self.interactions.items() + self.transfers.items():
+            for pop_name, par in d.items():
+                y_factors[(par_name, pop_name)] = sc.mergedicts({"meta_y_factor": par.meta_y_factor}, par.y_factor)
+
+        return y_factors
+
+    def calibration_spreadsheet(self) -> sc.Spreadsheet:
+        """
+        Return y-values in a spreadsheet
+
+        Note that the tabular structure contains missing entries for any interactions
+        that don't exist (e.g. due to missing population types) - these can be identified
+        with ``pd.isna``
+
+        :return: Spreadsheet containing y-factors in tabular form
+        """
+
+        df = pd.DataFrame(self.y_factors).T
+        df.index.set_names(["par", "pop"], inplace=True)
+
+        b = io.BytesIO()
+        df.to_excel(b, merge_cells=False)
+
+        return sc.Spreadsheet(b)
+
+    def save_calibration(self, fname) -> None:
+        """
+        Save y-values to file
+
+        :param fname: ``str`` or ``Path`` specifying location of file to save
+
+        """
+        ss = self.calibration_spreadsheet()
+        ss.save(fname)
+
+    def load_calibration(self, spreadsheet: sc.Spreadsheet) -> None:
+        """
+        Load calibration y-factors
+
+        This function reads a spreadsheet created by ``ParameterSet.save_calibration()`` and
+        inserts the y-factors. It is permissive in that
+
+        - If y-factors are present in the spreadsheet and not in the ``ParameterSet`` then they
+          will be skipped
+        - If y-factors are missing in the spreadsheet, the existing values will be maintained
+
+        :param spreadsheet:
+        :return:
+        """
+        if not isinstance(spreadsheet, sc.Spreadsheet):
+            spreadsheet = sc.Spreadsheet(spreadsheet)
+
+        df = spreadsheet.pandas().parse()
+        df.set_index(["par", "pop"], inplace=True)
+
+        for (par_name, pop_name), values in df.to_dict(orient="index").items():
+
+            try:
+                par = self.get_par(par_name, pop_name)
+            except KeyError:
+                if pop_name:
+                    logger.debug(f"{par.name} in {pop_name} was not found, ignoring y-factors for this quantity")
+                else:
+                    logger.debug(f"{par.name} was not found, ignoring y-factors for this quantity")
+                continue
+
+            for k, v in values.items():
+                if pd.isna(v):
+                    continue
+
+                if k == "meta_y_factor":
+                    par.meta_y_factor = v
+                else:
+                    if k in par.y_factor:
+                        par.y_factor[k] = v
+                    else:
+                        logger.debug(f"The ParameterSet does not define a y-factor for {par.name} in the {k} population (e.g., because the population type does not match the parameter) - skipping")
+
+        logger.debug("Loaded calibration from file")

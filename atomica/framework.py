@@ -95,7 +95,7 @@ class ProjectFramework:
             self.name = name
 
     def __repr__(self):
-        """ Print object """
+        """Print object"""
         output = sc.prepr(self)
         return output
 
@@ -464,7 +464,7 @@ class ProjectFramework:
 
                             if self.comps.at[from_comp, "is source"] == "y" or self.comps.at[from_comp, "is sink"] == "y" or self.comps.at[from_comp, "is junction"] == "y":
                                 raise InvalidFramework(f'Parameter "{par_name}" defines a timed outflow from Compartment "{from_comp}" but timed outflows cannot be applied to source, sink, or junction compartments')
-                            elif par_name in set(df.loc[to_comp]):
+                            elif self.comps.at[to_comp, "duration group"] == par_name:
                                 raise InvalidFramework(f'Compartment "{from_comp}" belongs to the duration group "{par_name}" but it flushes into "{to_comp}" which is a member of the same group. Flushing into the same duration group is not permitted')
 
                         self.transitions[par_name].append((from_comp, to_comp))
@@ -644,11 +644,22 @@ class ProjectFramework:
                 if row["denominator"] in self.comps.index:
                     if row["population type"] != self.comps.at[row["denominator"], "population type"]:
                         raise InvalidFramework('In Characteristic "%s", included compartment "%s" does not have a matching population type' % (charac_name, row["denominator"]))
+
+                    if (row["setup weight"] > 0) and self.comps.at[row["denominator"], "databook page"] is None:
+                        # Check that denominators appear in the databook as described in https://github.com/atomicateam/atomica/issues/433
+                        raise InvalidFramework('Characteristic "%s" is being used for initialization, but the denominator compartment "%s" does not appear in the databook. Denominators that are used in initialization must appear in the databook ' % (charac_name, row["denominator"]))
+
                 elif row["denominator"] in self.characs.index:
                     if row["population type"] != self.characs.at[row["denominator"], "population type"]:
                         raise InvalidFramework('In Characteristic "%s", included characteristic "%s" does not have a matching population type' % (charac_name, row["denominator"]))
+
                     if not (self.characs.loc[row["denominator"]]["denominator"] is None):
                         raise InvalidFramework('Characteristic "%s" uses the characteristic "%s" as a denominator. However, "%s" also has a denominator, which means that it cannot be used as a denominator for "%s"' % (charac_name, row["denominator"], row["denominator"], charac_name))
+
+                    if (row["setup weight"] > 0) and self.characs.at[row["denominator"], "databook page"] is None:
+                        # Check that denominators appear in the databook as described in https://github.com/atomicateam/atomica/issues/433
+                        raise InvalidFramework('Characteristic "%s" is being used for initialization, but the denominator characteristic "%s" does not appear in the databook. Denominators that are used in initialization must appear in the databook ' % (charac_name, row["denominator"]))
+
                 else:
                     raise InvalidFramework('In Characteristic "%s", denominator "%s" was not recognized as a Compartment or Characteristic' % (charac_name, row["denominator"]))
 
@@ -778,9 +789,9 @@ class ProjectFramework:
                     # For number and probability, non-transition parameters might not be be in units per time period, therefore having a timescale
                     # is optional *unless* it is a transition parameter
                     self.pars.at[par_name, "timescale"] = 1.0
-                elif np.isfinite(par["timescale"]) and par["format"] == FS.QUANTITY_TYPE_PROPORTION:
-                    # Proportion units should never have a timescale since they are time-invariant
-                    raise InvalidFramework("Parameter %s is in proportion units, therefore it cannot have a timescale entered for it" % par_name)
+            elif par["format"] == FS.QUANTITY_TYPE_PROPORTION:
+                # Proportion units should never have a timescale since they are time-invariant
+                raise InvalidFramework("Parameter %s is in proportion units, therefore it cannot have a timescale entered for it" % par_name)
 
             if par["timed"] == "y":
                 if par["format"] != FS.QUANTITY_TYPE_DURATION:
@@ -1075,6 +1086,10 @@ class ProjectFramework:
         except Exception as e:
             message = 'An error was detected on the "Plots" sheet in the Framework file'
             raise Exception("%s -> %s" % (message, e)) from e
+
+        if not self.sheets["plots"][0]["name"].is_unique:
+            duplicates = list(self.sheets["plots"][0]["name"][self.sheets["plots"][0]["name"].duplicated()])
+            raise InvalidFramework(f'Error on "Plots" sheet -> the "Name" column contains duplicate items: {duplicates}')
 
         for quantity in self.sheets["plots"][0]["quantities"]:
             for variables in _extract_labels(sc.promotetolist(evaluate_plot_string(quantity))):

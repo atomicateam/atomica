@@ -10,6 +10,7 @@ import itertools
 import os
 import errno
 from collections import defaultdict
+from pandas import isna
 
 import numpy as np
 import scipy.interpolate
@@ -23,10 +24,11 @@ from matplotlib.lines import Line2D
 from matplotlib.patches import Rectangle, Patch
 from matplotlib.ticker import FuncFormatter
 
+import atomica
 import sciris as sc
-from .model import Compartment, Characteristic, Parameter, Link, TimedLink, SourceCompartment, JunctionCompartment, SinkCompartment
+from .model import Compartment, Characteristic, Parameter, Link, SourceCompartment, JunctionCompartment, SinkCompartment
 from .results import Result
-from .system import logger
+from .system import logger, NotFoundError
 from .function_parser import parse_function
 from .system import FrameworkSettings as FS
 from .utils import format_duration, nested_loop
@@ -232,7 +234,13 @@ class PlotData:
 
                 # First pass, extract the original output quantities, summing links and annualizing as required
                 for output_label in outputs_required:
-                    vars = pop.get_variable(output_label)
+
+                    try:
+                        vars = pop.get_variable(output_label)
+                    except NotFoundError as e:
+                        in_pops = [x.name for x in result.model.pops if output_label in x]
+                        message = f'Variable "{output_label}" was requested in population "{pop.name}" but it is only defined in these populations: {in_pops}'
+                        raise NotFoundError(message) from e
 
                     if vars[0].vals is None:
                         raise Exception('Requested output "%s" was not recorded because only partial results were saved' % (vars[0].name))
@@ -321,7 +329,7 @@ class PlotData:
                             continue
 
                         units = list(set([output_units[x] for x in labels]))
-                        timescales = list(set([output_timescales[x] for x in labels]))
+                        timescales = list(set([np.nan if isna(output_timescales[x]) else output_timescales[x] for x in labels]))  # Ensure that None and nan don't appear as different timescales
 
                         # Set default aggregation method depending on the units of the quantity
                         if output_aggregation is None:
@@ -432,7 +440,7 @@ class PlotData:
 
         for s in self.series:
             if accumulation_method == "sum":
-                if s.timescale is not None:
+                if not isna(s.timescale):
                     raise Exception('Quantity "%s" has timescale %g which means it should be accumulated by integration, not summation' % (s.output, s.timescale))
                 s.vals = np.cumsum(s.vals)
             elif accumulation_method == "integrate":
@@ -444,7 +452,7 @@ class PlotData:
 
                 # If integrating a quantity with a timescale, then lose the timescale factor
                 # Otherwise, the units pick up a factor of time
-                if s.timescale is not None:
+                if not isna(s.timescale):
                     s.timescale = None
                 else:
                     if s.units == "Number of people":
@@ -474,8 +482,8 @@ class PlotData:
         time aggregation can be chained with other operations, the same as `PlotData.interpolate()`.
 
         :param t_bins: Vector of bin edges OR a scalar bin size, which will be automatically expanded to a vector of bin edges
-        :param time_aggregation: can be 'sum' or 'average'. Note that for quantities that have a timescale, 'sum' behaves like integration
-                                 so flow parameters in number units will be adjusted accordingly (e.g. a parameter in units of 'people/day'
+        :param time_aggregation: can be 'integrate' or 'average'. Note that for quantities that have a timescale, flow parameters
+                                 in number units will be adjusted accordingly (e.g. a parameter in units of 'people/day'
                                  aggregated over a 1 year period will display as the equivalent number of people that year)
         :param interpolation_method: Assumption on how the quantity behaves in between timesteps - in general, 'linear' should be suitable for
                                      most dynamic quantities, while 'previous' should be used for spending and other program-related quantities.
@@ -523,7 +531,7 @@ class PlotData:
                 if method == "integrate" and s.units in {FS.QUANTITY_TYPE_DURATION, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_RATE, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_FRACTION}:
                     logger.warning('Units for series "%s" are "%s" so time aggregation should probably be "average", not "integrate"', s, s.units)
 
-            if s.timescale is not None:
+            if not isna(s.timescale):
                 scale = s.timescale
             else:
                 scale = 1.0
@@ -549,7 +557,7 @@ class PlotData:
                 s.vals = np.array(vals)
 
                 # If integrating the units might change
-                if s.timescale is not None:
+                if not isna(s.timescale):
                     # Any flow rates get integrated over the bin width, so change the timescale to None
                     # If the units were 'duration', this doesn't make sense, but integrating a duration doesn't
                     # make sense either. This would only happen if the user explicitly requests it anyway. For example,
@@ -839,6 +847,8 @@ class PlotData:
             plotdata.outputs[key] = results[0].model.progset.programs[key].label if key in results[0].model.progset.programs else key
 
         if t_bins is not None:
+            # TODO - time aggregation of coverage_number by integration should only be applied to one-off programs
+            # TODO - confirm time aggregation of spending is correct for the units entered in databook or in overwrites
             if quantity in {"spending", "equivalent_spending", "coverage_number"}:
                 plotdata.time_aggregate(t_bins, "integrate", interpolation_method="previous")
             elif quantity in {"coverage_eligible", "coverage_fraction"}:
@@ -1024,7 +1034,7 @@ class Series:
             logger.warning("%s contains NaNs", self)
 
     @property
-    def unit_string(self):
+    def unit_string(self) -> str:
         """
         Return the units for the quantity including timescale
 
@@ -1034,11 +1044,13 @@ class Series:
         The unit of the quantity is interpreted as a numerator if the Timescale is not None. For example,
         Compartments have units of 'number', while Links have units of 'number/timestep' which is stored as
         ``Series.units='number'`` and ``Series.timescale=0.25`` (if ``dt=0.25``). The `unit_string` attribute
+        returns a string that is suitable to use for plots e.g. 'number per week'.
 
-        :return:
+        :return: A string representation of the units for use in plotting
+
         """
 
-        if self.timescale is not None:
+        if not isna(self.timescale):
             if self.units == FS.QUANTITY_TYPE_DURATION:
                 return "%s" % (format_duration(self.timescale, True))
             else:
@@ -1334,7 +1346,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer=None, legend_
         ax.set_yticks([x[0] for x in block_labels])
         ax.set_yticklabels([x[1] for x in block_labels])
         ax.invert_yaxis()
-        ax.xaxis.set_major_formatter(FuncFormatter(sc.SItickformatter))
+        sc.SIticks(ax=ax, axis="x")
     else:
         ax.set_xlim(left=-2 * gaps[0], right=block_offset + base_offset)
         fig.set_figwidth(1.1 + 1.1 * (block_offset + base_offset))
@@ -1345,7 +1357,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer=None, legend_
             ax.spines["top"].set_position("zero")
         ax.set_xticks([x[0] for x in block_labels])
         ax.set_xticklabels([x[1] for x in block_labels])
-        ax.yaxis.set_major_formatter(FuncFormatter(sc.SItickformatter))
+        sc.SIticks(ax=ax, axis="y")
 
     # Calculate the units. As all bar patches are shown on the same axis, they are all expected to have the
     # same units. If they do not, the plot could be misleading
@@ -1626,7 +1638,7 @@ def _apply_series_formatting(ax, plot_type) -> None:
         ax.set_ylabel("Proportion " + ax.get_ylabel())
     else:
         ax.set_ylim(top=ax.get_ylim()[1] * 1.05)
-    ax.yaxis.set_major_formatter(FuncFormatter(sc.SItickformatter))
+    sc.SIticks(ax=ax, axis="y")
 
 
 def _turn_off_border(ax) -> None:
