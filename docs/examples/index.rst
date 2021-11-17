@@ -17,4 +17,5 @@ notebooks to try them out interactively and explore the effect of making changes
     Plot-Programs
     Plot-Units
     Probability-Rescaling
+    Scenarios
     Uncertainty

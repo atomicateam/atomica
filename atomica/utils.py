@@ -3,23 +3,60 @@ Define utility classes used throughout Atomica
 
 """
 
-import inspect
-import os
 import ast
-from bisect import bisect
+import inspect
+import itertools
+import logging
+import os
+import re
+import time
+import zlib
+from bisect import bisect_right, bisect_left
+from datetime import datetime
+from functools import partial
+from pathlib import Path
+
 import numpy as np
 import scipy.interpolate
+from tqdm import tqdm
+
 import sciris as sc
-import itertools
+from .system import logger
+
+__all__ = [
+    "NamedItem",
+    "NDict",
+    "TimeSeries",
+    "Quiet",
+    "parent_dir",
+    "evaluate_plot_string",
+    "format_duration",
+    "nested_loop",
+    "fast_gitinfo",
+    "datetime_to_year",
+    "parallel_progress",
+    "start_logging",
+    "stop_logging",
+]
 
 
-def parent_dir():
-    # Return the parent directory of the file that called this function
-    return os.path.join(os.path.abspath(os.path.join(inspect.stack()[1][1], os.pardir)), '')
+def parent_dir() -> Path:
+    """
+    Return the parent directory of current file
+
+    This function returns a Path object for the folder containing the file that called this function
+    e.g. if the file on disk is `foo/bar/baz.py` and `baz.py` contains `x = at.parent_dir()` then
+    `x` would be an absolute path corresponding to `Path('foo/bar')`
+
+    :return: Path object to the directory containing calling file
+
+    """
+
+    return Path(inspect.stack()[1][1]).parent
 
 
-class NamedItem():
-    def __init__(self, name:str=None):
+class NamedItem:
+    def __init__(self, name: str = None):
         """
         NamedItem constructor
 
@@ -28,10 +65,10 @@ class NamedItem():
         :param name:
         """
         if name is None:
-            name = '<unnamed>'
+            name = "<unnamed>"
         self.name = name
-        self.created = sc.now()
-        self.modified = sc.now()
+        self.created = sc.now(utc=True)
+        self.modified = sc.now(utc=True)
 
     def copy(self, name=None):
         x = sc.dcp(self)
@@ -62,7 +99,7 @@ class NDict(sc.odict):
         # If it is a NamedItem, then synchronize the name of the object with the specified string key
         if sc.isstring(key) and isinstance(item, NamedItem):
             item.name = key
-            item.modified = sc.now()
+            item.modified = sc.now(utc=True)
         return None
 
     def append(self, value):
@@ -92,7 +129,7 @@ class NDict(sc.odict):
         return self[new]
 
 
-class TimeSeries(object):
+class TimeSeries:
     """
     Class to store time-series data
 
@@ -110,11 +147,11 @@ class TimeSeries(object):
 
     """
 
-    def __init__(self, t=None, vals=None, units: str = None, assumption: float = None, sigma: float = None):
-        t = sc.promotetolist(t) if t is not None else list()
-        vals = sc.promotetolist(vals) if vals is not None else list()
+    # Use slots here to guarantee that __deepcopy__() and __eq__() only have to check these
+    # specific fields - otherwise, would need to do a more complex recursive dict comparison
+    __slots__ = ["t", "vals", "units", "assumption", "sigma", "_sampled"]
 
-        assert len(t) == len(vals)
+    def __init__(self, t=None, vals=None, units: str = None, assumption: float = None, sigma: float = None):
 
         self.t = []  #: Sorted array of time points. Normally interacted with via methods like :meth:`insert()`
         self.vals = []  #: Time-specific values - indices correspond to ``self.t``
@@ -123,12 +160,27 @@ class TimeSeries(object):
         self.sigma = sigma  #: Uncertainty value, assumed to be a standard deviation
         self._sampled = False  #: Flag to indicate whether sampling has been performed. Once sampling has been performed, cannot sample again
 
-        for tx, vx in zip(t, vals):
-            self.insert(tx, vx)
+        # Using insert() means that array/list inputs containing None or duplicate entries will
+        # be sanitized via insert()
+        self.insert(t, vals)
 
     def __repr__(self):
         output = sc.prepr(self)
         return output
+
+    def __eq__(self, other):
+        """
+        Check TimeSeries equality
+
+        Two TimeSeries instances are equal if all of their attributes are equal. This is easy to
+        implement because `==` is directly defined for all of the attribute types (lists and scalars)
+        and due to `__slots__` there are guaranteed not to be any other attributes
+
+        :param other:
+        :return:
+        """
+
+        return all(getattr(self, x) == getattr(other, x) for x in self.__slots__)
 
     def __deepcopy__(self, memodict={}):
         new = TimeSeries.__new__(TimeSeries)
@@ -139,6 +191,23 @@ class TimeSeries(object):
         new.sigma = self.sigma
         new._sampled = self._sampled
         return new
+
+    def __getstate__(self):
+        return dict([(k, getattr(self, k, None)) for k in self.__slots__])
+
+    def __setstate__(self, data):
+
+        if "format" in data:
+            # 'format' was changed to 'units' but the attribute was not dropped, however now this is a
+            # hard error because of the switch to __slots__ so we need to make sure it gets removed.
+            # This can't be done as a Migration because a Migration expects an instance of the
+            data = sc.dcp(data)
+            if "units" not in data:
+                data["units"] = data["format"]
+            del data["format"]
+
+        for k, v in data.items():
+            setattr(self, k, v)
 
     # The operators for + and * below are prototypes but haven't been added
     # The reason is because they add a lot of complexity to the usage of the class
@@ -299,7 +368,7 @@ class TimeSeries(object):
 
     def insert(self, t, v) -> None:
         """
-        Insert a value at a particular time
+        Insert a value or list of at a particular time
 
         If the value already exists in the ``TimeSeries``, it will be overwritten/updated.
         The arrays are internally sorted by time value, and this order will be maintained.
@@ -309,18 +378,33 @@ class TimeSeries(object):
 
         """
 
-        if v is None:  # Can't cast a None to a float, just skip it
+        # Check if inputs are iterable
+        iterable_input = True
+        try:
+            assert len(t) == len(v), "Cannot insert non-matching lengths or types of time and values %s and %s" % (t, v)
+        except TypeError:
+            iterable_input = False
+
+        # If inputs are iterable, call insert() for each zipped item
+        if iterable_input:
+            for ti, vi in zip(t, v):
+                self.insert(ti, vi)
+            return
+
+        if v is None:  # Can't cast a None to a float, so just skip it
             return
 
         v = float(v)  # Convert input to float
 
-        if t is None:
+        if t is None:  # Store the value in the assumption
             self.assumption = v
-        elif t in self.t:
-            idx = self.t.index(t)
+            return
+
+        idx = bisect_left(self.t, t)
+        if idx < len(self.t) and self.t[idx] == t:
+            # Overwrite an existing entry
             self.vals[idx] = v
         else:
-            idx = bisect(self.t, t)
             self.t.insert(idx, t)
             self.vals.insert(idx, v)
 
@@ -373,7 +457,13 @@ class TimeSeries(object):
             v = np.array(self.vals)
         return t, v
 
-    def remove(self, t):
+    def remove(self, t) -> None:
+        """
+        Remove single time point
+
+        :param t: Time value to remove. Set to ``None`` to remove the assumption
+
+        """
         # To remove the assumption, set t=None
         if t is None:
             self.assumption = None
@@ -382,13 +472,14 @@ class TimeSeries(object):
             del self.t[idx]
             del self.vals[idx]
         else:
-            raise Exception('Item not found')
+            raise Exception("Item not found")
 
-    def remove_before(self,t_remove) -> None:
+    def remove_before(self, t_remove) -> None:
         """
         Remove times from start
 
         :param tval: Remove times up to but not including this time
+
         """
 
         for tval in sc.dcp(self.t):
@@ -400,38 +491,102 @@ class TimeSeries(object):
         Remove times from start
 
         :param tval: Remove times up to but not including this time
+
         """
 
         for tval in sc.dcp(self.t):
             if tval > t_remove:
                 self.remove(tval)
 
-    def remove_between(self, t_remove):
-        # t is a two element vector [min,max] such that
-        # times > min and < max are removed
-        # Note that the endpoints are not included!
+    def remove_between(self, t_remove) -> None:
+        """
+        Remove a range of times
+
+        Note that the endpoints are not included
+
+        :param t_remove: two element iterable e.g. array, with [min,max] times
+
+        """
+
         for tval in sc.dcp(self.t):
             if t_remove[0] < tval < t_remove[1]:
                 self.remove(tval)
 
-    def interpolate(self, t2: np.array) -> np.array:
+    def interpolate(self, t2: np.array, method="linear", **kwargs) -> np.array:
         """
         Return interpolated values
 
+        This method returns interpolated values from the time series at time points `t2`
+        according to a given interpolation method. There are 4 possibilities for the method
+
+        - 'linear' - normal linear interpolation (with constant, zero-gradient extrapolation)
+        - 'pchip' - legacy interpolation with some curvature between points (with constant, zero-gradient extrapolation)
+        - 'previous' - stepped interpolation, maintain value until the next timepoint is reached (with constant, zero-gradient extrapolation)
+        - Interpolation class or generator function
+
+        That final option allows the use of arbitrary interpolation methods. The underlying call will be
+
+            c = method(t1, v1, **kwargs)
+            return c(t2)
+
+        so for example, if you wanted to use the base Scipy pchip method with no extrapolation, then could pass in
+
+            TimeSeries.interpolate(...,method=scipy.interpolate.PchipInterpolator)
+
+        Note that the following special behaviours apply:
+
+        - If there is no data at all, this function will return ``np.nan`` for all requested time points
+        - If only an assumption exists, this assumption will be returned for all requested time points
+        - Otherwise, arrays will be formed with all finite time values
+            - If no finite time values remain, an error will be raised (in general, a TimeSeries should not store such values anyway)
+            - If only one finite time value remains, then that value will be returned for all requested time points
+            - Otherwise, the specified interpolation method will be used
+
         :param t2: float, list, or array, with times
+        :param method: A string 'linear', 'pchip' or 'previous' OR a callable item that returns an Interpolator
         :return: array the same length as t2, with interpolated values
 
         """
 
         t2 = sc.promotetoarray(t2)  # Deal with case where user prompts for single time point
 
+        # Deal with not having time-specific data first
         if not self.has_data:
             return np.full(t2.shape, np.nan)
         elif not self.has_time_data:
             return np.full(t2.shape, self.assumption)
 
+        # Then, deal with having only 0 or 1 valid time points
         t1, v1 = self.get_arrays()
-        return interpolate(t1, v1, t2)
+        idx = ~np.isnan(t1) & ~np.isnan(v1)
+        t1, v1 = t1[idx], v1[idx]
+        if t1.size == 0:
+            raise Exception("No time points remained after removing NaNs from the TimeSeries")
+        elif t1.size == 1:
+            return np.full(t2.shape, v1[0])
+
+        # # Finally, perform interpolation
+        if sc.isstring(method):
+            if method == "linear":
+                # Default linear interpolation
+                return np.interp(t2, t1, v1, left=v1[0], right=v1[-1])
+            elif method == "pchip":
+                # Legacy pchip interpolation
+                f = scipy.interpolate.PchipInterpolator(t1, v1, axis=0, extrapolate=False)
+                y2 = np.zeros(t2.shape)
+                y2[(t2 >= t1[0]) & (t2 <= t1[-1])] = f(t2[(t2 >= t1[0]) & (t2 <= t1[-1])])
+                y2[t2 < t1[0]] = v1[0]
+                y2[t2 > t1[-1]] = v1[-1]
+                return y2
+            elif method == "previous":
+                return scipy.interpolate.interp1d(t1, v1, kind="previous", copy=False, assume_sorted=True, bounds_error=False, fill_value=(v1[0], v1[-1]))(t2)
+            else:
+                raise Exception('Unknown interpolation type - must be one of "linear", "pchip", or "previous"')
+
+        # Otherwise, `method` is a callable (class instance e.g. `scipy.interpolate.PchipInterpolator` or generating function) that
+        # produces a callable function representation of the interpolation. This function is then called with the new time points
+        interpolator = method(t1, v1, **kwargs)
+        return interpolator(t2)
 
     def sample(self, constant=True):
         """
@@ -447,7 +602,7 @@ class TimeSeries(object):
         """
 
         if self._sampled:
-            raise Exception('Sampling has already been performed - can only sample once')
+            raise Exception("Sampling has already been performed - can only sample once")
 
         new = self.copy()
         if self.sigma is not None:
@@ -457,11 +612,11 @@ class TimeSeries(object):
 
             if constant:
                 # Use the same delta for all data points
-                new.vals = [v+delta for v in new.vals]
+                new.vals = [v + delta for v in new.vals]
             else:
                 # Sample again for each data point
                 for i, (v, delta) in enumerate(zip(new.vals, self.sigma * np.random.randn(len(new.vals)))):
-                    new.vals[i] = v+delta
+                    new.vals[i] = v + delta
 
         # Sampling flag only needs to be set if the TimeSeries had data to change
         if new.has_data:
@@ -495,14 +650,14 @@ def evaluate_plot_string(plot_string: str):
     :return: Evaluated expression, the same as if it has originally been entered in a .py file
     """
 
-    if '{' in plot_string or '[' in plot_string:
+    if "{" in plot_string or "[" in plot_string:
         # Evaluate the string to set lists and dicts - do at least a little validation
-        assert '__' not in plot_string, 'Cannot use double underscores in functions'
+        assert "__" not in plot_string, "Cannot use double underscores in functions"
         assert len(plot_string) < 1800  # Function string must be less than 1800 characters
-        fcn_ast = ast.parse(plot_string, mode='eval')
+        fcn_ast = ast.parse(plot_string, mode="eval")
         for node in ast.walk(fcn_ast):
             if not (node is fcn_ast):
-                assert isinstance(node, ast.Dict) or isinstance(node, ast.Str) or isinstance(node, ast.List) or isinstance(node, ast.Load), 'Only allowed to initialize lists and dicts of strings here'
+                assert isinstance(node, ast.Dict) or isinstance(node, ast.Str) or isinstance(node, ast.List) or isinstance(node, ast.Load), "Only allowed to initialize lists and dicts of strings here"
         compiled_code = compile(fcn_ast, filename="<ast>", mode="eval")
         return eval(compiled_code)
     else:
@@ -544,139 +699,30 @@ def format_duration(t: float, pluralize=False) -> str:
     # First decide the base units
     if t >= 1.0:
         base_scale = 1
-        timescale = 'year'
+        timescale = "year"
     elif t >= 1 / 12:
         base_scale = 1 / 12
-        timescale = 'month'
+        timescale = "month"
     elif t >= 1 / 26:
         base_scale = 1 / 26
-        timescale = 'fortnight'
+        timescale = "fortnight"
     elif t >= 1 / 52:
         base_scale = 1 / 52
-        timescale = 'week'
+        timescale = "week"
     else:
         base_scale = 1 / 365
-        timescale = 'day'
+        timescale = "day"
 
     # Then, work out how many of the base unit there are
     converted_t = t / base_scale
 
     # If there is only one of the base unit, then return the timescale as the final string
     if abs(converted_t - 1.0) < 1e-5:
-        return (timescale + 's') if pluralize else timescale
+        return (timescale + "s") if pluralize else timescale
     elif converted_t % 1 < 1e-3:  # If it's sufficiently close to an integer, show it as an integer
-        return '%d %ss' % (converted_t, timescale)
+        return "%d %ss" % (converted_t, timescale)
     else:
-        return '%s %ss' % (sc.sigfig(converted_t, keepints=True, sigfigs=3), timescale)
-
-def interpolate(x: np.array, y: np.array, x2: np.array, extrapolate=True) -> np.array:
-    """
-    pchip interpolation with constant extrapolation
-    Atomica's standard interpolation routine is based on the pchip method. However, when
-    extrapolation is desired (such as when interpolating parameters), it is most useful to
-    assume the derivative is zero outside the original range of the function, rather than
-    the default pchip behaviour of extrapolating with constant gradient.
-    :param x: Original x values
-    :param y: Original function values
-    :param x2: New desired x values
-    :param extrapolate: If True, use constant interpolation outside the original domain. Otherwise,
-                        the function value will be NaN. Note that in general, model outputs
-                        should not be extrapolated
-    :return: Array the same size as ``x2`` with interpolated values
-    """
-
-    # Remove NaNs - note that advanced indexing means that the variable is copied
-    idx = ~np.isnan(x) & ~np.isnan(y)
-    x = x[idx]
-    y = y[idx]
-
-    if x.size == 0:
-        raise Exception('No time points remained after removing NaNs from the TimeSeries')
-    elif x.size == 1:
-        return np.full(x2.shape, y[0])
-    else:
-        f = scipy.interpolate.PchipInterpolator(x, y, axis=0, extrapolate=False)
-        if extrapolate:
-            y2 = np.zeros(x2.shape)
-            y2[(x2 >= x[0]) & (x2 <= x[-1])] = f(x2[(x2 >= x[0]) & (x2 <= x[-1])])
-            y2[x2 < x[0]] = y[0]
-            y2[x2 > x[-1]] = y[-1]
-        else:
-            y2 = f(x2)  # PchipInterpolator will return NaNs outside the domain
-        return y2
-
-    # TODO - Implementation below uses linear interpolation
-    # idx = ~np.isnan(x) & ~np.isnan(y)
-    # x = x[idx]
-    # y = y[idx]
-    #
-    # if x.size == 0:
-    #     raise Exception('No time points remained after removing NaNs from the TimeSeries')
-    # elif x.size == 1:
-    #     return np.full(x2.shape, y[0])
-    # else:
-    #     if extrapolate:
-    #         f = scipy.interpolate.interp1d(x, y, kind='linear',copy=False, assume_sorted=True,bounds_error=False,fill_value=(y[0],y[-1]))
-    #     else:
-    #         f = scipy.interpolate.interp1d(x, y, kind='linear',copy=False, assume_sorted=True,bounds_error=False,fill_value=np.nan)
-    #     return f(x2)
-
-
-
-def floor_interpolator(x, y):
-    """
-    Stepped (single-sided nearest neighbour) interpolation
-
-    This returns a function that does interpolation where the return value
-    corresponds to the nearest smaller neighbour (and NaN if extrapolating)
-
-    :param x: Original x values
-    :param y: Original y values
-    :return: Function object `f(x)` that performs interpolation
-
-    Example usage:
-
-    >>> f = floor_interpolator([1,2,3,4],[1,2,3,4])
-    >>> (f(0.5) )
-    [nan]
-    >>> (f(1))
-    [1.]
-    >>> (f(1.5))
-    [1.]
-    >>> (f(2))
-    [2.]
-    >>> (f(4))
-    [4.]
-    >>> (f(5))
-    [nan]
-    >>> (f([0.5,1,1.5,2,4,5]))
-    [nan  1.  1.  2.  4. nan]
-
-    """
-    # Return a function that returns the floor interpolation for given values (and NaN if out of range)
-    x = sc.promotetoarray(x)
-    y = sc.promotetoarray(y)
-
-    idx = np.argsort(x)
-    x = x[idx]
-    y = y[idx]
-
-    def f(x2):
-        x2 = sc.promotetoarray(x2)
-        out = np.full(x2.shape, np.nan)
-        for i, v in enumerate(x2):
-            if v > x[-1]:
-                continue
-
-            flt = np.where(x <= v)[0]
-            if not len(flt):
-                continue
-
-            out[i] = y[flt[-1]]
-
-        return out
-
-    return f
+        return "%s %ss" % (sc.sigfig(converted_t, keepints=True, sigfigs=3), timescale)
 
 
 def nested_loop(inputs, loop_order):
@@ -710,7 +756,7 @@ def nested_loop(inputs, loop_order):
 
     """
 
-    loop_order = list(loop_order) # Convert to list, in case loop order was passed in as a generator e.g. from map()
+    loop_order = list(loop_order)  # Convert to list, in case loop order was passed in as a generator e.g. from map()
     inputs = [inputs[i] for i in loop_order]
     iterator = itertools.product(*inputs)  # This is in the loop order
     for item in iterator:
@@ -718,3 +764,276 @@ def nested_loop(inputs, loop_order):
         for i in range(len(item)):
             out[loop_order[i]] = item[i]
         yield out
+
+
+def fast_gitinfo(path):
+    """
+    Retrieve git info
+
+    This function reads git branch and commit information from a .git directory.
+    Given a path, it will check for a `.git` directory. If the path doesn't contain
+    that directory, it will search parent directories for `.git` until it finds one.
+    Then, the current information will be parsed.
+
+    :param path: A folder either containing a ``.git`` directory, or with a parent that contains a ``.git`` directory
+
+    """
+
+    try:
+        # First, get the .git directory
+        curpath = os.path.abspath(path)
+        while curpath:
+            if os.path.exists(os.path.join(curpath, ".git")):
+                gitdir = os.path.join(curpath, ".git")
+                break
+            else:
+                parent, _ = os.path.split(curpath)
+                if parent == curpath:
+                    curpath = None
+                else:
+                    curpath = parent
+        else:
+            raise Exception("Could not find .git directory")
+
+        # Then, get the branch and commit
+        with open(os.path.join(gitdir, "HEAD"), "r") as f1:
+            ref = f1.read()
+            if ref.startswith("ref:"):
+                refdir = ref.split(" ")[1].strip()  # The path to the file with the commit
+                gitbranch = refdir.replace("refs/heads/", "")  # / is always used (not os.sep)
+                with open(os.path.join(gitdir, refdir), "r") as f2:
+                    githash = f2.read().strip()  # The hash of the commit
+            else:
+                gitbranch = "Detached head (no branch)"
+                githash = ref.strip()
+
+        # Now read the time from the commit
+        compressed_contents = open(os.path.join(gitdir, "objects", githash[0:2], githash[2:]), "rb").read()
+        decompressed_contents = zlib.decompress(compressed_contents).decode()
+        for line in decompressed_contents.split("\n"):
+            if line.startswith("author"):
+                _re_actor_epoch = re.compile(r"^.+? (.*) (\d+) ([+-]\d+).*$")
+                m = _re_actor_epoch.search(line)
+                actor, epoch, offset = m.groups()
+                t = time.gmtime(int(epoch))
+                gitdate = time.strftime("%Y-%m-%d %H:%M:%S UTC", t)
+
+    except Exception:
+        gitbranch = "Git branch N/A"
+        githash = "Git hash N/A"
+        gitdate = "Git date N/A"
+
+    output = {"branch": gitbranch, "hash": githash, "date": gitdate}  # Assemble outupt
+    return output
+
+
+def datetime_to_year(dt: datetime) -> float:
+    """
+    Convert a DateTime instance to decimal year
+
+    For example, 1/7/2010 would be approximately 2010.5
+
+    :param dt: The datetime instance to convert
+    :return: Equivalent decimal year
+
+    """
+    # By Luke Davis from https://stackoverflow.com/a/42424261
+    year_part = dt - datetime(year=dt.year, month=1, day=1)
+    year_length = datetime(year=dt.year + 1, month=1, day=1) - datetime(year=dt.year, month=1, day=1)
+    return dt.year + year_part / year_length
+
+
+def _worker_init() -> None:
+    """
+    Suppress output on parallel workers
+
+    A parallel worker should only ever print out warning output or higher
+    This function gets passed as an initializer to `multiprocessing.Pool`
+    to set the logger level locally on the workers
+
+    """
+
+    logger.setLevel(logging.WARNING)
+
+
+def parallel_progress(fcn, inputs, num_workers=None, show_progress=True) -> list:
+    """
+    Run a function in parallel with a optional single progress bar
+
+    The result is essentially equivalent to
+
+    >>> list(map(fcn, inputs))
+
+    But with execution in parallel and with a single progress bar being shown.
+    The Atomica logger level will be changed to hide output below the
+    WARNING level.
+
+    :param fcn: Function object to call, accepting one argument, OR a function with zero arguments in which
+                case inputs should be an integer
+    :param inputs: A collection of inputs that will each be passed to (list, array, etc.)
+                    OR a number, if the fcn() has no input arguments
+    :param num_workers: Number of processes, defaults to the number of CPUs
+    :return: An list of outputs
+
+    """
+
+    from multiprocessing import pool
+
+    pool = pool.Pool(num_workers, initializer=_worker_init)
+
+    results = [None]
+    if sc.isnumber(inputs):
+        results *= inputs
+        pbar = tqdm(total=inputs) if show_progress else None
+    else:
+        results *= len(inputs)
+        pbar = tqdm(total=len(inputs)) if show_progress else None
+
+    def callback(result, idx):
+        results[idx] = result
+        if show_progress:
+            pbar.update(1)
+
+    if sc.isnumber(inputs):
+        for i in range(inputs):
+            pool.apply_async(fcn, callback=partial(callback, idx=i))
+    else:
+        for i, x in enumerate(inputs):
+            pool.apply_async(fcn, args=(x,), callback=partial(callback, idx=i))
+
+    pool.close()
+    pool.join()
+
+    if show_progress:
+        pbar.close()
+
+    return results
+
+
+class Quiet:
+    """
+    Atomica quiet context
+
+    This object can be used in a `with/as` block to temporarily suppress
+    Atomica output, with the logger level reset at the end of the block
+
+
+    Example usage:
+
+    >>> with at.Quiet():
+    >>>     res = P.run_sim()
+
+    """
+
+    def __init__(self, show_warnings=True):
+        """
+        Initialize standard context
+
+        Initialization captures the current logger level at the time the context is created.
+
+        :param show_warnings: If True, logger will be temporarily set at WARNING level. If
+                              False, all output will be suppressed by setting logger above CRITICAL
+        """
+
+        self.previous_level = logger.getEffectiveLevel()
+        self.show_warnings = show_warnings
+
+    def __enter__(self):
+        if self.show_warnings:
+            logger.setLevel(logging.WARNING)
+        else:
+            logger.setLevel(logging.CRITICAL + 1)
+
+    def __exit__(self, *args):
+        logger.setLevel(self.previous_level)
+
+
+def start_logging(fname: str, reset=False) -> None:
+    """
+    Log Atomica output to a file
+
+    This function automatically starts the file with a version record.
+
+    The file logger will potentially handle any log level, from 0 upwards.
+    Therefore both stdout and stderr can potentially be logged. The stdout
+    messages will be gated by the log level of `at.logger`. In practice,
+    this means that the log file generated here will replicate whatever is
+    being printed to the screen by the main Atomica process.
+
+    The key items that will NOT be captured in this file log are
+        - Output generated by a `print` statement. Instead of using `print`, use
+          `at.logger.info('message')` which will both print and log the output
+        - Output generated by worker processes e.g. if using `run_sampled_sims(parallel=True)`
+          This is because the workers can't all write to the same log file without overwriting
+          each other. Normal log output is typically suppressed anyway - however, stderr messages
+          from the workers will be printed to the console but not logged in the file. These messages
+          would typically corrupt the progress bar in the console anyway.
+
+    :param fname: File name to write log file to
+    :param reset: If True, the previous file handler will be cleared and a new one opened. If the new log file
+                  has the same name as the old log file, the file will be cleared.
+    """
+
+    if reset:
+        stop_logging()
+
+    for handler in logger.handlers:
+        if handler.name == "atomica_file_handler":
+            # Logging has already been started, so we can return immediately
+            # Otherwise, output could be logged multiple times
+            return
+
+    from .version import gitinfo, version, versiondate  # Avoid circular import
+
+    sc.makefilepath(fname)
+    h = logging.FileHandler(fname, mode="w")
+    h.set_name("atomica_file_handler")
+    fmt = logging.Formatter("%(asctime)-20s %(message)s", datefmt="%d-%m-%y %H:%M:%S")
+    h.setFormatter(fmt)
+
+    logger.addHandler(h)
+
+    logger.critical(f"Atomica log file: {os.path.abspath(fname)}")
+    logger.critical("-" * 80)
+    logger.critical("Atomica %s (%s) -- (c) the Atomica development team" % (version, versiondate))  # Log with the highest level to make sure it appears in the log
+    if gitinfo["branch"] != "N/A":
+        logger.critical("git branch: %s (%s)" % (gitinfo["branch"], gitinfo["hash"][0:8]))
+    logger.critical(datetime.now())
+    logger.critical("-" * 80)
+
+    # We also want uncaught exceptions (in the main process) to appear in the log
+    # Based on https://stackoverflow.com/a/57587758 by Nabs
+    def log_exception(exctype, value, traceback):
+        logger.error("UNCAUGHT EXCEPTION", exc_info=(exctype, value, traceback))
+
+    def attach_hook(hook_func, run_func):
+        def inner(*args, **kwargs):
+            local_args = run_func()
+            hook_func(*local_args)
+            return run_func(*args, **kwargs)
+
+        return inner
+
+    if not reset:  # do not double up on error messages
+        import sys
+
+        sys.exc_info = attach_hook(log_exception, sys.exc_info)
+        sys.excepthook = log_exception
+
+
+def stop_logging() -> None:
+    """
+    Stop logging output to file
+
+    This function will clear the `atomica_file_handler` and close
+    the last-opened log file. If file logging has not started, this
+    function will return normally without raising an error
+
+    """
+
+    for handler in logger.handlers:
+        if handler.name == "atomica_file_handler":
+            handler.close()
+            logger.removeHandler(handler)
+            # Don't terminate the loop, if by some change there is more than one handler
+            # (not supposed to happen though) then we would want to close them all

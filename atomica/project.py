@@ -19,18 +19,17 @@ In addition, a project contains:
 """
 
 from .version import version, gitinfo
-from .calibration import perform_autofit
+from .calibration import calibrate
 from .data import ProjectData
 from .framework import ProjectFramework
 from .model import run_model
 from .parameters import ParameterSet
 
-from .programs import ProgramSet, ProgramInstructions
+from .programs import ProgramSet
 from .scenarios import Scenario, ParameterScenario, CombinedScenario, BudgetScenario, CoverageScenario
-from .optimization import Optimization, optimize, OptimInstructions, InvalidInitialConditions
+from .optimization import Optimization, optimize, InvalidInitialConditions
 from .system import logger
-from .cascade import sanitize_cascade
-from .utils import NDict, evaluate_plot_string, NamedItem, TimeSeries
+from .utils import NDict, evaluate_plot_string, NamedItem, parallel_progress, Quiet
 from .plotting import PlotData, plot_series
 from .results import Result
 from .migration import migrate
@@ -38,59 +37,130 @@ import sciris as sc
 import numpy as np
 import tqdm
 import logging
+from datetime import timezone
+import functools
 
-class ProjectSettings(object):
-    def __init__(self, sim_start=None, sim_end=None, sim_dt=None):
+__all__ = ["ProjectSettings", "Project"]
 
-        self.sim_start = sim_start if sim_start is not None else 2000.0
-        self.sim_end = sim_end if sim_end is not None else 2035.0
-        self.sim_dt = sim_dt if sim_dt is not None else 0.25
-        logger.debug("Initialized project settings.")
+
+class ProjectSettings:
+    def __init__(self, sim_start=2000, sim_end=2035, sim_dt=0.25):
+        self._sim_start = sim_start
+        self._sim_dt = sim_dt
+        self._sim_end = 0.0
+        self.update_time_vector(end=sim_end)
 
     def __repr__(self):
-        """ Print object """
+        """Print object"""
         output = sc.prepr(self)
         return output
 
     @property
-    def tvec(self):
-        return np.arange(self.sim_start, self.sim_end + self.sim_dt / 2, self.sim_dt)
+    def sim_start(self):
+        return self._sim_start
 
-    def update_time_vector(self, start=None, end=None, dt=None):
-        """ Calculate time vector. """
+    @property
+    def sim_end(self):
+        return self._sim_end
+
+    @property
+    def sim_dt(self):
+        return self._sim_dt
+
+    @sim_start.setter
+    def sim_start(self, sim_start):
+        self._sim_start = sim_start
+
+    @sim_end.setter
+    def sim_end(self, sim_end):
+        self._sim_end = self.sim_start + np.ceil((sim_end - self.sim_start) / self.sim_dt) * self.sim_dt
+        if sim_end != self._sim_end:
+            logger.info(f"Changing sim end from {sim_end} to {self._sim_end} ({(self._sim_end - self._sim_start) / self._sim_dt:.0f} timesteps)")
+
+    @sim_dt.setter
+    def sim_dt(self, sim_dt):
+        assert sim_dt > 0, "Simulation timestep must be greater than 0"
+        self._sim_dt = sim_dt
+        self.sim_end = self.sim_end  # Call the setter function to change sim_end if it is no longer valid
+
+    @property
+    def tvec(self) -> np.ndarray:
+        """
+        Return simulation time vector
+
+        This method uses `linspace` rather than `arange` to avoid accumulating numerical errors that prevent
+        integer years aligning exactly.
+
+        :return: Array of simulation times
+
+        """
+
+        return np.linspace(self.sim_start, self.sim_end, int((self.sim_end - self.sim_start) / self.sim_dt) + 1)
+
+    def update_time_vector(self, start: float = None, end: float = None, dt: float = None) -> None:
+        """
+        Update the project simulation times
+
+        :param start: Optionally provide new start year (e.g. '2018')
+        :param end: Optionally provide new end year (e.g. '2035')
+        :param dt: Optionally provide new step size, in years (e.g. '0.25' for quarterly steps
+
+        """
+
         if start is not None:
             self.sim_start = start
+
+        if dt is not None:
+            if end is None:
+                self.sim_dt = dt  # Update the simulation end year automatically to account for the new timestep
+            else:
+                self._sim_dt = dt  # Change sim_dt internally so that the sim_end is only changed once
+
         if end is not None:
             self.sim_end = end
-        if dt is not None:
-            self.sim_dt = dt
-        return None
 
 
 class Project(NamedItem):
-    def __init__(self, name="default", framework=None, databook=None, do_run=True, **kwargs):
-        """ Initialize the project. Keywords are passed to ProjectSettings. """
-        # INPUTS
-        # - framework : a Framework to use. This could be
-        #               - A filename to an Excel file on disk
-        #               - An sc.Spreadsheet instance
-        #               - A ProjectFramework instance
-        #               - None (this should generally not be used though!)
-        # - databook : The path to a databook file. The databook will be loaded into Project.data and the spreadsheet saved to Project.databook
-        # - do_run : If True, a simulation will be run upon project construction
+    """
+    Main simulation container
 
+    A Project provides a centralized point of storage when working with Atomica. It contains
+
+    - A framework
+    - Data
+    - Parameters
+    - Programs
+    - Scenarios and optimizations
+    - Results
+
+    Importantly, it is generally assumed that saving and loading work is done by saving and
+    loading projects.
+
+    :param name:
+    :param framework: a Framework to use. This could be
+                      - A filename to an Excel file on disk
+                      - An sc.Spreadsheet instance
+                      - A ProjectFramework instance
+                      - None (this should generally not be used though!)
+    :param databook: The path to a databook file. The databook will be loaded into Project.data and the spreadsheet saved to Project.databook
+    :param do_run: If True, a simulation will be run upon project construction
+    :param kwargs: These are passed to the :class`ProjectSettings` constructor
+
+    """
+
+    def __init__(self, name="default", framework=None, databook=None, do_run=True, **kwargs):
         NamedItem.__init__(self, name)
 
-        if sc.isstring(framework) or isinstance(framework, sc.Spreadsheet):
-            self.framework = ProjectFramework(inputs=framework)
-        elif isinstance(framework, ProjectFramework):
+        if isinstance(framework, ProjectFramework):
             self.framework = framework
-        else:
-            logger.warning('Project was constructed without a Framework - a framework should be provided')
+        elif framework is None:
+            logger.warning("Project was constructed without a Framework - a framework should be provided")
             self.framework = None
+        else:
+            self.framework = ProjectFramework(inputs=framework)
 
         # Define the structure sets
-        self.parsets = NDict()
+        self.parsets = NDict()  #: Dictionary of :class:`ParameterSet` instances
         self.progsets = NDict()
         self.scens = NDict()
         self.optims = NDict()
@@ -105,13 +175,13 @@ class Project(NamedItem):
         self.progbook = None  # This will contain an sc.Spreadsheet when the user loads one
         self.settings = ProjectSettings(**kwargs)  # Global settings
 
-        self._result_update_required = False  # This flag is set to True by migration is the result objects contained in this Project are out of date due to a migration change
+        self._update_required = False  # This flag is set to True by migration is the result objects contained in this Project are out of date due to a migration change
 
         # Load project data, if available
         if framework and databook:
             self.load_databook(databook_path=databook, do_run=do_run)
         elif databook:
-            logger.warning('Project was constructed without a Framework - databook spreadsheet is being saved to project, but data is not being loaded')
+            logger.warning("Project was constructed without a Framework - databook spreadsheet is being saved to project, but data is not being loaded")
             self.databook = sc.Spreadsheet(databook)  # Just load the spreadsheet in so that it isn't lost
             self.data = None
         else:
@@ -119,113 +189,129 @@ class Project(NamedItem):
             self.data = None
 
     def __repr__(self):
-        """ Print out useful information when called """
+        """Print out useful information when called"""
         output = sc.objrepr(self)
-        output += '      Project name: %s\n' % self.name
-        output += '    Framework name: %s\n' % self.framework.name
-        output += '\n'
-        output += '    Parameter sets: %i\n' % len(self.parsets)
-        output += '      Program sets: %i\n' % len(self.progsets)
-        output += '         Scenarios: %i\n' % len(self.scens)
-        output += '     Optimizations: %i\n' % len(self.optims)
-        output += '      Results sets: %i\n' % len(self.results)
-        output += '\n'
-        output += '   Atomica version: %s\n' % self.version
-        output += '      Date created: %s\n' % sc.getdate(self.created)
-        output += '     Date modified: %s\n' % sc.getdate(self.modified)
-#        output += '  Datasheet loaded: %s\n' % sc.getdate(self.databookloaddate)
-        output += '        Git branch: %s\n' % self.gitinfo['branch']
-        output += '          Git hash: %s\n' % self.gitinfo['hash']
-        output += '               UID: %s\n' % self.uid
-        output += '============================================================\n'
+        output += "      Project name: %s\n" % self.name
+        output += "    Framework name: %s\n" % self.framework.name
+        output += "\n"
+        output += "    Parameter sets: %i\n" % len(self.parsets)
+        output += "      Program sets: %i\n" % len(self.progsets)
+        output += "         Scenarios: %i\n" % len(self.scens)
+        output += "     Optimizations: %i\n" % len(self.optims)
+        output += "      Results sets: %i\n" % len(self.results)
+        output += "\n"
+        output += "   Atomica version: %s\n" % self.version
+        output += "      Date created: %s\n" % sc.getdate(self.created.replace(tzinfo=timezone.utc).astimezone(tz=None), dateformat="%Y-%b-%d %H:%M:%S %Z")
+        output += "     Date modified: %s\n" % sc.getdate(self.modified.replace(tzinfo=timezone.utc).astimezone(tz=None), dateformat="%Y-%b-%d %H:%M:%S %Z")
+        #        output += '  Datasheet loaded: %s\n' % sc.getdate(self.databookloaddate)
+        output += "        Git branch: %s\n" % self.gitinfo["branch"]
+        output += "          Git hash: %s\n" % self.gitinfo["hash"]
+        output += "               UID: %s\n" % self.uid
+        output += "============================================================\n"
         return output
 
-    @property
-    def pop_names(self):
-        if self.data is None:
-            return []
-        else:
-            return list(self.data.pops.keys())
-
-    @property
-    def pop_labels(self):
-        if self.data is None:
-            return []
-        else:
-            return list([x['label'] for x in self.data.pops.values()])
+    # @property
+    # def pop_names(self):
+    #     if self.data is None:
+    #         return []
+    #     else:
+    #         return list(self.data.pops.keys())
+    #
+    # @property
+    # def pop_labels(self):
+    #     if self.data is None:
+    #         return []
+    #     else:
+    #         return list([x['label'] for x in self.data.pops.values()])
 
     #######################################################################################################
     # Methods for I/O and spreadsheet loading
     #######################################################################################################
-    def create_databook(self, databook_path=None, num_pops=1, num_transfers=0, num_interpops=0, data_start=2000.0, data_end=2020.0, data_dt=1.0):
-        """ Generate an empty data-input Excel spreadsheet corresponding to the framework of this project. """
+    def create_databook(self, databook_path=None, num_pops=1, num_transfers=0, data_start=2000.0, data_end=2020.0, data_dt=1.0):
+        """Generate an empty data-input Excel spreadsheet corresponding to the framework of this project."""
         if databook_path is None:
             databook_path = "./databook_" + self.name + ".xlsx"
         data = ProjectData.new(self.framework, np.arange(data_start, data_end + data_dt, data_dt), pops=num_pops, transfers=num_transfers)
         data.save(databook_path)
         return data
 
-    def load_databook(self, databook_path=None, make_default_parset=True, do_run=True) -> None:
+    def load_databook(self, databook_path, make_default_parset: bool = True, do_run: bool = True) -> None:
         """
         Load a data spreadsheet
 
-        :param databook_path: a path string, which will load a file from disk, or an sc.Spreadsheet
-                                containing the contents of a databook
-        :param make_default_parset: If True, a Parset called "default" will be immediately created from the
-                                    newly-added data
+        :param databook_path: Databook input. Supported inputs are:
+                                - A path string, which will load a file from disk
+                                - An `sc.Spreadsheet` containing the contents of a databook
+                                - A `ProjectData` instance
+        :param make_default_parset: If True, a Parset called "default" will be immediately created from the newly-added data
         :param do_run: If True, a simulation will be run using the new parset
 
         """
 
-        if sc.isstring(databook_path):
-            full_path = sc.makefilepath(filename=databook_path, default=self.name, ext='xlsx', makedirs=False)
-            databook_spreadsheet = sc.Spreadsheet(full_path)
+        if isinstance(databook_path, ProjectData):
+            # If the user passed in a ProjectData instance, use it directly
+            data = databook_path
+            databook = data.to_spreadsheet()
         else:
-            databook_spreadsheet = databook_path
-
-        data = ProjectData.from_spreadsheet(databook_spreadsheet, self.framework)
+            if isinstance(databook_path, sc.Spreadsheet):
+                databook = databook_path
+            else:
+                databook = sc.Spreadsheet(databook_path)
+            data = ProjectData.from_spreadsheet(databook, self.framework)
 
         # If there are existing progsets, make sure the new data is consistent with them
         if self.progsets:
-            data_pops = set((x,y['label']) for x,y in data.pops.items())
+            data_pops = set((x, y["label"]) for x, y in data.pops.items())
             for progset in self.progsets.values():
-                assert data_pops == set((x,y['label']) for x,y in progset.pops.items()), 'Existing progsets exist with populations that do not match the new databook'
+                assert data_pops == set((x, y["label"]) for x, y in progset.pops.items()), "Existing progsets exist with populations that do not match the new databook"
 
         self.data = data
         self.data.validate(self.framework)  # Make sure the data is suitable for use in the Project (as opposed to just manipulating the databook)
-        self.databook = sc.dcp(databook_spreadsheet)  # Actually a shallow copy is fine here because sc.Spreadsheet contains no mutable properties
-        self.modified = sc.now()
+        self.databook = sc.dcp(databook)
+        self.modified = sc.now(utc=True)
         self.settings.update_time_vector(start=self.data.start_year)  # Align sim start year with data start year.
 
-        if not (self.framework.comps['is source'] == 'y').any():
+        if not (self.framework.comps["is source"] == "y").any():
             self.settings.update_time_vector(end=self.data.end_year + 5.0)  # Project only forecasts 5 years if not dynamic (with births)
 
         if make_default_parset:
             self.make_parset(name="default")
         if do_run:
             if not make_default_parset:
-                logger.warning("Project has been requested to run a simulation after loading databook, "
-                               "despite no request to create a default parameter set.")
+                logger.warning("Project has been requested to run a simulation after loading databook, " "despite no request to create a default parameter set.")
             self.run_sim(parset="default", store_results=True)
 
     def make_parset(self, name="default"):
-        """ Transform project data into a set of parameters that can be used in model simulations. """
+        """Transform project data into a set of parameters that can be used in model simulations."""
         self.parsets.append(ParameterSet(self.framework, self.data, name))
         return self.parsets[name]
 
-    def make_progbook(self, progbook_path=None, progs=None, data_start=None, data_end=None):
-        ''' Make a blank program databook'''
+    def make_progbook(self, progbook_path: str = None, progs=None, data_start: float = None, data_end: float = None) -> str:
+        """
+        Save a blank program book
+
+        This method will create a temporary ``ProgramSet`` and save it to the requested path
+
+        :param progbook_path: Path to save program book
+        :param progs: A program specification supposed by ``ProgramSet.new()``
+        :param data_start: The start year for data entry
+        :param data_end: The end year for data entry
+        :return: The full path of the newly created program book
+
+        """
+
         # Get filepath
         if self.data is None:
-            errormsg = 'Please upload a databook before creating a program book. The databook defines which populations will appear in the program book.'
+            errormsg = "Please upload a databook before creating a program book. The databook defines which populations will appear in the program book."
             raise Exception(errormsg)
-        full_path = sc.makefilepath(filename=progbook_path, default=self.name, ext='xlsx', makedirs=False)  # Directory will be created later in progset.save()
+        full_path = sc.makefilepath(filename=progbook_path, default=self.name, ext="xlsx", makedirs=False)  # Directory will be created later in progset.save()
         if data_start is None:
             data_start = self.data.tvec[0]
         if data_end is None:
             data_end = self.data.tvec[-1]
         progset = ProgramSet.new(tvec=np.arange(data_start, data_end + 1), progs=progs, framework=self.framework, data=self.data)
         progset.save(full_path)
+        return full_path
 
     def load_progbook(self, progbook_path=None, name="default"):
         """
@@ -238,11 +324,11 @@ class Project(NamedItem):
         """
 
         if self.data is None:
-            errormsg = 'Please upload a databook before uploading a program book. The databook contains the population definitions required to read the program book.'
+            errormsg = "Please upload a databook before uploading a program book. The databook contains the population definitions required to read the program book."
             raise Exception(errormsg)
 
         if sc.isstring(progbook_path):
-            full_path = sc.makefilepath(filename=progbook_path, default=self.name, ext='xlsx', makedirs=False)
+            full_path = sc.makefilepath(filename=progbook_path, default=self.name, ext="xlsx", makedirs=False)
             progbook_spreadsheet = sc.Spreadsheet(full_path)
         else:
             progbook_spreadsheet = progbook_path
@@ -253,7 +339,7 @@ class Project(NamedItem):
         self.progsets.append(progset)
         return progset
 
-    def make_scenario(self, which:str ='combined', **kwargs):
+    def make_scenario(self, which: str = "combined", **kwargs) -> Scenario:
         """
         Make new scenario and store in Project
 
@@ -263,31 +349,17 @@ class Project(NamedItem):
 
         """
 
-        if which == 'parameter':
-            scenario = ParameterScenario(**kwargs)
-        elif which == 'budget':
-            scenario = BudgetScenario(**kwargs)
-        elif which == 'coverage':
-            scenario = CoverageScenario(**kwargs)
-        elif which == 'combined':
-            scenario = CombinedScenario(**kwargs)
-        else:
-            raise Exception('Unknown scenario type')
+        types = {"parameter": ParameterScenario, "budget": BudgetScenario, "coverage": CoverageScenario, "combined": CombinedScenario}
+        scenario = types[which](**kwargs)
         self.scens.append(scenario)
         return scenario
 
-    def make_optimization(self, json=None):
-        optim_ins = OptimInstructions(json=json)
-        self.optims[optim_ins.json['name']] = optim_ins
-        return optim_ins
-
-
-#    #######################################################################################################
-#    ### Utilities
-#    #######################################################################################################
+    #    #######################################################################################################
+    #    ### Utilities
+    #    #######################################################################################################
 
     def parset(self, key=None, verbose=2):
-        ''' Shortcut for getting a parset '''
+        """Shortcut for getting a parset"""
         if key is None:
             key = -1
         if isinstance(key, ParameterSet):
@@ -295,12 +367,12 @@ class Project(NamedItem):
         else:
             try:
                 return self.parsets[key]
-            except:
+            except Exception:
                 sc.printv('Warning, parset "%s" not found!' % key, 1, verbose)
                 return None
 
     def progset(self, key=None, verbose=2):
-        ''' Shortcut for getting a progset '''
+        """Shortcut for getting a progset"""
         if key is None:
             key = -1
         if isinstance(key, ProgramSet):
@@ -308,12 +380,12 @@ class Project(NamedItem):
         else:
             try:
                 return self.progsets[key]
-            except:
+            except Exception:
                 sc.printv('Warning, progset "%s" not found!' % key, 1, verbose)
                 return None
 
     def scen(self, key=None, verbose=2):
-        ''' Shortcut for getting a scenario '''
+        """Shortcut for getting a scenario"""
         if key is None:
             key = -1
         if isinstance(key, Scenario):
@@ -321,12 +393,12 @@ class Project(NamedItem):
         else:
             try:
                 return self.scens[key]
-            except:
+            except Exception:
                 sc.printv('Warning, scenario "%s" not found!' % key, 1, verbose)
                 return None
 
     def optim(self, key=None, verbose=2):
-        ''' Shortcut for getting an optimization '''
+        """Shortcut for getting an optimization"""
         if key is None:
             key = -1
         if isinstance(key, Optimization):
@@ -334,12 +406,12 @@ class Project(NamedItem):
         else:
             try:
                 return self.optims[key]
-            except:
+            except Exception:
                 sc.printv('Warning, scenario "%s" not found!' % key, 1, verbose)
                 return None
 
     def result(self, key=None, verbose=2):
-        ''' Shortcut for getting an result -- a little special since they don't have a fixed type '''
+        """Shortcut for getting an result -- a little special since they don't have a fixed type"""
         if key is None:
             key = -1
         if not sc.isstring(key) and not sc.isnumber(key) and not isinstance(key, tuple):
@@ -349,7 +421,7 @@ class Project(NamedItem):
         else:
             try:
                 return self.scens[key]
-            except:
+            except Exception:
                 sc.printv('Warning, scenario "%s" not found!' % key, 1, verbose)
                 return None
 
@@ -357,7 +429,7 @@ class Project(NamedItem):
             key = -1
         try:
             return self.results[key]
-        except:
+        except Exception:
             return sc.printv('Warning, results "%s" not found!' % key, 1, verbose)  # Returns None
 
     #######################################################################################################
@@ -365,11 +437,10 @@ class Project(NamedItem):
     #######################################################################################################
 
     def plot(self, results=None, key=None, outputs=None, pops=None):
-
         def get_supported_plots():
-            df = self.framework.sheets['plots'][0]
+            df = self.framework.sheets["plots"][0]
             plots = sc.odict()
-            for name, output in zip(df['name'], df['quantities']):
+            for name, output in zip(df["name"], df["quantities"]):
                 plots[name] = evaluate_plot_string(output)
             return plots
 
@@ -385,17 +456,17 @@ class Project(NamedItem):
                 if not isinstance(list(output.values())[0], list):
                     output = list(output.values())[0]
                 plotdata = PlotData(results, outputs=output, project=self, pops=pops)
-                figs = plot_series(plotdata, axis='pops', plot_type='stacked', legend_mode='together')
+                figs = plot_series(plotdata, axis="pops", plot_type="stacked", legend_mode="together")
                 allfigs += figs
             except Exception as e:
-                print('WARNING, %s failed (%s)' % (output, str(e)))
+                print("WARNING, %s failed (%s)" % (output, str(e)))
         return allfigs
 
     def update_settings(self, sim_start=None, sim_end=None, sim_dt=None):
-        """ Modify the project settings, e.g. the simulation time vector. """
+        """Modify the project settings, e.g. the simulation time vector."""
         self.settings.update_time_vector(start=sim_start, end=sim_end, dt=sim_dt)
 
-    def run_sim(self, parset=None, progset=None, progset_instructions=None, store_results=False, result_name:str=None):
+    def run_sim(self, parset=None, progset=None, progset_instructions=None, store_results=False, result_name: str = None):
         """
         Run a single simulation
 
@@ -429,15 +500,14 @@ class Project(NamedItem):
                 k += 1
 
         tm = sc.tic()
-        result = run_model(settings=self.settings, framework=self.framework, parset=parset, progset=progset,
-                           program_instructions=progset_instructions, name=result_name)
-        logger.info('Elapsed time for running "%s": %ss',self.name,sc.sigfig(sc.toc(tm,output=True),3))
+        result = run_model(settings=self.settings, framework=self.framework, parset=parset, progset=progset, program_instructions=progset_instructions, name=result_name)
+        logger.info('Elapsed time for running "%s": %ss', self.name, sc.sigfig(sc.toc(tm, output=True), 3))
         if store_results:
             self.results.append(result)
 
         return result
 
-    def run_sampled_sims(self,parset,progset=None,progset_instructions=None, result_names=None, n_samples:int =1,parallel=False, max_attempts=None) -> list:
+    def run_sampled_sims(self, parset, progset=None, progset_instructions=None, result_names=None, n_samples: int = 1, parallel=False, max_attempts=None, num_workers=None) -> list:
         """
         Run sampled simulations
 
@@ -445,13 +515,9 @@ class Project(NamedItem):
         several reasons
 
         - To avoid inadvertantly blowing up the size of the project, `run_sampled_sims` does not support automatic result saving
-        - `run_sim` always returns a `Result` - if rolled into one functions, the return type would not be predictable
+        - `run_sim` always returns a `Result` - if rolled into one function, the return type would not be predictable
         - `run_sim` only takes in a single ``ProgramInstructions`` and ``result_name`` whereas `run_sampled_sims` supports iteration
            over multiple instructions
-
-
-        This method is different from proj.run_sim(samples=n_samples) in two ways
-        -
 
         The other common scenario is having multiple results
 
@@ -464,6 +530,7 @@ class Project(NamedItem):
                              containing a single element if not using programs.
         :param parallel: If True, run simulations in parallel (on Windows, must have ``if __name__ == '__main__'`` gating the calling code)
         :param max_attempts: Number of retry attempts for bad initializations
+        :param num_workers: If ``parallel`` is True, this determines the number of parallel workers to use (default is usually number of CPUs)
         :return: A list of Results that can be passed to `Ensemble.update()`. If multiple instructions are provided, the return value of this
                  function will be a list of lists, where the inner list iterates over different instructions for the same parset/progset samples.
                  It is expected in that case that the Ensemble's mapping function would take in a list of results
@@ -478,34 +545,30 @@ class Project(NamedItem):
 
         if not result_names:
             if len(progset_instructions) > 1:
-                result_names = ['instructions_%d' % (i) for i in range(len(progset_instructions))]
+                result_names = ["instructions_%d" % (i) for i in range(len(progset_instructions))]
             else:
-                result_names = ['default']
+                result_names = ["default"]
         else:
             result_names = sc.promotetolist(result_names)
-            assert(len(result_names) == 1 and not progset) or (len(progset_instructions) == len(result_names)), "Number of result names must match number of instructions"
+            assert (len(result_names) == 1 and not progset) or (len(progset_instructions) == len(result_names)), "Number of result names must match number of instructions"
 
-        original_level = logger.getEffectiveLevel()
-        logger.setLevel(logging.WARNING) # Never print debug messages inside the sampling loop - note that depending on the platform, this may apply within `sc.parallelize`
+        show_progress = n_samples > 1 and logger.getEffectiveLevel() <= logging.INFO
 
-        if n_samples == 1:
-            results = [_run_sampled_sim(self, parset, progset, progset_instructions, result_names, max_attempts=max_attempts)]
-        elif parallel:
-            # NB. The calling code must be wrapped in a 'if __name__ == '__main__' if on Windows
-            results = sc.parallelize(_run_sampled_sim, iterarg=n_samples, kwargs={'proj':self, 'parset':parset, 'progset':progset, 'progset_instructions':progset_instructions, 'result_names':result_names, 'max_attempts':max_attempts})
-        else:
-            if original_level <= logging.INFO:
-                # Print the progress bar if the logging level was INFO or lower
+        if parallel:
+            fcn = functools.partial(_run_sampled_sim, proj=self, parset=parset, progset=progset, progset_instructions=progset_instructions, result_names=result_names, max_attempts=max_attempts)
+            results = parallel_progress(fcn, n_samples, show_progress=show_progress, num_workers=num_workers)
+        elif show_progress:
+            # Print the progress bar if the logging level was INFO or lower
+            # This means that the user can still set the logging level higher e.g. WARNING to suppress output from Atomica in general
+            # (including any progress bars)
+            with Quiet():
                 results = [_run_sampled_sim(self, parset, progset, progset_instructions, result_names, max_attempts=max_attempts) for _ in tqdm.trange(n_samples)]
-            else:
-                results = [_run_sampled_sim(self, parset, progset, progset_instructions, result_names, max_attempts=max_attempts) for _ in range(n_samples)]
-
-        logger.setLevel(original_level) # Reset the logger
+        else:
+            results = [_run_sampled_sim(self, parset, progset, progset_instructions, result_names, max_attempts=max_attempts) for _ in range(n_samples)]
 
         return results
 
-    def calibrate(self, parset=None, adjustables=None, measurables=None, max_time=60, save_to_project=True, new_name=None,
-                  default_min_scale=0.0, default_max_scale=2.0, default_weight=1.0, default_metric="fractional"):
+    def calibrate(self, parset=None, adjustables=None, measurables=None, max_time=60, save_to_project=False, new_name=None, default_min_scale=0.0, default_max_scale=2.0, default_weight=1.0, default_metric="fractional") -> ParameterSet:
         """
         Method to perform automatic calibration.
 
@@ -534,14 +597,16 @@ class Project(NamedItem):
         """
 
         if parset is None:
-            parset = -1
-        parset = self.parsets[parset]
+            parset = self.parsets[-1]
+        elif not isinstance(parset, ParameterSet):
+            parset = self.parsets[parset]
+
         if new_name is None:
-            new_name = parset.name + ' (auto-calibrated)'
+            new_name = parset.name + " (auto-calibrated)"
         if adjustables is None:
-            adjustables = list(self.framework.pars.index[~self.framework.pars['calibrate'].isnull()])
-            adjustables += list(self.framework.comps.index[~self.framework.comps['calibrate'].isnull()])
-            adjustables += list(self.framework.characs.index[~self.framework.characs['calibrate'].isnull()])
+            adjustables = list(self.framework.pars.index[~self.framework.pars["calibrate"].isnull()])
+            adjustables += list(self.framework.comps.index[~self.framework.comps["calibrate"].isnull()])
+            adjustables += list(self.framework.characs.index[~self.framework.characs["calibrate"].isnull()])
         if measurables is None:
             measurables = list(self.framework.comps.index)
             measurables += list(self.framework.characs.index)
@@ -551,15 +616,22 @@ class Project(NamedItem):
         for index, measurable in enumerate(measurables):
             if sc.isstring(measurable):  # Assume that a parameter name was passed in if not a tuple.
                 measurables[index] = (measurable, None, default_weight, default_metric)
-        new_parset = perform_autofit(project=self, parset=parset,
-                                     pars_to_adjust=adjustables, output_quantities=measurables, max_time=max_time)
+        new_parset = calibrate(project=self, parset=parset, pars_to_adjust=adjustables, output_quantities=measurables, max_time=max_time)
         new_parset.name = new_name  # The new parset is a calibrated copy of the old, so change id.
         if save_to_project:
             self.parsets.append(new_parset)
 
         return new_parset
 
-    def run_scenarios(self, store_results=True):
+    def run_scenarios(self, store_results: bool = True) -> list:
+        """
+        Run all active scenarios
+
+        :param store_results: If True, results will be appended to the project
+        :return: List of results (one for each active scenario)
+
+        """
+
         results = []
         for scenario in self.scens.values():
             if scenario.active:
@@ -568,7 +640,7 @@ class Project(NamedItem):
         return results
 
     def run_optimization(self, optimname=None, maxtime=None, maxiters=None, store_results=True):
-        '''Run an optimization'''
+        """Run an optimization"""
         optim_ins = self.optim(optimname)
         optim, unoptimized_instructions = optim_ins.make(project=self)
         if maxtime is not None:
@@ -578,12 +650,12 @@ class Project(NamedItem):
         parset = self.parset(optim.parsetname)
         progset = self.progset(optim.progsetname)
         original_end = self.settings.sim_end
-        self.settings.sim_end = optim_ins.json['end_year']  # Simulation should be run up to the user's end year
+        self.settings.sim_end = optim_ins.json["end_year"]  # Simulation should be run up to the user's end year
         try:
             optimized_instructions = optimize(self, optim, parset, progset, unoptimized_instructions)
         except InvalidInitialConditions:
-            if optim_ins.json['optim_type'] == 'money':
-                raise Exception('It was not possible to achieve the optimization target even with an increased budget. Specify or raise upper limits for spending, or decrease the optimization target')
+            if optim_ins.json["optim_type"] == "money":
+                raise Exception("It was not possible to achieve the optimization target even with an increased budget. Specify or raise upper limits for spending, or decrease the optimization target")
             else:
                 raise  # Just raise it as-is
 
@@ -593,7 +665,7 @@ class Project(NamedItem):
         results = [unoptimized_result, optimized_result]
         return results
 
-    def save(self, filename:str =None, folder:str =None) -> str:
+    def save(self, filename: str = None, folder: str = None) -> str:
         """
         Save binary project file
 
@@ -605,7 +677,7 @@ class Project(NamedItem):
 
         """
 
-        fullpath = sc.makefilepath(filename=filename, folder=folder, default=[self.filename, self.name], ext='prj', sanitize=True)
+        fullpath = sc.makefilepath(filename=filename, folder=folder, default=[self.filename, self.name], ext="prj", sanitize=True)
         self.filename = fullpath
         sc.saveobj(fullpath, self)
         return fullpath
@@ -624,7 +696,7 @@ class Project(NamedItem):
 
         """
 
-        P = sc.loadobj(filepath)
+        P = sc.loadobj(filepath, die=True)
         assert isinstance(P, Project)
         return P
 
@@ -633,175 +705,8 @@ class Project(NamedItem):
         P = migrate(self)
         self.__dict__ = P.__dict__
 
-    def demo_scenarios(self, dorun=False):
-        """
-        Create demo scenarios
 
-        This method creates three default budget scenarios
-
-        - Default budget
-        - Doubled budget
-        - Zero budget
-
-        The scenarios will be created and added to the project's list of scenarios
-
-        :param dorun: If True, and if doadd=True, simulations will be run
-
-        """
-
-        parsetname = self.parsets[-1].name
-        progset = self.progsets[-1]
-        start_year = self.data.end_year
-
-        # Come up with the current allocation by truncating after the start year
-        current_budget = {}
-        for prog in progset.programs.values():
-            if prog.spend_data.has_time_data:
-                current_budget[prog.name] = sc.dcp(prog.spend_data)
-            else:
-                current_budget[prog.name] = TimeSeries(start_year,prog.spend_data.assumption)
-
-        # Add default budget scenario
-        # self.scens.append(CombinedScenario(name='Default budget',parsetname=parsetname,progsetname=progset.name,active=True,instructions=ProgramInstructions(start_year,alloc=current_budget)))
-        self.scens.append(BudgetScenario(name='Default budget', parsetname=parsetname, progsetname=progset.name,
-            active=True, alloc=current_budget, start_year=start_year))
-
-        # Add doubled budget
-        doubled_budget = sc.dcp(current_budget)
-        for ts in doubled_budget.values():
-            ts.insert(start_year,ts.interpolate(start_year))
-            ts.remove_after(start_year)
-            ts.insert(start_year+1,ts.get(start_year)*2)
-        # self.scens.append(CombinedScenario(name='Doubled budget',parsetname=parsetname,progsetname=progset.name,active=True,instructions=ProgramInstructions(start_year,alloc=doubled_budget)))
-        self.scens.append(BudgetScenario(name='Doubled budget', parsetname=parsetname, progsetname=progset.name,
-            active=True, alloc=doubled_budget, start_year=start_year))
-
-        # Add zero budget
-        zero_budget = sc.dcp(doubled_budget)
-        for ts in zero_budget.values():
-            ts.insert(start_year+1,0.0)
-        # self.scens.append(CombinedScenario(name='Zero budget',parsetname=parsetname,progsetname=progset.name,active=True,instructions=ProgramInstructions(start_year,alloc=zero_budget)))
-        self.scens.append(BudgetScenario(name='Zero budget', parsetname=parsetname, progsetname=progset.name,
-            active=True, alloc=zero_budget, start_year=start_year))
-
-        if dorun:
-            results = self.run_scenarios()
-            return results
-        else:
-            return None
-
-
-    def demo_optimization(self, dorun=False, tool=None, optim_type=None):
-        """
-        Create demo optimizations
-
-        Note that if optim_type='money' then the optimization 'weights' entered in the FE are
-        actually treated as relative scalings for the minimization target. e.g. If ':ddis' has a weight
-        of 25, this is a objective weight factor for optim_type='outcome' but it means 'we need to reduce
-        deaths by 25%' if optim_type='money' (since there is no weight factor for the minimize money epi targets)
-
-        :param dorun: If True, runs optimization immediately
-        :param tool: Choose optimization objectives based on whether tool is ``'cascade'`` or ``'tb'``
-        :param optim_type: set to ``'outcome'`` or ``'money'`` - use ``'money'`` to minimize money
-        :return: If ``dorun=True``, return list of results. Otherwise, returns an ``OptimInstructions`` instance
-
-        """
-
-        if optim_type is None:
-            optim_type = 'outcome'
-        assert tool in ['cascade', 'tb']
-        assert optim_type in ['outcome', 'money']
-        json = sc.odict()
-        if optim_type == 'outcome':
-            json['name'] = 'Default outcome optimization'
-        elif optim_type == 'money':
-            json['name'] = 'Default money optimization'
-        json['parset_name'] = -1
-        json['progset_name'] = -1
-        json['start_year'] = self.data.end_year
-        json['adjustment_year'] = self.data.end_year
-        json['end_year'] = self.settings.sim_end
-        json['budget_factor'] = 1.0
-        json['optim_type'] = optim_type
-        json['tool'] = tool
-        json['method'] = 'asd'  # Note: may want to change this if PSO is improved
-
-        if tool == 'cascade':
-            json['objective_weights'] = sc.odict()
-            json['objective_labels'] = sc.odict()
-
-            for cascade_name in self.framework.cascades:
-                cascade = sanitize_cascade(self.framework, cascade_name)[1]
-
-                if optim_type == 'outcome':
-                    json['objective_weights']['conversion:%s' % (cascade_name)] = 1.
-                elif optim_type == 'money':
-                    json['objective_weights']['conversion:%s' % (cascade_name)] = 0.
-                else:
-                    raise Exception('Unknown optim_type')
-
-                if cascade_name.lower() == 'cascade':
-                    json['objective_labels']['conversion:%s' % (cascade_name)] = 'Maximize the conversion rates along each stage of the cascade'
-                else:
-                    json['objective_labels']['conversion:%s' % (cascade_name)] = 'Maximize the conversion rates along each stage of the %s cascade' % (cascade_name)
-
-                for stage_name in cascade.keys():
-                    # We checked earlier that there are no ':' symbols here, but asserting that this is true, just in case
-                    assert ':' not in cascade_name
-                    assert ':' not in stage_name
-                    objective_name = 'cascade_stage:%s:%s' % (cascade_name, stage_name)
-
-                    if optim_type == 'outcome':
-                        json['objective_weights'][objective_name] = 1
-                    elif optim_type == 'money':
-                        json['objective_weights'][objective_name] = 0
-                    else:
-                        raise Exception('Unknown optim_type')
-
-                    if cascade_name.lower() == 'cascade':
-                        json['objective_labels'][objective_name] = 'Maximize the number of people in cascade stage "%s"' % (stage_name)
-                    else:
-                        json['objective_labels'][objective_name] = 'Maximize the number of people in stage "%s" of the %s cascade' % (stage_name, cascade_name)
-
-        elif tool == 'tb':
-            if optim_type == 'outcome':
-                json['objective_weights'] = {'daly_rate': 0, ':ddis': 1, ':acj': 1, 'ds_inf': 0, 'mdr_inf': 0, 'xdr_inf': 0}  # These are TB-specific: maximize people alive, minimize people dead due to TB
-                json['objective_labels'] = {'daly_rate': 'Minimize DALYs',
-                                            ':ddis': 'Minimize TB-related deaths',
-                                            ':acj': 'Minimize total new active TB infections',
-                                            'ds_inf': 'Minimize prevalence of active DS-TB',
-                                            'mdr_inf': 'Minimize prevalence of active MDR-TB',
-                                            'xdr_inf': 'Minimize prevalence of active XDR-TB'}
-            elif optim_type == 'money':
-                # The weights here default to 0 because it's possible, depending on what programs are selected, that improvement
-                # in one or more of them might be impossible even with infinite money. Also, can't increase money too much because otherwise
-                # run the risk of a local minimum stopping optimization early with the current algorithm (this will change in the future)
-                json['objective_weights'] = {'daly_rate': 0, ':ddis': 0, ':acj': 5, 'ds_inf': 0, 'mdr_inf': 0, 'xdr_inf': 0}  # These are TB-specific: maximize people alive, minimize people dead due to TB
-                json['objective_labels'] = {'daly_rate': 'Minimize DALYs',
-                                            ':ddis': 'Minimize TB-related deaths',
-                                            ':acj': 'Total new active TB infections',
-                                            'ds_inf': 'Prevalence of active DS-TB',
-                                            'mdr_inf': 'Prevalence of active MDR-TB',
-                                            'xdr_inf': 'Prevalence of active XDR-TB'}
-
-            else:
-                raise Exception('Unknown optim_type')
-
-        else:
-            raise Exception('Tool "%s" not recognized' % tool)
-        json['maxtime'] = 30  # WARNING, default!
-        json['prog_spending'] = sc.odict()
-        for prog_name in self.progset().programs.keys():
-            json['prog_spending'][prog_name] = [0, None]
-        optim = self.make_optimization(json=json)
-        if dorun:
-            results = self.run_optimization(optimname=json['name'])
-            return results
-        else:
-            return optim
-
-
-def _run_sampled_sim(proj, parset, progset, progset_instructions:list, result_names:list, max_attempts:int =None):
+def _run_sampled_sim(proj, parset, progset, progset_instructions: list, result_names: list, max_attempts: int = None):
     """
     Internal function to run simulation with sampling
 
@@ -844,4 +749,4 @@ def _run_sampled_sim(proj, parset, progset, progset_instructions:list, result_na
             return results
         except BadInitialization:
             attempts += 1
-    raise Exception('Failed simulation after %d attempts - something might have gone wrong' % (max_attempts))
+    raise Exception("Failed simulation after %d attempts - something might have gone wrong" % (max_attempts))

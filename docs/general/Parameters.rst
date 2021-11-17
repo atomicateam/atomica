@@ -32,6 +32,27 @@ Finally, all parameters are updated prior to computing flow rates. This is becau
 
     Links can only be used inside parameter functions for output parameters
 
+Value precedence
+****************
+
+The value for a parameter is derived from (in order of precedence):
+
+1. Data entered in the databook
+2. A parameter function
+3. The result of a program calculation
+
+The workflow in the model is
+
+- First any data points in the parameter set (that is, the values from the databook after any parameter scenarios have been applied) are inserted into the parameter
+- Next, if a parameter function is present, it is evaluated, and the result of the function overwrites the parameter's current value
+- Finally, program outcomes are evaluated, and used to overwrite any parameters that are being reached by active programs
+
+.. caution::
+
+    If a parameter has both a databook page and a function, the simulation dynamics will reflect the function. The data in the databook is used for plotting and calibration only.
+
+In the ``ParameterSet``, it is possible to set the ``skip_function`` attribute in order to skip evaluating the parameter function, in which case the parameter value will be drawn from either the data points or from the program calculation, if present. This functionality is used internally by parameter scenarios, so that it is possible to use a parameter overwrite to override a function (e.g. to use a parameter scenario to explicitly set the force of infection). However, using the ``skip_function`` attribute directly is a non-standard workflow and must be implemented consistently in all scripts. If a script omits setting this flag then the simulation will run without errors, but will produce different results. It is therefore recommended not to use this functionality directly, but to modify the framework to avoid the need to disable the parameter function.
+
 Performance considerations
 **************************
 
@@ -111,5 +132,16 @@ After integration, the parameter value can be inspected and analyzed as normal. 
 
 	Notice that the parameter timescale does not enter here. The parameter timescale affects the conversion from the parameter value into flow rates. The derivative is always with respect to time, in the *simulation* units, which are always years. Thus the function value's units should differ from the parameter's units by a factor of ``1/years`` regardless of the timescale of the parameter. If you have set different timescales for quantities appearing in the derivative parameter's function, you may need to include conversion factors in the parameter function to ensure that the timescale of the derivative comes out correctly.
 
+Interpolation and smoothing
+***************************
 
+Parameters generally contain sparse time-dependent values matching those entered in the databook. As part of running the model, these automatically get interpolated onto the simulation time points. This interpolation is linear by default (although legacy projects use spline interpolation). Generally, this means that you can look at the values in the databook and they will be linearly interpolated when running the simulation.
 
+However, in some cases, it is desirable to incorporate additional assumptions into the input parameters - for example, that they are smoothly changing. To support this, ``Parameter`` objects contain a smoothing method, ``Parameter.smooth``. This applies smoothing in-place, onto a set of specified time points, replacing the parameter's value. The most common usage would be to simply use ``Parameter.smooth(proj.settings.tvec)`` which will smooth the parameter onto the simulation times (assuming the step size is not subsequently modified).
+
+By specifying a different set of times, you can apply different smoothing methods to different parts of the parameter. For example, you could smooth parameter scenario values differently to the databook values. Don't forget that you can always modify the ``TimeSeries`` object contained in the ``Parameter`` as well, to perform arbitrarily specific modifications.
+
+Maximum compartment duration
+****************************
+
+A common, complex situation occurs if there are durations in the model that are significantly larger than the simulation time step (such as the duration of protection of a vaccine). See the documentation on Timed Transitions for details on how to implement this in a framework.

@@ -8,9 +8,9 @@ set of programs, respectively.
 """
 
 import io
+from datetime import timezone
 
 import numpy as np
-import openpyxl
 import xlsxwriter as xw
 from numpy import inf, array, exp, minimum
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
@@ -19,9 +19,12 @@ import sciris as sc
 from .excel import standard_formats, apply_widths, update_widths, read_tables, TimeDependentValuesEntry, validate_category
 from .system import logger, FrameworkSettings as FS
 from .utils import NamedItem, TimeSeries
+from .version import version, gitinfo
+
+__all__ = ["ProgramInstructions", "ProgramSet", "Program", "Covout"]
 
 
-class ProgramInstructions(object):
+class ProgramInstructions:
     """
     Store instructions for applying programs
 
@@ -41,6 +44,8 @@ class ProgramInstructions(object):
     - Spending (in units of people/year)
     - Capacity (in units of people/year)
     - Fraction/proportion coverage
+        - For continuous programs, specified as a dimensionless fraction
+        - For one-off programs, specified as a 'fraction/year' coverage
 
     which thus provides the underlying implementation for program-related scenarios. The
     :class:`ProgramSet` and :class:`Program` methods access and use the :class:`ProgramInstructions`
@@ -76,25 +81,26 @@ class ProgramInstructions(object):
     :param capacity: Overwrites to capacity. This is a dict keyed by program name, containing a scalar capacity or a TimeSeries of capacity values
                      For convenience, the capacity overwrite should be in units of 'people/year' and it will be automatically
                      converted to a per-timestep value based on the units for the program's unit cost.
-    :param coverage: Overwrites to proportion coverage. This is a dict keyed by program name, containing a scalar coverage or a TimeSeries of coverage values
+    :param coverage: Overwrites to proportion coverage. This is a dict keyed by program name, containing a scalar coverage or a TimeSeries
+                     of coverage values. The overwrite is specified in dimensionless units for continuous programs, and '/year' units for
+                     one-off programs.
 
     """
 
-    def __init__(self, start_year:float, stop_year:float=None, alloc=None, coverage:dict=None, capacity:dict=None):
+    def __init__(self, start_year: float, stop_year: float = None, alloc=None, coverage: dict = None, capacity: dict = None):
         self.start_year = start_year
         self.stop_year = stop_year if stop_year else inf
 
         self.alloc = sc.odict()
         if isinstance(alloc, ProgramSet):
             for prog in alloc.programs.values():
-                self.alloc[prog.name] = TimeSeries(t=self.start_year, vals=prog.spend_data.interpolate(self.start_year))
+                self.alloc[prog.name] = TimeSeries(t=self.start_year, vals=prog.spend_data.interpolate(self.start_year, method="previous"))
         elif alloc:
             for prog_name, spending in alloc.items():
                 if isinstance(spending, TimeSeries) and spending.has_data:
                     self.alloc[prog_name] = sc.dcp(spending)
                 elif spending is not None:
                     self.alloc[prog_name] = TimeSeries(t=self.start_year, vals=spending)
-
 
         self.capacity = sc.odict()  # Dict keyed by program name that stores a time series of capacities
         if capacity:
@@ -124,12 +130,12 @@ class ProgramInstructions(object):
         :return: A new, scaled copy of the instructions
 
         """
-        assert scale_factor >= 0, 'Cannot have a negative scale factor'
+        assert scale_factor >= 0, "Cannot have a negative scale factor"
         new = sc.dcp(self)
         for ts in new.alloc.values():
             ts.vals = [x * scale_factor for x in ts.vals]
             ts.assumption = ts.assumption * scale_factor if ts.assumption is not None else None
-            ts.uncertainty = ts.sigma * scale_factor if ts.sigma is not None else None
+            ts.sigma = ts.sigma * scale_factor if ts.sigma is not None else None
         return new
 
 
@@ -148,10 +154,12 @@ class ProgramSet(NamedItem):
 
     def __init__(self, name="default", framework=None, data=None, tvec=None):
 
-        assert framework is not None, 'Must specify framework and data when instantiating a ProgramSet'
-        assert data is not None, 'Must specify framework and data when instantiating a ProgramSet'
+        assert framework is not None, "Must specify framework and data when instantiating a ProgramSet"
+        assert data is not None, "Must specify framework and data when instantiating a ProgramSet"
 
         NamedItem.__init__(self, name)
+        self.version = version  # Track versioning information for the result. This might change due to migration (whereas by convention, the model version does not)
+        self.gitinfo = gitinfo
 
         self.tvec = tvec  # This is the data tvec that will be used when writing the progset to a spreadsheet
 
@@ -161,42 +169,48 @@ class ProgramSet(NamedItem):
 
         # Populations, parameters, and compartments - these are all the available ones printed when writing a progbook
         # They are all of the form {code_name:{'label':full_name, 'type':pop_type}}
-        self.pops = sc.dcp(data.pops) # ProjectData already stores dicts with 'label' and 'type' keys
+        self.pops = sc.dcp(data.pops)  # ProjectData already stores dicts with 'label' and 'type' keys
 
         # Get comps from framework
         self.comps = sc.odict()
         for _, spec in framework.comps.iterrows():
-            if spec['is source'] == 'y' or spec['is sink'] == 'y' or spec['is junction'] == 'y':
-                continue
+            if spec["is source"] == "y" or spec["is sink"] == "y" or spec["is junction"] == "y":
+                self.comps[spec.name] = {"label": spec["display name"], "type": spec["population type"], "non_targetable": True}
             else:
-                self.comps[spec.name] = {'label':spec['display name'],'type':spec['population type']}
+                self.comps[spec.name] = {"label": spec["display name"], "type": spec["population type"], "non_targetable": False}
 
         # Get pars from framework
         self.pars = sc.odict()
         for _, spec in framework.pars.iterrows():
-            if spec['targetable'] == 'y':
-                self.pars[spec.name] = {'label':spec['display name'],'type':spec['population type']}
+            if spec["targetable"] == "y":
+                self.pars[spec.name] = {"label": spec["display name"], "type": spec["population type"]}
 
         self._pop_types = list(framework.pop_types.keys())
 
         # Metadata
-        self.created = sc.now()
-        self.modified = sc.now()
-        self.currency = '$'  # The symbol for currency that will be used in the progbook
+        self.created = sc.now(utc=True)
+        self.modified = sc.now(utc=True)
+        self.currency = "$"  # The symbol for currency that will be used in the progbook
 
         # Internal caches
         self._book = None
         self._formats = None
         self._references = None
 
+    def __setstate__(self, d):
+        from .migration import migrate
+
+        self.__dict__ = d
+        progset = migrate(self)
+        self.__dict__ = progset.__dict__
 
     def __repr__(self):
         output = sc.prepr(self)
-        output += '    Program set name: %s\n' % self.name
-        output += '            Programs: %s\n' % [prog for prog in self.programs]
-        output += '        Date created: %s\n' % sc.getdate(self.created)
-        output += '       Date modified: %s\n' % sc.getdate(self.modified)
-        output += '============================================================\n'
+        output += "    Program set name: %s\n" % self.name
+        output += "            Programs: %s\n" % [prog for prog in self.programs]
+        output += "        Date created: %s\n" % sc.getdate(self.created.replace(tzinfo=timezone.utc).astimezone(tz=None), dateformat="%Y-%b-%d %H:%M:%S %Z")
+        output += "       Date modified: %s\n" % sc.getdate(self.modified.replace(tzinfo=timezone.utc).astimezone(tz=None), dateformat="%Y-%b-%d %H:%M:%S %Z")
+        output += "============================================================\n"
         return output
 
     def _get_code_name(self, name: str) -> str:
@@ -220,15 +234,15 @@ class ProgramSet(NamedItem):
             return name
 
         for code_name, spec in self.pops.items():
-            if name == spec['label']:
+            if name == spec["label"]:
                 return code_name
 
         for code_name, spec in self.comps.items():
-            if name == spec['label']:
+            if name == spec["label"]:
                 return code_name
 
         for code_name, spec in self.pars.items():
-            if name == spec['label']:
+            if name == spec["label"]:
                 return code_name
 
         for prog in self.programs.values():
@@ -237,8 +251,7 @@ class ProgramSet(NamedItem):
 
         raise Exception('Could not find full name for quantity "%s" (n.b. this is case sensitive)' % (name))
 
-
-    def add_program(self, code_name:str, full_name:str) -> None:
+    def add_program(self, code_name: str, full_name: str) -> None:
         """
         Add a program to the ProgramSet
 
@@ -252,8 +265,7 @@ class ProgramSet(NamedItem):
             raise Exception('Program with name "%s" is already present in the ProgramSet' % (prog.name))
         self.programs[prog.name] = prog
 
-
-    def remove_program(self, name:str) -> None:
+    def remove_program(self, name: str) -> None:
         """
         Remove a program from the ProgramSet
 
@@ -267,10 +279,10 @@ class ProgramSet(NamedItem):
         # Remove affected covouts
         for par in self.pars:
             for pop in self.pops:
-                if (par, pop) in self.covouts and code_name in self.covouts.progs:
+                if (par, pop) in self.covouts and code_name in self.covouts[(par, pop)].progs:
                     del self.covouts[(par, pop)].progs[code_name]
 
-    def add_pop(self, code_name: str, full_name: str, pop_type: str=None) -> None:
+    def add_pop(self, code_name: str, full_name: str, pop_type: str = None) -> None:
         """
         Add a population to the ``ProgramSet``
 
@@ -286,7 +298,7 @@ class ProgramSet(NamedItem):
         if pop_type is None:
             pop_type = self._pop_types[0]
 
-        self.pops[code_name] = {'label':full_name, 'type':pop_type}
+        self.pops[code_name] = {"label": full_name, "type": pop_type}
 
     def remove_pop(self, name: str) -> None:
         """
@@ -310,7 +322,7 @@ class ProgramSet(NamedItem):
 
         del self.pops[code_name]
 
-    def add_comp(self, code_name: str, full_name: str, pop_type: str=None) -> None:
+    def add_comp(self, code_name: str, full_name: str, pop_type: str = None) -> None:
         """
         Add a compartment
 
@@ -324,7 +336,7 @@ class ProgramSet(NamedItem):
         if pop_type is None:
             pop_type = self._pop_types[0]
 
-        self.comps[code_name] = {'label':full_name, 'type':pop_type}
+        self.comps[code_name] = {"label": full_name, "type": pop_type}
 
     def remove_comp(self, name: str) -> None:
         """
@@ -347,7 +359,7 @@ class ProgramSet(NamedItem):
                 prog.target_comps.remove(code_name)
         del self.comps[code_name]
 
-    def add_par(self, code_name: str, full_name: str, pop_type: str=None) -> None:
+    def add_par(self, code_name: str, full_name: str, pop_type: str = None) -> None:
         """
         Add a parameter
 
@@ -366,7 +378,7 @@ class ProgramSet(NamedItem):
         # add an impact parameter
         # a new impact parameter won't have any covouts associated with it, and no programs will be bound to it
         # So all we have to do is add it to the list
-        self.pars[code_name] = {'label':full_name, 'type':pop_type}
+        self.pars[code_name] = {"label": full_name, "type": pop_type}
 
     def remove_par(self, name: str) -> None:
         """
@@ -418,19 +430,19 @@ class ProgramSet(NamedItem):
         """
 
         if (framework is None and project is None) or (data is None and project is None):
-            errormsg = 'To read in a ProgramSet, please supply one of the following sets of inputs: (a) a Framework and a ProjectData, (b) a Project.'
+            errormsg = "To read in a ProgramSet, please supply one of the following sets of inputs: (a) a Framework and a ProjectData, (b) a Project."
             raise Exception(errormsg)
 
         if framework is None:
             if project.framework is None:
-                errormsg = 'A Framework was not provided, and the Project has not been initialized with a Framework'
+                errormsg = "A Framework was not provided, and the Project has not been initialized with a Framework"
                 raise Exception(errormsg)
             else:
                 framework = project.framework
 
         if data is None:
             if project.data is None:
-                errormsg = 'Project data has not been loaded yet'
+                errormsg = "Project data has not been loaded yet"
                 raise Exception(errormsg)
             else:
                 data = project.data
@@ -456,7 +468,7 @@ class ProgramSet(NamedItem):
         :return: A :class:`ProgramSet`
 
         """
-
+        import openpyxl
 
         framework, data = ProgramSet._normalize_inputs(framework, data, project)
 
@@ -464,28 +476,38 @@ class ProgramSet(NamedItem):
         self = ProgramSet(name=name, framework=framework, data=data)
 
         # Create and load spreadsheet
-        if sc.isstring(spreadsheet):
+        if not isinstance(spreadsheet, sc.Spreadsheet):
             spreadsheet = sc.Spreadsheet(spreadsheet)
 
         workbook = openpyxl.load_workbook(spreadsheet.tofile(), read_only=True, data_only=True)  # Load in read-only mode for performance, since we don't parse comments etc.
-        validate_category(workbook, 'atomica:progbook')
+        validate_category(workbook, "atomica:progbook")
 
         # Load individual sheets
-        self._read_targeting(workbook['Program targeting'])
-        self._read_spending(workbook['Spending data'], _allow_missing_data=_allow_missing_data)
-        self._read_effects(workbook['Program effects'], framework=framework, data=data)
+        self._read_targeting(workbook["Program targeting"], framework=framework)
+        self._read_spending(workbook["Spending data"], _allow_missing_data=_allow_missing_data)
+        self._read_effects(workbook["Program effects"], framework=framework, data=data)
 
         return self
 
-    def to_spreadsheet(self):
+    def to_workbook(self) -> tuple:
         """
-        Write the contents of a program set to a spreadsheet.
-        """
+        Return an open workbook for the ProgramSet
 
+        This allows the xlsxwriter workbook to be manipulated prior to closing the
+        filestream e.g. to append extra sheets. This prevents issues related to cached
+        data values when reloading a workbook to append or modify content
+
+        Warning - the workbook is backed by a BytesIO instance and needs to be closed.
+        See the usage of this method in the :meth`to_spreadsheet` function.
+
+        :return: A tuple (bytes, workbook) with a BytesIO instance and a corresponding *open* xlsxwriter workbook instance
+
+        """
         f = io.BytesIO()  # Write to this binary stream in memory
+        wb = xw.Workbook(f)
 
-        self._book = xw.Workbook(f)
-        self._book.set_properties({'category': 'atomica:progbook'})
+        self._book = wb
+        self._book.set_properties({"category": "atomica:progbook"})
         self._formats = standard_formats(self._book)
         self._references = {}  # Reset the references dict
 
@@ -493,28 +515,30 @@ class ProgramSet(NamedItem):
         self._write_spending()
         self._write_effects()
 
-        self._book.close()
-
-        # Dump the file content into a ScirisSpreadsheet
-        spreadsheet = sc.Spreadsheet(f)
-
-        # Clear everything
-        f.close()
         self._book = None
         self._formats = None
         self._references = None
 
-        # Return the spreadsheet
+        return f, wb
+
+    def to_spreadsheet(self) -> sc.Spreadsheet:
+        """
+        Return content as a Sciris Spreadsheet
+
+        :return: A :class:`sciris.Spreadsheet` instance
+
+        """
+
+        f, wb = self.to_workbook()
+        wb.close()  # Close the workbook to flush any xlsxwriter content
+        spreadsheet = sc.Spreadsheet(f)  # Wrap it in a spreadsheet instance
         return spreadsheet
 
-    def save(self, filename=None, folder=None) -> str:
-        # Shortcut for saving to disk - FE RPC will probably use `to_spreadsheet()` but BE users will probably use `save()`
-        full_path = sc.makefilepath(filename=filename, folder=folder, default='Programs', ext='xlsx')
+    def save(self, fname):
         ss = self.to_spreadsheet()
-        ss.save(full_path)
-        return full_path
+        ss.save(fname)
 
-    def _read_targeting(self, sheet) -> None:
+    def _read_targeting(self, sheet, framework) -> None:
         # This function reads a targeting sheet and instantiates all of the programs with appropriate targets, putting them
         # into `self.programs`
         tables, start_rows = read_tables(sheet)  # NB. only the first table will be read, so there can be other tables for comments on the first page
@@ -523,12 +547,12 @@ class ProgramSet(NamedItem):
         headers = [x.value.lower().strip() if sc.isstring(x.value) else x.value for x in tables[0][1]]
 
         # Get the indices where the pops and comps start
-        pop_start_idx = sup_header.index('targeted to (populations)')
-        comp_start_idx = sup_header.index('targeted to (compartments)')
+        pop_start_idx = sup_header.index("targeted to (populations)")
+        comp_start_idx = sup_header.index("targeted to (compartments)")
 
         # Check the first two columns are as expected
-        assert headers[0] == 'abbreviation'
-        assert headers[1] == 'display name'
+        assert headers[0] == "abbreviation"
+        assert headers[1] == "display name"
 
         # Now, prepare the pop and comp lookups
         pop_idx = dict()  # Map table index to pop full name
@@ -541,33 +565,40 @@ class ProgramSet(NamedItem):
             if headers[i]:
                 comp_idx[i] = headers[i]
 
-        pop_codenames = {v['label'].lower().strip(): x for x, v in self.pops.items()}
-        comp_codenames = {v['label'].lower().strip(): x for x, v in self.comps.items()}
+        pop_codenames = {v["label"].lower().strip(): x for x, v in self.pops.items()}
+        comp_codenames = {v["label"].lower().strip(): x for x, v in self.comps.items()}
 
         for row in tables[0][2:]:  # For each program to instantiate
             target_pops = []
             target_comps = []
 
             for i in range(pop_start_idx, comp_start_idx):
-                if row[i].value and sc.isstring(row[i].value) and row[i].value.lower().strip() == 'y':
+                if row[i].value and sc.isstring(row[i].value) and row[i].value.lower().strip() == "y":
                     if pop_idx[i] not in pop_codenames:
-                        message = 'There was a mismatch between the populations in the databook and the populations in the program book'
+                        message = "There was a mismatch between the populations in the databook and the populations in the program book"
                         message += '\nThe program book contains population "%s", while the databook contains: %s' % (pop_idx[i], [str(x) for x in pop_codenames.keys()])
                         raise Exception(message)
 
                     target_pops.append(pop_codenames[pop_idx[i]])  # Append the pop's codename
 
             for i in range(comp_start_idx, len(headers)):
-                if row[i].value and sc.isstring(row[i].value) and row[i].value.lower().strip() == 'y':
+                if row[i].value and sc.isstring(row[i].value) and row[i].value.lower().strip() == "y":
                     if comp_idx[i] not in comp_codenames:
-                        message = 'There was a mismatch between the compartments in the databook and the compartments in the Framework file'
-                        message += '\nThe program book contains compartment "%s", while the Framework contains: %s' % (comp_idx[i], [str(x) for x in comp_codenames.keys()])
-                        raise Exception(message)
-
-                    target_comps.append(comp_codenames[comp_idx[i]])  # Append the pop's codename
+                        if comp_idx[i] in set(framework.comps["display name"].str.lower().str.strip()):
+                            # It's a valid compartment of some sort (not actually targetable - for use with coverage scenarios only)
+                            logger.warning(f'Compartment "{comp_idx[i]}" is a non-standard compartment that cannot be targeted. The ProgramSet can be used with coverage scenarios only')
+                            spec = framework.comps.loc[framework.comps["display name"].str.lower().str.strip() == comp_idx[i]]
+                            self.add_comp(code_name=spec.index[0], full_name=spec["display name"][0], pop_type=spec["population type"][0])
+                            target_comps.append(spec.index[0])  # Append the pop's codename
+                        else:
+                            message = "There was a mismatch between the compartments in the databook and the compartments in the Framework file"
+                            message += '\nThe program book contains compartment "%s", while the Framework contains: %s' % (comp_idx[i], [str(x) for x in comp_codenames.keys()])
+                            raise Exception(message)
+                    else:
+                        target_comps.append(comp_codenames[comp_idx[i]])  # Append the pop's codename
 
             short_name = row[0].value.strip()
-            if short_name.lower() == 'all':
+            if short_name.lower() == "all":
                 raise Exception('A program was named "all", which is a reserved keyword and cannot be used as a program name')
             long_name = row[1].value.strip()
 
@@ -579,32 +610,39 @@ class ProgramSet(NamedItem):
 
         # Work out the column offset associated with each population label and comp label
         pop_block_offset = 2  # This is the co
-        sheet.write(0, pop_block_offset, "Targeted to (populations)", self._formats['rc_title']['left']['F'])
+        sheet.write(0, pop_block_offset, "Targeted to (populations)", self._formats["rc_title"]["left"]["F"])
         comp_block_offset = 2 + len(self.pops) + 1
-        sheet.write(0, comp_block_offset, "Targeted to (compartments)", self._formats['rc_title']['left']['F'])
+        sheet.write(0, comp_block_offset, "Targeted to (compartments)", self._formats["rc_title"]["left"]["F"])
+
+        comps_in_use = set()
+        for prog in self.programs.values():
+            comps_in_use.update(prog.target_comps)
+        comps_to_write = {k: v for k, v in self.comps.items() if k in comps_in_use or not v["non_targetable"]}
 
         pop_col = {n: i + pop_block_offset for i, n in enumerate(self.pops.keys())}
-        comp_col = {n: i + comp_block_offset for i, n in enumerate(self.comps.keys())}
+        comp_col = {n: i + comp_block_offset for i, n in enumerate(comps_to_write.keys())}
 
         # Write the header row
-        sheet.write(1, 0, 'Abbreviation', self._formats["center_bold"])
-        update_widths(widths, 0, 'Abbreviation')
-        sheet.write(1, 1, 'Display name', self._formats["center_bold"])
-        update_widths(widths, 1, 'Abbreviation')
+        sheet.write(1, 0, "Abbreviation", self._formats["center_bold"])
+        update_widths(widths, 0, "Abbreviation")
+        sheet.write(1, 1, "Display name", self._formats["center_bold"])
+        update_widths(widths, 1, "Abbreviation")
         for pop, spec in self.pops.items():
             col = pop_col[pop]
-            sheet.write(1, col, spec['label'], self._formats['rc_title']['left']['T'])
-            self._references[spec['label']] = "='%s'!%s" % (sheet.name, xlrc(1, col, True, True))
+            sheet.write(1, col, spec["label"], self._formats["rc_title"]["left"]["T"])
+            self._references[spec["label"]] = "='%s'!%s" % (sheet.name, xlrc(1, col, True, True))
             widths[col] = 12  # Wrap population names
 
-        for comp, spec in self.comps.items():
+        for comp, spec in comps_to_write.items():
+            if spec["non_targetable"] and comp not in comps_in_use:
+                continue
             col = comp_col[comp]
-            sheet.write(1, col, spec['label'], self._formats['rc_title']['left']['T'])
-            self._references[spec['label']] = "='%s'!%s" % (sheet.name, xlrc(1, col, True, True))
+            sheet.write(1, col, spec["label"], self._formats["rc_title"]["left"]["T"])
+            self._references[spec["label"]] = "='%s'!%s" % (sheet.name, xlrc(1, col, True, True))
             widths[col] = 12  # Wrap compartment names
 
         row = 2
-        self._references['reach_pop'] = dict()  # This is storing cells e.g. self._references['reach_pop'][('BCG','0-4')]='$A$4' so that conditional formatting can be done
+        self._references["reach_pop"] = dict()  # This is storing cells e.g. self._references['reach_pop'][('BCG','0-4')]='$A$4' so that conditional formatting can be done
         for prog in self.programs.values():
             sheet.write(row, 0, prog.name)
             self._references[prog.name] = "='%s'!%s" % (sheet.name, xlrc(row, 0, True, True))
@@ -616,22 +654,22 @@ class ProgramSet(NamedItem):
             for pop in self.pops.keys():
                 col = pop_col[pop]
                 if pop in prog.target_pops:
-                    sheet.write(row, col, 'Y', self._formats["center"])
+                    sheet.write(row, col, "Y", self._formats["center"])
                 else:
-                    sheet.write(row, col, 'N', self._formats["center"])
-                self._references['reach_pop'][(prog.name, pop)] = "'%s'!%s" % (sheet.name, xlrc(row, col, True, True))
+                    sheet.write(row, col, "N", self._formats["center"])
+                self._references["reach_pop"][(prog.name, pop)] = "'%s'!%s" % (sheet.name, xlrc(row, col, True, True))
                 sheet.data_validation(xlrc(row, col), {"validate": "list", "source": ["Y", "N"]})
-                sheet.conditional_format(xlrc(row, col), {'type': 'cell', 'criteria': 'equal to', 'value': '"Y"', 'format': self._formats['unlocked_boolean_true']})
+                sheet.conditional_format(xlrc(row, col), {"type": "cell", "criteria": "equal to", "value": '"Y"', "format": self._formats["unlocked_boolean_true"]})
                 # sheet.conditional_format(xlrc(row, col), {'type': 'cell', 'criteria': 'equal to', 'value': '"N"', 'format': self._formats['unlocked_boolean_false']})
 
-            for comp in self.comps.keys():
+            for comp in comps_to_write.keys():
                 col = comp_col[comp]
                 if comp in prog.target_comps:
-                    sheet.write(row, col, 'Y', self._formats["center"])
+                    sheet.write(row, col, "Y", self._formats["center"])
                 else:
-                    sheet.write(row, col, 'N', self._formats["center"])
+                    sheet.write(row, col, "N", self._formats["center"])
                 sheet.data_validation(xlrc(row, col), {"validate": "list", "source": ["Y", "N"]})
-                sheet.conditional_format(xlrc(row, col), {'type': 'cell', 'criteria': 'equal to', 'value': '"Y"', 'format': self._formats['unlocked_boolean_true']})
+                sheet.conditional_format(xlrc(row, col), {"type": "cell", "criteria": "equal to", "value": '"Y"', "format": self._formats["unlocked_boolean_true"]})
                 # sheet.conditional_format(xlrc(row, col), {'type': 'cell', 'criteria': 'equal to', 'value': '"N"', 'format': self._formats['unlocked_boolean_false']})
 
             row += 1
@@ -656,7 +694,7 @@ class ProgramSet(NamedItem):
                 tdve = TimeDependentValuesEntry.from_rows(table)
             except Exception as e:
                 message = 'Error on sheet "%s" while trying to read a TDVE table starting on row %d -> ' % (sheet.title, start_row)
-                raise Exception('%s -> %s' % (message, e)) from e
+                raise Exception("%s -> %s" % (message, e)) from e
 
             prog = self.programs[tdve.name]
 
@@ -666,36 +704,36 @@ class ProgramSet(NamedItem):
                     ts.units = getattr(prog, field_name).units
                 setattr(prog, field_name, ts)
 
-            if 'Total spend' in tdve.ts:  # This is a compatibility statement around 19/10/18, progbooks generated during the WB workshop would have 'Total spend'
-                set_ts(prog, 'spend_data', tdve.ts['Total spend'])
+            if "Total spend" in tdve.ts:  # This is a compatibility statement around 19/10/18, progbooks generated during the WB workshop would have 'Total spend'
+                set_ts(prog, "spend_data", tdve.ts["Total spend"])
             else:
-                set_ts(prog, 'spend_data', tdve.ts['Annual spend'])
+                set_ts(prog, "spend_data", tdve.ts["Annual spend"])
 
-            if 'Capacity' in tdve.ts:  # Old progbooks have 'capacity' instead of 'capacity constraint'
-                set_ts(prog, 'capacity_constraint', tdve.ts['Capacity'])
+            if "Capacity" in tdve.ts:  # Old progbooks have 'capacity' instead of 'capacity constraint'
+                set_ts(prog, "capacity_constraint", tdve.ts["Capacity"])
             else:
-                set_ts(prog, 'capacity_constraint', tdve.ts['Capacity constraint'])
+                set_ts(prog, "capacity_constraint", tdve.ts["Capacity constraint"])
 
-            set_ts(prog, 'unit_cost', tdve.ts['Unit cost'])
-            set_ts(prog, 'coverage', tdve.ts['Coverage'])
-            set_ts(prog, 'saturation', tdve.ts['Saturation'])
+            set_ts(prog, "unit_cost", tdve.ts["Unit cost"])
+            set_ts(prog, "coverage", tdve.ts["Coverage"])
+            set_ts(prog, "saturation", tdve.ts["Saturation"])
 
             if not _allow_missing_data:
                 assert prog.unit_cost.has_data, 'Unit cost data for %s not was not entered (in table on sheet "%s" starting on row %d' % (prog.name, sheet.title, start_row)
                 assert prog.spend_data.has_data, 'Spending data for %s not was not entered (in table on sheet "%s" starting on row %d' % (prog.name, sheet.title, start_row)
 
-            if '/year' in prog.unit_cost.units and '/year' in prog.coverage.units:
-                logger.warning('Program %s: Typically if the unit cost is `/year` then the coverage would not be `/year`', prog.label)
+            if "/year" in prog.unit_cost.units and "/year" in prog.coverage.units:
+                logger.warning("Program %s: Typically if the unit cost is `/year` then the coverage would not be `/year`", prog.label)
             times.update(set(tdve.tvec))
 
         # Work out the currency
-        units = set([x.spend_data.units.split('/')[0].strip() for x in self.programs.values()])
-        units.update([x.unit_cost.units.split('/')[0].strip() for x in self.programs.values()])
+        units = set([x.spend_data.units.split("/")[0].strip() for x in self.programs.values()])
+        units.update([x.unit_cost.units.split("/")[0].strip() for x in self.programs.values()])
 
         if len(units) == 1:
             self.currency = list(units)[0]
         else:
-            raise Exception('The progbook contains multiple currencies: (%s). All spending must be specified in the same currency' % (units))
+            raise Exception("The progbook contains multiple currencies: (%s). All spending must be specified in the same currency" % units)
 
         self.tvec = array(sorted(list(times)))  # NB. This means that  the ProgramSet's tvec (used when writing new programs) is based on the last Program to be read in
 
@@ -708,21 +746,23 @@ class ProgramSet(NamedItem):
             # Make a TDVE table for
             tdve = TimeDependentValuesEntry(prog.name, self.tvec)
             prog = self.programs[tdve.name]
-            tdve.ts['Annual spend'] = prog.spend_data
-            tdve.ts['Unit cost'] = prog.unit_cost
-            tdve.ts['Capacity constraint'] = prog.capacity_constraint
-            tdve.ts['Saturation'] = prog.saturation
-            tdve.ts['Coverage'] = prog.coverage
+            tdve.ts["Annual spend"] = prog.spend_data
+            tdve.ts["Unit cost"] = prog.unit_cost
+            tdve.ts["Capacity constraint"] = prog.capacity_constraint
+            tdve.ts["Saturation"] = prog.saturation
+            tdve.ts["Coverage"] = prog.coverage
 
-            tdve.allowed_units = {
-                'Unit cost': [self.currency + '/person (one-off)', self.currency + '/person/year'],
-                'Capacity': ['people/year', 'people']
-            }
+            tdve.assumption_heading = "Assumption"
+            tdve.write_assumption = True
+            tdve.write_units = True
+            tdve.write_uncertainty = True
+
+            tdve.allowed_units = {"Unit cost": [self.currency + "/person (one-off)", self.currency + "/person/year"], "Capacity": ["people/year", "people"]}
 
             # NOTE - If the ts contains time values that aren't in the ProgramSet's tvec, then an error will be thrown
             # However, if the ProgramSet's tvec contains values that the ts does not, then that's fine, there
             # will just be an empty cell in the spreadsheet
-            next_row = tdve.write(sheet, next_row, self._formats, self._references, widths, assumption_heading='Assumption', write_assumption=True, write_units=True, write_uncertainty=True)
+            next_row = tdve.write(sheet, next_row, self._formats, self._references, widths)
 
         apply_widths(sheet, widths)
 
@@ -730,12 +770,12 @@ class ProgramSet(NamedItem):
         # Read the program effects sheet. Here we instantiate a costcov object for every non-empty row
 
         tables, start_rows = read_tables(sheet)
-        pop_codenames = {v['label'].lower().strip(): x for x, v in self.pops.items()}
-        par_codenames = {v['label'].lower().strip(): x for x, v in self.pars.items()}
+        pop_codenames = {v["label"].lower().strip(): x for x, v in self.pops.items()}
+        par_codenames = {v["label"].lower().strip(): x for x, v in self.pars.items()}
         transfer_names = set()
         for transfer in data.transfers:
             for pops in transfer.ts.keys():
-                transfer_names.add(('%s_%s_to_%s' % (transfer.code_name,pops[0],pops[1])).lower())
+                transfer_names.add(("%s_%s_to_%s" % (transfer.code_name, pops[0], pops[1])).lower())
 
         self.covouts = sc.odict()
 
@@ -744,7 +784,7 @@ class ProgramSet(NamedItem):
             if par_label.lower() in par_codenames:
                 par_name = par_codenames[par_label.lower()]  # Code name of the parameter we are working with
             elif par_label.lower() in transfer_names:
-                par_name = table[0][0].value.strip() # Preserve case
+                par_name = table[0][0].value.strip()  # Preserve case
             else:
                 raise Exception('Program name "%s" was not found in the framework parameters or in the databook transfers' % (table[0][0].value.strip()))
             headers = [x.value.strip() if sc.isstring(x.value) else x.value for x in table[0]]
@@ -758,7 +798,7 @@ class ProgramSet(NamedItem):
                 pop_name = pop_codenames[pop_label.lower()]
 
                 # Code name of the population we are working on
-                if self.pars[par_name]['type'] != self.pops[pop_name]['type']:
+                if self.pars[par_name]["type"] != self.pops[pop_name]["type"]:
                     raise Exception(f'On the Effects sheet, Parameter "{par_label}" belongs to population type "{self.pars[par_name]["type"]}" but Population "{pop_label}" (Cell {row[0].coordinate}) has population type "{self.pops[pop_name]["type"]}"')
 
                 progs = sc.odict()
@@ -773,16 +813,16 @@ class ProgramSet(NamedItem):
 
                     if idx_to_header[i] is None:  # If the header row had a blank cell, ignore everything in that column - we don't know what it is otherwise
                         continue
-                    elif idx_to_header[i].lower() == 'baseline value':
+                    elif idx_to_header[i].lower() == "baseline value":
                         if x.value is not None:  # test `is not None` because it might be entered as 0
                             baseline = float(x.value)
-                    elif idx_to_header[i].lower() == 'coverage interaction':
+                    elif idx_to_header[i].lower() == "coverage interaction":
                         if x.value:
                             cov_interaction = x.value.strip().lower()  # additive, nested, etc.
-                    elif idx_to_header[i].lower() == 'impact interaction':
+                    elif idx_to_header[i].lower() == "impact interaction":
                         if x.value:
                             imp_interaction = x.value.strip()  # additive, nested, etc.
-                    elif idx_to_header[i].lower() == 'uncertainty':
+                    elif idx_to_header[i].lower() == "uncertainty":
                         if x.value is not None:  # test `is not None` because it might be entered as 0
                             uncertainty = float(x.value)
                     elif x.value is not None:  # If the header isn't empty, then it should be one of the program names
@@ -802,11 +842,11 @@ class ProgramSet(NamedItem):
         current_row = 0
 
         for par_name, par_spec in self.pars.items():
-            sheet.write(current_row, 0, par_spec['label'], self._formats['rc_title']['left']['F'])
-            update_widths(widths, 0, par_spec['label'])
+            sheet.write(current_row, 0, par_spec["label"], self._formats["rc_title"]["left"]["F"])
+            update_widths(widths, 0, par_spec["label"])
 
-            for i, s in enumerate(['Baseline value', 'Coverage interaction', 'Impact interaction', 'Uncertainty']):
-                sheet.write(current_row, 1 + i, s, self._formats['rc_title']['left']['T'])
+            for i, s in enumerate(["Baseline value", "Coverage interaction", "Impact interaction", "Uncertainty"]):
+                sheet.write(current_row, 1 + i, s, self._formats["rc_title"]["left"]["T"])
                 widths[1 + i] = 12  # Fixed width, wrapping
             # sheet.write_comment(xlrc(current_row,1), 'In this column, enter the baseline value for "%s" if none of the programs reach this parameter (e.g., if the coverage is 0)' % (par_label))
 
@@ -814,12 +854,12 @@ class ProgramSet(NamedItem):
             prog_col = {p.name: i + 6 for i, p in enumerate(applicable_progs)}  # add any extra padding columns to the indices here too
 
             for prog in applicable_progs:
-                sheet.write_formula(current_row, prog_col[prog.name], self._references[prog.name], self._formats['center_bold'], value=prog.name)
+                sheet.write_formula(current_row, prog_col[prog.name], self._references[prog.name], self._formats["center_bold"], value=prog.name)
                 update_widths(widths, prog_col[prog.name], prog.name)
             current_row += 1
 
             applicable_covouts = {x.pop: x for x in self.covouts.values() if x.par == par_name}
-            applicable_pops = [x for x,v in self.pops.items() if v['type'] == par_spec['type']] # All populations with matching type
+            applicable_pops = [x for x, v in self.pops.items() if v["type"] == par_spec["type"]]  # All populations with matching type
 
             for pop_name in applicable_pops:
 
@@ -828,44 +868,44 @@ class ProgramSet(NamedItem):
                 else:
                     covout = applicable_covouts[pop_name]
 
-                sheet.write_formula(current_row, 0, self._references[self.pops[pop_name]['label']], value=self.pops[pop_name]['label'])
+                sheet.write_formula(current_row, 0, self._references[self.pops[pop_name]["label"]], value=self.pops[pop_name]["label"])
                 update_widths(widths, 0, self.pops[pop_name])
 
                 if covout and covout.baseline is not None:
-                    sheet.write(current_row, 1, covout.baseline, self._formats['not_required'])
+                    sheet.write(current_row, 1, covout.baseline, self._formats["not_required"])
                 else:
-                    sheet.write(current_row, 1, None, self._formats['unlocked'])
+                    sheet.write(current_row, 1, None, self._formats["unlocked"])
 
                 if covout and covout.cov_interaction is not None:
-                    sheet.write(current_row, 2, covout.cov_interaction.title(), self._formats['not_required'])
+                    sheet.write(current_row, 2, covout.cov_interaction.title(), self._formats["not_required"])
                 else:
-                    sheet.write(current_row, 2, 'Additive', self._formats['unlocked'])
+                    sheet.write(current_row, 2, "Additive", self._formats["unlocked"])
                 sheet.data_validation(xlrc(current_row, 2), {"validate": "list", "source": ["Random", "Additive", "Nested"]})
 
                 if covout and covout.imp_interaction is not None:
-                    sheet.write(current_row, 3, covout.imp_interaction, self._formats['not_required'])
+                    sheet.write(current_row, 3, covout.imp_interaction, self._formats["not_required"])
                 else:
-                    sheet.write(current_row, 3, None, self._formats['unlocked'])
+                    sheet.write(current_row, 3, None, self._formats["unlocked"])
 
                 if covout and covout.sigma is not None:
-                    sheet.write(current_row, 4, covout.sigma, self._formats['not_required'])
+                    sheet.write(current_row, 4, covout.sigma, self._formats["not_required"])
                 else:
-                    sheet.write(current_row, 4, None, self._formats['unlocked'])
+                    sheet.write(current_row, 4, None, self._formats["unlocked"])
 
                 for prog in applicable_progs:
                     if covout and prog.name in covout.progs:
-                        sheet.write(current_row, prog_col[prog.name], covout.progs[prog.name], self._formats['not_required'])
+                        sheet.write(current_row, prog_col[prog.name], covout.progs[prog.name], self._formats["not_required"])
                     else:
-                        sheet.write(current_row, prog_col[prog.name], None, self._formats['unlocked'])
+                        sheet.write(current_row, prog_col[prog.name], None, self._formats["unlocked"])
 
-                    fcn_pop_not_reached = '%s<>"Y"' % (self._references['reach_pop'][(prog.name, pop_name)])  # Excel formula returns FALSE if pop was 'N' (or blank)
-                    sheet.conditional_format(xlrc(current_row, prog_col[prog.name]), {'type': 'formula', 'criteria': '=AND(%s,NOT(ISBLANK(%s)))' % (fcn_pop_not_reached, xlrc(current_row, prog_col[prog.name])), 'format': self._formats['ignored_warning']})
-                    sheet.conditional_format(xlrc(current_row, prog_col[prog.name]), {'type': 'formula', 'criteria': '=' + fcn_pop_not_reached, 'format': self._formats['ignored_not_required']})
+                    fcn_pop_not_reached = '%s<>"Y"' % (self._references["reach_pop"][(prog.name, pop_name)])  # Excel formula returns FALSE if pop was 'N' (or blank)
+                    sheet.conditional_format(xlrc(current_row, prog_col[prog.name]), {"type": "formula", "criteria": "=AND(%s,NOT(ISBLANK(%s)))" % (fcn_pop_not_reached, xlrc(current_row, prog_col[prog.name])), "format": self._formats["ignored_warning"]})
+                    sheet.conditional_format(xlrc(current_row, prog_col[prog.name]), {"type": "formula", "criteria": "=" + fcn_pop_not_reached, "format": self._formats["ignored_not_required"]})
 
                 # Conditional formatting for the impact interaction - hatched out if no single-program outcomes
                 fcn_empty_outcomes = 'COUNTIF(%s:%s,"<>" & "")<2' % (xlrc(current_row, 5), xlrc(current_row, 5 + len(applicable_progs)))
-                sheet.conditional_format(xlrc(current_row, 3), {'type': 'formula', 'criteria': '=' + fcn_empty_outcomes, 'format': self._formats['ignored']})
-                sheet.conditional_format(xlrc(current_row, 3), {'type': 'formula', 'criteria': '=AND(%s,NOT(ISBLANK(%s)))' % (fcn_empty_outcomes, xlrc(current_row, 3)), 'format': self._formats['ignored_warning']})
+                sheet.conditional_format(xlrc(current_row, 3), {"type": "formula", "criteria": "=" + fcn_empty_outcomes, "format": self._formats["ignored"]})
+                sheet.conditional_format(xlrc(current_row, 3), {"type": "formula", "criteria": "=AND(%s,NOT(ISBLANK(%s)))" % (fcn_empty_outcomes, xlrc(current_row, 3)), "format": self._formats["ignored_warning"]})
 
                 current_row += 1
 
@@ -890,20 +930,23 @@ class ProgramSet(NamedItem):
 
         """
 
-        assert tvec is not None, 'You must specify the time points where data will be entered'
+        assert tvec is not None, "You must specify the time points where data will be entered"
         # Prepare programs
         if sc.isnumber(progs):
             nprogs = progs
             progs = sc.odict()
             for p in range(nprogs):
-                progs['Prog %i' % (p + 1)] = 'Program %i' % (p + 1)
+                progs["Prog %i" % (p + 1)] = "Program %i" % (p + 1)
         elif isinstance(progs, dict):  # will also match odict
             pass
+        elif progs is None:
+            errormsg = "When creating a ProgramSet, the programs cannot be None - it can either be a number of programs, or a dict with code names and full names"
+            raise Exception(errormsg)
         else:
             errormsg = 'Please just supply a number of programs, not "%s"' % (type(progs))
             raise Exception(errormsg)
 
-        framework, data = ProgramSet._normalize_inputs(framework, data, project) # This step will fail if the framework and data cannot be resolved
+        framework, data = ProgramSet._normalize_inputs(framework, data, project)  # This step will fail if the framework and data cannot be resolved
 
         newps = ProgramSet(name=name, tvec=tvec, framework=framework, data=data)
         if not newps.pars:
@@ -923,9 +966,15 @@ class ProgramSet(NamedItem):
         """
 
         for prog in self.programs.values():
-            if not prog.target_comps:
+            if not prog.target_comps and self.comps:
+                # If there are no compartments, then it's fine not to target any compartments - it should be obvious that only coverage scenarios are possible
+                # If there are compartments, then the same is true, but it's also possible (or even probable) that the user accidentally didn't target any compartments
+                # Therefore, in this case, raise an error - if a user wants to just do coverage scenarios, then they can still target the compartments anyway
                 raise Exception('Program "%s" does not target any compartments' % (prog.name))
             if not prog.target_pops:
+                # If the user is using parameters only, they will still have to define a population. And that population must be targeted in order
+                # to provide any program outcome values. Thus, the program should generally target the population even if there are no compartments,
+                # so we raise an error if no populations are targeted
                 raise Exception('Program "%s" does not target any populations' % (prog.name))
 
     #######################################################################################################
@@ -954,14 +1003,13 @@ class ProgramSet(NamedItem):
             if instructions is None or prog.name not in instructions.alloc:
                 alloc[prog.name] = prog.get_spend(tvec)
             else:
-                alloc[prog.name] = instructions.alloc[prog.name].interpolate(tvec)
+                alloc[prog.name] = instructions.alloc[prog.name].interpolate(tvec, method="previous")
 
         if instructions:
-            for prog_name in set(instructions.alloc.keys())-set(self.programs.keys()):
-                logger.warning('The instructions contain an overwrite for a program called "%s" but as this is not in the ProgramSet, it will have no effect',prog_name)
+            for prog_name in set(instructions.alloc.keys()) - set(self.programs.keys()):
+                logger.warning('The instructions contain an overwrite for a program called "%s" but as this is not in the ProgramSet, it will have no effect', prog_name)
 
         return alloc
-
 
     def get_capacities(self, tvec, dt, instructions=None) -> dict:
         """
@@ -994,17 +1042,16 @@ class ProgramSet(NamedItem):
                 # Note that prog.get_capacity() returns capacity in units of people
                 capacities[prog.name] = prog.get_capacity(tvec=tvec, dt=dt, spending=spending)
             else:
-                capacities[prog.name] = instructions.capacity[prog.name].interpolate(tvec)
+                capacities[prog.name] = instructions.capacity[prog.name].interpolate(tvec, method="previous")
                 # Capacity overwrites are input in units of people/year so convert to units of people here
-                if '/year' not in prog.unit_cost.units:
+                if prog.is_one_off:
                     capacities[prog.name] *= dt
 
         return capacities
 
-
-    def get_prop_coverage(self, tvec, capacities, num_eligible, instructions=None) -> dict:
+    def get_prop_coverage(self, tvec, dt, capacities: dict, num_eligible: dict, instructions=None) -> dict:
         """
-        Return fractional coverage
+        Return dimensionless (timestep) fractional coverage
 
         Note that this function is primarily for internal usage (i.e. during
         model integration or reconciliation). Since the proportion covered depends
@@ -1018,7 +1065,10 @@ class ProgramSet(NamedItem):
         - instructions can override the coverage (for coverage scenarios)
         - Programs can contain saturation constraints
 
-        :param tvec: array of times (in years) - this is required to interpolate time-varying saturation values
+        Note that while converage overwrites might be specified in '/year' units for one-off programs,
+        *this function always returns dimensionless coverage* (i.e. not coverage/year). This coverage is also capped at 1.
+
+        :param tvec: scalar year, or array of years - this is required to interpolate time-varying saturation values
         :param capacities: dict of program coverages, should match the available programs (typically the output of ``ProgramSet.get_capacities()``)
                            Note that since the capacity and eligible compartment sizes are being compared here,
                            the capacity needs to be in units of 'people' (not 'people/year') at this point
@@ -1029,12 +1079,19 @@ class ProgramSet(NamedItem):
         """
 
         prop_coverage = sc.odict()  # Initialise outputs
+
         for prog in self.programs.values():
             if instructions is None or prog.name not in instructions.coverage:
+                # The capacities have already been converted to timestep values, so no further transformation is necessary
                 prop_coverage[prog.name] = prog.get_prop_covered(tvec, capacities[prog.name], num_eligible[prog.name])
             else:
-                prop_coverage[prog.name] = instructions.coverage[prog.name].interpolate(tvec)
-                prop_coverage[prog.name] = minimum(prop_coverage[prog.name], 1.)
+                prop_coverage[prog.name] = instructions.coverage[prog.name].interpolate(tvec, method="previous")
+                if prog.is_one_off:
+                    # Coverage overwrites for one off programs are specified in /year units, therefore they get adjusted by dt here
+                    prop_coverage[prog.name] *= dt
+
+        prop_coverage[prog.name] = minimum(prop_coverage[prog.name], 1.0)
+
         return prop_coverage
 
     def get_outcomes(self, prop_coverage: dict) -> dict:
@@ -1083,6 +1140,7 @@ class ProgramSet(NamedItem):
             covout.sample()
         return new
 
+
 class Program(NamedItem):
     """
     Representation of a single program
@@ -1107,18 +1165,38 @@ class Program(NamedItem):
 
     """
 
-    def __init__(self, name, label=None, target_pops=None, target_comps=None, currency='$'):
+    def __init__(self, name, label=None, target_pops=None, target_comps=None, currency="$"):
         NamedItem.__init__(self, name)
         self.name = name  #: Short name of program
         self.label = name if label is None else label  #: Full name of the program
         self.target_pops = [] if target_pops is None else target_pops  #: List of populations targeted by the program
         self.target_comps = [] if target_comps is None else target_comps  #: Compartments targeted by the program - used for calculating coverage denominators
-        self.baseline_spend = TimeSeries(assumption=0.0, units=currency + '/year')  #: A TimeSeries with any baseline spending data - currently not exposed in progbook
-        self.spend_data = TimeSeries(units=currency + '/year')  #: TimeSeries with spending data for the program
-        self.unit_cost = TimeSeries(units=currency + '/person (one-off)')  #: TimeSeries with unit cost of the program
-        self.capacity_constraint = TimeSeries(units='people/year')  #: TimeSeries with capacity constraint for the program
+        self.baseline_spend = TimeSeries(assumption=0.0, units=currency + "/year")  #: A TimeSeries with any baseline spending data - currently not exposed in progbook
+        self.spend_data = TimeSeries(units=currency + "/year")  #: TimeSeries with spending data for the program
+        self.unit_cost = TimeSeries(units=currency + "/person (one-off)")  #: TimeSeries with unit cost of the program
+        self.capacity_constraint = TimeSeries(units="people/year")  #: TimeSeries with capacity constraint for the program
         self.saturation = TimeSeries(units=FS.DEFAULT_SYMBOL_INAPPLICABLE)  #: TimeSeries with saturation constraint that is applied to fractional coverage
-        self.coverage = TimeSeries(units='people/year')  #: TimeSeries with capacity of program - optional - if not supplied, cost function is assumed to be linear
+        self.coverage = TimeSeries(units="people/year")  #: TimeSeries with capacity of program - optional - if not supplied, cost function is assumed to be linear
+
+    @property
+    def is_one_off(self) -> bool:
+        """
+        Flag for one-off programs
+
+        A one-off program is a program where the cost is incurred once, per person impacted. For example, a treatment
+        program where after treatment the person is no longer eligible for treatment. In contrast, a non-one-off program
+        (a continuous program) is one where a person reached by the program remains eligible - for example, ART. In addition,
+        one-off programs are typically linked to transition parameters, while continuous programs are typically linked to
+        non-transition parameters.
+
+        Whether a program is one-off or not depends on whether the unit cost is specified as
+        - Cost per person (one-off)
+        - Cost per person per year (continuous)
+
+        :return: True if program is a one-off program
+
+        """
+        return "/year" not in self.unit_cost.units
 
     def sample(self, constant: bool) -> None:
         """
@@ -1138,17 +1216,16 @@ class Program(NamedItem):
         self.saturation = self.saturation.sample(constant)
         self.coverage = self.coverage.sample(constant)
 
-
     def __repr__(self):
         output = sc.prepr(self)
-        output += '          Program name: %s\n' % self.name
-        output += '         Program label: %s\n' % self.label
-        output += '  Targeted populations: %s\n' % self.target_pops
-        output += ' Targeted compartments: %s\n' % self.target_comps
-        output += '\n'
+        output += "          Program name: %s\n" % self.name
+        output += "         Program label: %s\n" % self.label
+        output += "  Targeted populations: %s\n" % self.target_pops
+        output += " Targeted compartments: %s\n" % self.target_comps
+        output += "\n"
         return output
 
-    def get_spend(self, year=None, total:bool=False) -> np.array:
+    def get_spend(self, year=None, total: bool = False) -> np.array:
         """
         Retrieve program spending
 
@@ -1159,9 +1236,9 @@ class Program(NamedItem):
         """
 
         if total:
-            return self.spend_data.interpolate(year) + self.baseline_spend.interpolate(year)
+            return self.spend_data.interpolate(year, method="previous") + self.baseline_spend.interpolate(year, method="previous")
         else:
-            return self.spend_data.interpolate(year)
+            return self.spend_data.interpolate(year, method="previous")
 
     def get_capacity(self, tvec, spending, dt):
         """
@@ -1191,17 +1268,17 @@ class Program(NamedItem):
         # Validate inputs
         spending = sc.promotetoarray(spending)
 
-        unit_cost = self.unit_cost.interpolate(tvec)
-        if '/year' not in self.unit_cost.units:
-            # The spending is $/year, and the /year gets eliminated if the unit cost is also per year. If that's not the case, then
-            # we need to multiply the spending by the timestep to get the correct units
+        unit_cost = self.unit_cost.interpolate(tvec, method="previous")
+        if self.is_one_off:
+            # The spending is $/year, and the /year gets eliminated if the unit cost is also per year. For one-off programs, the unit cost is not
+            # /year, therefore we need to multiply the spending by the timestep to the capacity as people rather than people/year
             spending *= dt
 
         capacity = spending / unit_cost
 
         if self.capacity_constraint.has_data:
-            capacity_constraint = self.capacity_constraint.interpolate(tvec)
-            if '/year' in self.capacity_constraint.units:
+            capacity_constraint = self.capacity_constraint.interpolate(tvec, method="previous")
+            if "/year" in self.capacity_constraint.units:
                 # The capacity_constraint constraint is applied to a number of people. If it is /year, then it must be multiplied by the timestep first
                 capacity_constraint *= dt
             capacity = np.minimum(capacity_constraint, capacity)
@@ -1209,7 +1286,6 @@ class Program(NamedItem):
         return capacity
 
     def get_prop_covered(self, tvec, capacity, eligible):
-
         """
         Return proportion of people covered
 
@@ -1219,7 +1295,8 @@ class Program(NamedItem):
 
         :param tvec:  An array of times
         :param capacity: An array of number of people covered (e.g. the output of ``Program.get_capacity()``)
-                         This should be in units of 'people', rather than 'people/year'
+                         This should be in units of 'people', rather than 'people/year' although it may be a
+                         timestep-sensitive value if the capacity follows from a timestep-adjusted spend.
         :param eligible: The number of people eligible for the program (computed from a model object or a Result)
         :return: The fractional coverage (used to compute outcomes)
 
@@ -1232,16 +1309,17 @@ class Program(NamedItem):
         if self.saturation.has_data:
             # If the coverage denominator (eligible) is 0, then we need to use the saturation value
             prop_covered = np.divide(capacity, eligible, out=np.full(capacity.shape, np.inf), where=eligible != 0)
-            saturation = self.saturation.interpolate(tvec)
+            saturation = self.saturation.interpolate(tvec, method="previous")
             prop_covered = 2 * saturation / (1 + exp(-2 * prop_covered / saturation)) - saturation
-            prop_covered = minimum(prop_covered, 1.)  # Ensure that coverage doesn't go above 1 (if saturation is < 1)
+            prop_covered = minimum(prop_covered, 1.0)  # Ensure that coverage doesn't go above 1 (if saturation is < 1)
         else:
             # The division below means that 0/0 is treated as returning 1
             prop_covered = np.divide(capacity, eligible, out=np.ones_like(capacity), where=eligible > capacity)
 
         return prop_covered
 
-class Covout(object):
+
+class Covout:
     """
     Store and compute program outcomes
 
@@ -1261,9 +1339,9 @@ class Covout(object):
     def __init__(self, par: str, pop: str, progs: dict, cov_interaction: str = None, imp_interaction: str = None, uncertainty=0.0, baseline=0.0):
 
         if cov_interaction is None:
-            cov_interaction = 'additive'
+            cov_interaction = "additive"
         else:
-            assert cov_interaction in ['additive', 'random', 'nested'], 'Coverage interaction must be set to "additive", "random", or "nested"'
+            assert cov_interaction in ["additive", "random", "nested"], 'Coverage interaction must be set to "additive", "random", or "nested"'
 
         self.par = par
         self.pop = pop
@@ -1275,10 +1353,10 @@ class Covout(object):
 
         # Parse the interactions into a numeric representation
         self._interactions = dict()
-        if self.imp_interaction and not self.imp_interaction.lower() in ['best', 'synergistic']:
-            for interaction in self.imp_interaction.split(','):
-                combo, val = interaction.split('=')
-                combo = frozenset([x.strip() for x in combo.split('+')])
+        if self.imp_interaction and not self.imp_interaction.lower() in ["best", "synergistic"]:
+            for interaction in self.imp_interaction.split(","):
+                combo, val = interaction.split("=")
+                combo = frozenset([x.strip() for x in combo.split("+")])
                 for x in combo:
                     assert x in self.progs, 'The impact interaction refers to a program "%s" which does not appear in the available programs' % (x)
                 self._interactions[combo] = float(val) - self.baseline
@@ -1315,8 +1393,8 @@ class Covout(object):
         if self._interactions:
             for k, v in self.interactions.items():
                 self.interactions[k] = v + self.sigma * np.random.randn(1)[0]
-            tokens = ['%s=%.4f' % ('+'.join(k), v) for k, v in self.interactions.items()]
-            self.imp_interaction = ','.join(tokens)
+            tokens = ["%s=%.4f" % ("+".join(k), v) for k, v in self.interactions.items()]
+            self.imp_interaction = ",".join(tokens)
 
         self.update_outcomes()
 
@@ -1335,7 +1413,7 @@ class Covout(object):
 
         # First, sort the program dict by the magnitude of the outcome
         prog_tuple = [(k, v) for k, v in self.progs.items()]
-        prog_tuple = sorted(prog_tuple, key=lambda x: -abs(x[1]-self.baseline))
+        prog_tuple = sorted(prog_tuple, key=lambda x: -abs(x[1] - self.baseline))
         self._cached_progs = sc.odict()  # This list contains the perturbed/sampled values, in order
         for item in prog_tuple:
             self._cached_progs[item[0]] = item[1]
@@ -1345,7 +1423,7 @@ class Covout(object):
         # We need to store it in two forms
         # - An (ordered) vector of outcomes, which is used by additive and random to do the modality interaction in vectorized form
         # - A dict of outcomes, which is used by nested to look up the outcome using a tupled key of program indices
-        combination_strings = [bin(x)[2:].rjust(self.n_progs, '0') for x in range(2 ** self.n_progs)]  # ['00','01','10',...]
+        combination_strings = [bin(x)[2:].rjust(self.n_progs, "0") for x in range(2 ** self.n_progs)]  # ['00','01','10',...]
         self.combinations = np.array([list(int(y) for y in x) for x in combination_strings])
         _combination_outcomes = []
         for prog_combination in self.combinations.astype(bool):
@@ -1354,15 +1432,15 @@ class Covout(object):
 
     def __repr__(self):
         output = sc.prepr(self)
-        output = sc.indent('   Parameter: ', self.par)
-        output += sc.indent('  Population: ', self.pop)
-        output += sc.indent('Baseline val: ', self.baseline)
-        output += sc.indent('    Programs: ', ', '.join(['%s: %s' % (key, val) for key, val in self.progs.items()]))
-        output += '\n'
+        output = sc.indent("   Parameter: ", self.par)
+        output += sc.indent("  Population: ", self.pop)
+        output += sc.indent("Baseline val: ", self.baseline)
+        output += sc.indent("    Programs: ", ", ".join(["%s: %s" % (key, val) for key, val in self.progs.items()]))
+        output += "\n"
         return output
 
     def get_outcome(self, prop_covered):
-        """ Return parameter value given program coverages
+        """Return parameter value given program coverages
 
         The :class:`Covout` object contains a set of programs and outcomes. The :meth:`Covout.get_outcome` method
         returns the outcome value associated for coverage of each program. Don't forget that any given Covout instance
@@ -1372,7 +1450,8 @@ class Covout(object):
                              programs in `self.progs`. Note that `coverage` is expected to be a ``np.array``
                              (such that that generated by :meth:`ProgramSet.get_prop_coverage`). However,
                              because the modality calculations only work for scalars, only the first entry
-                             in the array will be used.
+                             in the array will be used. Note that the coverage in this dictionary should be
+                             dimensionless.
         :return: A scalar outcome (of type `np.double` or similar i.e. _not_ an array)
 
         """
@@ -1391,7 +1470,7 @@ class Covout(object):
         cov = np.array(cov)
 
         # ADDITIVE CALCULATION
-        if self.cov_interaction == 'additive':
+        if self.cov_interaction == "additive":
             # Outcome += c1*delta_out1 + c2*delta_out2
 
             # If sum(cov)<0 then there will be a divide by zero error. Also, need to divide by max(sum(cov),1) rather than sum(cov)
@@ -1420,14 +1499,14 @@ class Covout(object):
                 outcome += np.sum(cov * self._deltas)
 
         # NESTED CALCULATION
-        elif self.cov_interaction == 'nested':
+        elif self.cov_interaction == "nested":
             # Outcome += c3*max(delta_out1,delta_out2,delta_out3) + (c2-c3)*max(delta_out1,delta_out2) + (c1 -c2)*delta_out1, where c3<c2<c1.
             idx = np.argsort(cov)
             prog_mask = np.full(cov.shape, fill_value=True)
             combination_coverage = np.zeros((self.combinations.shape[0],))
 
             for i in range(0, len(cov)):
-                combination_index = int('0b' + ''.join(['1' if x else '0' for x in prog_mask]), 2)
+                combination_index = int("0b" + "".join(["1" if x else "0" for x in prog_mask]), 2)
                 if i == 0:
                     combination_coverage[combination_index] = cov[idx[i]]
                 else:
@@ -1437,7 +1516,7 @@ class Covout(object):
             outcome += np.sum(combination_coverage * self._combination_outcomes.ravel())
 
         # RANDOM CALCULATION
-        elif self.cov_interaction == 'random':
+        elif self.cov_interaction == "random":
             # Outcome += c1(1-c2)* delta_out1 + c2(1-c1)*delta_out2 + c1c2* max(delta_out1,delta_out2)
             combination_coverage = np.product(self.combinations * cov + (self.combinations ^ 1) * (1 - cov), axis=1)
             outcome += np.sum(combination_coverage.ravel() * self._combination_outcomes.ravel())
@@ -1467,7 +1546,7 @@ class Covout(object):
         if progs_active in self._interactions:
             # If the combination of programs has an explicitly specified outcome, then use it
             return self._interactions[progs_active]
-        elif self.imp_interaction is not None and self.imp_interaction.lower() == 'synergistic':
+        elif self.imp_interaction is not None and self.imp_interaction.lower() == "synergistic":
             raise NotImplementedError
         else:
             # Otherwise, do the 'best' interaction and return the delta with the largest magnitude

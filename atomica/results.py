@@ -13,13 +13,17 @@ import pandas as pd
 from scipy import stats
 import tqdm
 import logging
+from pathlib import Path
 
 import sciris as sc
 from .excel import standard_formats
 from .system import FrameworkSettings as FS
 from .system import logger, NotFoundError
-from .utils import NamedItem, evaluate_plot_string, nested_loop, interpolate
+from .utils import NamedItem, evaluate_plot_string, nested_loop
 from .function_parser import parse_function
+from .version import version, gitinfo
+
+__all__ = ["Result", "export_results", "Ensemble"]
 
 
 class Result(NamedItem):
@@ -52,19 +56,28 @@ class Result(NamedItem):
         NamedItem.__init__(self, name)
 
         self.uid = sc.uuid()
+        self.version = version  # Track versioning information for the result. This might change due to migration (whereas by convention, the model version does not)
+        self.gitinfo = gitinfo
 
         # The Result constructor is called in model.run_model and the Model is no longer returned.
         # The following should be the only reference to that instance so no need to dcp.
-        self.model = model #: A completed model run that serves as primary storage for the underlying values
-        self.parset_name = parset.name if parset is not None else None #: The name of the ParameterSet that was used for the simulation
-        self.pop_names = [x.name for x in self.model.pops] #: A list of the population names present. This gets frequently used, so it is saved as an actual output
+        self.model = model  # : A completed model run that serves as primary storage for the underlying values
+        self.parset_name = parset.name if parset is not None else None  # : The name of the ParameterSet that was used for the simulation
+        self.pop_names = [x.name for x in self.model.pops]  # : A list of the population names present. This gets frequently used, so it is saved as an actual output
+
+    def __setstate__(self, d):
+        from .migration import migrate
+
+        self.__dict__ = d
+        result = migrate(self)
+        self.__dict__ = result.__dict__
 
     @property
     def used_programs(self) -> bool:
         """
         Flag whether programs were used or not
-        
-        :return: ``True`` if a progset and program instructions were present. Note that programs will be considered active even if the 
+
+        :return: ``True`` if a progset and program instructions were present. Note that programs will be considered active even if the
                start/stop years in the instructions don't overlap the simulation years (so no overwrite actually took place).
         """
 
@@ -114,10 +127,31 @@ class Result(NamedItem):
 
         return [x.label for x in self.model.pops]
 
-    def get_alloc(self,year=None) -> dict:
+    def check_for_nans(self, verbose=True) -> bool:
+        """
+        Check if any NaNs/Infs are present
+
+        :param verbose: Print NaN/Inf quantities
+        :return: True if any quantities contain NaNs/Infs
+        """
+
+        nans_present = False
+
+        for pop in self.model.pops:
+            for var in pop.pars + pop.comps + pop.characs + pop.links:
+                if not np.all(np.isfinite(var.vals)):
+                    nans_present = True
+                    if verbose:
+                        print(f"NaNs detected in {var.name} ({pop.name})")
+        return nans_present
+
+    def get_alloc(self, year=None) -> dict:
         """
         Return spending allocation
-        If the result was generated using programs, this method
+
+        If the result was generated using programs, this method will return the spending
+        on all programs in the requested years.
+
         :param year: Optionally specify a scalar or list/array of years to return budget values
                      for. Otherwise, uses all simulation times
         :return: Dictionary keyed by program name with arrays of spending values
@@ -131,30 +165,88 @@ class Result(NamedItem):
 
         return self.model.progset.get_alloc(year, self.model.program_instructions)
 
-    def get_coverage(self, quantity: str = 'fraction', year=None) -> dict:
+    def get_equivalent_alloc(self, year=None) -> dict:
         """
-        Return program
+        Return minimal spending allocation for a given year based on the coverage
+
+        If the result was generated using programs, this method will return the spending
+        on all programs in the requested years.
+
+        :param year: Optionally specify a scalar or list/array of years to return budget values
+                     for. Otherwise, uses all simulation times
+        :return: Dictionary keyed by program name with arrays of spending values
+        """
+
+        if self.model.progset is None:
+            return None
+
+        if year is None:
+            year = self.t
+
+        prop_coverage = self.get_coverage(quantity="fraction", year=year)
+        num_eligible = self.get_coverage(quantity="eligible", year=year)
+
+        equivalent_alloc = sc.odict()
+        for prog in prop_coverage.keys():
+            uc = self.model.progset.programs[prog].unit_cost.interpolate(year)
+            pc = sc.dcp(prop_coverage[prog])
+
+            if self.model.progset.programs[prog].saturation.has_data:
+                sat = self.model.progset.programs[prog].saturation.interpolate(year)
+
+                # If prop_covered is higher than the saturation then set it to nan (without the error that would happen from np.log)
+                pc[pc >= sat] = np.nan
+
+                # invert the calculation on the proportional coverage to determine the necessary "costed" coverage
+                pc = -sat * np.log((sat - pc) / (sat + pc)) / 2.0
+
+            # Calculating the program coverage, capacity constraint is applied first, then saturation, so it needs to happen second when reversing the calculation
+            if self.model.progset.programs[prog].capacity_constraint.has_data:
+                cap = self.model.progset.programs[prog].capacity_constraint.interpolate(year)
+                # If prop_covered is higher than the capacity constraint then set it to nan as it wouldn't be possible to reach that coverage
+                pc[pc * num_eligible[prog] > cap] = np.nan
+
+            # multiply the proportion of naively costed coverage by the number of actually eligible people (catching the case where number covered would be higher than the number eligible)
+            num_costed_coverage = pc * num_eligible[prog]
+
+            equivalent_alloc[prog] = uc * num_costed_coverage
+
+            if "/year" in self.model.progset.programs[prog].coverage.units:  # it's a one-off program, need to multiply by the time step to annualize spending
+                equivalent_alloc[prog] /= self.dt
+
+        return equivalent_alloc
+
+    def get_coverage(self, quantity: str = "fraction", year=None) -> dict:
+        """
+        Return program coverage
 
         This function is the primary function to use when wanting to query coverage
         values. All coverage quantities are accessible via the :class:`Result` object
         because the compartment sizes and thus eligible people are known.
+
+        **Caution** - capacity and number covered are returned in units of 'people/year'. They need to be
+        accumulated by integration rather than summation.
+
         :param quantity: One of
             - 'capacity' - Program capacity in units of 'people/year' (for all types of programs)
             - 'eligible' - The number of people eligible for the program (coverage denominator) in units of 'people'
             - 'fraction' - ``capacity/eligible``, the fraction coverage (maximum value is 1.0) - this quantity is dimensionless
             - 'number' - The number of people covered (``fraction*eligible``) returned in units of 'people/year'
+
         :param year: Optionally specify a scalar or list/array of years to return budget values
                      for. Otherwise, uses all simulation times
         :return: Requested values in dictionary ``{prog_name:value}`` in requested years
 
         """
 
+        from .model import JunctionCompartment
+
         if self.model.progset is None:
             return None
 
         capacities = self.model.progset.get_capacities(tvec=self.t, dt=self.dt, instructions=self.model.program_instructions)
 
-        if quantity == 'capacity':
+        if quantity == "capacity":
             output = capacities
         else:
             # Get the program coverage denominator
@@ -162,41 +254,48 @@ class Result(NamedItem):
             for prog in self.model.progset.programs.values():  # For each program
                 for pop_name in prog.target_pops:
                     for comp_name in prog.target_comps:
-                        if prog.name not in num_eligible:
-                            num_eligible[prog.name] = self.get_variable(comp_name, pop_name)[0].vals.copy()
+                        comp = self.get_variable(comp_name, pop_name)[0]
+
+                        if isinstance(comp, JunctionCompartment):
+                            vals = comp.outflow
                         else:
-                            num_eligible[prog.name] += self.get_variable(comp_name, pop_name)[0].vals
+                            vals = comp.vals
+
+                        if prog.name not in num_eligible:
+                            num_eligible[prog.name] = vals.copy()
+                        else:
+                            num_eligible[prog.name] += vals
 
             # Note that `ProgramSet.get_prop_coverage()` takes in capacity in units of 'people' which matches
             # the units of 'num_eligible' so we therefore use the returned value from `ProgramSet.get_capacities()`
             # as-is without doing any annualization
-            prop_coverage = self.model.progset.get_prop_coverage(tvec=self.t, capacities=capacities, num_eligible=num_eligible, instructions=self.model.program_instructions)
+            prop_coverage = self.model.progset.get_prop_coverage(tvec=self.t, dt=self.dt, capacities=capacities, num_eligible=num_eligible, instructions=self.model.program_instructions)
 
-            if quantity == 'fraction':
+            if quantity in {"fraction", "annual_fraction"}:
                 output = prop_coverage
-            elif quantity == 'eligible':
+            elif quantity == "eligible":
                 output = num_eligible
-            elif quantity == 'number':
+            elif quantity == "number":
                 output = {x: num_eligible[x] * prop_coverage[x] for x in prop_coverage.keys()}
             else:
-                raise Exception('Unknown coverage type requested')
+                raise Exception("Unknown coverage type requested")
 
-        if quantity in {'capacity', 'number'}:
+        if quantity in {"capacity", "number", "annual_fraction"}:
             # Return capacity and number coverage as 'people/year' rather than 'people'
             for prog in output.keys():
-                if '/year' not in self.model.progset.programs[prog].unit_cost.units:
+                if self.model.progset.programs[prog].is_one_off:
                     output[prog] /= self.dt
 
         if year is not None:
             for k in output.keys():
-                output[k] = interpolate(self.t, output[k], sc.promotetoarray(year), extrapolate=False)
+                output[k] = np.interp(sc.promotetoarray(year), self.t, output[k], left=np.nan, right=np.nan)  # Linear output interpolation
 
         return output
 
     # Convenience methods to list available comps, characs, pars, and links
     # The population name is required because different populations could have
     # different contents
-    def comp_names(self, pop_name:str) -> list:
+    def comp_names(self, pop_name: str) -> list:
         """
         Return compartment names within a population
 
@@ -207,7 +306,7 @@ class Result(NamedItem):
 
         return sorted(self.model.get_pop(pop_name).comp_lookup.keys())
 
-    def charac_names(self, pop_name:str) -> list:
+    def charac_names(self, pop_name: str) -> list:
         """
         Return list of characteristic names
 
@@ -221,7 +320,7 @@ class Result(NamedItem):
 
         return sorted(self.model.get_pop(pop_name).charac_lookup.keys())
 
-    def par_names(self, pop_name:str) -> list:
+    def par_names(self, pop_name: str) -> list:
         """
         Return list of parameter names
 
@@ -235,7 +334,7 @@ class Result(NamedItem):
 
         return sorted(self.model.get_pop(pop_name).par_lookup.keys())
 
-    def link_names(self, pop_name:str) -> list:
+    def link_names(self, pop_name: str) -> list:
         """
         Return list of link names
 
@@ -258,7 +357,7 @@ class Result(NamedItem):
         output = sc.prepr(self)
         return output
 
-    def get_variable(self, name:str,  pops:str=None) -> list:
+    def get_variable(self, name: str, pops: str = None) -> list:
         """
         Retrieve integration objects
 
@@ -305,36 +404,41 @@ class Result(NamedItem):
             try:
                 return self.framework.get_label(name)
             except NotFoundError:
-                return '-'
+                return "-"
 
         for pop in self.model.pops:
             for comp in pop.comps:
-                d[('Compartments', pop.name, comp.name,gl(comp.name))] = comp.vals
+                d[("Compartments", pop.name, comp.name, gl(comp.name))] = comp.vals
             for charac in pop.characs:
-                d[('Characteristics', pop.name, charac.name, gl(charac.name))] = charac.vals
+                d[("Characteristics", pop.name, charac.name, gl(charac.name))] = charac.vals
             for par in pop.pars:
                 if par.vals is not None:
-                    d[('Parameters', pop.name, par.name, gl(par.name))] = par.vals
+                    d[("Parameters", pop.name, par.name, gl(par.name))] = par.vals
             for link in pop.links:
                 # Sum over duplicate links and annualize flow rate
-                par_label = gl(link.parameter.name)
-                if par_label == '-':
+                if link.parameter is None:
+                    par_label = "-"
+                else:
+                    par_label = gl(link.parameter.name)
+
+                if par_label == "-":
                     link_label = par_label
                 else:
-                    link_label = '%s (flow)' % (par_label)
+                    link_label = "%s (flow)" % (par_label)
 
-                key = ('Flow rates', pop.name, link.name,  link_label)
+                key = ("Flow rates", pop.name, link.name, link_label)
                 if key not in d:
                     d[key] = np.zeros(self.t.shape)
                 d[key] += link.vals / self.dt
 
         # Create DataFrame from dict
         df = pd.DataFrame(d, index=self.t)
-        df.index.name = 'Time'
+        df.index.name = "Time"
 
         # Optionally save it
         if filename is not None:
-            df.T.to_excel(filename + '.xlsx' if not filename.endswith('.xlsx') else filename)
+            output_fname = Path(filename).with_suffix(".xlsx").resolve()
+            df.T.to_excel(output_fname)
 
         return df
 
@@ -357,52 +461,37 @@ class Result(NamedItem):
 
         from .plotting import PlotData, plot_series
 
-        df = self.framework.sheets['plots'][0]
+        assert not (plot_name and plot_group), "When plotting a Result, you can specify the plot name or plot group, but not both"
+
+        df = self.framework.sheets["plots"][0]
+        df = df.dropna(subset=["name", "quantities"])  # Remove any plots that are missing names or quantities
 
         if plot_group is None and plot_name is None:
-            for plot_name in df['name']:
+            for plot_name in df["name"]:
                 self.plot(plot_name, pops=pops, project=project)
             return
         elif plot_group is not None:
-            for plot_name in df.loc[df['plot group'] == plot_group, 'name']:
+            for plot_name in df.loc[df["plot group"] == plot_group, "name"]:
                 self.plot(plot_name=plot_name, pops=pops, project=project)
             return
 
-        this_plot = df.loc[df['name'] == plot_name, :].iloc[0]  # A Series with the row of the 'Plots' sheet corresponding to the plot we want to render
+        this_plot = df.loc[df["name"] == plot_name, :].iloc[0]  # A Series with the row of the 'Plots' sheet corresponding to the plot we want to render
 
-        quantities = evaluate_plot_string(this_plot['quantities'])
+        quantities = evaluate_plot_string(this_plot["quantities"])
 
         # Work out which populations these are defined in
         # Going via Result.get_variable() means that it will automatically
         # work correctly for flow rate syntax as well
         if not pops:
-            pops = _filter_pops_by_output(self,quantities)
+            pops = _filter_pops_by_output(self, quantities)
 
         d = PlotData(self, outputs=quantities, pops=pops, project=project)
-        h = plot_series(d, axis='pops', data=(project.data if project is not None else None))
-        plt.title(this_plot['name'])
+        h = plot_series(d, axis="pops", data=(project.data if project is not None else None))
+        plt.title(this_plot["name"])
         return h
 
-    def budget(self, year=None):
-        """
-        Return budget at a given year
 
-        This will return the per-year spending rate taking into account
-        any budget scenarios that are present.
-
-        :param year: Optionally specify a time or array of times. Otherwise, use all times
-        :returns: A ``dict`` keyed by program name containing arrays of spending values
-
-        """
-
-        if self.model.progset is None:
-            return None
-        else:
-            if year is None:
-                year = self.t
-            return self.model.progset.get_alloc(year, self.model.program_instructions)
-
-def _filter_pops_by_output(result,output) -> list:
+def _filter_pops_by_output(result, output) -> list:
     """
     Helper function for plotting quantities
 
@@ -430,13 +519,14 @@ def _filter_pops_by_output(result,output) -> list:
             _, deps = parse_function(v)
             vars = result.get_variable(deps[0])
     else:
-        raise Exception('Could not determine population type')
-    return [x.pop.name for x in vars]
+        raise Exception("Could not determine population type")
+
+    matching_pops = {x.pop.name for x in vars}
+    return [x for x in result.pop_names if x in matching_pops]  # Maintain original population order
 
 
-def export_results(results, filename=None, output_ordering=('output', 'result', 'pop'),
-                   cascade_ordering=('pop', 'result', 'stage'), program_ordering=('program', 'result', 'quantity')):
-    """ Export Result outputs to a file
+def export_results(results, filename=None, output_ordering=("output", "result", "pop"), cascade_ordering=("pop", "result", "stage"), program_ordering=("program", "result", "quantity")):
+    """Export Result outputs to a file
 
     This function writes an XLSX file with the data corresponding to any Cascades or Plots
     that are present. Note that results are exported for every year by selecting integer years.
@@ -474,33 +564,42 @@ def export_results(results, filename=None, output_ordering=('output', 'result', 
 
     result_names = [x.name for x in results]
     if len(set(result_names)) != len(result_names):
-        raise Exception('Results must have different names (in their result.name property)')
+        raise Exception("Results must have different names (in their result.name property)")
 
     # Check all results have the same time range
     for result in results:
         if result.t[0] != results[0].t[0] or result.t[-1] != results[0].t[-1]:
-            raise Exception('All results must have the same start and finish years')
+            raise Exception("All results must have the same start and finish years")
 
         if set(result.pop_names) != set(results[0].pop_names):
-            raise Exception('All results must have the same populations')
+            raise Exception("All results must have the same populations")
 
     # Interpolate all outputs onto these years
     new_tvals = np.arange(np.ceil(results[0].t[0]), np.floor(results[0].t[-1]) + 1)
 
     # Open the output file
-    output_fname = filename + '.xlsx' if not filename.endswith('.xlsx') else filename
-    writer = pd.ExcelWriter(output_fname, engine='xlsxwriter')
+    output_fname = Path(filename).with_suffix(".xlsx").resolve()
+    writer = pd.ExcelWriter(output_fname, engine="xlsxwriter")
     formats = standard_formats(writer.book)
 
     # Write the plots sheet if any plots are available
-    if 'plots' in results[0].framework.sheets:
-        plot_df = []
-        plots_available = results[0].framework.sheets['plots'][0]
-        for _, spec in plots_available.iterrows():
-            if 'type' in spec and spec['type'] == 'bar':
-                continue  # For now, don't do bars - not implemented yet
-            plot_df.append(_output_to_df(results, output_name=spec['name'], output=evaluate_plot_string(spec['quantities']),tvals=new_tvals))
-        _write_df(writer, formats, 'Plot data', pd.concat(plot_df), output_ordering)
+    if "plots" in results[0].framework.sheets:
+        plots_available = results[0].framework.sheets["plots"][0]
+
+        if not plots_available.empty:
+            plot_df = []
+            for _, spec in plots_available.iterrows():
+                if "type" in spec and spec["type"] == "bar":
+                    continue  # For now, don't do bars - not implemented yet
+                plot_df.append(_output_to_df(results, output_name=spec["name"], output=evaluate_plot_string(spec["quantities"]), tvals=new_tvals, time_aggregate=False))
+            _write_df(writer, formats, "Plot data annualized", pd.concat(plot_df), output_ordering)
+
+            plot_df = []
+            for _, spec in plots_available.iterrows():
+                if "type" in spec and spec["type"] == "bar":
+                    continue  # For now, don't do bars - not implemented yet
+                plot_df.append(_output_to_df(results, output_name=spec["name"], output=evaluate_plot_string(spec["quantities"]), tvals=new_tvals, time_aggregate=True))
+            _write_df(writer, formats, "Plot data annual aggregated", pd.concat(plot_df), output_ordering)
 
     # Write cascades into separate sheets
     cascade_df = []
@@ -509,15 +608,15 @@ def export_results(results, filename=None, output_ordering=('output', 'result', 
     if cascade_df:
         # always split tables by cascade, since different cascades can have different stages or the same stages with different definitions
         # it's thus potentially very confusing if the tables are split by something other than the cascade
-        _write_df(writer, formats, 'Cascade', pd.concat(cascade_df), ('cascade',) + cascade_ordering)
+        _write_df(writer, formats, "Cascade", pd.concat(cascade_df), ("cascade",) + cascade_ordering)
 
     # If there are targetable parameters, output them
-    targetable_code_names = list(results[0].framework.pars.index[results[0].framework.pars['targetable'] == 'y'])
+    targetable_code_names = list(results[0].framework.pars.index[results[0].framework.pars["targetable"] == "y"])
     if targetable_code_names:
         par_df = []
         for par_name in targetable_code_names:
             par_df.append(_output_to_df(results, output_name=par_name, output=par_name, tvals=new_tvals))
-        _write_df(writer, formats, 'Target parameters', pd.concat(par_df), output_ordering)
+        _write_df(writer, formats, "Target parameters annualized", pd.concat(par_df), output_ordering)
 
     # If any of the results used programs, output them
     if any([x.used_programs for x in results]):
@@ -531,16 +630,20 @@ def export_results(results, filename=None, output_ordering=('output', 'result', 
 
         prog_df = []
         for prog_name in prog_names:
-            prog_df.append(_programs_to_df(results, prog_name, new_tvals))
-        _write_df(writer, formats, 'Programs', pd.concat(prog_df), program_ordering)
+            prog_df.append(_programs_to_df(results, prog_name, new_tvals, time_aggregate=False))
+        _write_df(writer, formats, "Programs annualized", pd.concat(prog_df), program_ordering)
 
-    writer.save()
+        prog_df = []
+        for prog_name in prog_names:
+            prog_df.append(_programs_to_df(results, prog_name, new_tvals, time_aggregate=True))
+        _write_df(writer, formats, "Programs annual aggregated", pd.concat(prog_df), program_ordering)
+
     writer.close()
 
     return output_fname
 
 
-def _programs_to_df(results, prog_name, tvals):
+def _programs_to_df(results, prog_name, tvals, time_aggregate=False):
     """
     Return a DataFrame for program outputs for a group of results
 
@@ -550,6 +653,7 @@ def _programs_to_df(results, prog_name, tvals):
     :param results: List of Results
     :param prog_name: The name of a program
     :param tvals: Outputs will be interpolated onto the times in this array (typically would be annual)
+    :param time_aggregate: False means output annualized Jan 1 values, True means use time_aggregation to sum or average the timestep values over the year for each parameter.
     :return: A DataFrame
 
     """
@@ -562,27 +666,40 @@ def _programs_to_df(results, prog_name, tvals):
         if result.used_programs and prog_name in result.model.progset.programs:
             programs_active = (result.model.program_instructions.start_year <= tvals) & (tvals <= result.model.program_instructions.stop_year)
 
-            vals = PlotData.programs(result, outputs=prog_name, quantity='spending').interpolate(tvals)
-            vals.series[0].vals[~programs_active] = np.nan
-            data[(prog_name, result.name, 'Spending ($/year)')] = vals.series[0].vals
+            out_quantities = {
+                "spending": "Spending ($)" if time_aggregate else "Spending ($/year)",
+                "equivalent_spending": "Equivalent spending ($)" if time_aggregate else "Equivalent spending ($/year)",
+                "coverage_number": "People covered" if time_aggregate else "People covered (people/year)",
+                "coverage_eligible": "People eligible",
+                "coverage_fraction": "Proportion covered",
+            }
 
-            vals = PlotData.programs(result, outputs=prog_name, quantity='coverage_number').interpolate(tvals)
-            vals.series[0].vals[~programs_active] = np.nan
-            data[(prog_name, result.name, 'People covered (people/year)')] = vals.series[0].vals
-
-            vals = PlotData.programs(result, outputs=prog_name, quantity='coverage_eligible').interpolate(tvals)
-            vals.series[0].vals[~programs_active] = np.nan
-            data[(prog_name, result.name, 'People eligible')] = vals.series[0].vals
-
-            vals = PlotData.programs(result, outputs=prog_name, quantity='coverage_fraction').interpolate(tvals)
-            vals.series[0].vals[~programs_active] = np.nan
-            data[(prog_name, result.name, 'Proportion covered')] = vals.series[0].vals
+            for quantity, label in out_quantities.items():
+                plot_data = PlotData.programs(result, outputs=prog_name, quantity=quantity)
+                vals = plot_data.time_aggregate(_extend_tvals(tvals)) if time_aggregate else plot_data.interpolate(tvals)
+                vals.series[0].vals[~programs_active] = np.nan
+                data[(prog_name, result.name, label)] = vals.series[0].vals
 
     df = pd.DataFrame(data, index=tvals)
     df = df.T
-    df.index = df.index.set_names(['program', 'result', 'quantity'])  # Set the index names correctly so they can be reordered easily
+    df.index = df.index.set_names(["program", "result", "quantity"])  # Set the index names correctly so they can be reordered easily
 
     return df
+
+
+def _extend_tvals(tvals):
+    """
+    Given a list of time values, add an extra time value to the end to allow these time values to be used with time_integration instead of interpolate
+    :param tvals: array or list of time values (ints)
+    """
+    assert isinstance(tvals, (list, np.ndarray)), "Time values must be an array or list "
+    if len(tvals) == 0:
+        return tvals  # no time values to add to, return as is (empty list or array)
+    else:
+        for tv in range(1, len(tvals)):
+            assert tvals[tv] == tvals[tv - 1] + 1, "Time values should be one year apart, otherwise time integration may produce inconsistent results, use interpolation instead"
+
+        return np.append(tvals, [tvals[-1] + 1])  # return the list or array with one more year added on to the end
 
 
 def _cascade_to_df(results, cascade_name, tvals):
@@ -604,7 +721,7 @@ def _cascade_to_df(results, cascade_name, tvals):
 
     # Prepare the population names and time values
     pop_names = dict()
-    pop_names['all'] = 'Entire population'
+    pop_names["all"] = "Entire population"
     for pop in results[0].model.pops:
         if pop.type == pop_type:
             pop_names[pop.name] = pop.label
@@ -618,13 +735,13 @@ def _cascade_to_df(results, cascade_name, tvals):
                 data[(cascade_name, pop_names[pop], result.name, stage)] = vals
         df = pd.DataFrame(data, index=tvals)
         df = df.T
-        df.index = df.index.set_names(['cascade', 'pop', 'result', 'stage'])  # Set the index names correctly so they can be reordered easily
+        df.index = df.index.set_names(["cascade", "pop", "result", "stage"])  # Set the index names correctly so they can be reordered easily
         cascade_df.append(df)
 
     return pd.concat(cascade_df)
 
 
-def _output_to_df(results, output_name: str, output, tvals) -> pd.DataFrame:
+def _output_to_df(results, output_name: str, output, tvals, time_aggregate=False) -> pd.DataFrame:
     """
     Convert an output to a DataFrame for a group of results
 
@@ -641,19 +758,23 @@ def _output_to_df(results, output_name: str, output, tvals) -> pd.DataFrame:
     :param output_name: The name to use for the output quantity
     :param output: An output specification/aggregation supported by :class:`PlotData`
     :param tvals: Outputs will be interpolated onto the times in this array (typically would be annual)
+    :param time_aggregate: False means output annualized Jan 1 values, True means use time_aggregation to sum or average the timestep values over the year for each parameter.
     :return: A DataFrame
 
     """
 
     from .plotting import PlotData
 
-    pops = _filter_pops_by_output(results[0],output)
+    pops = _filter_pops_by_output(results[0], output)
     pop_labels = {x: y for x, y in zip(results[0].pop_names, results[0].pop_labels) if x in pops}
     data = dict()
 
     popdata = PlotData(results, pops=pops, outputs=output)
-    assert len(popdata.outputs) == 1, 'Framework plot specification should evaluate to exactly one output series - there were %d' % (len(popdata.outputs))
-    popdata.interpolate(tvals)
+    assert len(popdata.outputs) == 1, "Framework plot specification should evaluate to exactly one output series - there were %d" % (len(popdata.outputs))
+    if time_aggregate:
+        popdata.time_aggregate(_extend_tvals(tvals))
+    else:
+        popdata.interpolate(tvals)
     for result in popdata.results:
         for pop_name in popdata.pops:
             data[(output_name, popdata.results[result], pop_labels[pop_name])] = popdata[result, pop_name, popdata.outputs[0]].vals
@@ -662,22 +783,28 @@ def _output_to_df(results, output_name: str, output, tvals) -> pd.DataFrame:
     # Check results[0].model.pops[0].comps[0].units just in case someone changes it later on
     if popdata.series[0].units in {FS.QUANTITY_TYPE_NUMBER, results[0].model.pops[0].comps[0].units}:
         # Number units, can use summation
-        popdata = PlotData(results, outputs=output, pops={'total':pops}, pop_aggregation='sum')
-        popdata.interpolate(tvals)
+        popdata = PlotData(results, outputs=output, pops={"total": pops}, pop_aggregation="sum")
+        if time_aggregate:
+            popdata.time_aggregate(_extend_tvals(tvals))
+        else:
+            popdata.interpolate(tvals)
         for result in popdata.results:
-            data[(output_name, popdata.results[result], 'Total (sum)')] = popdata[result, popdata.pops[0], popdata.outputs[0]].vals
-    elif popdata.series[0].units in {FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION,FS.QUANTITY_TYPE_PROBABILITY}:
-        popdata = PlotData(results, outputs=output, pops={'total':pops}, pop_aggregation='weighted')
-        popdata.interpolate(tvals)
+            data[(output_name, popdata.results[result], "Total (sum)")] = popdata[result, popdata.pops[0], popdata.outputs[0]].vals
+    elif popdata.series[0].units in {FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY}:
+        popdata = PlotData(results, outputs=output, pops={"total": pops}, pop_aggregation="weighted")
+        if time_aggregate:
+            popdata.time_aggregate(_extend_tvals(tvals))
+        else:
+            popdata.interpolate(tvals)
         for result in popdata.results:
-            data[(output_name, popdata.results[result], 'Total (weighted average)')] = popdata[result, popdata.pops[0], popdata.outputs[0]].vals
+            data[(output_name, popdata.results[result], "Total (weighted average)")] = popdata[result, popdata.pops[0], popdata.outputs[0]].vals
     else:
         for result in popdata.results:
-            data[(output_name, popdata.results[result], 'Total (unknown units)')] = np.full(tvals.shape, np.nan)
+            data[(output_name, popdata.results[result], "Total (unknown units)")] = np.full(tvals.shape, np.nan)
 
     df = pd.DataFrame(data, index=tvals)
     df = df.T
-    df.index = df.index.set_names(['output', 'result', 'pop'])  # Set the index names correctly so they can be reordered easily
+    df.index = df.index.set_names(["output", "result", "pop"])  # Set the index names correctly so they can be reordered easily
     return df
 
 
@@ -700,7 +827,7 @@ def _write_df(writer, formats, sheet_name, df, level_ordering):
 
     # Substitute full names for short names after re-ordering the levels but before
     # writing the dataframe
-    level_substitutions = {'pop': 'Population', 'stage': 'Cascade stage', 'quantity': 'Quantity (on Jan 1)'}
+    level_substitutions = {"pop": "Population", "stage": "Cascade stage", "quantity": "Quantity (on Jan 1)"}
 
     # Remember the ordering of each index level
     order = {}
@@ -715,15 +842,14 @@ def _write_df(writer, formats, sheet_name, df, level_ordering):
     writer.sheets[sheet_name] = worksheet  # Need to add it to the ExcelWriter for it to behave properly
 
     for title, table in df.groupby(level=level_ordering[0], sort=False):
-        worksheet.write_string(row, 0, title, formats['center_bold'])
+        worksheet.write_string(row, 0, title, formats["center_bold"])
         row += 1
 
         table.reset_index(level=level_ordering[0], drop=True, inplace=True)  # Drop the title column
         table = table.reorder_levels(level_ordering[1:])
         for i in range(1, len(level_ordering)):
             table = table.reindex(order[level_ordering[i]], level=i - 1)
-        table.index = table.index.set_names(
-            [level_substitutions[x] if x in level_substitutions else x.title() for x in table.index.names])
+        table.index = table.index.set_names([level_substitutions[x] if x in level_substitutions else x.title() for x in table.index.names])
         table.to_excel(writer, sheet_name, startcol=0, startrow=row)
         row += table.shape[0] + 2
 
@@ -756,8 +882,7 @@ class Ensemble(NamedItem):
 
     """
 
-
-    def __init__(self, mapping_function=None, name:str=None, baseline_results=None,**kwargs):
+    def __init__(self, mapping_function=None, name: str = None, baseline_results=None, **kwargs):
 
         NamedItem.__init__(self, name)
         self.mapping_function = mapping_function  #: This function gets called by :meth:`Ensemble.add_sample`
@@ -765,9 +890,9 @@ class Ensemble(NamedItem):
         self.baseline = None  #: A single PlotData instance with reference values (i.e. outcome without sampling)
 
         if baseline_results:
-            self.set_baseline(baseline_results,**kwargs)
+            self.set_baseline(baseline_results, **kwargs)
 
-    def run_sims(self,proj, parset, progset=None, progset_instructions=None, result_names=None, n_samples: int = 1, parallel=False, max_attempts=None) -> None:
+    def run_sims(self, proj, parset, progset=None, progset_instructions=None, result_names=None, n_samples: int = 1, parallel=False, max_attempts=None) -> None:
         """
         Run and store sampled simulations
 
@@ -794,13 +919,13 @@ class Ensemble(NamedItem):
 
         """
 
-        self.samples = [] # Drop the old samples
+        self.samples = []  # Drop the old samples
 
         if parallel:
             # NB. The calling code must be wrapped in a 'if __name__ == '__main__'
             # Currently not passing in any extra kwargs but that should be easy to add if/when required
             # (main reason for deferring implementation is so as to have suitable test code when developing)
-            self.samples = sc.parallelize(_sample_and_map, iterarg=n_samples, kwargs={'mapping_function':self.mapping_function,'max_attempts':max_attempts,'proj':proj, 'parset':parset, 'progset':progset,'progset_instructions':progset_instructions,'result_names':result_names})
+            self.samples = sc.parallelize(_sample_and_map, iterarg=n_samples, kwargs={"mapping_function": self.mapping_function, "max_attempts": max_attempts, "proj": proj, "parset": parset, "progset": progset, "progset_instructions": progset_instructions, "result_names": result_names})
         else:
             original_level = logger.getEffectiveLevel()
             logger.setLevel(logging.WARNING)  # Never print debug messages inside the sampling loop - note that depending on the platform, this may apply within `sc.parallelize`
@@ -814,7 +939,7 @@ class Ensemble(NamedItem):
                 sample = _sample_and_map(mapping_function=self.mapping_function, proj=proj, parset=parset, progset=progset, progset_instructions=progset_instructions, result_names=result_names, max_attempts=max_attempts)
                 self.samples.append(sample)
 
-            logger.setLevel(original_level) # Reset the logger
+            logger.setLevel(original_level)  # Reset the logger
 
         # Finally, set the colours for the first sample
         self.samples[0].set_colors(pops=self.samples[0].pops, outputs=self.samples[0].outputs)
@@ -1025,7 +1150,7 @@ class Ensemble(NamedItem):
         """
 
         if not self.samples:
-            raise Exception('Cannot plot samples because no samples have been added yet')
+            raise Exception("Cannot plot samples because no samples have been added yet")
         results = sc.promotetolist(results) if results is not None else self.results
         outputs = sc.promotetolist(outputs) if outputs is not None else self.outputs
         pops = sc.promotetolist(pops) if pops is not None else self.pops
@@ -1050,34 +1175,33 @@ class Ensemble(NamedItem):
 
                     if value_range[0] == value_range[1]:
                         color = None
-                        logger.warning(
-                            'All values for %s-%s are the same, so no distribution will be visible' % (output, pop))
+                        logger.warning("All values for %s-%s are the same, so no distribution will be visible" % (output, pop))
                     else:
                         kernel = stats.gaussian_kde(vals.ravel())
                         scale_up_range = 1.5  # Increase kernel density x range
                         span = np.average(value_range) + np.diff(value_range) * [-1, 1] / 2 * scale_up_range
                         x = np.linspace(*span, 100)
                         # TODO - expand this range a bit
-                        h = plt.plot(x, kernel(x), label='%s: %s-%s-%s' % (self.name, result, pop, output))[0]
+                        h = plt.plot(x, kernel(x), label="%s: %s-%s-%s" % (self.name, result, pop, output))[0]
                         color = h.get_color()
 
                     if self.baseline:
                         series = self.baseline[result, pop, output]
                         val = series.vals[0] if year is None else series.interpolate(year)
-                        plt.axvline(val, color=color, linestyle='dashed')
+                        plt.axvline(val, color=color, linestyle="dashed")
 
                     proposed_label = "%s (%s)" % (output, series_lookup[result, pop, output][0].unit_string)
                     if ax.xaxis.get_label().get_text():
-                        assert proposed_label == ax.xaxis.get_label().get_text(), 'The outputs being superimposed have different units'
+                        assert proposed_label == ax.xaxis.get_label().get_text(), "The outputs being superimposed have different units"
                     else:
                         plt.xlabel(proposed_label)
 
         plt.legend()
-        plt.ylabel('Probability density')
+        plt.ylabel("Probability density")
 
         return fig
 
-    def plot_series(self, fig=None, style='quartile', results=None, outputs=None, pops=None):
+    def plot_series(self, fig=None, style="quartile", results=None, outputs=None, pops=None, legend=True):
         """
         Plot a time series with uncertainty
 
@@ -1091,10 +1215,10 @@ class Ensemble(NamedItem):
 
         """
 
-        assert style in {'samples', 'quartile', 'ci', 'std'}
+        assert style in {"samples", "quartile", "ci", "std"}
 
         if not self.samples:
-            raise Exception('Cannot plot samples because no samples have been added yet')
+            raise Exception("Cannot plot samples because no samples have been added yet")
         results = sc.promotetolist(results) if results is not None else self.results
         outputs = sc.promotetolist(outputs) if outputs is not None else self.outputs
         pops = sc.promotetolist(pops) if pops is not None else self.pops
@@ -1114,37 +1238,38 @@ class Ensemble(NamedItem):
 
                     if self.baseline:
                         baseline_series = self.baseline[result, pop, output]
-                        plt.plot(baseline_series.tvec, baseline_series.vals,color=baseline_series.color, label='%s: %s-%s-%s (baseline)' % (self.name, result, pop, output))[0]
+                        plt.plot(baseline_series.tvec, baseline_series.vals, color=baseline_series.color, label="%s: %s-%s-%s (baseline)" % (self.name, result, pop, output))[0]
                     else:
-                        plt.plot(these_series[0].tvec, np.mean(vals, axis=0), color=these_series[0].color, linestyle='dashed',label='%s: %s-%s-%s (mean)' % (self.name, result, pop, output))[0]
+                        plt.plot(these_series[0].tvec, np.mean(vals, axis=0), color=these_series[0].color, linestyle="dashed", label="%s: %s-%s-%s (mean)" % (self.name, result, pop, output))[0]
 
-                    if style == 'samples':
+                    if style == "samples":
                         for series in these_series:
                             plt.plot(series.tvec, series.vals, color=series.color, alpha=0.05)
 
-                    elif style == 'quartile':
-                        ax.fill_between(these_series[0].tvec, np.quantile(vals, 0.25, axis=0),np.quantile(vals, 0.75, axis=0), alpha=0.15, color=these_series[0].color)
-                    elif style == 'ci':
-                        ax.fill_between(these_series[0].tvec, np.quantile(vals, 0.025, axis=0),np.quantile(vals, 0.975, axis=0), alpha=0.15, color=these_series[0].color)
-                    elif style == 'std':
+                    elif style == "quartile":
+                        ax.fill_between(these_series[0].tvec, np.quantile(vals, 0.25, axis=0), np.quantile(vals, 0.75, axis=0), alpha=0.15, color=these_series[0].color)
+                    elif style == "ci":
+                        ax.fill_between(these_series[0].tvec, np.quantile(vals, 0.025, axis=0), np.quantile(vals, 0.975, axis=0), alpha=0.15, color=these_series[0].color)
+                    elif style == "std":
                         if self.baseline:
-                            ax.fill_between(baseline_series.tvec, baseline_series.vals - np.std(vals, axis=0),baseline_series.vals + np.std(vals, axis=0), alpha=0.15, color=baseline_series.color)
+                            ax.fill_between(baseline_series.tvec, baseline_series.vals - np.std(vals, axis=0), baseline_series.vals + np.std(vals, axis=0), alpha=0.15, color=baseline_series.color)
                         else:
-                            ax.fill_between(these_series[0].tvec, np.mean(vals, axis=0) - np.std(vals, axis=0),np.mean(vals, axis=0) + np.std(vals, axis=0), alpha=0.15, color=these_series[0].color)
+                            ax.fill_between(these_series[0].tvec, np.mean(vals, axis=0) - np.std(vals, axis=0), np.mean(vals, axis=0) + np.std(vals, axis=0), alpha=0.15, color=these_series[0].color)
                     else:
-                        raise Exception('Unknown style')
+                        raise Exception("Unknown style")
 
             proposed_label = "%s (%s)" % (output, these_series[0].unit_string)
             if ax.yaxis.get_label().get_text():
-                assert proposed_label == ax.yaxis.get_label().get_text(), 'The outputs being superimposed have different units'
+                assert proposed_label == ax.yaxis.get_label().get_text(), "The outputs being superimposed have different units"
             else:
                 ax.set_ylabel(proposed_label)
 
-        ax.set_xlabel('Year')
-        ax.legend()
+        ax.set_xlabel("Year")
+        if legend:
+            ax.legend()
         return fig
 
-    def plot_bars(self, fig=None, years=None, results=None, outputs=None, pops=None, order=('years','results','outputs','pops'), horizontal=False, offset:float =None):
+    def plot_bars(self, fig=None, years=None, results=None, outputs=None, pops=None, order=("years", "results", "outputs", "pops"), horizontal=False, offset: float = None):
         """
         Render a bar plot
 
@@ -1170,7 +1295,7 @@ class Ensemble(NamedItem):
         """
 
         if not self.samples:
-            raise Exception('Cannot plot samples because no samples have been added yet')
+            raise Exception("Cannot plot samples because no samples have been added yet")
         results = sc.promotetolist(results) if results is not None else self.results
         outputs = sc.promotetolist(outputs) if outputs is not None else self.outputs
         pops = sc.promotetolist(pops) if pops is not None else self.pops
@@ -1185,9 +1310,9 @@ class Ensemble(NamedItem):
         else:
             ax = fig.axes[0]
             if horizontal:
-                offset = np.floor(max(ax.get_ylim()))+1
+                offset = np.floor(max(ax.get_ylim())) + 1
             else:
-                offset = np.floor(max(ax.get_xlim()))+1
+                offset = np.floor(max(ax.get_xlim())) + 1
 
         series_lookup = self._get_series()
 
@@ -1195,16 +1320,16 @@ class Ensemble(NamedItem):
         baselines = []
         labels = []
 
-        base_order = ('years','results','outputs','pops')
-        for year, result, output, pop in nested_loop([years,results,outputs,pops],map(base_order.index,order)):
+        base_order = ("years", "results", "outputs", "pops")
+        for year, result, output, pop in nested_loop([years, results, outputs, pops], map(base_order.index, order)):
 
             if year is None:
                 vals = np.array([x.vals[0] for x in series_lookup[result, pop, output]])
                 year_val = series_lookup[result, pop, output][0].tvec[0]
-                labels.append('%s: %s-%s-%s (%g)' % (self.name, result, pop, output, year_val))
+                labels.append("%s: %s-%s-%s (%g)" % (self.name, result, pop, output, year_val))
             else:
                 vals = np.array([x.interpolate(year) for x in series_lookup[result, pop, output]])
-                labels.append('%s: %s-%s-%s (%g)' % (self.name, result, pop, output, year))
+                labels.append("%s: %s-%s-%s (%g)" % (self.name, result, pop, output, year))
 
             if self.baseline:
                 if year is None:
@@ -1218,13 +1343,13 @@ class Ensemble(NamedItem):
 
         locations = offset + np.arange(len(x))
         sample_array = np.vstack(x).T
-        sample_errors = np.std(sample_array,axis=0)
+        sample_errors = np.std(sample_array, axis=0)
 
-        for location,baseline, error,label in zip(locations, baselines, sample_errors, labels):
+        for location, baseline, error, label in zip(locations, baselines, sample_errors, labels):
             if horizontal:
-                ax.barh(location, baseline, xerr=error, capsize=10,label=label, height=0.5)
+                ax.barh(location, baseline, xerr=error, capsize=10, label=label, height=0.5)
             else:
-                ax.bar(location, baseline, yerr=error, capsize=10,label=label, width=0.5)
+                ax.bar(location, baseline, yerr=error, capsize=10, label=label, width=0.5)
 
         ax.legend()
 
@@ -1233,20 +1358,19 @@ class Ensemble(NamedItem):
         if horizontal:
             ax.set_ylim(-0.5, locations[-1] + 0.5)
             if ax.xaxis.get_label().get_text():
-                assert proposed_label == ax.xaxis.get_label().get_text(), 'The outputs being superimposed have different units'
+                assert proposed_label == ax.xaxis.get_label().get_text(), "The outputs being superimposed have different units"
             else:
                 plt.xlabel(proposed_label)
             ax.set_yticks([])
         else:
             ax.set_xlim(-0.5, locations[-1] + 0.5)
             if ax.yaxis.get_label().get_text():
-                assert proposed_label == ax.yaxis.get_label().get_text(), 'The outputs being superimposed have different units'
+                assert proposed_label == ax.yaxis.get_label().get_text(), "The outputs being superimposed have different units"
             else:
                 plt.ylabel(proposed_label)
             ax.set_xticks([])
 
         return fig
-
 
     def boxplot(self, fig=None, years=None, results=None, outputs=None, pops=None):
         """
@@ -1268,7 +1392,7 @@ class Ensemble(NamedItem):
         """
 
         if not self.samples:
-            raise Exception('Cannot plot samples because no samples have been added yet')
+            raise Exception("Cannot plot samples because no samples have been added yet")
         results = sc.promotetolist(results) if results is not None else self.results
         outputs = sc.promotetolist(outputs) if outputs is not None else self.outputs
         pops = sc.promotetolist(pops) if pops is not None else self.pops
@@ -1303,18 +1427,18 @@ class Ensemble(NamedItem):
                         if year is None:
                             vals = np.array([x.vals[0] for x in series_lookup[result, pop, output]])
                             year_val = series_lookup[result, pop, output][0].tvec[0]
-                            labels.append('%s: %s-%s-%s (%g)' % (self.name, result, pop, output, year_val))
+                            labels.append("%s: %s-%s-%s (%g)" % (self.name, result, pop, output, year_val))
                         else:
                             vals = np.array([x.interpolate(year) for x in series_lookup[result, pop, output]])
-                            labels.append('%s: %s-%s-%s (%g)' % (self.name, result, pop, output, year))
+                            labels.append("%s: %s-%s-%s (%g)" % (self.name, result, pop, output, year))
                         x.append(vals.ravel())
-
 
         locations = offset + np.arange(len(x))
 
         # TODO - force matplotlib>=3.1 to address this
         import matplotlib
-        if sc.compareversions(matplotlib.__version__,'3.1') < 0:
+
+        if sc.compareversions(matplotlib.__version__, "3.1") < 0:
             plt.boxplot(np.vstack(x).T, positions=locations, manage_xticks=False)
         else:
             plt.boxplot(np.vstack(x).T, positions=locations, manage_ticks=False)
@@ -1330,7 +1454,7 @@ class Ensemble(NamedItem):
 
         proposed_label = "%s (%s)" % (output, series_lookup[result, pop, output][0].unit_string)
         if ax.yaxis.get_label().get_text():
-            assert proposed_label == ax.yaxis.get_label().get_text(), 'The outputs being superimposed have different units'
+            assert proposed_label == ax.yaxis.get_label().get_text(), "The outputs being superimposed have different units"
         else:
             plt.ylabel(proposed_label)
 
@@ -1338,7 +1462,7 @@ class Ensemble(NamedItem):
 
     def summary_statistics(self, years=None, results=None, outputs=None, pops=None):
         if not self.samples:
-            raise Exception('Cannot plot samples because no samples have been added yet')
+            raise Exception("Cannot plot samples because no samples have been added yet")
         results = sc.promotetolist(results) if results is not None else self.results
         outputs = sc.promotetolist(outputs) if outputs is not None else self.outputs
         pops = sc.promotetolist(pops) if pops is not None else self.pops
@@ -1360,22 +1484,22 @@ class Ensemble(NamedItem):
                                 baseline = self.baseline[result, pop, output].vals[0]
                             else:
                                 baseline = self.baseline[result, pop, output].interpolate(year)[0]
-                            records.append((year, result, output, pop, 'baseline', baseline))
+                            records.append((year, result, output, pop, "baseline", baseline))
 
                         if year is None:
                             vals = np.array([x.vals[0] for x in series_lookup[result, pop, output]])
                         else:
                             vals = np.array([x.interpolate(year) for x in series_lookup[result, pop, output]])
 
-                        records.append((year, result, output, pop, 'mean', np.mean(vals)))
-                        records.append((year, result, output, pop, 'median', np.median(vals)))
-                        records.append((year, result, output, pop, 'max', np.max(vals)))
-                        records.append((year, result, output, pop, 'min', np.min(vals)))
-                        records.append((year, result, output, pop, 'Q1', np.quantile(vals, 0.25)))
-                        records.append((year, result, output, pop, 'Q3', np.quantile(vals, 0.75)))
+                        records.append((year, result, output, pop, "mean", np.mean(vals)))
+                        records.append((year, result, output, pop, "median", np.median(vals)))
+                        records.append((year, result, output, pop, "max", np.max(vals)))
+                        records.append((year, result, output, pop, "min", np.min(vals)))
+                        records.append((year, result, output, pop, "Q1", np.quantile(vals, 0.25)))
+                        records.append((year, result, output, pop, "Q3", np.quantile(vals, 0.75)))
 
-                df = pd.DataFrame.from_records(records,columns=['year', 'result', 'output', 'pop', 'quantity', 'value'])
-                df = df.set_index(['year', 'result', 'output', 'pop', 'quantity'])
+                df = pd.DataFrame.from_records(records, columns=["year", "result", "output", "pop", "quantity", "value"])
+                df = df.set_index(["year", "result", "output", "pop", "quantity"])
                 return df
 
     def pairplot(self, year=None, outputs=None, pops=None):
@@ -1388,11 +1512,13 @@ class Ensemble(NamedItem):
         # Different colours for each result
 
         if not self.samples:
-            raise Exception('Cannot plot samples because no samples have been added yet')
+            raise Exception("Cannot plot samples because no samples have been added yet")
         outputs = sc.promotetolist(outputs) if outputs is not None else self.outputs
         pops = sc.promotetolist(pops) if pops is not None else self.pops
 
         series_lookup = self._get_series()
+
+        figs = []
 
         # Put all the values in a DataFrame
         for pop in self.pops:
@@ -1403,14 +1529,19 @@ class Ensemble(NamedItem):
                 for output in self.outputs:
                     df_dict[output] = [x.vals[0] for x in series_lookup[result, pop, output]]
                 df = pd.DataFrame.from_dict(df_dict)
-                df['result'] = result
+                df["result"] = result
                 dfs.append(df)
             df = pd.concat(dfs)
 
             colors = sc.gridcolors(len(self.results))
             colormap = {x: y for x, y in zip(self.results, colors)}
-            pd.plotting.scatter_matrix(df, c=[colormap[x] for x in df['result'].values], diagonal='kde')
+            fig = plt.figure()
+            ax = plt.gca()
+            pd.plotting.scatter_matrix(df, ax=ax, c=[colormap[x] for x in df["result"].values], diagonal="kde")
             plt.suptitle(pop)
+
+            figs.append(fig)
+        return figs
 
 
 def _sample_and_map(proj, parset, progset, progset_instructions, result_names, mapping_function, max_attempts, **kwargs):
@@ -1425,7 +1556,7 @@ def _sample_and_map(proj, parset, progset, progset_instructions, result_names, m
     """
 
     # First, get a single sample (could have multiple results if multiple instructions)
-    results = proj.run_sampled_sims(n_samples=1,parset=parset, progset=progset, progset_instructions=progset_instructions, result_names=result_names, max_attempts=max_attempts)
+    results = proj.run_sampled_sims(n_samples=1, parset=parset, progset=progset, progset_instructions=progset_instructions, result_names=result_names, max_attempts=max_attempts)
 
     # Then convert it to a plotdata via the mapping function
     plotdata = mapping_function(results[0], **kwargs)
