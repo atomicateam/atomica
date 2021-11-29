@@ -786,7 +786,7 @@ class ProgramSet(NamedItem):
             tdve.allowed_units = {"Unit cost": [self.currency + "/person (one-off)", self.currency + "/person/year",
                                                 self.currency + "/1% covered (one-off)", self.currency + "/1% covered/year"],
                                   "Capacity constraint": ["people/year", "people"],
-                                  "Coverage": ["people/year", "proportion"],
+                                  "Coverage": ["people/year", "proportion/year"],
                                   }
 
             # NOTE - If the ts contains time values that aren't in the ProgramSet's tvec, then an error will be thrown
@@ -794,7 +794,8 @@ class ProgramSet(NamedItem):
             # will just be an empty cell in the spreadsheet
             next_row = tdve.write(sheet, next_row, self._formats, self._references, widths)
             #TODO add some conditional formatting here e.g. 'ignore' format for the Coverage cell if "Use annual spend and unit cost; ignore coverage" is selected for the right program cell
-
+            #TODO consider whether the capacity constraint and coverage options should be "people" rather than "people/year" or perhaps the best option would be for the cells to be fixed with an IF(...) so that they automatically adjust based on whether a "one-off" program is selected
+            
         apply_widths(sheet, widths)
 
     def _read_effects(self, sheet, framework, data):
@@ -1012,7 +1013,7 @@ class ProgramSet(NamedItem):
     # Methods for getting core response summaries: budget, allocations, coverages, outcomes, etc
     #######################################################################################################
 
-    def get_alloc(self, tvec, instructions=None) -> dict:
+    def get_alloc(self, tvec, instructions=None, num_eligible=None) -> dict:
         """
         Return the spending allocation for each program
 
@@ -1023,6 +1024,7 @@ class ProgramSet(NamedItem):
 
         :param tvec: array of times (in years) - this is required to interpolate time-varying spending values
         :param instructions: optionally specify instructions, which can supply a spending overwrite
+        :param num_eligible: optionally specify number eligible for each program, with a timestep matching ``tvec``
         :return: Dict like ``{prog_name: np.array()}`` with spending on each program (in units of '$/year' or currency equivalent)
 
         """
@@ -1032,8 +1034,11 @@ class ProgramSet(NamedItem):
         alloc = sc.odict()
         for prog in self.programs.values():
             if instructions is None or prog.name not in instructions.alloc:
-                alloc[prog.name] = prog.get_spend(tvec)
+                num_eligible_prog = num_eligible[prog.name] if num_eligible else None
+                alloc[prog.name] = prog.get_spend(tvec=tvec, num_eligible=num_eligible_prog)
             else:
+                if self.cov_triangulation in ["use coverage; optional spending; ignore unit cost", "Use unit cost and coverage; ignore annual spend"]:
+                    logger.warning(f"The instructions contain a spending overwrite for a program called {prog.name} but this program does not use spending to determine coverage so this will have no effect on outcomes")
                 alloc[prog.name] = instructions.alloc[prog.name].interpolate(tvec, method="previous")
 
         if instructions:
@@ -1061,7 +1066,7 @@ class ProgramSet(NamedItem):
 
         # Validate inputs
         tvec = sc.promotetoarray(tvec)
-        alloc = self.get_alloc(tvec, instructions)
+        alloc = self.get_alloc(tvec=tvec, instructions=instructions, num_eligible=num_eligible)
 
         # Get number covered for each program
         capacities = sc.odict()  # Initialise outputs
@@ -1072,7 +1077,7 @@ class ProgramSet(NamedItem):
                 else:
                     spending = None
                 
-                num_eligible_prog = eligible[prog.name] if num_eligible else None
+                num_eligible_prog = num_eligible[prog.name] if num_eligible else None
                     
                 # Note that prog.get_capacity() returns capacity in units of people
                 capacities[prog.name] = prog.get_capacity(tvec=tvec, dt=dt, spending=spending, num_eligible=num_eligible_prog)
@@ -1263,7 +1268,7 @@ class Program(NamedItem):
         output += "\n"
         return output
 
-    def get_spend(self, year=None, total: bool = False) -> np.array:
+    def get_spend(self, tvec=None, total: bool = False, num_eligible = None) -> np.array:
         """
         Retrieve program spending
 
@@ -1272,11 +1277,34 @@ class Program(NamedItem):
         :return: Array of spending values
 
         """
-
-        if total:
-            return self.spend_data.interpolate(year, method="previous") + self.baseline_spend.interpolate(year, method="previous")
-        else:
-            return self.spend_data.interpolate(year, method="previous")
+        if self.cov_triangulation in ["Use unit cost and annual spend; ignore coverage", "use coverage; optional spending; ignore unit cost"]:
+            #TODO check if this works properly with "use coverage; optional spending; ignore unit cost" - e.g. if there isn't any spending data
+            if total:
+                return self.spend_data.interpolate(tvec, method="previous") + self.baseline_spend.interpolate(tvec, method="previous")
+            else:
+                return self.spend_data.interpolate(tvec, method="previous")
+            
+        elif self.cov_triangulation in ["Use unit cost and coverage; ignore annual spend"]:
+            #need to calculate spending based on the unit cost and coverage
+            #note will return "naive" spend not constrained/saturated, as per regular get_spend
+            num_eligible = sc.promotetoarray(num_eligible) #TODO do we need/want this?
+            
+            coverage = self.coverage.interpolate(tvec, method="previous")
+            unit_cost = self.unit_cost.interpolate(tvec, method="previous")
+            if self.coverage.units == 'proportion':
+                # assert num_eligible, f"Cannot calculate spending for {self.name} without number eligible"
+                coverage = coverage * num_eligible
+            if "/1% covered" in self.unit_cost.units: #Note that unit costs of per 1% covered refer to 1% pre-saturation scaling, so there's no circular dependency here
+                #adjust the unit_cost to be per person given the number of people eligible
+                # assert num_eligible, f"Program {self.name} has costs based on proportion covered: impossible to calculate coverage capacity without number eligible"
+                unit_cost = unit_cost * num_eligible * 0.01 #0.01 = per 1%
+            
+            if total:
+                raise Exception("TODO: check what use case total has for this...") #TODO
+            
+            return coverage * unit_cost
+            
+            
 
     def get_capacity(self, tvec, dt, spending = None, num_eligible = None):
         """
@@ -1306,15 +1334,14 @@ class Program(NamedItem):
 
         # Validate inputs
         spending = sc.promotetoarray(spending)
+        num_eligible = sc.promotetoarray(num_eligible) #TODO do we need/want this?
 
            
         if self.cov_triangulation in ["use coverage; optional spending; ignore unit cost", "Use unit cost and coverage; ignore annual spend"]:
             coverage = self.coverage.interpolate(tvec, method="previous")
             if self.coverage.units == 'proportion':
-                if num_eligible is not None:
-                    capacity = coverage * num_eligible
-                else:
-                    raise Exception(f"Program {self.name} defined to use coverage, and coverage is defined as a proportion: impossible to calculate coverage capacity without number eligible")
+                # assert num_eligible, f"Program {self.name} defined to use coverage, and coverage is defined as a proportion: impossible to calculate coverage capacity without number eligible"
+                capacity = coverage * num_eligible
             elif self.coverage.unites == 'number':
                 capacity = coverage #already specified in exactly the right format
                 
@@ -1326,12 +1353,16 @@ class Program(NamedItem):
                 # /year, therefore we need to multiply the spending by the timestep to the capacity as people rather than people/year
                 spending *= dt
             
-            if self.unit_cost.units == "/1% covered"
+            if "/1% covered" in self.unit_cost.units: #Note that unit costs of per 1% covered refer to 1% pre-saturation scaling, so there's no circular dependency here
+                #adjust the unit_cost to be per person given the number of people eligible
+                # assert num_eligible, f"Program {self.name} has costs based on proportion covered: impossible to calculate coverage capacity without number eligible"
+                unit_cost = unit_cost * num_eligible * 0.01 #0.01 = per 1%
+
             capacity = spending / unit_cost
     
         if self.capacity_constraint.has_data:
             capacity_constraint = self.capacity_constraint.interpolate(tvec, method="previous")
-            if "/year" in self.capacity_constraint.units:
+            if "/year" in self.capacity_constraint.units: #TODO consider changing this to be if self.is_one_off - having /year as an option is confusing
                 # The capacity_constraint constraint is applied to a number of people. If it is /year, then it must be multiplied by the timestep first
                 capacity_constraint *= dt
             capacity = np.minimum(capacity_constraint, capacity)

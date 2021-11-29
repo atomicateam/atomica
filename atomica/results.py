@@ -163,7 +163,8 @@ class Result(NamedItem):
         if year is None:
             year = self.t
 
-        return self.model.progset.get_alloc(year, self.model.program_instructions)
+        num_eligible = self.get_coverage(quantity="eligible", year=year)
+        return self.model.progset.get_alloc(tvec=year, instructions = self.model.program_instructions, num_eligible=num_eligible)
 
     def get_equivalent_alloc(self, year=None) -> dict:
         """
@@ -189,6 +190,10 @@ class Result(NamedItem):
         equivalent_alloc = sc.odict()
         for prog in prop_coverage.keys():
             uc = self.model.progset.programs[prog].unit_cost.interpolate(year)
+            if "/1% covered" in prog.unit_cost.units: #Note that unit costs of per 1% covered refer to 1% pre-saturation scaling, so there's no circular dependency here
+                #adjust the unit_cost to be per person given the number of people eligible
+                uc = uc * num_eligible * 0.01 #0.01 = per 1%
+
             pc = sc.dcp(prop_coverage[prog])
 
             if self.model.progset.programs[prog].saturation.has_data:
@@ -200,7 +205,7 @@ class Result(NamedItem):
                 # invert the calculation on the proportional coverage to determine the necessary "costed" coverage
                 pc = -sat * np.log((sat - pc) / (sat + pc)) / 2.0
 
-            # Calculating the program coverage, capacity constraint is applied first, then saturation, so it needs to happen second when reversing the calculation
+            # Calculating the program coverage, capacity constraint is applied first, then saturation, so capacity constraint needs to happen second when reversing the calculation
             if self.model.progset.programs[prog].capacity_constraint.has_data:
                 cap = self.model.progset.programs[prog].capacity_constraint.interpolate(year)
                 # If prop_covered is higher than the capacity constraint then set it to nan as it wouldn't be possible to reach that coverage
