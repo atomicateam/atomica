@@ -785,7 +785,7 @@ class ProgramSet(NamedItem):
 
             tdve.allowed_units = {"Unit cost": [self.currency + "/person (one-off)", self.currency + "/person/year",
                                                 self.currency + "/1% covered (one-off)", self.currency + "/1% covered/year"],
-                                  "Capacity": ["people/year", "people"],
+                                  "Capacity constraint": ["people/year", "people"],
                                   "Coverage": ["people/year", "proportion"],
                                   }
 
@@ -1042,7 +1042,7 @@ class ProgramSet(NamedItem):
 
         return alloc
 
-    def get_capacities(self, tvec, dt, instructions=None) -> dict:
+    def get_capacities(self, tvec, dt, instructions=None, num_eligible=None) -> dict:
         """
         Return timestep capacity for all programs
 
@@ -1053,7 +1053,8 @@ class ProgramSet(NamedItem):
 
         :param tvec: array of times (in years) - this is required to interpolate time-varying unit costs and capacity_constraint constraints
         :param dt: scalar timestep size - this is required to adjust spending on incidence-type programs
-        :param instructions: optionally specify instructions, which can supply a spending overwrite
+        :param instructions: optionally specify instructions, which can supply a spending 
+        :param num_eligible: optionally specify number eligible for each program as a Dict like ``{prog_name: np.array()}`` with number eligible at each timestep - necessary for programs with coverage specified proportionally
         :return: Dict like ``{prog_name: np.array()}`` with program capacity at each timestep (in units of people)
 
         """
@@ -1070,8 +1071,11 @@ class ProgramSet(NamedItem):
                     spending = alloc[prog.name]
                 else:
                     spending = None
+                
+                num_eligible_prog = eligible[prog.name] if num_eligible else None
+                    
                 # Note that prog.get_capacity() returns capacity in units of people
-                capacities[prog.name] = prog.get_capacity(tvec=tvec, dt=dt, spending=spending)
+                capacities[prog.name] = prog.get_capacity(tvec=tvec, dt=dt, spending=spending, num_eligible=num_eligible_prog)
             else:
                 capacities[prog.name] = instructions.capacity[prog.name].interpolate(tvec, method="previous")
                 # Capacity overwrites are input in units of people/year so convert to units of people here
@@ -1229,7 +1233,8 @@ class Program(NamedItem):
         :return: True if program is a one-off program
 
         """
-        return "/year" not in self.unit_cost.units
+        #TODO potential for a one-off program to be defined with a coverage value and ignoring unit cost units, need to enforce that unit cost exists for that case?
+        return "/year" not in self.unit_cost.units 
 
     def sample(self, constant: bool) -> None:
         """
@@ -1273,7 +1278,7 @@ class Program(NamedItem):
         else:
             return self.spend_data.interpolate(year, method="previous")
 
-    def get_capacity(self, tvec, spending, dt):
+    def get_capacity(self, tvec, dt, spending = None, num_eligible = None):
         """
         Return timestep capacity
 
@@ -1293,6 +1298,7 @@ class Program(NamedItem):
 
         :param tvec: A scalar, list, or array of times
         :param spending: A vector of spending values (in units of '$/year'), the same size as ``tvec``
+        :param num_eligible: Optionally: A vector of number of people eligible, the same size as ``tvec``
         :param dt: The time step size (required because the number covered at each time step potentially depends on the spending per-timestep)
         :return: Array the same size as ``tvec``, with capacity in units of 'people'
 
@@ -1301,14 +1307,28 @@ class Program(NamedItem):
         # Validate inputs
         spending = sc.promotetoarray(spending)
 
-        unit_cost = self.unit_cost.interpolate(tvec, method="previous")
-        if self.is_one_off:
-            # The spending is $/year, and the /year gets eliminated if the unit cost is also per year. For one-off programs, the unit cost is not
-            # /year, therefore we need to multiply the spending by the timestep to the capacity as people rather than people/year
-            spending *= dt
-
-        capacity = spending / unit_cost
-
+           
+        if self.cov_triangulation in ["use coverage; optional spending; ignore unit cost", "Use unit cost and coverage; ignore annual spend"]:
+            coverage = self.coverage.interpolate(tvec, method="previous")
+            if self.coverage.units == 'proportion':
+                if num_eligible is not None:
+                    capacity = coverage * num_eligible
+                else:
+                    raise Exception(f"Program {self.name} defined to use coverage, and coverage is defined as a proportion: impossible to calculate coverage capacity without number eligible")
+            elif self.coverage.unites == 'number':
+                capacity = coverage #already specified in exactly the right format
+                
+        elif self.cov_triangulation in ["Use unit cost and annual spend; ignore coverage"]:
+            #calculate capacity coverage (prior to saturation) based on unit cost and annual spend
+            unit_cost = self.unit_cost.interpolate(tvec, method="previous")
+            if self.is_one_off:
+                # The spending is $/year, and the /year gets eliminated if the unit cost is also per year. For one-off programs, the unit cost is not
+                # /year, therefore we need to multiply the spending by the timestep to the capacity as people rather than people/year
+                spending *= dt
+            
+            if self.unit_cost.units == "/1% covered"
+            capacity = spending / unit_cost
+    
         if self.capacity_constraint.has_data:
             capacity_constraint = self.capacity_constraint.interpolate(tvec, method="previous")
             if "/year" in self.capacity_constraint.units:
@@ -1320,7 +1340,7 @@ class Program(NamedItem):
 
     def get_prop_covered(self, tvec, capacity, eligible):
         """
-        Return proportion of people covered
+        Return proportion of people covered (per year, whether one-off or continuous)
 
         The time vector ``tvec`` is required to interpolate the saturation values. The
         ``capacity`` and ``eligible`` variables are assumed to correspond to the same time points
@@ -1338,16 +1358,46 @@ class Program(NamedItem):
         tvec = sc.promotetoarray(tvec)
         eligible = sc.promotetoarray(eligible)
         capacity = sc.promotetoarray(capacity)
-
-        if self.saturation.has_data:
-            # If the coverage denominator (eligible) is 0, then we need to use the saturation value
-            prop_covered = np.divide(capacity, eligible, out=np.full(capacity.shape, np.inf), where=eligible != 0)
-            saturation = self.saturation.interpolate(tvec, method="previous")
-            prop_covered = 2 * saturation / (1 + exp(-2 * prop_covered / saturation)) - saturation
-            prop_covered = minimum(prop_covered, 1.0)  # Ensure that coverage doesn't go above 1 (if saturation is < 1)
+        
+        if self.cov_triangulation in ["use coverage; optional spending; ignore unit cost", "Use unit cost and coverage; ignore annual spend"]:
+            #Coverage is directly defined, so we just need to enforce constraints for saturation and capacity constraint
+            #ignore capacity of the program based on spending
+            coverage = self.coverage.interpolate(tvec, method="previous")
+            
+            if self.coverage.units == 'proportion':
+                if self.saturation.has_data: #enforce saturation - given as a proportion
+                    saturation = self.saturation.interpolate(tvec, method="previous")
+                    coverage = min(coverage, saturation)
+                if self.capacity_constraint.has_data: #enforce coverage limit number depending on eligible
+                    capacity_constraint_number = self.capacity_constraint.interpolate(tvec, method="previous")
+                    coverage = min(coverage, capacity_constraint_number/eligible) #TODO eligible may be zero here, which will give np.inf and thus return the correct number - may need to adjust to avoid soft error
+                prop_covered = coverage
+                
+            elif self.coverage.units == 'number':
+                if self.saturation.has_data: #enforce saturation - given as a proportion
+                    saturation = self.saturation.interpolate(tvec, method="previous")
+                    coverage = min(coverage, saturation*eligible) 
+                if self.capacity_constraint.has_data: #enforce coverage limit number depending on eligible
+                    capacity_constraint_number = self.capacity_constraint.interpolate(tvec, method="previous")
+                    coverage = min(coverage, capacity_constraint_number)
+                prop_covered = coverage / eligible
+            else:
+                raise Exception(f"Unknown coverage units {self.coverage.units}, should be 'number' or 'proportion'") 
+                    
+        elif self.cov_triangulation in ["Use unit cost and annual spend; ignore coverage"]:           
+            
+            if self.saturation.has_data:
+                # If the coverage denominator (eligible) is 0, then we need to use the saturation value
+                prop_covered = np.divide(capacity, eligible, out=np.full(capacity.shape, np.inf), where=eligible != 0)
+                saturation = self.saturation.interpolate(tvec, method="previous")
+                prop_covered = 2 * saturation / (1 + exp(-2 * prop_covered / saturation)) - saturation
+                prop_covered = minimum(prop_covered, 1.0)  # Ensure that coverage doesn't go above 1 (if saturation is < 1)
+            else:
+                # The division below means that 0/0 is treated as returning 1
+                prop_covered = np.divide(capacity, eligible, out=np.ones_like(capacity), where=eligible > capacity)
+        
         else:
-            # The division below means that 0/0 is treated as returning 1
-            prop_covered = np.divide(capacity, eligible, out=np.ones_like(capacity), where=eligible > capacity)
+            raise Exception(f"Unknown coverage triangulation units {self.cov_triangulation}")
 
         return prop_covered
 
