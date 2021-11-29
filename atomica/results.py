@@ -244,41 +244,44 @@ class Result(NamedItem):
         if self.model.progset is None:
             return None
 
-        capacities = self.model.progset.get_capacities(tvec=self.t, dt=self.dt, instructions=self.model.program_instructions)
+        # Get the program coverage denominator
+        num_eligible = dict()  # This is the coverage denominator, number of people covered by the program
+        for prog in self.model.progset.programs.values():  # For each program
+            for pop_name in prog.target_pops:
+                for comp_name in prog.target_comps:
+                    comp = self.get_variable(comp_name, pop_name)[0]
 
-        if quantity == "capacity":
-            output = capacities
+                    if isinstance(comp, JunctionCompartment):
+                        vals = comp.outflow
+                    else:
+                        vals = comp.vals
+
+                    if prog.name not in num_eligible:
+                        num_eligible[prog.name] = vals.copy()
+                    else:
+                        num_eligible[prog.name] += vals
+
+        if quantity == "eligible":
+            output = num_eligible
         else:
-            # Get the program coverage denominator
-            num_eligible = dict()  # This is the coverage denominator, number of people covered by the program
-            for prog in self.model.progset.programs.values():  # For each program
-                for pop_name in prog.target_pops:
-                    for comp_name in prog.target_comps:
-                        comp = self.get_variable(comp_name, pop_name)[0]
+            capacities = self.model.progset.get_capacities(tvec=self.t, dt=self.dt, instructions=self.model.program_instructions, num_eligible=num_eligible)
 
-                        if isinstance(comp, JunctionCompartment):
-                            vals = comp.outflow
-                        else:
-                            vals = comp.vals
-
-                        if prog.name not in num_eligible:
-                            num_eligible[prog.name] = vals.copy()
-                        else:
-                            num_eligible[prog.name] += vals
-
-            # Note that `ProgramSet.get_prop_coverage()` takes in capacity in units of 'people' which matches
-            # the units of 'num_eligible' so we therefore use the returned value from `ProgramSet.get_capacities()`
-            # as-is without doing any annualization
-            prop_coverage = self.model.progset.get_prop_coverage(tvec=self.t, dt=self.dt, capacities=capacities, num_eligible=num_eligible, instructions=self.model.program_instructions)
-
-            if quantity in {"fraction", "annual_fraction"}:
-                output = prop_coverage
-            elif quantity == "eligible":
-                output = num_eligible
-            elif quantity == "number":
-                output = {x: num_eligible[x] * prop_coverage[x] for x in prop_coverage.keys()}
+            if quantity == "capacity":
+                output = capacities
             else:
-                raise Exception("Unknown coverage type requested")
+                # Note that `ProgramSet.get_prop_coverage()` takes in capacity in units of 'people' which matches
+                # the units of 'num_eligible' so we therefore use the returned value from `ProgramSet.get_capacities()`
+                # as-is without doing any annualization
+                prop_coverage = self.model.progset.get_prop_coverage(tvec=self.t, dt=self.dt, capacities=capacities, num_eligible=num_eligible, instructions=self.model.program_instructions)
+    
+                if quantity in {"fraction", "annual_fraction"}:
+                    output = prop_coverage
+                elif quantity == "number":
+                    output = {x: num_eligible[x] * prop_coverage[x] for x in prop_coverage.keys()}
+                else:
+                    raise Exception("Unknown coverage type requested")
+
+            
 
         if quantity in {"capacity", "number", "annual_fraction"}:
             # Return capacity and number coverage as 'people/year' rather than 'people'
