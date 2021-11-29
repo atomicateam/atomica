@@ -806,3 +806,11 @@ def _convert_framework_columns(framework):
 
     framework._validate()
     return framework
+
+@migration("ProjectFramework", "1.25.8", "1.26.0", "Add coverage programs")
+def _add_coverage_programs(framework):
+    # Add an additional column to the 'Program targeting' tab for program books
+    
+    raise Exception('Not implemented yet')
+    
+    return framework

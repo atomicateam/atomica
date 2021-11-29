@@ -553,6 +553,11 @@ class ProgramSet(NamedItem):
         # Check the first two columns are as expected
         assert headers[0] == "abbreviation"
         assert headers[1] == "display name"
+        #Optional columns that might be in any order after mandatory abbreviation/display name and before pops and comps
+        optional_cols = {'coverage triangulation': None}
+        for opt_col_name in optional_cols.keys():
+            if opt_col_name in headers[2:pop_start_idx]:
+                optional_cols[opt_col_name] = headers.index(opt_col_name)        
 
         # Now, prepare the pop and comp lookups
         pop_idx = dict()  # Map table index to pop full name
@@ -571,7 +576,14 @@ class ProgramSet(NamedItem):
         for row in tables[0][2:]:  # For each program to instantiate
             target_pops = []
             target_comps = []
-
+            
+            #ADDITIONAL columns - not required in order to maintain backward compatibility
+            opt_vals = {opt_col_name: None for opt_col_name in optional_cols.keys()} #Program initiatialization will handle default value so None is an appropriate default
+            for opt_col_name, opt_col_ind in optional_cols.items():
+                if opt_col_ind is not None:
+                    opt_vals[opt_col_name] = row[opt_col_ind].value.strip()
+            
+            #POPULATION targeting
             for i in range(pop_start_idx, comp_start_idx):
                 if row[i].value and sc.isstring(row[i].value) and row[i].value.lower().strip() == "y":
                     if pop_idx[i] not in pop_codenames:
@@ -581,6 +593,7 @@ class ProgramSet(NamedItem):
 
                     target_pops.append(pop_codenames[pop_idx[i]])  # Append the pop's codename
 
+            #COMPARTMENT targeting
             for i in range(comp_start_idx, len(headers)):
                 if row[i].value and sc.isstring(row[i].value) and row[i].value.lower().strip() == "y":
                     if comp_idx[i] not in comp_codenames:
@@ -601,17 +614,18 @@ class ProgramSet(NamedItem):
             if short_name.lower() == "all":
                 raise Exception('A program was named "all", which is a reserved keyword and cannot be used as a program name')
             long_name = row[1].value.strip()
+            
 
-            self.programs[short_name] = Program(name=short_name, label=long_name, target_pops=target_pops, target_comps=target_comps)
+            self.programs[short_name] = Program(name=short_name, label=long_name, cov_triangulation=opt_vals['coverage triangulation'], target_pops=target_pops, target_comps=target_comps)
 
     def _write_targeting(self):
         sheet = self._book.add_worksheet("Program targeting")
         widths = dict()
 
         # Work out the column offset associated with each population label and comp label
-        pop_block_offset = 2  # This is the co
+        pop_block_offset = 3  # This is the co
         sheet.write(0, pop_block_offset, "Targeted to (populations)", self._formats["rc_title"]["left"]["F"])
-        comp_block_offset = 2 + len(self.pops) + 1
+        comp_block_offset = pop_block_offset + len(self.pops) + 1
         sheet.write(0, comp_block_offset, "Targeted to (compartments)", self._formats["rc_title"]["left"]["F"])
 
         comps_in_use = set()
@@ -626,7 +640,10 @@ class ProgramSet(NamedItem):
         sheet.write(1, 0, "Abbreviation", self._formats["center_bold"])
         update_widths(widths, 0, "Abbreviation")
         sheet.write(1, 1, "Display name", self._formats["center_bold"])
-        update_widths(widths, 1, "Abbreviation")
+        update_widths(widths, 1, "Display name")
+        sheet.write(1, 2, "Coverage triangulation", self._formats["center_bold"])
+        update_widths(widths, 1, "Coverage triangulation")
+        
         for pop, spec in self.pops.items():
             col = pop_col[pop]
             sheet.write(1, col, spec["label"], self._formats["rc_title"]["left"]["T"])
@@ -649,7 +666,16 @@ class ProgramSet(NamedItem):
             update_widths(widths, 0, prog.name)
             sheet.write(row, 1, prog.label)
             self._references[prog.label] = "='%s'!%s" % (sheet.name, xlrc(row, 1, True, True))
-            update_widths(widths, 1, prog.label)
+            update_widths(widths, 2, prog.label)
+
+            #Add coverage triangulation
+            triangulation_labels = ["Use unit cost and annual spend; ignore coverage",
+                                    "Use unit cost and coverage; ignore annual spend",
+                                    "Fixed coverage; optional annual spend; ignore unit cost"]
+            sheet.write(row, 2, triangulation_labels[0])
+            # self._references[prog.label] = "='%s'!%s" % (sheet.name, xlrc(row, 1, True, True)) #TODO??
+            sheet.data_validation(xlrc(row, 2), {"validate": "list", "source": triangulation_labels})
+            update_widths(widths, 2, max([len(tl) for tl in triangulation_labels]))
 
             for pop in self.pops.keys():
                 col = pop_col[pop]
@@ -757,12 +783,17 @@ class ProgramSet(NamedItem):
             tdve.write_units = True
             tdve.write_uncertainty = True
 
-            tdve.allowed_units = {"Unit cost": [self.currency + "/person (one-off)", self.currency + "/person/year"], "Capacity": ["people/year", "people"]}
+            tdve.allowed_units = {"Unit cost": [self.currency + "/person (one-off)", self.currency + "/person/year",
+                                                self.currency + "/1% covered (one-off)", self.currency + "/1% covered/year"],
+                                  "Capacity": ["people/year", "people"],
+                                  "Coverage": ["people/year", "proportion"],
+                                  }
 
             # NOTE - If the ts contains time values that aren't in the ProgramSet's tvec, then an error will be thrown
             # However, if the ProgramSet's tvec contains values that the ts does not, then that's fine, there
             # will just be an empty cell in the spreadsheet
             next_row = tdve.write(sheet, next_row, self._formats, self._references, widths)
+            #TODO add some conditional formatting here e.g. 'ignore' format for the Coverage cell if "Use annual spend and unit cost; ignore coverage" is selected for the right program cell
 
         apply_widths(sheet, widths)
 
@@ -901,7 +932,7 @@ class ProgramSet(NamedItem):
                     fcn_pop_not_reached = '%s<>"Y"' % (self._references["reach_pop"][(prog.name, pop_name)])  # Excel formula returns FALSE if pop was 'N' (or blank)
                     sheet.conditional_format(xlrc(current_row, prog_col[prog.name]), {"type": "formula", "criteria": "=AND(%s,NOT(ISBLANK(%s)))" % (fcn_pop_not_reached, xlrc(current_row, prog_col[prog.name])), "format": self._formats["ignored_warning"]})
                     sheet.conditional_format(xlrc(current_row, prog_col[prog.name]), {"type": "formula", "criteria": "=" + fcn_pop_not_reached, "format": self._formats["ignored_not_required"]})
-
+                
                 # Conditional formatting for the impact interaction - hatched out if no single-program outcomes
                 fcn_empty_outcomes = 'COUNTIF(%s:%s,"<>" & "")<2' % (xlrc(current_row, 5), xlrc(current_row, 5 + len(applicable_progs)))
                 sheet.conditional_format(xlrc(current_row, 3), {"type": "formula", "criteria": "=" + fcn_empty_outcomes, "format": self._formats["ignored"]})
@@ -1153,6 +1184,7 @@ class Program(NamedItem):
 
     :param name: Short name of the program
     :param label: Full name of the program
+    :param triangulation: Which of annual spend, coverage, and unit cost to use and which to ignore
     :param target_pops: List of population code names for pops targeted by the program
     :param target_comps: List of compartment code names for compartments targeted by the program
     :param currency: The currency to use (for display purposes only) - normally this would be set to ``ProgramSet.currency`` by ``ProgramSet.add_program()``
@@ -1165,10 +1197,11 @@ class Program(NamedItem):
 
     """
 
-    def __init__(self, name, label=None, target_pops=None, target_comps=None, currency="$"):
+    def __init__(self, name, label=None, cov_triangulation=None, target_pops=None, target_comps=None, currency="$"):
         NamedItem.__init__(self, name)
         self.name = name  #: Short name of program
         self.label = name if label is None else label  #: Full name of the program
+        self.cov_triangulation = "Use unit cost and annual spend; ignore coverage" if cov_triangulation is None else cov_triangulation #: which of annual spend, coverage, and unit cost to use and which to ignore
         self.target_pops = [] if target_pops is None else target_pops  #: List of populations targeted by the program
         self.target_comps = [] if target_comps is None else target_comps  #: Compartments targeted by the program - used for calculating coverage denominators
         self.baseline_spend = TimeSeries(assumption=0.0, units=currency + "/year")  #: A TimeSeries with any baseline spending data - currently not exposed in progbook
