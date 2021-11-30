@@ -554,7 +554,7 @@ class ProgramSet(NamedItem):
         assert headers[0] == "abbreviation"
         assert headers[1] == "display name"
         #Optional columns that might be in any order after mandatory abbreviation/display name and before pops and comps
-        optional_cols = {'coverage triangulation': None}
+        optional_cols = { 'coverage type': None, 'coverage triangulation': None}
         for opt_col_name in optional_cols.keys():
             if opt_col_name in headers[2:pop_start_idx]:
                 optional_cols[opt_col_name] = headers.index(opt_col_name)        
@@ -616,14 +616,23 @@ class ProgramSet(NamedItem):
             long_name = row[1].value.strip()
             
 
-            self.programs[short_name] = Program(name=short_name, label=long_name, cov_triangulation=opt_vals['coverage triangulation'], target_pops=target_pops, target_comps=target_comps)
+            self.programs[short_name] = Program(name=short_name, label=long_name, optional_details = opt_vals, target_pops=target_pops, target_comps=target_comps)
 
     def _write_targeting(self):
         sheet = self._book.add_worksheet("Program targeting")
         widths = dict()
 
+        special_columns = {'Coverage type': {'labels': ['Continuous', 'One-off'], 'width': 12},
+                           'Coverage triangulation': {'labels': ["Use unit cost and annual spend; ignore coverage", 
+                                                                 "Use unit cost and coverage; ignore annual spend",
+                                                                 "Fixed coverage; optional annual spend; ignore unit cost"], 'width': 55}
+                           }
+
+
         # Work out the column offset associated with each population label and comp label
-        pop_block_offset = 3  # This is the co
+        special_block_offset = 2
+        sheet.write(0, special_block_offset, "Program definitions", self._formats["rc_title"]["left"]["F"])
+        pop_block_offset = special_block_offset + len(special_columns)  # This is the column to start population targeting in
         sheet.write(0, pop_block_offset, "Targeted to (populations)", self._formats["rc_title"]["left"]["F"])
         comp_block_offset = pop_block_offset + len(self.pops) + 1
         sheet.write(0, comp_block_offset, "Targeted to (compartments)", self._formats["rc_title"]["left"]["F"])
@@ -633,6 +642,7 @@ class ProgramSet(NamedItem):
             comps_in_use.update(prog.target_comps)
         comps_to_write = {k: v for k, v in self.comps.items() if k in comps_in_use or not v["non_targetable"]}
 
+        special_col = {n: i + special_block_offset for i, n in enumerate(special_columns.keys())}
         pop_col = {n: i + pop_block_offset for i, n in enumerate(self.pops.keys())}
         comp_col = {n: i + comp_block_offset for i, n in enumerate(comps_to_write.keys())}
 
@@ -641,8 +651,10 @@ class ProgramSet(NamedItem):
         update_widths(widths, 0, "Abbreviation")
         sheet.write(1, 1, "Display name", self._formats["center_bold"])
         update_widths(widths, 1, "Display name")
-        sheet.write(1, 2, "Coverage triangulation", self._formats["center_bold"])
-        update_widths(widths, 1, "Coverage triangulation")
+        for col_name in special_columns.keys():
+            col = special_col[col_name]
+            sheet.write(1, col, col_name, self._formats["center_bold"])
+            widths[col] = special_columns[col_name]['width']
         
         for pop, spec in self.pops.items():
             col = pop_col[pop]
@@ -660,22 +672,25 @@ class ProgramSet(NamedItem):
 
         row = 2
         self._references["reach_pop"] = dict()  # This is storing cells e.g. self._references['reach_pop'][('BCG','0-4')]='$A$4' so that conditional formatting can be done
+        self._references['special_cols'] = dict() #storing refs for all special cells
         for prog in self.programs.values():
             sheet.write(row, 0, prog.name)
             self._references[prog.name] = "='%s'!%s" % (sheet.name, xlrc(row, 0, True, True))
             update_widths(widths, 0, prog.name)
             sheet.write(row, 1, prog.label)
             self._references[prog.label] = "='%s'!%s" % (sheet.name, xlrc(row, 1, True, True))
-            update_widths(widths, 2, prog.label)
+            update_widths(widths, 1, prog.label)
 
-            #Add coverage triangulation
-            triangulation_labels = ["Use unit cost and annual spend; ignore coverage",
-                                    "Use unit cost and coverage; ignore annual spend",
-                                    "Fixed coverage; optional annual spend; ignore unit cost"]
-            sheet.write(row, 2, triangulation_labels[0])
-            # self._references[prog.label] = "='%s'!%s" % (sheet.name, xlrc(row, 1, True, True)) #TODO??
-            sheet.data_validation(xlrc(row, 2), {"validate": "list", "source": triangulation_labels})
-            update_widths(widths, 2, max([len(tl) for tl in triangulation_labels]))
+            self._references['special_cols'][prog.name] = dict()
+            for col_name in special_columns.keys():
+                col_labels = special_columns[col_name]['labels']
+                prog_value = prog.optional_details[col_name] if col_name in prog.optional_details.keys() else col_labels[0] #backwards compatibility may not exist; default to first value
+                col = special_col[col_name]
+                sheet.write(row, col, prog_value)
+                self._references['special_cols'][prog.name][col_name] = "='%s'!%s" % (sheet.name, xlrc(row, col, True, True))
+                sheet.data_validation(xlrc(row, col), {"validate": "list", "source": col_labels})
+                # for label_option in col_labels:
+                #     update_widths(widths, col, label_option) #ensure the column is wide enough for the widest option
 
             for pop in self.pops.keys():
                 col = pop_col[pop]
@@ -754,6 +769,8 @@ class ProgramSet(NamedItem):
 
             if "/year" in prog.unit_cost.units and "/year" in prog.coverage.units:
                 logger.warning("Program %s: Typically if the unit cost is `/year` then the coverage would not be `/year`", prog.label)
+            if "/year" in prog.unit_cost.units and "/year" in prog.capacity_constraint.units:
+                logger.warning("Program %s: Typically if the unit cost is `/year` then the capacity constraint would not be `/year`", prog.label)
             times.update(set(tdve.tvec))
 
         # Work out the currency
@@ -785,14 +802,24 @@ class ProgramSet(NamedItem):
             tdve.assumption_heading = "Assumption"
             tdve.write_assumption = True
             tdve.write_units = True
+            tdve.write_unit_timeframes = True
             tdve.write_uncertainty = True
 
             tdve.allowed_units = {"Unit cost": [self.currency + "/person (one-off)", self.currency + "/person/year",
                                                 self.currency + "/1% covered (one-off)", self.currency + "/1% covered/year"],
                                   "Capacity constraint": ["people/year", "people"],
                                   "Coverage": ["people/year", "proportion/year"],
-                                  }
-
+            
+            # tdve.allowed_unit_timeframes = {"Unit cost": ["/event", "/year"], #TODO remove?
+            #                                   "Capacity constraint": ["/year", ""],
+            #                                   "Saturation": [""],
+            #                                   "Coverage": ["/year", ""],
+                                              }
+            # tdve.conditional_unit_timeframes = {"Unit cost": {"One-off": self.currency + "/person (one-off)", "Continuous": self.currency + "/person/year"},
+            #                                   "Capacity constraint": {"One-off": "people/year", "Continuous": "people"},
+            #                                   "Coverage": {"One-off": "people/year", "Continuous": "proportion/year"},
+            #                                   }
+            
             # NOTE - If the ts contains time values that aren't in the ProgramSet's tvec, then an error will be thrown
             # However, if the ProgramSet's tvec contains values that the ts does not, then that's fine, there
             # will just be an empty cell in the spreadsheet
@@ -1203,7 +1230,7 @@ class Program(NamedItem):
 
     :param name: Short name of the program
     :param label: Full name of the program
-    :param triangulation: Which of annual spend, coverage, and unit cost to use and which to ignore
+    :param optional_details: Additional program details added via the program book
     :param target_pops: List of population code names for pops targeted by the program
     :param target_comps: List of compartment code names for compartments targeted by the program
     :param currency: The currency to use (for display purposes only) - normally this would be set to ``ProgramSet.currency`` by ``ProgramSet.add_program()``
@@ -1216,11 +1243,12 @@ class Program(NamedItem):
 
     """
 
-    def __init__(self, name, label=None, cov_triangulation=None, target_pops=None, target_comps=None, currency="$"):
+    def __init__(self, name, label=None, optional_details=None, target_pops=None, target_comps=None, currency="$"):
         NamedItem.__init__(self, name)
         self.name = name  #: Short name of program
         self.label = name if label is None else label  #: Full name of the program
-        self.cov_triangulation = "Use unit cost and annual spend; ignore coverage" if cov_triangulation is None else cov_triangulation #: which of annual spend, coverage, and unit cost to use and which to ignore
+        #TODO Review: Not sure if this is the best way to define 'optional' details that are always needed - it's just flexible with the program book to be backwards compatible and forwards compatible with anything new that needs to be added in the future
+        self.optional_details = dict() if optional_details is None else optional_details 
         self.target_pops = [] if target_pops is None else target_pops  #: List of populations targeted by the program
         self.target_comps = [] if target_comps is None else target_comps  #: Compartments targeted by the program - used for calculating coverage denominators
         self.baseline_spend = TimeSeries(assumption=0.0, units=currency + "/year")  #: A TimeSeries with any baseline spending data - currently not exposed in progbook
@@ -1229,6 +1257,17 @@ class Program(NamedItem):
         self.capacity_constraint = TimeSeries(units="people/year")  #: TimeSeries with capacity constraint for the program
         self.saturation = TimeSeries(units=FS.DEFAULT_SYMBOL_INAPPLICABLE)  #: TimeSeries with saturation constraint that is applied to fractional coverage
         self.coverage = TimeSeries(units="people/year")  #: TimeSeries with capacity of program - optional - if not supplied, cost function is assumed to be linear
+
+    @property
+    def cov_triangulation(self) -> str:
+        """
+        Determines which two of annual spend, coverage, and unit cost to use and which to ignore
+        If program coverage is specified, annual spend becomes optional
+        """
+        if 'Coverage triangulation' in self.optional_details.keys():
+            return self.optional_details['Coverage triangulation']
+        else:
+            return "Use unit cost and annual spend; ignore coverage"
 
     @property
     def is_one_off(self) -> bool:
@@ -1248,8 +1287,10 @@ class Program(NamedItem):
         :return: True if program is a one-off program
 
         """
-        #TODO potential for a one-off program to be defined with a coverage value and ignoring unit cost units, need to enforce that unit cost exists for that case?
-        return "/year" not in self.unit_cost.units 
+        if 'Coverage type' in self.optional_details.keys():
+            return self.optional_details['Coverage type'] == 'One-off'
+        else: #backwards compatability
+            return "/year" not in self.unit_cost.units 
 
     def sample(self, constant: bool) -> None:
         """
