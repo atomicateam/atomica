@@ -745,8 +745,12 @@ class ProgramSet(NamedItem):
             set_ts(prog, "saturation", tdve.ts["Saturation"])
 
             if not _allow_missing_data:
-                assert prog.unit_cost.has_data, 'Unit cost data for %s not was not entered (in table on sheet "%s" starting on row %d' % (prog.name, sheet.title, start_row)
-                assert prog.spend_data.has_data, 'Spending data for %s not was not entered (in table on sheet "%s" starting on row %d' % (prog.name, sheet.title, start_row)
+                if prog.cov_triangulation in ["Use unit cost and annual spend; ignore coverage", "Use unit cost and coverage; ignore annual spend"]:
+                    assert prog.unit_cost.has_data, 'Unit cost data for %s not was not entered (in table on sheet "%s" starting on row %d' % (prog.name, sheet.title, start_row)
+                if prog.cov_triangulation in ["Use unit cost and annual spend; ignore coverage"]: #"Fixed coverage; optional annual spend; ignore unit cost"]
+                    assert prog.spend_data.has_data, 'Spending data for %s not was not entered (in table on sheet "%s" starting on row %d' % (prog.name, sheet.title, start_row)
+                if prog.cov_triangulation in ["Use unit cost and coverage; ignore annual spend", "Fixed coverage; optional annual spend; ignore unit cost"]:
+                    assert prog.coverage.has_data, 'Coverage data for %s not was not entered (in table on sheet "%s" starting on row %d' % (prog.name, sheet.title, start_row)
 
             if "/year" in prog.unit_cost.units and "/year" in prog.coverage.units:
                 logger.warning("Program %s: Typically if the unit cost is `/year` then the coverage would not be `/year`", prog.label)
@@ -1077,7 +1081,13 @@ class ProgramSet(NamedItem):
                 else:
                     spending = None
                 
-                num_eligible_prog = num_eligible[prog.name] if num_eligible else None
+                if num_eligible is None:
+                    # if ("/1% covered" in prog.unit_cost.units) or (prog.cov_triangulation in ["use coverage; optional spending; ignore unit cost", "Use unit cost and coverage; ignore annual spend"] and prog.coverage.units == 'proportion'):
+                    #     num_eligible_prog = None  #TODO should we actually try to calculate this?
+                    # else:
+                        num_eligible_prog = None #it won't be used anyway, so no need to calculate
+                else:
+                    num_eligible_prog = num_eligible[prog.name]
                     
                 # Note that prog.get_capacity() returns capacity in units of people
                 capacities[prog.name] = prog.get_capacity(tvec=tvec, dt=dt, spending=spending, num_eligible=num_eligible_prog)
@@ -1334,13 +1344,12 @@ class Program(NamedItem):
 
         # Validate inputs
         spending = sc.promotetoarray(spending)
-        num_eligible = sc.promotetoarray(num_eligible) #TODO do we need/want this?
+        num_eligible = sc.promotetoarray(num_eligible)
 
            
         if self.cov_triangulation in ["use coverage; optional spending; ignore unit cost", "Use unit cost and coverage; ignore annual spend"]:
             coverage = self.coverage.interpolate(tvec, method="previous")
             if self.coverage.units == 'proportion':
-                # assert num_eligible, f"Program {self.name} defined to use coverage, and coverage is defined as a proportion: impossible to calculate coverage capacity without number eligible"
                 capacity = coverage * num_eligible
             elif self.coverage.unites == 'number':
                 capacity = coverage #already specified in exactly the right format
@@ -1355,7 +1364,6 @@ class Program(NamedItem):
             
             if "/1% covered" in self.unit_cost.units: #Note that unit costs of per 1% covered refer to 1% pre-saturation scaling, so there's no circular dependency here
                 #adjust the unit_cost to be per person given the number of people eligible
-                # assert num_eligible, f"Program {self.name} has costs based on proportion covered: impossible to calculate coverage capacity without number eligible"
                 unit_cost = unit_cost * num_eligible * 0.01 #0.01 = per 1%
 
             capacity = spending / unit_cost
@@ -1367,7 +1375,7 @@ class Program(NamedItem):
                 capacity_constraint *= dt
             capacity = np.minimum(capacity_constraint, capacity)
 
-        return capacity
+        return capacity #TODO if num_eligible was None but actually needed, this will return an empty array, will this cause any problems elsewhere?
 
     def get_prop_covered(self, tvec, capacity, eligible):
         """
