@@ -872,7 +872,7 @@ class TimeDependentValuesEntry:
         self.tvec = [] if tvec is None else tvec  #: time axis (e.g. np.arange(2000,2019)) - all TimeSeries time values must exactly match one of the values here
         self.ts = ts  # : dict of :class:`TimeSeries` objects
         self.allowed_units = [x.title() if x in FS.STANDARD_UNITS else x for x in allowed_units] if allowed_units is not None else None  # Otherwise, can be an odict with keys corresponding to ts - leave as None for no restriction
-        self.allowed_unit_timeframes = [x for x in allowed_units] if allowed_units is not None else None  # Otherwise, can be an odict with keys corresponding to ts - leave as None for no restriction
+        # self.allowed_unit_timeframes = [x for x in allowed_units] if allowed_units is not None else None  # Otherwise, can be an odict with keys corresponding to ts - leave as None for no restriction
 
         self.ts_attributes = {}  #: Dictionary containing extra attributes to write along with each TimeSeries object.
         self.ts_attributes["Provenance"] = {}  # Include provenance attribute by default
@@ -882,9 +882,10 @@ class TimeDependentValuesEntry:
         self.assumption_heading = "Constant"  #: Heading to use for assumption column
         
         self.conditional_unit_timeframes = None #: describe references to use in an IF statement by default
+        self.conditional_row_formatting = None  #: describe references to use in conditional formatting of rows
 
         self.write_units = None  #: Write a column for units (if None, units will be written if any of the TimeSeries have units)
-        self.write_unit_timeframes = None  #: Separate a column for unit timeframes (if None, unit timeframes will be written if any of the TimeSeries have units)
+        # self.write_unit_timeframes = None  #: Separate a column for unit timeframes (if None, unit timeframes will be written if any of the TimeSeries have units)
         self.write_uncertainty = None  #: Write a column for units (if None, units will be written if any of the TimeSeries have uncertainty)
         self.write_assumption = None  #: Write a column for units (if None, units will be written if any of the TimeSeries have an assumption)
 
@@ -1115,13 +1116,13 @@ class TimeDependentValuesEntry:
                     for condition, result in self.conditional_unit_timeframes[row_name][1].items():
                         unit_str_start += f'IF({references["special_cols"][self.name][optional_detail_name]}="{condition}","{result}",'
                         unit_str_end += ')'
+                        update_widths(widths, units_index, result)
                     unit = '=' + unit_str_start + '""' + unit_str_end
                     worksheet.write(current_row, units_index, unit)
                 elif row_ts.units:
                     if row_ts.units.lower().strip() in FS.STANDARD_UNITS:  # Preserve case if nonstandard unit
                         unit = row_ts.units.title().strip()
                     else:
-                        #TODO add check for references here
                         unit = row_ts.units.strip()
                     worksheet.write(current_row, units_index, unit)
                     update_widths(widths, units_index, unit)
@@ -1174,10 +1175,11 @@ class TimeDependentValuesEntry:
 
                                 
                 if row_name in self.conditional_row_formatting.keys(): #If a row of data will be ignored (or needs other formatting), make it clear
+                    format_col_start = uncertainty_index if write_uncertainty else (constant_index if write_assumption else offset)
                     optional_detail_name = self.conditional_row_formatting[row_name][0]
                     for condition, result in self.conditional_row_formatting[row_name][1].items():
                         criteria = f'={references["special_cols"][self.name][optional_detail_name]}="{condition}"'
-                        worksheet.conditional_format(xlra(current_row, constant_index, current_row, offset+len(content)-1), {"type": "formula", "criteria": criteria, "format": formats[result]})
+                        worksheet.conditional_format(xlra(current_row, format_col_start, current_row, offset+len(content)-1), {"type": "formula", "criteria": criteria, "format": formats[result]})
                         
                 if write_assumption:
                     # Conditional formatting for the assumption

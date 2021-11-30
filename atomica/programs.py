@@ -767,10 +767,14 @@ class ProgramSet(NamedItem):
                 if prog.cov_triangulation in ["Use unit cost and coverage; ignore annual spend", "Fixed coverage; optional annual spend; ignore unit cost"]:
                     assert prog.coverage.has_data, 'Coverage data for %s not was not entered (in table on sheet "%s" starting on row %d' % (prog.name, sheet.title, start_row)
 
-            if "/year" in prog.unit_cost.units and "/year" in prog.coverage.units:
-                logger.warning("Program %s: Typically if the unit cost is `/year` then the coverage would not be `/year`", prog.label)
-            if "/year" in prog.unit_cost.units and "/year" in prog.capacity_constraint.units:
-                logger.warning("Program %s: Typically if the unit cost is `/year` then the capacity constraint would not be `/year`", prog.label)
+            
+            if prog.is_one_off and "/year" in prog.unit_cost.units:
+                raise Exception('Program %s: If the program has coverage type "One-off", then the unit cost cannot be defined in units `/year`', prog.label)
+            if prog.is_one_off and not "/year" in prog.capacity_constraint.units:
+                raise Exception('Program %s: If the program has coverage type "One-off", then the capacity constraint needs to be defined in units `/year`', prog.label)
+            if prog.is_one_off and not "/year" in prog.coverage.units:
+                raise Exception('Program %s: If the program has coverage type "One-off", then the coverage needs to be defined in units `/year`', prog.label)
+            
             times.update(set(tdve.tvec))
 
         # Work out the currency
@@ -808,7 +812,7 @@ class ProgramSet(NamedItem):
             tdve.allowed_units = {"Unit cost": [self.currency + "/person (one-off)", self.currency + "/person/year",
                                                 self.currency + "/1% covered (one-off)", self.currency + "/1% covered/year"],
                                   "Capacity constraint": ["people/year", "people"],
-                                  "Coverage": ["people/year", "proportion/year"],
+                                  "Coverage": ["people/year", "proportion/year", "people", "proportion"],
                                   }
             
             # tdve.allowed_unit_timeframes = {"Unit cost": ["/event", "/year"], #TODO remove?
