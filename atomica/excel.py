@@ -872,6 +872,7 @@ class TimeDependentValuesEntry:
         self.tvec = [] if tvec is None else tvec  #: time axis (e.g. np.arange(2000,2019)) - all TimeSeries time values must exactly match one of the values here
         self.ts = ts  # : dict of :class:`TimeSeries` objects
         self.allowed_units = [x.title() if x in FS.STANDARD_UNITS else x for x in allowed_units] if allowed_units is not None else None  # Otherwise, can be an odict with keys corresponding to ts - leave as None for no restriction
+        self.allowed_unit_timeframes = [x for x in allowed_units] if allowed_units is not None else None  # Otherwise, can be an odict with keys corresponding to ts - leave as None for no restriction
 
         self.ts_attributes = {}  #: Dictionary containing extra attributes to write along with each TimeSeries object.
         self.ts_attributes["Provenance"] = {}  # Include provenance attribute by default
@@ -879,8 +880,11 @@ class TimeDependentValuesEntry:
         #  Keys are attribute name, values can be either a scalar or a dict keyed by the same keys as self.ts. Compared to units, uncertainty etc.
         #  attributes are store in the TDVE rather than in the TimeSeries
         self.assumption_heading = "Constant"  #: Heading to use for assumption column
+        
+        self.conditional_unit_timeframes = None #: describe references to use in an IF statement by default
 
         self.write_units = None  #: Write a column for units (if None, units will be written if any of the TimeSeries have units)
+        self.write_unit_timeframes = None  #: Separate a column for unit timeframes (if None, unit timeframes will be written if any of the TimeSeries have units)
         self.write_uncertainty = None  #: Write a column for units (if None, units will be written if any of the TimeSeries have uncertainty)
         self.write_assumption = None  #: Write a column for units (if None, units will be written if any of the TimeSeries have an assumption)
 
@@ -1023,6 +1027,7 @@ class TimeDependentValuesEntry:
         assert self.assumption_heading in {"Constant", "Assumption"}, "Unsupported assumption heading"
 
         write_units = self.write_units if self.write_units is not None else any((ts.units is not None for ts in self.ts.values()))
+        # write_unit_timeframes = self.write_unit_timeframes if self.write_unit_timeframes is not None else False #Default to not displaying for backwards compatibility #TODO remove
         write_uncertainty = self.write_uncertainty if self.write_uncertainty is not None else any((ts.sigma is not None for ts in self.ts.values()))
         write_assumption = self.write_assumption if self.write_assumption is not None else any((ts.assumption is not None for ts in self.ts.values()))
 
@@ -1047,6 +1052,11 @@ class TimeDependentValuesEntry:
             headings.append("Units")
             units_index = offset  # Column to write the units in
             offset += 1
+            
+        # if write_unit_timeframes: #TODO remove
+        #     headings.append("Timeframe")
+        #     unit_timeframes_index = offset  # Column to write the units in
+        #     offset += 1
 
         if write_uncertainty:
             headings.append("Uncertainty")
@@ -1098,10 +1108,19 @@ class TimeDependentValuesEntry:
 
             # Write the units
             if write_units:
-                if row_ts.units:
+                if row_name in self.conditional_unit_timeframes.keys(): #set up a conditional formula
+                    unit_str_start = ''
+                    unit_str_end = ''
+                    for condition, result in self.conditional_unit_timeframes[row_name].items():
+                        unit_str_start += f'IF({references["special_cols"][self.name]["Coverage type"]}="{condition}","{result}",'
+                        unit_str_end += ')'
+                    unit = '=' + unit_str_start + '""' + unit_str_end
+                    worksheet.write(current_row, units_index, unit)
+                elif row_ts.units:
                     if row_ts.units.lower().strip() in FS.STANDARD_UNITS:  # Preserve case if nonstandard unit
                         unit = row_ts.units.title().strip()
                     else:
+                        #TODO add check for references here
                         unit = row_ts.units.strip()
                     worksheet.write(current_row, units_index, unit)
                     update_widths(widths, units_index, unit)
@@ -1117,7 +1136,7 @@ class TimeDependentValuesEntry:
 
                 if allowed:
                     worksheet.data_validation(xlrc(current_row, units_index), {"validate": "list", "source": allowed})
-
+            
             if write_uncertainty:
                 if row_ts.sigma is None:
                     worksheet.write(current_row, uncertainty_index, row_ts.sigma, formats["not_required"])  # NB. For now, uncertainty is always optional

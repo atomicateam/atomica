@@ -687,7 +687,7 @@ class ProgramSet(NamedItem):
                 prog_value = prog.optional_details[col_name] if col_name in prog.optional_details.keys() else col_labels[0] #backwards compatibility may not exist; default to first value
                 col = special_col[col_name]
                 sheet.write(row, col, prog_value)
-                self._references['special_cols'][prog.name][col_name] = "='%s'!%s" % (sheet.name, xlrc(row, col, True, True))
+                self._references['special_cols'][prog.name][col_name] = "'%s'!%s" % (sheet.name, xlrc(row, col, True, True))
                 sheet.data_validation(xlrc(row, col), {"validate": "list", "source": col_labels})
                 # for label_option in col_labels:
                 #     update_widths(widths, col, label_option) #ensure the column is wide enough for the widest option
@@ -809,16 +809,18 @@ class ProgramSet(NamedItem):
                                                 self.currency + "/1% covered (one-off)", self.currency + "/1% covered/year"],
                                   "Capacity constraint": ["people/year", "people"],
                                   "Coverage": ["people/year", "proportion/year"],
+                                  }
             
             # tdve.allowed_unit_timeframes = {"Unit cost": ["/event", "/year"], #TODO remove?
             #                                   "Capacity constraint": ["/year", ""],
             #                                   "Saturation": [""],
             #                                   "Coverage": ["/year", ""],
+                                              # }
+                                              
+            tdve.conditional_unit_timeframes = {"Unit cost": {"One-off": self.currency + "/person (one-off)", "Continuous": self.currency + "/person/year"},
+                                              "Capacity constraint": {"One-off": "people/year", "Continuous": "people"},
+                                              "Coverage": {"One-off": "people/year", "Continuous": "people"},
                                               }
-            # tdve.conditional_unit_timeframes = {"Unit cost": {"One-off": self.currency + "/person (one-off)", "Continuous": self.currency + "/person/year"},
-            #                                   "Capacity constraint": {"One-off": "people/year", "Continuous": "people"},
-            #                                   "Coverage": {"One-off": "people/year", "Continuous": "proportion/year"},
-            #                                   }
             
             # NOTE - If the ts contains time values that aren't in the ProgramSet's tvec, then an error will be thrown
             # However, if the ProgramSet's tvec contains values that the ts does not, then that's fine, there
