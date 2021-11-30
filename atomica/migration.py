@@ -807,10 +807,16 @@ def _convert_framework_columns(framework):
     framework._validate()
     return framework
 
-@migration("ProjectFramework", "1.25.8", "1.26.0", "Add coverage programs")
-def _add_coverage_programs(framework):
-    # Add an additional column to the 'Program targeting' tab for program books
+@migration("Project", "1.25.8", "1.26.0", "Add coverage programs")
+def _add_coverage_programs(proj):
+    # TODO directly change TDVEs?
     
     raise Exception('Not implemented yet')
+    for progset in proj.progsets.values():
+        for prog in progset.values():
+            prog.optional_details = dict()
+            prog.optional_details['Coverage type'] = 'One-off' if prog.is_one_off else 'Continuous'
+            prog.optional_details['Coverage triangulation'] = "Use unit cost and annual spend; ignore coverage"
     
-    return framework
+    
+    return proj
