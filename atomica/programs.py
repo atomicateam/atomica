@@ -817,10 +817,16 @@ class ProgramSet(NamedItem):
             #                                   "Coverage": ["/year", ""],
                                               # }
                                               
-            tdve.conditional_unit_timeframes = {"Unit cost": {"One-off": self.currency + "/person (one-off)", "Continuous": self.currency + "/person/year"},
-                                              "Capacity constraint": {"One-off": "people/year", "Continuous": "people"},
-                                              "Coverage": {"One-off": "people/year", "Continuous": "people"},
+            tdve.conditional_unit_timeframes = {"Unit cost": ('Coverage type', {"One-off": self.currency + "/person (one-off)", "Continuous": self.currency + "/person/year"}),
+                                              "Capacity constraint": ('Coverage type', {"One-off": "people/year", "Continuous": "people"}),
+                                              "Coverage": ('Coverage type', {"One-off": "people/year", "Continuous": "people"}),
                                               }
+            
+            tdve.conditional_row_formatting = {"Annual spend": ('Coverage triangulation', {"Use unit cost and coverage; ignore annual spend": 'ignored'}),
+                                              "Unit cost": ('Coverage triangulation', {"Fixed coverage; optional annual spend; ignore unit cost": 'ignored'}),
+                                              "Coverage": ('Coverage triangulation', {"Use unit cost and annual spend; ignore coverage": 'ignored'}),
+                                              }
+            
             
             # NOTE - If the ts contains time values that aren't in the ProgramSet's tvec, then an error will be thrown
             # However, if the ProgramSet's tvec contains values that the ts does not, then that's fine, there

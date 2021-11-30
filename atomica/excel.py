@@ -8,7 +8,7 @@ For example, Excel formatting, and time-varying data entry tables, are implement
 
 """
 
-from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
+from xlsxwriter.utility import xl_rowcol_to_cell as xlrc, xl_range_abs as xlra
 import sciris as sc
 import io
 import numpy as np
@@ -1111,8 +1111,9 @@ class TimeDependentValuesEntry:
                 if row_name in self.conditional_unit_timeframes.keys(): #set up a conditional formula
                     unit_str_start = ''
                     unit_str_end = ''
-                    for condition, result in self.conditional_unit_timeframes[row_name].items():
-                        unit_str_start += f'IF({references["special_cols"][self.name]["Coverage type"]}="{condition}","{result}",'
+                    optional_detail_name = self.conditional_unit_timeframes[row_name][0]
+                    for condition, result in self.conditional_unit_timeframes[row_name][1].items():
+                        unit_str_start += f'IF({references["special_cols"][self.name][optional_detail_name]}="{condition}","{result}",'
                         unit_str_end += ')'
                     unit = '=' + unit_str_start + '""' + unit_str_end
                     worksheet.write(current_row, units_index, unit)
@@ -1171,6 +1172,13 @@ class TimeDependentValuesEntry:
                         worksheet.write(current_row, offset + idx, v, format)
                     widths[offset + idx] = max(widths[offset + idx], 7) if offset + idx in widths else 7
 
+                                
+                if row_name in self.conditional_row_formatting.keys(): #If a row of data will be ignored (or needs other formatting), make it clear
+                    optional_detail_name = self.conditional_row_formatting[row_name][0]
+                    for condition, result in self.conditional_row_formatting[row_name][1].items():
+                        criteria = f'={references["special_cols"][self.name][optional_detail_name]}="{condition}"'
+                        worksheet.conditional_format(xlra(current_row, constant_index, current_row, offset+len(content)-1), {"type": "formula", "criteria": criteria, "format": formats[result]})
+                        
                 if write_assumption:
                     # Conditional formatting for the assumption
                     # Do this here, because after the loop above, we have easy and clear access to the range of cells to include in the formula
@@ -1179,6 +1187,7 @@ class TimeDependentValuesEntry:
                     worksheet.conditional_format(xlrc(current_row, constant_index), {"type": "formula", "criteria": "=" + fcn_empty_times, "format": formats["ignored"]})
                     worksheet.conditional_format(xlrc(current_row, constant_index), {"type": "formula", "criteria": "=AND(%s,NOT(ISBLANK(%s)))" % (fcn_empty_times, xlrc(current_row, constant_index)), "format": formats["ignored_warning"]})
 
+                
         return current_row + 2  # Add two so there is a blank line after this table
 
 
