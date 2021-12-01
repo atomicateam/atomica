@@ -1109,7 +1109,7 @@ class TimeDependentValuesEntry:
 
             # Write the units
             if write_units:
-                if row_name in self.conditional_unit_timeframes.keys(): #set up a conditional formula
+                if self.conditional_unit_timeframes and row_name in self.conditional_unit_timeframes.keys(): #set up a conditional formula
                     unit_str_start = ''
                     unit_str_end = ''
                     optional_detail_name = self.conditional_unit_timeframes[row_name][0]
@@ -1174,7 +1174,7 @@ class TimeDependentValuesEntry:
                     widths[offset + idx] = max(widths[offset + idx], 7) if offset + idx in widths else 7
 
                                 
-                if row_name in self.conditional_row_formatting.keys(): #If a row of data will be ignored (or needs other formatting), make it clear
+                if self.conditional_row_formatting and row_name in self.conditional_row_formatting.keys(): #If a row of data will be ignored (or needs other formatting), make it clear
                     format_col_start = uncertainty_index if write_uncertainty else (constant_index if write_assumption else offset)
                     optional_detail_name = self.conditional_row_formatting[row_name][0]
                     for condition, result in self.conditional_row_formatting[row_name][1].items():
