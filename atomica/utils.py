@@ -897,15 +897,19 @@ def parallel_progress(fcn, inputs, num_workers=None, show_progress=True) -> list
         if show_progress:
             pbar.update(1)
 
+    jobs = []
     if sc.isnumber(inputs):
         for i in range(inputs):
-            pool.apply_async(fcn, callback=partial(callback, idx=i))
+            jobs.append(pool.apply_async(fcn, callback=partial(callback, idx=i)))
     else:
         for i, x in enumerate(inputs):
-            pool.apply_async(fcn, args=(x,), callback=partial(callback, idx=i))
+            jobs.append(pool.apply_async(fcn, args=(x,), callback=partial(callback, idx=i)))
 
     pool.close()
     pool.join()
+
+    for job in jobs:
+        job.get() # This will raise any exceptions thrown from within the async task
 
     if show_progress:
         pbar.close()
