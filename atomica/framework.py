@@ -486,13 +486,34 @@ class ProjectFramework:
 
         """
 
-        import networkx as nx
+        self._validate_sheets()
+        self._validate_metadata()
+        self._validate_compartments()
+        self._validate_characteristics()
+        self._validate_interactions()
+        self._validate_parameters()
+        self._validate_names()
+        self._validate_cascades()
+        self._validate_plots()
+        self._validate_initialization()
+        self._assign_junction_duration_groups()
 
+    def _validate_sheets(self):
         # Check for required sheets
         for page in ["databook pages", "parameters"]:
             if page not in self.sheets:
                 raise InvalidFramework('The Framework file is missing a required sheet: "%s"' % (page))
 
+        if "cascade" in self.sheets and "cascades" not in self.sheets:
+            logger.warning('A sheet called "Cascade" was found, but it probably should be called "Cascades"')
+
+        if "plot" in self.sheets and "plots" not in self.sheets:
+            logger.warning('A sheet called "Plot" was found, but it probably should be called "Plots"')
+
+        if "population types" not in self.sheets:
+            self.sheets["population types"] = [pd.DataFrame.from_records([(FS.DEFAULT_POP_TYPE, "Default")], columns=["code name", "description"])]
+
+    def _validate_metadata(self):
         # VALIDATE METADATA
 
         # Validate 'About' sheet - it must have a name
@@ -516,17 +537,7 @@ class ProjectFramework:
         name_df["name"] = name_df["name"].astype(str)
         self.name = name_df["name"].iloc[0]
 
-        if "cascade" in self.sheets and "cascades" not in self.sheets:
-            logger.warning('A sheet called "Cascade" was found, but it probably should be called "Cascades"')
-
-        if "plot" in self.sheets and "plots" not in self.sheets:
-            logger.warning('A sheet called "Plot" was found, but it probably should be called "Plots"')
-
-        # VALIDATE POPULATION TYPES
-        # Default to having 'Default'
-        if "population types" not in self.sheets:
-            self.sheets["population types"] = [pd.DataFrame.from_records([(FS.DEFAULT_POP_TYPE, "Default")], columns=["code name", "description"])]
-
+    def _validate_compartments(self):
         available_pop_types = list(self.pop_types.keys())  # Get available pop types
 
         # VALIDATE COMPARTMENTS
@@ -599,7 +610,11 @@ class ProjectFramework:
             if row["population type"] not in available_pop_types:
                 raise InvalidFramework('Compartment "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (comp_name, row["population type"], available_pop_types))
 
+    def _validate_characteristics(self):
         # VALIDATE CHARACTERISTICS
+
+        available_pop_types = list(self.pop_types.keys())  # Get available pop types
+
         if "characteristics" not in self.sheets:
             self.sheets["characteristics"] = [pd.DataFrame(columns=["code name", "display name"])]
 
@@ -683,7 +698,11 @@ class ProjectFramework:
                 else:
                     raise InvalidFramework('In Characteristic "%s", included component "%s" was not recognized as a Compartment or Characteristic' % (charac_name, component))
 
+    def _validate_interactions(self):
         # VALIDATE INTERACTIONS
+
+        available_pop_types = list(self.pop_types.keys())  # Get available pop types
+
         if "interactions" not in self.sheets:
             self.sheets["interactions"] = [pd.DataFrame(columns=["code name", "display name", "to population type", "from population type"])]
 
@@ -709,6 +728,7 @@ class ProjectFramework:
             if row["to population type"] not in available_pop_types:
                 raise InvalidFramework('Interaction "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (interaction_name, row["to population type"], available_pop_types))
 
+    def _validate_parameters(self):
         # VALIDATE PARAMETERS
         # This is done last, because validating parameter dependencies requires checking compartments and characteristics
         required_columns = ["display name", "format"]
@@ -741,6 +761,8 @@ class ProjectFramework:
             raise Exception("%s -> %s" % (message, e)) from e
 
         # Assign first population type to any empty population types
+        available_pop_types = list(self.pop_types.keys())  # Get available pop types
+
         self.pars["population type"] = self.pars["population type"].fillna(available_pop_types[0])
         self.pars["format"] = self.pars["format"].map(lambda x: x.strip() if sc.isstring(x) else x)
 
@@ -755,6 +777,7 @@ class ProjectFramework:
         self._process_transitions()
 
         # Now validate each parameter
+        import networkx as nx
         G = nx.DiGraph()  # Generate a dependency graph
 
         def cross_pop_message(par, quantity_type, quantity_name):
@@ -1004,8 +1027,11 @@ class ProjectFramework:
                 message += "\n - " + " -> ".join(cycle)
             raise InvalidFramework(message)
 
+    def _validate_names(self):
         # VALIDATE NAMES - No collisions, no keywords
-        code_names = list(self.comps.index) + list(self.characs.index) + list(self.pars.index) + list(self.interactions.index) + list(available_pop_types)
+        available_pop_types = list(self.pop_types.keys())  # Get available pop types
+        code_names = list(self.comps.index) + list(self.characs.index) + list(self.pars.index) + list(self.interactions.index) + available_pop_types
+
         tmp = set()
         for name in code_names:
 
@@ -1031,7 +1057,12 @@ class ProjectFramework:
             else:
                 raise InvalidFramework('Duplicate display name "%s"' % name)
 
+    def _validate_cascades(self):
         # VALIDATE CASCADES
+        available_pop_types = list(self.pop_types.keys())  # Get available pop types
+        code_names = list(self.comps.index) + list(self.characs.index) + list(self.pars.index) + list(self.interactions.index) + available_pop_types
+        display_names = list(self.comps["display name"]) + list(self.characs["display name"]) + list(self.pars["display name"]) + list(self.interactions["display name"])
+
         if "cascades" not in self.sheets or not self.cascades:
             # Make the fallback cascade with name 'Default'
             used_fallback_cascade = True
@@ -1071,6 +1102,7 @@ class ProjectFramework:
         for cascade_name in self.cascades.keys():
             validate_cascade(self, cascade_name, fallback_used=used_fallback_cascade)
 
+    def _validate_plots(self):
         # VALIDATE PLOTS
         if "plots" not in self.sheets or not self.sheets["plots"] or self.sheets["plots"][0].empty:
             self.sheets["plots"] = [pd.DataFrame(columns=["name", "type", "quantities", "plot group"])]
@@ -1104,8 +1136,9 @@ class ProjectFramework:
                     if variable and variable not in self:
                         raise InvalidFramework(f'Error on "Plots" sheet -> quantity "{variable}" is referenced on the plots sheet but is not defined in the framework')
 
+    def _validate_initialization(self):
         # VALIDATE INITIALIZATION
-        for pop_type in available_pop_types:
+        for pop_type in self.pop_types:
 
             characs = []
             df = self.characs
@@ -1136,9 +1169,13 @@ class ProjectFramework:
                 if np.linalg.matrix_rank(A) < len(comps):
                     logger.debug("Initialization characteristics are underdetermined - this may be intentional, but check the initial compartment sizes carefully")
 
+    def _assign_junction_duration_groups(self):
         # ASSIGN DURATION GROUPS
-        # This needs to be done for compartments, as well as junctions
-        # We can also validate that junctions do not have cycles at this point
+        # Duration groups for compartments are assigned when the transition matrix is parsed
+        # Junctions inherit duration groups depending on their flows. Therefore this step
+        # takes place after normal compartment duration groups have been assigned
+        import networkx as nx
+
         if any(self.comps["duration group"]):
 
             # For each junction, work out if there are any upstream or downstream timed compartments
@@ -1225,12 +1262,13 @@ class ProjectFramework:
                 # - If there is exactly one upstream or downstream group, then the junction belongs to the duration group
                 # - Similarly, if there are upstream or downstream groups and no groups in the opposite direction, this is also allowed
                 if len(upstream_attachments) == 1 and len(downstream_attachments) == 1 and upstream_attachments == upstream_groups and downstream_attachments == downstream_groups and upstream_attachments == downstream_attachments:
-                    # If the
                     self.comps.at[junc_name, "duration group"] = list(upstream_attachments)[0]
                 elif len(upstream_attachments) or len(downstream_attachments):
                     # If there is at least one upstream or downstream attachment, then there can be no overlap between the upstream and downstream groups.
                     if downstream_groups.intersection(upstream_groups):
                         raise InvalidFramework(f'Junction "{junc_name}" has inputs and outputs to multiple duration groups. As these are untimed flows, there can be no overlap in the upstream and downstream groups. Upstream compartments are {upstream_comps} with groups {upstream_groups}. Downstream compartments are {downstream_comps} with groups {downstream_groups}')
+
+
 
     def get_databook_units(self, code_name: str) -> str:
         """
