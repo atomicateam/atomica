@@ -9,7 +9,7 @@ notebooks to try them out interactively and explore the effect of making changes
     :maxdepth: 1
 
     Basic-workflow
-    Databooks
+    databooks/Databooks
     Frameworks
     Model-dev
     Model-user
