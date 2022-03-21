@@ -19,3 +19,4 @@ notebooks to try them out interactively and explore the effect of making changes
     Probability-Rescaling
     Scenarios
     Uncertainty
+    override_cost_coverage/override_cost_coverage
