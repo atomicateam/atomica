@@ -935,9 +935,10 @@ class ProjectFramework:
 
         G = nx.DiGraph()  # Generate a dependency graph
 
-        def cross_pop_message(par, quantity_type, quantity_name):
+        def cross_pop_message(quantity_type, quantity_name):
+            # nb. this function is exclusively called in the loop below, so it derives par_name and par from the calling loop
             spec = self.get_variable(quantity_name)[0]
-            message = f"The function for parameter '{par.name}' in the '{par['population type']}' population type refers to {quantity_type} '{quantity_name}' in the '{spec['population type']}' population type. All cross-population interactions must take place within either the SRC_POP_SUM or SRC_POP_AVG population aggregations"
+            message = f"The function for parameter '{par_name}' in the '{par['population type']}' population type refers to {quantity_type} '{quantity_name}' in the '{spec['population type']}' population type. All cross-population interactions must take place within either the SRC_POP_SUM or SRC_POP_AVG population aggregations"
             return message
 
         for par_name, par in zip(self.pars.index, self.pars.to_dict(orient="records")):
@@ -1022,7 +1023,7 @@ class ProjectFramework:
                                 message = 'The function for parameter "%s" depends on the flow rate "%s:flow". This requires a parameter called "%s" to be defined in the Framework, but no parameter with that name was found' % (par_name, dep_name, dep_name)
                                 raise InvalidFramework(message)
                             elif not is_cross_aggregation and self.pars.at[dep_name, "population type"] != par["population type"]:
-                                raise InvalidFramework(cross_pop_message(par, "compartment", dep_name))
+                                raise InvalidFramework(cross_pop_message("compartment", dep_name))
 
                             if not self.transitions[dep_name]:
                                 # If the user is trying to get the flow rate for a non-transition parameter
@@ -1036,20 +1037,20 @@ class ProjectFramework:
                                     message = 'The function for parameter "%s" depends on the flow rate "%s". This requires a source compartment called "%s" to be defined in the Framework, but no compartment with that name was found' % (par_name, dep.replace("___", ":"), deps[0])
                                     raise InvalidFramework(message)
                                 elif not is_cross_aggregation and self.comps.at[deps[0], "population type"] != par["population type"]:
-                                    raise InvalidFramework(cross_pop_message(par, "compartment", deps[0]))
+                                    raise InvalidFramework(cross_pop_message("compartment", deps[0]))
                             if deps[1]:
                                 if deps[1] not in self.comps.index:
                                     message = 'The function for parameter "%s" depends on the flow rate "%s". This requires a destination compartment called "%s" to be defined in the Framework, but no compartment with that name was found' % (par_name, dep.replace("___", ":"), deps[1])
                                     raise InvalidFramework(message)
                                 elif not is_cross_aggregation and self.comps.at[deps[1], "population type"] != par["population type"]:
-                                    raise InvalidFramework(cross_pop_message(par, "compartment", deps[1]))
+                                    raise InvalidFramework(cross_pop_message("compartment", deps[1]))
 
                     elif dep in self.comps.index:
                         if not is_cross_aggregation and self.comps.at[dep, "population type"] != par["population type"]:
-                            raise InvalidFramework(cross_pop_message(par, "compartment", dep))
+                            raise InvalidFramework(cross_pop_message("compartment", dep))
                     elif dep in self.characs.index:
                         if not is_cross_aggregation and self.characs.at[dep, "population type"] != par["population type"]:
-                            raise InvalidFramework(cross_pop_message(par, "characteristic", dep))
+                            raise InvalidFramework(cross_pop_message("characteristic", dep))
                     elif dep in self.interactions.index:
                         if not is_aggregation:
                             message = 'The function for parameter "%s" includes the Interaction "%s", which means that the parameter function can only be one of: "SRC_POP_AVG", "TGT_POP_AVG", "SRC_POP_SUM" or "TGT_POP_SUM"' % (par_name, dep)
@@ -1104,7 +1105,7 @@ class ProjectFramework:
                             pass
 
                         if self.pars.at[dep, "population type"] != par["population type"] and not is_aggregation:  # Population types for the dependency and the parameter can only differ if it's an aggregation
-                            raise InvalidFramework(cross_pop_message(par, "parameter", dep))
+                            raise InvalidFramework(cross_pop_message("parameter", dep))
                     else:
                         message = 'The function for parameter "%s" depends on a quantity "%s", but no Compartment, Characteristic, or Parameter with this name was found' % (par_name, dep)
                         raise InvalidFramework(message)
