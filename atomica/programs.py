@@ -1090,7 +1090,7 @@ class ProgramSet(NamedItem):
                     # Coverage overwrites for one off programs are specified in /year units, therefore they get adjusted by dt here
                     prop_coverage[prog.name] *= dt
 
-        prop_coverage[prog.name] = minimum(prop_coverage[prog.name], 1.0)
+            prop_coverage[prog.name] = minimum(prop_coverage[prog.name], 1.0)
 
         return prop_coverage
 
