@@ -909,7 +909,7 @@ def parallel_progress(fcn, inputs, num_workers=None, show_progress=True) -> list
     pool.join()
 
     for job in jobs:
-        job.get() # This will raise any exceptions thrown from within the async task
+        job.get()  # This will raise any exceptions thrown from within the async task
 
     if show_progress:
         pbar.close()
