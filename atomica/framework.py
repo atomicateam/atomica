@@ -851,7 +851,7 @@ class ProjectFramework:
         # If framework has units that case-insensitively match the standard units, then correct the case
         lower_idx = self.pars["format"].str.lower().isin(FS.STANDARD_UNITS)
         self.pars["format"][lower_idx] = self.pars["format"][lower_idx].str.lower()
-        
+
     def _process_transitions(self) -> None:
         """
         Parse transition sheet
