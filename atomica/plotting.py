@@ -87,7 +87,7 @@ def save_figs(figs, path=".", prefix="", fnames=None, file_format="png") -> None
         fnames.append("")
     assert len(fnames) == len(figs), "Number of figures must match number of specified filenames, or the last figure must be a legend with no label"
     assert fnames[0], "The first figure name cannot be empty"
-    
+
     assert file_format in ["png", "ps", "pdf", "svg"], f'File format {file_format} invalid. Format must be one of "png", "ps", "pdf", or "svg"'
 
     for i, fig in enumerate(figs):
