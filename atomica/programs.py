@@ -12,7 +12,7 @@ from datetime import timezone
 
 import numpy as np
 import xlsxwriter as xw
-from numpy import inf, array, exp, minimum
+from numpy import inf, array, exp
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 
 import sciris as sc
@@ -1090,7 +1090,7 @@ class ProgramSet(NamedItem):
                     # Coverage overwrites for one off programs are specified in /year units, therefore they get adjusted by dt here
                     prop_coverage[prog.name] *= dt
 
-            prop_coverage[prog.name] = minimum(prop_coverage[prog.name], 1.0)
+            prop_coverage[prog.name] = np.minimum(prop_coverage[prog.name], 1.0)
 
         return prop_coverage
 
@@ -1311,7 +1311,7 @@ class Program(NamedItem):
             prop_covered = np.divide(capacity, eligible, out=np.full(capacity.shape, np.inf), where=eligible != 0)
             saturation = self.saturation.interpolate(tvec, method="previous")
             prop_covered = 2 * saturation / (1 + exp(-2 * prop_covered / saturation)) - saturation
-            prop_covered = minimum(prop_covered, 1.0)  # Ensure that coverage doesn't go above 1 (if saturation is < 1)
+            prop_covered = np.minimum(prop_covered, 1.0)  # Ensure that coverage doesn't go above 1 (if saturation is < 1)
         else:
             # The division below means that 0/0 is treated as returning 1
             prop_covered = np.divide(capacity, eligible, out=np.ones_like(capacity), where=eligible > capacity)
