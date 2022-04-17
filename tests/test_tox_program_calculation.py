@@ -99,5 +99,45 @@ def test_program_coverage_calculation():
     assert np.all(res4.get_variable("txrate1:flow")[0].vals == res4.get_variable("txrate2:flow")[0].vals)
 
 
+#
+# def test_no_program_progset():
+#
+#     P = at.demo('sir', do_run=False)
+#
+#     tvec = P.settings.tvec
+#     dt = P.settings.sim_dt
+#     instructions = at.ProgramInstructions(start_year=2020)
+#
+#
+#     ps1 = P.progsets[0]
+#     ps2 = at.ProgramSet(framework=P.framework, data=P.data)
+#
+#     capacities1 = ps1.get_capacities(tvec, dt, instructions)
+#     capacities2 = ps2.get_capacities(tvec, dt, instructions)
+#
+#     def get_prop_coverage(self, tvec, dt, capacities: dict, num_eligible: dict, instructions=None) -> dict:
+#
+#
+#     coverage1 = ps1.get_coverage(tvec, dt, capacities1, )
+#     ps.to_spreadsheet() # Check that a spreadsheet can be produced
+#     ps
+#
+#
+#     ps1 = P.progsets[0]
+#   _get_code_name()    add_pop()           remove_par()
+#   _normalize_inpu...  add_program()       remove_pop()
+#   _read_effects()     copy()              remove_program()
+#   _read_spending()    from_spreadsheet()  sample()
+#   _read_targeting()   get_alloc()         save()
+#   _write_effects()    get_capacities()    to_spreadsheet()
+#   _write_spending()   get_outcomes()      to_workbook()
+#   _write_targeting()  get_prop_covera...  validate()
+#   add_comp()          new()               add_par()
+#   remove_comp()
+#
+# TypeError: get_prop_coverage() missing 4 required positional arguments: 'tvec', 'dt', 'capacities', and 'num_eligible'
+
+
 if __name__ == "__main__":
     test_program_coverage_calculation()
+    # test_no_program_progset()
