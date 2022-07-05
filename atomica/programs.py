@@ -449,8 +449,8 @@ class ProgramSet(NamedItem):
 
         return framework, data
 
-    @staticmethod
-    def from_spreadsheet(spreadsheet=None, framework=None, data=None, project=None, name=None, _allow_missing_data=False):
+    @classmethod
+    def from_spreadsheet(cls, spreadsheet=None, framework=None, data=None, project=None, name=None, _allow_missing_data=False):
         """
         Instantiate a ProgramSet from a spreadsheet
 
@@ -470,10 +470,10 @@ class ProgramSet(NamedItem):
         """
         import openpyxl
 
-        framework, data = ProgramSet._normalize_inputs(framework, data, project)
+        framework, data = cls._normalize_inputs(framework, data, project)
 
         # Populate the available pops, comps, and pars based on the framework and data provided at this step
-        self = ProgramSet(name=name, framework=framework, data=data)
+        self = cls(name=name, framework=framework, data=data)
 
         # Create and load spreadsheet
         if not isinstance(spreadsheet, sc.Spreadsheet):
