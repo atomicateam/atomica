@@ -571,8 +571,7 @@ def test_package_fixed():
     instructions = at.ProgramInstructions(alloc=alloc, start_year=2020)  # Instructions for default spending
     adjustments = list()
 
-
-    pkg = at.SpendingPackageAdjustment('TreatmentPackage',2020, ['Treatment 1','Treatment 2'], initial_spends=[50,1], min_total_spend=51, max_total_spend=51)
+    pkg = at.SpendingPackageAdjustment("TreatmentPackage", 2020, ["Treatment 1", "Treatment 2"], initial_spends=[50, 1], min_total_spend=51, max_total_spend=51)
     adjustments.append(pkg)
     adjustments.append(at.SpendingAdjustment("Risk avoidance", 2020, "abs", 0.0, 200.0))
     adjustments.append(at.SpendingAdjustment("Harm reduction 1", 2020, "abs", 0.0, 200.0))
@@ -582,7 +581,7 @@ def test_package_fixed():
 
     (unoptimized_result, optimized_result) = run_optimization(P, optimization, instructions)
 
-    print({k:x.get(2020) for k,x in optimized_result.model.program_instructions.alloc.items()})
+    print({k: x.get(2020) for k, x in optimized_result.model.program_instructions.alloc.items()})
 
 
 #

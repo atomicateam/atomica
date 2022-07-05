@@ -329,26 +329,26 @@ class SpendingPackageAdjustment(Adjustment):
         self.adjustables = []
         for program, spend, lb, ub in zip(prog_names, initial_spends, self.min_props, self.max_props):
             current_prop = spend / self.total_spend
-            assert current_prop >= lb, f'SpendingProgramAdjustment: Initial spend on {program} is a smaller proportion of the package than requested minimum proportion'
-            assert current_prop <= ub, f'SpendingProgramAdjustment: Initial spend on {program} is a larger proportion of the package than requested maximum proportion'
+            assert current_prop >= lb, f"SpendingProgramAdjustment: Initial spend on {program} is a smaller proportion of the package than requested minimum proportion"
+            assert current_prop <= ub, f"SpendingProgramAdjustment: Initial spend on {program} is a larger proportion of the package than requested maximum proportion"
 
             # set to the current proportion - note that the overall fractions won't end up being constrained so will have to be rescaled
             # Similarly, the upper and lower bounds here will still need to be enforced later after scaling when updating instructions
             self.adjustables.append(Adjustable("frac_" + program, initial_value=current_prop, lower_bound=lb, upper_bound=ub))
 
         if min_total_spend is not None:
-            assert self.total_spend >= min_total_spend, f'SpendingProgramAdjustment: Initial total spend is less than minimum constraint'
+            assert self.total_spend >= min_total_spend, "SpendingProgramAdjustment: Initial total spend is less than minimum constraint"
         else:
             min_total_spend = self.total_spend
 
         if max_total_spend is not None:
-            assert self.total_spend <= max_total_spend, f'SpendingProgramAdjustment: Initial total spend is greater than maximum constraint'
+            assert self.total_spend <= max_total_spend, "SpendingProgramAdjustment: Initial total spend is greater than maximum constraint"
         else:
             max_total_spend = self.total_spend
 
         # total spending can be adjusted as a single adjustable
-        if not (min_total_spend==self.total_spend and min_total_spend==max_total_spend):
-            raise Exception('Implementation on this branch not yet finished')
+        if not (min_total_spend == self.total_spend and min_total_spend == max_total_spend):
+            raise Exception("Implementation on this branch not yet finished")
             self.adjustables.append(Adjustable("package_spend", initial_value=self.total_spend, lower_bound=min_total_spend, upper_bound=max_total_spend))
 
     @property
@@ -358,10 +358,10 @@ class SpendingPackageAdjustment(Adjustment):
         :return:
         """
         if self.adjustables:
-            return self.adjustables[-1].name=="package_spend"
+            return self.adjustables[-1].name == "package_spend"
         else:
             return False
-        
+
     def update_instructions(self, adjustable_values, instructions):
 
         if self.adjust_total_spend:
@@ -1228,7 +1228,7 @@ class Optimization(NamedItem):
 
         """
 
-        model = sc.dcp(pickled_model) # Temporary fix to use dcp
+        model = sc.dcp(pickled_model)  # Temporary fix to use dcp
         model.process()
         baselines = [m.get_baseline(model) for m in self.measurables]
         return baselines
@@ -1297,7 +1297,7 @@ def _objective_fcn(x, pickled_model, optimization, hard_constraints: list, basel
     """
 
     try:
-        model = sc.dcp(pickled_model) # Temporary fix to use dcp
+        model = sc.dcp(pickled_model)  # Temporary fix to use dcp
         optimization.update_instructions(x, model.program_instructions)
         optimization.constrain_instructions(model.program_instructions, hard_constraints)
         model.process()
@@ -1452,8 +1452,7 @@ def optimize(project, optimization, parset: ParameterSet, progset: ProgramSet, i
 #    return initial_instructions # Best one from the last round
 
 
-
-def constrain_sum_bounded(x:np.array, s:float, lb:np.array, ub:np.array) -> np.array:
+def constrain_sum_bounded(x: np.array, s: float, lb: np.array, ub: np.array) -> np.array:
     """
     Bounded nearest constraint sum
 
@@ -1466,16 +1465,16 @@ def constrain_sum_bounded(x:np.array, s:float, lb:np.array, ub:np.array) -> np.a
     """
 
     # Normalize values
-    x0_scaled = x/x.sum()
-    lb_scaled = lb/s
-    ub_scaled = ub/s
+    x0_scaled = x / x.sum()
+    lb_scaled = lb / s
+    ub_scaled = ub / s
 
     # First, check if the constraint is already satisfied just by multiplicative rescaling
-    if np.all((x0_scaled>=lb_scaled)&(x0_scaled <= ub_scaled)):
-        return x0_scaled*s
+    if np.all((x0_scaled >= lb_scaled) & (x0_scaled <= ub_scaled)):
+        return x0_scaled * s
 
     # If not, we need to actually run the constrained optimization
-    bounds = [(l,u) for l,u in zip(lb_scaled, ub_scaled)]
+    bounds = [(lower, upper) for lower, upper in zip(lb_scaled, ub_scaled)]
 
     def jacfcn(x):
         # Explicitly specify the Jacobian associated with changes in the allocation
@@ -1494,4 +1493,4 @@ def constrain_sum_bounded(x:np.array, s:float, lb:np.array, ub:np.array) -> np.a
 
     # Confirm constraints are all satisfied
     assert np.all((res["x"] >= lb_scaled) & (res["x"] <= ub_scaled))
-    return res['x']*s
+    return res["x"] * s
