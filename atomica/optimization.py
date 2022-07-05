@@ -1228,7 +1228,7 @@ class Optimization(NamedItem):
 
         """
 
-        model = sc.dcp(pickled_model)  # Temporary fix to use dcp
+        model = pickle.loads(pickled_model)
         model.process()
         baselines = [m.get_baseline(model) for m in self.measurables]
         return baselines
@@ -1297,7 +1297,7 @@ def _objective_fcn(x, pickled_model, optimization, hard_constraints: list, basel
     """
 
     try:
-        model = sc.dcp(pickled_model)  # Temporary fix to use dcp
+        model = pickle.loads(pickled_model)
         optimization.update_instructions(x, model.program_instructions)
         optimization.constrain_instructions(model.program_instructions, hard_constraints)
         model.process()
@@ -1345,7 +1345,7 @@ def optimize(project, optimization, parset: ParameterSet, progset: ProgramSet, i
     assert optimization.method in ["asd", "pso", "hyperopt"]
 
     model = Model(project.settings, project.framework, parset, progset, instructions)
-    pickled_model = sc.dcp(model)  # # Temporary fix to use dcp - using dcp allows attaching new methods - might be slower than pickling though. Need to check
+    pickled_model = pickle.dumps(model)  # Unpickling effectively makes a deep copy, so this _should_ be faster
 
     initialization = optimization.get_initialization(progset, model.program_instructions)
     x0 = x0 if x0 is not None else initialization[0]
