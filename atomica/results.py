@@ -250,7 +250,9 @@ class Result(NamedItem):
             output = capacities
         else:
             # Get the program coverage denominator
-            num_eligible = dict()  # This is the coverage denominator, number of people covered by the program
+            num_eligible = defaultdict(float)  # This is the coverage denominator, number of people covered by the program
+            # It is a defaultdict because if a virtual product doesn't target a population (due to a population type mismatch) then it won't have an
+            # entry in the dictionary. Setting it to zero here means the number covered will come out as zero rather than a key error
             for prog in self.model.progset.programs.values():  # For each program
                 for pop_name in prog.target_pops:
                     for comp_name in prog.target_comps:

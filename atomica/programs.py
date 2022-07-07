@@ -449,8 +449,8 @@ class ProgramSet(NamedItem):
 
         return framework, data
 
-    @staticmethod
-    def from_spreadsheet(spreadsheet=None, framework=None, data=None, project=None, name=None, _allow_missing_data=False):
+    @classmethod
+    def from_spreadsheet(cls, spreadsheet=None, framework=None, data=None, project=None, name=None, _allow_missing_data=False):
         """
         Instantiate a ProgramSet from a spreadsheet
 
@@ -470,10 +470,10 @@ class ProgramSet(NamedItem):
         """
         import openpyxl
 
-        framework, data = ProgramSet._normalize_inputs(framework, data, project)
+        framework, data = cls._normalize_inputs(framework, data, project)
 
         # Populate the available pops, comps, and pars based on the framework and data provided at this step
-        self = ProgramSet(name=name, framework=framework, data=data)
+        self = cls(name=name, framework=framework, data=data)
 
         # Create and load spreadsheet
         if not isinstance(spreadsheet, sc.Spreadsheet):
@@ -1423,7 +1423,7 @@ class Covout:
         # We need to store it in two forms
         # - An (ordered) vector of outcomes, which is used by additive and random to do the modality interaction in vectorized form
         # - A dict of outcomes, which is used by nested to look up the outcome using a tupled key of program indices
-        combination_strings = [bin(x)[2:].rjust(self.n_progs, "0") for x in range(2 ** self.n_progs)]  # ['00','01','10',...]
+        combination_strings = [bin(x)[2:].rjust(self.n_progs, "0") for x in range(2**self.n_progs)]  # ['00','01','10',...]
         self.combinations = np.array([list(int(y) for y in x) for x in combination_strings])
         _combination_outcomes = []
         for prog_combination in self.combinations.astype(bool):

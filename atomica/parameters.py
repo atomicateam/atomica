@@ -295,7 +295,8 @@ class ParameterSet(NamedItem):
             par.sample(constant)
         return new
 
-    ### SAVE AND LOAD CALIBRATION (Y-FACTORS)
+    # SAVE AND LOAD CALIBRATION (Y-FACTORS)
+
     @property
     def y_factors(self) -> dict:
         """

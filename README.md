@@ -2,6 +2,8 @@
 
 [![Build Status](https://dev.azure.com/AtomicaTeam/Atomica/_apis/build/status/atomicateam.atomica?branchName=master)](https://dev.azure.com/AtomicaTeam/Atomica/_build/latest?definitionId=1&branchName=master)
 
+[![PyPi version](https://badgen.net/pypi/v/atomica/)](https://pypi.com/project/atomica)
+
 Atomica is a simulation engine for compartmental models. It can be used to simulate disease epidemics, health care cascades, and many other things.
 
 For detailed documentation, visit [https://atomica.tools/docs](https://atomica.tools/docs)
