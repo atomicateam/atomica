@@ -561,6 +561,60 @@ def test_cascade_conversions():
     plt.title("Optimized")
 
 
+def test_package_fixed():
+
+    P = at.demo(which=test, do_run=False)
+    P.update_settings(sim_end=2030.0)
+
+    alloc = sc.odict([("Risk avoidance", 50.0), ("Harm reduction 1", 50.0), ("Harm reduction 2", 50.0), ("Treatment 1", 50.0), ("Treatment 2", 1.0)])
+
+    instructions = at.ProgramInstructions(alloc=alloc, start_year=2020)  # Instructions for default spending
+    adjustments = list()
+
+    pkg = at.SpendingPackageAdjustment("TreatmentPackage", 2020, ["Treatment 1", "Treatment 2"], initial_spends=[50, 1], min_total_spend=51, max_total_spend=51)
+    adjustments.append(pkg)
+    adjustments.append(at.SpendingAdjustment("Risk avoidance", 2020, "abs", 0.0, 200.0))
+    adjustments.append(at.SpendingAdjustment("Harm reduction 1", 2020, "abs", 0.0, 200.0))
+    measurables = at.MaximizeMeasurable("ch_all", [2020, np.inf])
+    constraints = at.TotalSpendConstraint()  # Cap total spending in all years
+    optimization = at.Optimization(name="default", adjustments=adjustments, measurables=measurables, constraints=constraints)  # Evaluate from 2020 to end of simulation
+
+    (unoptimized_result, optimized_result) = run_optimization(P, optimization, instructions)
+
+    print({k: x.get(2020) for k, x in optimized_result.model.program_instructions.alloc.items()})
+
+
+#
+# def test_package_variable():
+#
+#     P = at.demo(which=test, do_run=False)
+#     P.update_settings(sim_end=2030.0)
+#
+#     alloc = sc.odict([("Risk avoidance", 0.0), ("Harm reduction 1", 0.0), ("Harm reduction 2", 0.0), ("Treatment 1", 50.0), ("Treatment 2", 1.0)])
+#
+#     instructions = at.ProgramInstructions(alloc=alloc, start_year=2020)  # Instructions for default spending
+#     adjustments = list()
+#
+#
+#
+#
+#     pkg = at.SpendingPackageAdjustment('TreatmentPackage',2020, ['Treatment 1','Treatment 2'], initial_spends=[50,1], min_total_spend=40, max_total_spend=60)
+#     adjustments.append(pkg)
+#     adjustments.append(at.SpendingAdjustment("Risk avoidance", 2020, "abs", 0.0, 100.0))
+#     adjustments.append(at.SpendingAdjustment("Harm reduction 1", 2020, "abs", 0.0, 100.0))
+#     measurables = at.MaximizeMeasurable("ch_all", [2020, np.inf])
+#     constraints = at.TotalSpendConstraint()  # Cap total spending in all years
+#     optimization = at.Optimization(name="default", adjustments=adjustments, measurables=measurables, constraints=constraints)  # Evaluate from 2020 to end of simulation
+#
+#     (unoptimized_result, optimized_result) = run_optimization(P, optimization, instructions)
+#
+#     for adjustable in adjustments:
+#         print("%s - before=%.2f, after=%.2f" % (adjustable.name, unoptimized_result.model.program_instructions.alloc[adjustable.name].get(2020), optimized_result.model.program_instructions.alloc[adjustable.name].get(2020)))  # TODO - add time to alloc
+#
+#     d = at.PlotData([unoptimized_result, optimized_result], outputs=["ch_all"], project=P)
+#     at.plot_series(d, axis="results")
+
+
 if __name__ == "__main__":
     test_standard()
     test_unresolvable()
@@ -577,3 +631,6 @@ if __name__ == "__main__":
     test_cascade_final_stage()
     test_cascade_multi_stage()
     test_cascade_conversions()
+
+    # test_package_variable()
+    test_package_fixed()

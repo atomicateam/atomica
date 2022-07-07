@@ -451,7 +451,7 @@ class ProjectFramework:
                 return True
         return False
 
-    ## FILE IO
+    # FILE IO #
 
     def to_spreadsheet(self) -> sc.Spreadsheet:
         """
@@ -526,7 +526,7 @@ class ProjectFramework:
         ss = self.to_spreadsheet()
         ss.save(fname)
 
-    ## VALIDATION
+    # VALIDATION #
 
     def _validate(self) -> None:
         """

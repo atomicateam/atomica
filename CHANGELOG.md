@@ -2,6 +2,13 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.25.11] - 2022-07-05
+
+- Program number eligible defaults to 0 if target compartments are missing (rather than raising a key error)
+- `ProgramSet` spreadsheet constructor is now a class method to allow inheritance
+- Fixed bug where program overwrites that impact a transition parameter via at least one intermediate parameter did not impact outcomes
+- Improved `SpendingPackageAdjustment` performance although varying total spend is not yet supported 
+
 ## [1.25.10] - 2022-04-06
 
 - Fix bug in program fractional coverage where not all programs were constrained to a peak coverage of 1
