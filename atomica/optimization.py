@@ -364,6 +364,8 @@ class SpendingPackageAdjustment(Adjustment):
 
     def update_instructions(self, adjustable_values, instructions):
 
+        adjustable_values = sc.promotetoarray(adjustable_values)
+
         if self.adjust_total_spend:
             fracs = adjustable_values[:-1]
         else:
