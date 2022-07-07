@@ -7,6 +7,7 @@ This file records changes to the codebase grouped by version release. Unreleased
 - Program number eligible defaults to 0 if target compartments are missing (rather than raising a key error)
 - `ProgramSet` spreadsheet constructor is now a class method to allow inheritance
 - Fixed bug where program overwrites that impact a transition parameter via at least one intermediate parameter did not impact outcomes
+- Improved `SpendingPackageAdjustment` performance although varying total spend is not yet supported 
 
 ## [1.25.10] - 2022-04-06
 
