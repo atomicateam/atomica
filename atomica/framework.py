@@ -726,16 +726,16 @@ class ProjectFramework:
         for charac_name, row in zip(self.characs.index, self.characs.to_dict(orient="records")):
             # Block this out because that way, can validate that there are some nonzero setup weights. Otherwise, user could set setup weights but
             # not put them in the databook, causing an error when actually trying to run the simulation
-            if (row["setup weight"] > 0) and (row["databook page"] is None):
+            if (row["setup weight"] > 0) and pd.isna(row["databook page"]):
                 raise InvalidFramework('Characteristic "%s" has a nonzero setup weight, but does not appear in the databook' % charac_name)
 
-            if row["denominator"] is not None:
+            if not pd.isna(row["denominator"]):
 
                 if row["denominator"] in self.comps.index:
                     if row["population type"] != self.comps.at[row["denominator"], "population type"]:
                         raise InvalidFramework('In Characteristic "%s", included compartment "%s" does not have a matching population type' % (charac_name, row["denominator"]))
 
-                    if (row["setup weight"] > 0) and self.comps.at[row["denominator"], "databook page"] is None:
+                    if (row["setup weight"] > 0) and pd.isna(self.comps.at[row["denominator"], "databook page"]):
                         # Check that denominators appear in the databook as described in https://github.com/atomicateam/atomica/issues/433
                         raise InvalidFramework('Characteristic "%s" is being used for initialization, but the denominator compartment "%s" does not appear in the databook. Denominators that are used in initialization must appear in the databook ' % (charac_name, row["denominator"]))
 
@@ -743,20 +743,20 @@ class ProjectFramework:
                     if row["population type"] != self.characs.at[row["denominator"], "population type"]:
                         raise InvalidFramework('In Characteristic "%s", included characteristic "%s" does not have a matching population type' % (charac_name, row["denominator"]))
 
-                    if not (self.characs.loc[row["denominator"]]["denominator"] is None):
+                    if not pd.isna(self.characs.loc[row["denominator"]]["denominator"]):
                         raise InvalidFramework('Characteristic "%s" uses the characteristic "%s" as a denominator. However, "%s" also has a denominator, which means that it cannot be used as a denominator for "%s"' % (charac_name, row["denominator"], row["denominator"], charac_name))
 
-                    if (row["setup weight"] > 0) and self.characs.at[row["denominator"], "databook page"] is None:
+                    if (row["setup weight"] > 0) and pd.isna(self.characs.at[row["denominator"], "databook page"]):
                         # Check that denominators appear in the databook as described in https://github.com/atomicateam/atomica/issues/433
                         raise InvalidFramework('Characteristic "%s" is being used for initialization, but the denominator characteristic "%s" does not appear in the databook. Denominators that are used in initialization must appear in the databook ' % (charac_name, row["denominator"]))
 
                 else:
                     raise InvalidFramework('In Characteristic "%s", denominator "%s" was not recognized as a Compartment or Characteristic' % (charac_name, row["denominator"]))
 
-            if (row["databook page"] is None) and (row["calibrate"] is not None):
+            if (pd.isna(row["databook page"])) and (not pd.isna(row["calibrate"])):
                 raise InvalidFramework('Compartment "%s" is marked as being eligible for calibration, but it does not appear in the databook' % charac_name)
 
-            if (row["databook page"] is not None) and not (row["databook page"] in self.sheets["databook pages"][0]["datasheet code name"].values):
+            if (not pd.isna(row["databook page"])) and not (row["databook page"] in self.sheets["databook pages"][0]["datasheet code name"].values):
                 raise InvalidFramework('Characteristic "%s" has databook page "%s" but that page does not appear on the "databook pages" sheet' % (charac_name, row["databook page"]))
 
             if row["population type"] not in available_pop_types:
