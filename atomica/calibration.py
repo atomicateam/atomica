@@ -82,7 +82,6 @@ def _calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, p
 
 
 def _get_fitscore_func(metric):
-    """"""
     availfns = globals().copy()
     availfns.update(locals())
     try:
@@ -92,7 +91,6 @@ def _get_fitscore_func(metric):
 
 
 def _calculate_fitscore(y_obs, y_fit, metric="meansquare"):
-    """"""
     return _get_fitscore_func(metric)(y_obs, y_fit)
 
 
