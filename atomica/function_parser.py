@@ -152,7 +152,7 @@ def parse_function(fcn_str: str) -> tuple:
         if isinstance(node, ast.Name) and node.id not in supported_functions:
             dep_list.append(node.id)
         elif isinstance(node, ast.Call) and hasattr(node, "func") and hasattr(node.func, "id"):
-            assert node.func.id in supported_functions, "Only calls to supported functions are allowed"
+            assert node.func.id in supported_functions, f"Only calls to supported functions are allowed ({node.func.id} in {fcn_str} is not supported)"
     compiled_code = compile(fcn_ast, filename="<ast>", mode="eval")
 
     def fcn(**deps):
