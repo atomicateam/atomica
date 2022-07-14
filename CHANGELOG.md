@@ -2,6 +2,12 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.25.12] - 2022-07-15
+
+- Implemented variable total spend in `SpendingPackageAdjustment`
+- Optimized performance for `SpendingPackageAdjustment` if proportions are fixed by adding a `fix_props` flag that skips adding `Adjustables` for the proportions
+- Improved framework validation robustness when dataframe cells contain NA-like values (`np.nan` or `pd.NA`) instead of just `None`   
+
 ## [1.25.11] - 2022-07-05
 
 - Program number eligible defaults to 0 if target compartments are missing (rather than raising a key error)
