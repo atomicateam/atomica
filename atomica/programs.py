@@ -1423,7 +1423,7 @@ class Covout:
         # We need to store it in two forms
         # - An (ordered) vector of outcomes, which is used by additive and random to do the modality interaction in vectorized form
         # - A dict of outcomes, which is used by nested to look up the outcome using a tupled key of program indices
-        combination_strings = [bin(x)[2:].rjust(self.n_progs, "0") for x in range(2**self.n_progs)]  # ['00','01','10',...]
+        combination_strings = [bin(x)[2:].rjust(self.n_progs, "0") for x in range(2 ** self.n_progs)]  # ['00','01','10',...]
         self.combinations = np.array([list(int(y) for y in x) for x in combination_strings])
         _combination_outcomes = []
         for prog_combination in self.combinations.astype(bool):
