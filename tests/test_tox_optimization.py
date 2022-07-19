@@ -561,19 +561,132 @@ def test_cascade_conversions():
     plt.title("Optimized")
 
 
+def test_package_fixed():
+
+    P = at.demo(which=test, do_run=False)
+    P.update_settings(sim_end=2030.0)
+
+    alloc = sc.odict([("Risk avoidance", 50.0), ("Harm reduction 1", 50.0), ("Harm reduction 2", 50.0), ("Treatment 1", 50.0), ("Treatment 2", 1.0)])
+
+    instructions = at.ProgramInstructions(alloc=alloc, start_year=2020)  # Instructions for default spending
+    adjustments = list()
+
+    pkg = at.SpendingPackageAdjustment("TreatmentPackage", 2020, ["Treatment 1", "Treatment 2"], initial_spends=[50, 1], min_total_spend=51, max_total_spend=51)
+    adjustments.append(pkg)
+    adjustments.append(at.SpendingAdjustment("Risk avoidance", 2020, "abs", 0.0, 200.0))
+    adjustments.append(at.SpendingAdjustment("Harm reduction 1", 2020, "abs", 0.0, 200.0))
+    measurables = at.MaximizeMeasurable("ch_all", [2020, np.inf])
+    constraints = at.TotalSpendConstraint()  # Cap total spending in all years
+    optimization = at.Optimization(name="default", adjustments=adjustments, measurables=measurables, constraints=constraints)  # Evaluate from 2020 to end of simulation
+
+    (unoptimized_result, optimized_result) = run_optimization(P, optimization, instructions)
+
+    for prog in alloc:
+        print("%s - before=%.2f, after=%.2f" % (prog, unoptimized_result.model.program_instructions.alloc[prog].get(2020), optimized_result.model.program_instructions.alloc[prog].get(2020)))  # TODO - add time to alloc
+
+
+def test_package_variable():
+
+    P = at.demo(which=test, do_run=False)
+    P.update_settings(sim_end=2030.0)
+
+    alloc = sc.odict([("Risk avoidance", 0.0), ("Harm reduction 1", 0.0), ("Harm reduction 2", 0.0), ("Treatment 1", 50.0), ("Treatment 2", 1.0)])
+
+    instructions = at.ProgramInstructions(alloc=alloc, start_year=2020)  # Instructions for default spending
+    adjustments = list()
+
+    pkg = at.SpendingPackageAdjustment("TreatmentPackage", 2020, ["Treatment 1", "Treatment 2"], initial_spends=[50, 1], min_total_spend=40, max_total_spend=60)
+    adjustments.append(pkg)
+    adjustments.append(at.SpendingAdjustment("Risk avoidance", 2020, "abs", 0.0, 100.0))
+    adjustments.append(at.SpendingAdjustment("Harm reduction 1", 2020, "abs", 0.0, 100.0))
+    measurables = at.MaximizeMeasurable("ch_all", [2020, np.inf])
+    constraints = at.TotalSpendConstraint(200, 2020)  # Cap total spending in all years
+    optimization = at.Optimization(name="default", adjustments=adjustments, measurables=measurables, constraints=constraints)  # Evaluate from 2020 to end of simulation
+
+    (unoptimized_result, optimized_result) = run_optimization(P, optimization, instructions)
+
+    for prog in alloc:
+        print("%s - before=%.2f, after=%.2f" % (prog, unoptimized_result.model.program_instructions.alloc[prog].get(2020), optimized_result.model.program_instructions.alloc[prog].get(2020)))  # TODO - add time to alloc
+
+    # The check below should be satisfied, but since optimization is stochastic, it's not guaranteed to be met during automated testing
+    # assert optimized_result.model.program_instructions.alloc["Treatment 2"].get(2020) > optimized_result.model.program_instructions.alloc["Treatment 1"].get(2020)
+
+
+def test_package_fixed_prop():
+
+    P = at.demo(which=test, do_run=False)
+    P.update_settings(sim_end=2030.0)
+
+    alloc = sc.odict([("Risk avoidance", 50.0), ("Harm reduction 1", 50.0), ("Harm reduction 2", 50.0), ("Treatment 1", 50.0), ("Treatment 2", 1.0)])
+
+    instructions = at.ProgramInstructions(alloc=alloc, start_year=2020)  # Instructions for default spending
+    adjustments = list()
+
+    pkg = at.SpendingPackageAdjustment("TreatmentPackage", 2020, ["Treatment 1", "Treatment 2"], initial_spends=[10, 40], min_total_spend=40, max_total_spend=100, fix_props=True)
+    assert len(pkg.adjustables) == 1
+    adjustments.append(pkg)
+    adjustments.append(at.SpendingAdjustment("Risk avoidance", 2020, "abs", 0.0, 200.0))
+    adjustments.append(at.SpendingAdjustment("Harm reduction 1", 2020, "abs", 0.0, 200.0))
+    measurables = at.MaximizeMeasurable("ch_all", [2020, np.inf])
+    constraints = at.TotalSpendConstraint()  # Cap total spending in all years
+    optimization = at.Optimization(name="default", adjustments=adjustments, measurables=measurables, constraints=constraints)  # Evaluate from 2020 to end of simulation
+
+    (unoptimized_result, optimized_result) = run_optimization(P, optimization, instructions)
+
+    for prog in alloc:
+        print("%s - before=%.2f, after=%.2f" % (prog, unoptimized_result.model.program_instructions.alloc[prog].get(2020), optimized_result.model.program_instructions.alloc[prog].get(2020)))  # TODO - add time to alloc
+
+    # The package should have the full $100 allocated to it, but split in the same 10:40 ratio i.e. $80 on treatment 2 and $20 on treatment 1
+    # assert np.isclose(optimized_result.model.program_instructions.alloc["Treatment 2"].get(2020), 80)
+    # assert np.isclose(optimized_result.model.program_instructions.alloc["Treatment 1"].get(2020), 20)
+
+
+def test_package_all_fixed():
+
+    P = at.demo(which=test, do_run=False)
+    P.update_settings(sim_end=2030.0)
+
+    alloc = sc.odict([("Risk avoidance", 50.0), ("Harm reduction 1", 50.0), ("Harm reduction 2", 50.0), ("Treatment 1", 50.0), ("Treatment 2", 1.0)])
+
+    instructions = at.ProgramInstructions(alloc=alloc, start_year=2020)  # Instructions for default spending
+    adjustments = list()
+
+    pkg = at.SpendingPackageAdjustment("TreatmentPackage", 2020, ["Treatment 1", "Treatment 2"], initial_spends=[10, 40], min_total_spend=50, max_total_spend=50, fix_props=True)
+    assert len(pkg.adjustables) == 0
+    adjustments.append(pkg)
+    adjustments.append(at.SpendingAdjustment("Risk avoidance", 2020, "abs", 0.0, 200.0))
+    adjustments.append(at.SpendingAdjustment("Harm reduction 1", 2020, "abs", 0.0, 200.0))
+    measurables = at.MaximizeMeasurable("ch_all", [2020, np.inf])
+    constraints = at.TotalSpendConstraint()  # Cap total spending in all years
+    optimization = at.Optimization(name="default", adjustments=adjustments, measurables=measurables, constraints=constraints)  # Evaluate from 2020 to end of simulation
+
+    (unoptimized_result, optimized_result) = run_optimization(P, optimization, instructions)
+
+    for prog in alloc:
+        print("%s - before=%.2f, after=%.2f" % (prog, unoptimized_result.model.program_instructions.alloc[prog].get(2020), optimized_result.model.program_instructions.alloc[prog].get(2020)))  # TODO - add time to alloc
+
+    # The package should have the full $100 allocated to it, but split in the same 10:40 ratio i.e. $80 on treatment 2 and $20 on treatment 1
+    # assert np.isclose(optimized_result.model.program_instructions.alloc["Treatment 2"].get(2020), 40)
+    # assert np.isclose(optimized_result.model.program_instructions.alloc["Treatment 1"].get(2020), 10)
+
+
 if __name__ == "__main__":
-    test_standard()
-    test_unresolvable()
-    test_standard_mindeaths()
-    test_delayed()
-    test_multiyear_fixed()
-    test_multiyear_relative()
-    test_gradual()
-    test_mixed_timing()
-    test_parametric_paired()
-    test_minmoney()
-    test_minmoney_relative()
-    test_minmoney_absolute()
-    test_cascade_final_stage()
-    test_cascade_multi_stage()
-    test_cascade_conversions()
+    # test_standard()
+    # test_unresolvable()
+    # test_standard_mindeaths()
+    # test_delayed()
+    # test_multiyear_fixed()
+    # test_multiyear_relative()
+    # test_gradual()
+    # test_mixed_timing()
+    # test_parametric_paired()
+    # test_minmoney()
+    # test_minmoney_relative()
+    # test_minmoney_absolute()
+    # test_cascade_final_stage()
+    # test_cascade_multi_stage()
+    # test_cascade_conversions()
+    test_package_fixed()
+    test_package_variable()
+    test_package_fixed_prop()
+    test_package_all_fixed()

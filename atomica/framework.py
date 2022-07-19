@@ -383,6 +383,58 @@ class ProjectFramework:
 
         return self.get_variable(name)[0]["display name"]
 
+    def get_databook_units(self, code_name: str) -> str:
+        """
+        Return the user-facing units for a quantity given a code name
+
+        This function returns the units specified in the Framework for quantities defined in the Framework.
+        The units for a quantity are:
+
+            - For compartments, number
+            - For characteristics, number or fraction depending on whether a denominator is present
+            - For parameters, return either the explicitly specified units plus a timescale, or an empty string
+            - Otherwise, return the inapplicable string (e.g. 'N.A.')
+
+        This function computes the units dynamically based on the content of the DataFrames. This ensures that
+        it stays in sync with the actual content - for example, if a denominator is programatically added to
+        a characteristic, the units don't also need to be manually updated.
+
+        Note that at this stage in computation, the units are mainly for managing presentation in the databook.
+        For example, a characteristic with a denominator is technically dimensionless, but we need it to be
+        reported in the databook as a fraction for data entry. Similarly, while the Framework stores the
+        internal units and timescale for a parameter (e.g. 'probability' and '1/365') this function will
+        return 'probability (per day)' for use in the databook.
+
+        :param code_name: Code name of a quantity supported by ``ProjectFramework.get_variable()``
+        :return: String containing the units of the quantity
+
+        """
+
+        item_spec, item_type = self.get_variable(code_name)
+
+        # State variables are in number amounts unless normalized.
+        if item_type in [FS.KEY_COMPARTMENT, FS.KEY_CHARACTERISTIC]:
+            if "denominator" in item_spec.index and item_spec["denominator"] is not None:
+                return FS.QUANTITY_TYPE_FRACTION.title()
+            else:
+                return FS.QUANTITY_TYPE_NUMBER.title()
+        elif item_type == FS.KEY_PARAMETER:
+            units = item_spec["format"].strip() if item_spec["format"] is not None else None
+            if np.isfinite(item_spec["timescale"]):
+                if units is None:
+                    raise InvalidFramework(f"A timescale was provided for Framework quantity {code_name} but no units were provided")
+                elif units.lower() == FS.QUANTITY_TYPE_DURATION:
+                    return "%s (%s)" % (FS.QUANTITY_TYPE_DURATION.title(), format_duration(item_spec["timescale"], pluralize=True))
+                elif units.lower() in {FS.QUANTITY_TYPE_NUMBER, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_RATE}:
+                    return "%s (per %s)" % (units.title(), format_duration(item_spec["timescale"], pluralize=False))
+                else:
+                    if units is None:
+                        raise InvalidFramework(f"A timescale was provided for Framework quantity {code_name} but the units were not one of duration, number, or probability. It is therefore not possible to perform any automatic conversions, simply enter the relevant data entry timescale in the units directly instead.")
+            elif units:
+                return units
+
+        return FS.DEFAULT_SYMBOL_INAPPLICABLE
+
     def __contains__(self, item: str) -> bool:
         """
         Check if code name is defined in framework
@@ -399,6 +451,407 @@ class ProjectFramework:
                 return True
         return False
 
+    # FILE IO #
+
+    def to_spreadsheet(self) -> sc.Spreadsheet:
+        """
+        Return content as a Sciris Spreadsheet
+
+        This
+        :return: A :class:`sciris.Spreadsheet` instance
+
+        """
+
+        # Initialize the bytestream
+        f = io.BytesIO()
+
+        writer = pd.ExcelWriter(f, engine="xlsxwriter")
+        writer.book.set_properties({"category": "atomica:framework"})
+        standard_formats(writer.book)  # Apply formatting
+
+        for sheet_name, dfs in self.sheets.items():
+            if sheet_name == "transitions":
+                # Need to regenerate the transitions based on the actual transitions present
+                dfs = []
+                for pop_type in self.comps["population type"].unique():
+                    matching_comps = self.comps.index[self.comps["population type"] == pop_type]
+                    df = pd.DataFrame(index=matching_comps, columns=matching_comps)
+                    df.fillna("", inplace=True)
+                    df.index.name = pop_type
+
+                    for par, pairs in self.transitions.items():
+                        for pair in pairs:
+                            if pair[0] in matching_comps:
+                                if not df.at[pair[0], pair[1]]:
+                                    df.at[pair[0], pair[1]] = par
+                                else:
+                                    df.at[pair[0], pair[1]] += ", %s" % (par)
+
+                    dfs.append(df)
+
+            worksheet = writer.book.add_worksheet(sheet_name)
+            writer.sheets[sheet_name] = worksheet  # Need to add it to the ExcelWriter for it to behave properly
+
+            row = 0
+            for df in dfs:
+                if df.index.name:
+                    df.to_excel(writer, sheet_name, startcol=0, startrow=row, index=True)  # Write index if present
+                else:
+                    df.to_excel(writer, sheet_name, startcol=0, startrow=row, index=False)  # Write index if present
+
+                row += df.shape[0] + 2
+
+        # Close the workbook
+        writer.close()
+
+        # Dump the file content into a ScirisSpreadsheet
+        spreadsheet = sc.Spreadsheet(f)
+
+        # Return the spreadsheet
+        return spreadsheet
+
+    def save(self, fname) -> None:
+        """
+        Save framework to disk
+
+        This function writes a spreadsheet based on the actual dataframes present. This allows programmatic modifications to
+        frameworks to be viewed in Excel.
+
+        To save the original framework file (if one was loaded in) use `ProjectFramework.original.save()`
+
+        :param fname: File name to write on disk
+
+        """
+
+        ss = self.to_spreadsheet()
+        ss.save(fname)
+
+    # VALIDATION #
+
+    def _validate(self) -> None:
+        """
+        Check contents of the framework
+
+        This function validates the content of Framework. There are two aspects to this
+
+        - Adding in any missing values using appropriate defaults
+        - Checking that the provided information is internally consistent
+
+        This method is called automatically during construction, and therefore any changes
+        made during validation will occur prior to users interacting with the ProjectFramework
+
+        If the framework contains invalid content, this function call will result in an error
+        being raised.
+
+        """
+
+        self._validate_sheets()
+        self._validate_metadata()
+
+        self._sanitize_compartments()
+        self._validate_compartments()
+
+        self._sanitize_characteristics()
+        self._validate_characteristics()
+
+        self._sanitize_interactions()
+        self._validate_interactions()
+
+        self._sanitize_parameters()
+        self._process_transitions()  # nb. relies on parameter population type being sanitized
+        self._validate_parameters()
+
+        self._validate_names()
+        self._validate_cascades()
+        self._validate_plots()
+        self._validate_initialization()
+        self._assign_junction_duration_groups()
+
+    def _validate_sheets(self) -> None:
+        # Check for required sheets
+        for page in ["databook pages", "parameters"]:
+            if page not in self.sheets:
+                raise InvalidFramework('The Framework file is missing a required sheet: "%s"' % (page))
+
+        if "cascade" in self.sheets and "cascades" not in self.sheets:
+            logger.warning('A sheet called "Cascade" was found, but it probably should be called "Cascades"')
+
+        if "plot" in self.sheets and "plots" not in self.sheets:
+            logger.warning('A sheet called "Plot" was found, but it probably should be called "Plots"')
+
+        if "population types" not in self.sheets:
+            self.sheets["population types"] = [pd.DataFrame.from_records([(FS.DEFAULT_POP_TYPE, "Default")], columns=["code name", "description"])]
+
+    def _validate_metadata(self) -> None:
+        # VALIDATE METADATA
+
+        # Validate 'About' sheet - it must have a name
+        if "about" not in self.sheets:
+            self.sheets["about"] = [pd.DataFrame.from_records([("Unnamed", "No description available")], columns=["name", "description"])]
+
+        # Get the dataframe which has the name in it - the first one on the page, if there were multiple pages
+        name_df = self.sheets["about"][0]
+        required_columns = ["name"]
+        defaults = dict()
+        valid_content = {
+            "name": None,  # Valid content being `None` means that it just cannot be empty
+        }
+
+        try:
+            name_df = _sanitize_dataframe(name_df, required_columns, defaults, valid_content)
+        except Exception as e:
+            message = 'An error was detected on the "About" sheet in the Framework file -> '
+            raise Exception("%s -> %s" % (message, e)) from e
+
+        name_df["name"] = name_df["name"].astype(str)
+        self.name = name_df["name"].iloc[0]
+
+    def _sanitize_compartments(self) -> None:
+        # Tidy dataframe and populate missing columns
+        available_pop_types = list(self.pop_types.keys())  # Get available pop types
+
+        # VALIDATE COMPARTMENTS
+        if "compartments" not in self.sheets:
+            self.sheets["compartments"] = [pd.DataFrame(columns=["code name", "display name"])]
+
+        required_columns = ["display name"]
+        defaults = {"is sink": "n", "is source": "n", "is junction": "n", "databook page": None, "default value": None, "databook order": None, "guidance": None, "population type": None}  # Default is for it to be randomly ordered if the databook page is not None
+        valid_content = {
+            "display name": None,  # Valid content being `None` means that it just cannot be empty
+            "is sink": {"y", "n"},
+            "is source": {"y", "n"},
+            "is junction": {"y", "n"},
+        }
+        numeric_columns = ["databook order", "default value"]
+
+        try:
+            self.comps = _sanitize_dataframe(self.comps, required_columns, defaults, valid_content, set_index="code name", numeric_columns=numeric_columns)
+        except Exception as e:
+            message = 'An error was detected on the "Compartments" sheet in the Framework file'
+            raise Exception("%s -> %s" % (message, e)) from e
+
+        # Assign first population type to any empty population types
+        # In general, if the user has specified any pop types, then the first population type will be
+        # selected as the default in downstream functions e.g. `ProjectData.add_pop`
+        self.comps["population type"] = self.comps["population type"].fillna(available_pop_types[0])
+        self.comps["duration group"] = None  # Store the duration group (the name of the outgoing timed parameter) if there is one
+
+        # Default setup weight is 1 if in databook or 0 otherwise
+        # This is a separate check because the default value depends on other columns
+        if "setup weight" not in self.comps:
+            self.comps["setup weight"] = (~self.comps["databook page"].isnull()).astype(int)
+        else:
+            fill_ones = self.comps["setup weight"].isnull() & self.comps["databook page"]
+            self.comps["setup weight"][fill_ones] = 1
+            self.comps["setup weight"] = self.comps["setup weight"].fillna(0)
+
+        if "calibrate" not in self.comps:
+            # If calibration column is not present, then it calibrate if in the databook
+            default_calibrate = ~self.comps["databook page"].isnull()
+            self.comps["calibrate"] = None
+            self.comps["calibrate"][default_calibrate] = "y"
+
+    def _validate_compartments(self) -> None:
+        available_pop_types = list(self.pop_types.keys())  # Get available pop types
+
+        # Check that compartment content is correct
+        for comp_name, row in zip(self.comps.index, self.comps.to_dict(orient="records")):
+
+            if [row["is sink"], row["is source"], row["is junction"]].count("y") > 1:
+                raise InvalidFramework('Compartment "%s" can only be one of Sink, Source, or Junction' % comp_name)
+
+            if (row["setup weight"] > 0) & (row["is source"] == "y" or row["is sink"] == "y"):
+                raise InvalidFramework('Compartment "%s" is a source or a sink, but has a nonzero setup weight' % comp_name)
+
+            if (row["setup weight"] > 0) & (pd.isna(row["databook page"])):
+                raise InvalidFramework('Compartment "%s" has a nonzero setup weight, but does not appear in the databook' % comp_name)
+
+            if (not pd.isna(row["databook page"])) & (row["is source"] == "y" or row["is sink"] == "y"):
+                raise InvalidFramework('Compartment "%s" is a source or a sink, but has a databook page' % comp_name)
+
+            # It only makes sense to calibrate comps and characs that appear in the databook, because these are the only ones that
+            # will appear in the parset
+            if (pd.isna(row["databook page"])) & (not pd.isna(row["calibrate"])):
+                raise InvalidFramework('Compartment "%s" is marked as being eligible for calibration, but it does not appear in the databook' % comp_name)
+
+            if pd.isna(row["databook page"]) and not pd.isna(row["databook order"]):
+                logger.warning('Compartment "%s" has a databook order (%s), but no databook page', comp_name, row["databook order"])
+
+            if (not pd.isna(row["databook page"])) and not (row["databook page"] in self.sheets["databook pages"][0]["datasheet code name"].values):
+                raise InvalidFramework('Compartment "%s" has databook page "%s" but that page does not appear on the "databook pages" sheet' % (comp_name, row["databook page"]))
+
+            if row["population type"] not in available_pop_types:
+                raise InvalidFramework('Compartment "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (comp_name, row["population type"], available_pop_types))
+
+    def _sanitize_characteristics(self) -> None:
+        available_pop_types = list(self.pop_types.keys())  # Get available pop types
+
+        if "characteristics" not in self.sheets:
+            self.sheets["characteristics"] = [pd.DataFrame(columns=["code name", "display name"])]
+
+        required_columns = ["display name"]
+        defaults = {"components": None, "denominator": None, "default value": None, "databook page": None, "databook order": None, "guidance": None, "population type": None}
+        valid_content = {
+            "display name": None,
+            "components": None,
+        }
+        numeric_columns = ["databook order", "default value"]
+
+        try:
+            self.characs = _sanitize_dataframe(self.characs, required_columns, defaults, valid_content, set_index="code name", numeric_columns=numeric_columns)
+        except Exception as e:
+            message = 'An error was detected on the "Characteristics" sheet in the Framework file'
+            raise Exception("%s -> %s" % (message, e)) from e
+
+        # Assign first population type to any empty population types
+        self.characs["population type"] = self.characs["population type"].fillna(available_pop_types[0])
+
+        if "setup weight" not in self.characs:
+            self.characs["setup weight"] = (~self.characs["databook page"].isnull()).astype(int)
+        else:
+            fill_ones = self.characs["setup weight"].isnull() & self.characs["databook page"]
+            self.characs["setup weight"][fill_ones] = 1
+            self.characs["setup weight"] = self.characs["setup weight"].fillna(0)
+
+        if "calibrate" not in self.characs:
+            # If calibration column is not present, then it calibrate if in the databook
+            default_calibrate = ~self.characs["databook page"].isnull()
+            self.characs["calibrate"] = None
+            self.characs["calibrate"][default_calibrate] = "y"
+
+    def _validate_characteristics(self) -> None:
+        # VALIDATE CHARACTERISTICS
+        available_pop_types = list(self.pop_types.keys())  # Get available pop types
+
+        for charac_name, row in zip(self.characs.index, self.characs.to_dict(orient="records")):
+            # Block this out because that way, can validate that there are some nonzero setup weights. Otherwise, user could set setup weights but
+            # not put them in the databook, causing an error when actually trying to run the simulation
+            if (row["setup weight"] > 0) and pd.isna(row["databook page"]):
+                raise InvalidFramework('Characteristic "%s" has a nonzero setup weight, but does not appear in the databook' % charac_name)
+
+            if not pd.isna(row["denominator"]):
+
+                if row["denominator"] in self.comps.index:
+                    if row["population type"] != self.comps.at[row["denominator"], "population type"]:
+                        raise InvalidFramework('In Characteristic "%s", included compartment "%s" does not have a matching population type' % (charac_name, row["denominator"]))
+
+                    if (row["setup weight"] > 0) and pd.isna(self.comps.at[row["denominator"], "databook page"]):
+                        # Check that denominators appear in the databook as described in https://github.com/atomicateam/atomica/issues/433
+                        raise InvalidFramework('Characteristic "%s" is being used for initialization, but the denominator compartment "%s" does not appear in the databook. Denominators that are used in initialization must appear in the databook ' % (charac_name, row["denominator"]))
+
+                elif row["denominator"] in self.characs.index:
+                    if row["population type"] != self.characs.at[row["denominator"], "population type"]:
+                        raise InvalidFramework('In Characteristic "%s", included characteristic "%s" does not have a matching population type' % (charac_name, row["denominator"]))
+
+                    if not pd.isna(self.characs.loc[row["denominator"]]["denominator"]):
+                        raise InvalidFramework('Characteristic "%s" uses the characteristic "%s" as a denominator. However, "%s" also has a denominator, which means that it cannot be used as a denominator for "%s"' % (charac_name, row["denominator"], row["denominator"], charac_name))
+
+                    if (row["setup weight"] > 0) and pd.isna(self.characs.at[row["denominator"], "databook page"]):
+                        # Check that denominators appear in the databook as described in https://github.com/atomicateam/atomica/issues/433
+                        raise InvalidFramework('Characteristic "%s" is being used for initialization, but the denominator characteristic "%s" does not appear in the databook. Denominators that are used in initialization must appear in the databook ' % (charac_name, row["denominator"]))
+
+                else:
+                    raise InvalidFramework('In Characteristic "%s", denominator "%s" was not recognized as a Compartment or Characteristic' % (charac_name, row["denominator"]))
+
+            if (pd.isna(row["databook page"])) and (not pd.isna(row["calibrate"])):
+                raise InvalidFramework('Compartment "%s" is marked as being eligible for calibration, but it does not appear in the databook' % charac_name)
+
+            if (not pd.isna(row["databook page"])) and not (row["databook page"] in self.sheets["databook pages"][0]["datasheet code name"].values):
+                raise InvalidFramework('Characteristic "%s" has databook page "%s" but that page does not appear on the "databook pages" sheet' % (charac_name, row["databook page"]))
+
+            if row["population type"] not in available_pop_types:
+                raise InvalidFramework('Characteristic "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (charac_name, row["population type"], available_pop_types))
+
+            for component in row["components"].split(","):
+                component = component.strip()
+                if component in self.comps.index:
+                    if row["population type"] != self.comps.at[component, "population type"]:
+                        raise InvalidFramework('In Characteristic "%s", included compartment "%s" does not have a matching population type' % (charac_name, component))
+                elif component in self.characs.index:
+                    if row["population type"] != self.characs.at[component, "population type"]:
+                        raise InvalidFramework('In Characteristic "%s", included characteristic "%s" does not have a matching population type' % (charac_name, component))
+                else:
+                    raise InvalidFramework('In Characteristic "%s", included component "%s" was not recognized as a Compartment or Characteristic' % (charac_name, component))
+
+    def _sanitize_interactions(self) -> None:
+        # VALIDATE INTERACTIONS
+
+        if "interactions" not in self.sheets:
+            self.sheets["interactions"] = [pd.DataFrame(columns=["code name", "display name", "to population type", "from population type"])]
+
+        required_columns = ["display name"]
+        defaults = {"default value": None, "from population type": None, "to population type": None}
+        valid_content = {
+            "display name": None,
+        }
+
+        try:
+            self.interactions = _sanitize_dataframe(self.interactions, required_columns, defaults, valid_content, set_index="code name")
+        except Exception as e:
+            message = 'An error was detected on the "Interactions" sheet in the Framework file'
+            raise Exception("%s -> %s" % (message, e)) from e
+
+        available_pop_types = list(self.pop_types.keys())  # Get available pop types
+
+        # Assign first population type to any empty population types
+        self.interactions["from population type"] = self.interactions["from population type"].fillna(available_pop_types[0])
+        self.interactions["to population type"] = self.interactions["to population type"].fillna(available_pop_types[0])
+
+    def _validate_interactions(self) -> None:
+
+        available_pop_types = list(self.pop_types.keys())  # Get available pop types
+
+        for interaction_name, row in zip(self.interactions.index, self.interactions.to_dict(orient="records")):
+            if row["from population type"] not in available_pop_types:
+                raise InvalidFramework('Interaction "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (interaction_name, row["from population type"], available_pop_types))
+            if row["to population type"] not in available_pop_types:
+                raise InvalidFramework('Interaction "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (interaction_name, row["to population type"], available_pop_types))
+
+    def _sanitize_parameters(self) -> None:
+        required_columns = ["display name", "format"]
+        defaults = {
+            "default value": None,
+            "minimum value": None,
+            "maximum value": None,
+            "function": None,
+            "databook page": None,
+            "databook order": None,
+            "targetable": "n",
+            "guidance": None,
+            "timescale": None,
+            "population type": None,
+            "is derivative": "n",
+            "timed": "n",
+        }
+        valid_content = {
+            "display name": None,
+            "targetable": {"y", "n"},
+            "is derivative": {"y", "n"},
+            "timed": {"y", "n"},
+        }
+        numeric_columns = ["databook order", "default value", "minimum value", "maximum value", "timescale"]
+
+        try:
+            self.pars = _sanitize_dataframe(self.pars, required_columns, defaults, valid_content, set_index="code name", numeric_columns=numeric_columns)
+        except Exception as e:
+            message = 'An error was detected on the "Parameters" sheet in the Framework file'
+            raise Exception("%s -> %s" % (message, e)) from e
+
+        # Assign first population type to any empty population types
+        available_pop_types = list(self.pop_types.keys())  # Get available pop types
+
+        self.pars["population type"] = self.pars["population type"].fillna(available_pop_types[0])
+        self.pars["format"] = self.pars["format"].map(lambda x: x.strip() if sc.isstring(x) else x)
+
+        if "calibrate" not in self.pars:
+            default_calibrate = self.pars["targetable"] == "y"
+            self.pars["calibrate"] = None
+            self.pars["calibrate"][default_calibrate] = "y"
+
+        # If framework has units that case-insensitively match the standard units, then correct the case
+        lower_idx = self.pars["format"].str.lower().isin(FS.STANDARD_UNITS)
+        self.pars["format"][lower_idx] = self.pars["format"][lower_idx].str.lower()
+
     def _process_transitions(self) -> None:
         """
         Parse transition sheet
@@ -412,6 +865,9 @@ class ProjectFramework:
         This method expects a sheet called 'Transitions' to be present and correctly filled out
 
         """
+
+        if "transitions" not in self.sheets:
+            self.sheets["transitions"] = []
 
         # First, assign the transition matrices to population types
         self.transitions = defaultdict(list)
@@ -469,302 +925,21 @@ class ProjectFramework:
 
                         self.transitions[par_name].append((from_comp, to_comp))
 
-    def _validate(self) -> None:
-        """
-        Check contents of the framework
-
-        This function validates the content of Framework. There are two aspects to this
-
-        - Adding in any missing values using appropriate defaults
-        - Checking that the provided information is internally consistent
-
-        This method is called automatically during construction, and therefore any changes
-        made during validation will occur prior to users interacting with the ProjectFramework
-
-        If the framework contains invalid content, this function call will result in an error
-        being raised.
-
-        """
-
-        import networkx as nx
-
-        # Check for required sheets
-        for page in ["databook pages", "parameters"]:
-            if page not in self.sheets:
-                raise InvalidFramework('The Framework file is missing a required sheet: "%s"' % (page))
-
-        # VALIDATE METADATA
-
-        # Validate 'About' sheet - it must have a name
-        if "about" not in self.sheets:
-            self.sheets["about"] = [pd.DataFrame.from_records([("Unnamed", "No description available")], columns=["name", "description"])]
-
-        # Get the dataframe which has the name in it - the first one on the page, if there were multiple pages
-        name_df = self.sheets["about"][0]
-        required_columns = ["name"]
-        defaults = dict()
-        valid_content = {
-            "name": None,  # Valid content being `None` means that it just cannot be empty
-        }
-
-        try:
-            name_df = _sanitize_dataframe(name_df, required_columns, defaults, valid_content)
-        except Exception as e:
-            message = 'An error was detected on the "About" sheet in the Framework file -> '
-            raise Exception("%s -> %s" % (message, e)) from e
-
-        name_df["name"] = name_df["name"].astype(str)
-        self.name = name_df["name"].iloc[0]
-
-        if "cascade" in self.sheets and "cascades" not in self.sheets:
-            logger.warning('A sheet called "Cascade" was found, but it probably should be called "Cascades"')
-
-        if "plot" in self.sheets and "plots" not in self.sheets:
-            logger.warning('A sheet called "Plot" was found, but it probably should be called "Plots"')
-
-        # VALIDATE POPULATION TYPES
-        # Default to having 'Default'
-        if "population types" not in self.sheets:
-            self.sheets["population types"] = [pd.DataFrame.from_records([(FS.DEFAULT_POP_TYPE, "Default")], columns=["code name", "description"])]
-
-        available_pop_types = list(self.pop_types.keys())  # Get available pop types
-
-        # VALIDATE COMPARTMENTS
-        if "compartments" not in self.sheets:
-            self.sheets["compartments"] = [pd.DataFrame(columns=["code name", "display name"])]
-
-        required_columns = ["display name"]
-        defaults = {"is sink": "n", "is source": "n", "is junction": "n", "databook page": None, "default value": None, "databook order": None, "guidance": None, "population type": None}  # Default is for it to be randomly ordered if the databook page is not None
-        valid_content = {
-            "display name": None,  # Valid content being `None` means that it just cannot be empty
-            "is sink": {"y", "n"},
-            "is source": {"y", "n"},
-            "is junction": {"y", "n"},
-        }
-        numeric_columns = ["databook order", "default value"]
-
-        try:
-            self.comps = _sanitize_dataframe(self.comps, required_columns, defaults, valid_content, set_index="code name", numeric_columns=numeric_columns)
-        except Exception as e:
-            message = 'An error was detected on the "Compartments" sheet in the Framework file'
-            raise Exception("%s -> %s" % (message, e)) from e
-
-        # Assign first population type to any empty population types
-        # In general, if the user has specified any pop types, then the first population type will be
-        # selected as the default in downstream functions e.g. `ProjectData.add_pop`
-        self.comps["population type"] = self.comps["population type"].fillna(available_pop_types[0])
-        self.comps["duration group"] = None  # Store the duration group (the name of the outgoing timed parameter) if there is one
-
-        # Default setup weight is 1 if in databook or 0 otherwise
-        # This is a separate check because the default value depends on other columns
-        if "setup weight" not in self.comps:
-            self.comps["setup weight"] = (~self.comps["databook page"].isnull()).astype(int)
-        else:
-            fill_ones = self.comps["setup weight"].isnull() & self.comps["databook page"]
-            self.comps["setup weight"][fill_ones] = 1
-            self.comps["setup weight"] = self.comps["setup weight"].fillna(0)
-
-        if "calibrate" not in self.comps:
-            # If calibration column is not present, then it calibrate if in the databook
-            default_calibrate = ~self.comps["databook page"].isnull()
-            self.comps["calibrate"] = None
-            self.comps["calibrate"][default_calibrate] = "y"
-
-        # VALIDATE COMPARTMENTS
-        for comp_name, row in zip(self.comps.index, self.comps.to_dict(orient="records")):
-
-            if [row["is sink"], row["is source"], row["is junction"]].count("y") > 1:
-                raise InvalidFramework('Compartment "%s" can only be one of Sink, Source, or Junction' % comp_name)
-
-            if (row["setup weight"] > 0) & (row["is source"] == "y" or row["is sink"] == "y"):
-                raise InvalidFramework('Compartment "%s" is a source or a sink, but has a nonzero setup weight' % comp_name)
-
-            if (row["setup weight"] > 0) & (pd.isna(row["databook page"])):
-                raise InvalidFramework('Compartment "%s" has a nonzero setup weight, but does not appear in the databook' % comp_name)
-
-            if (not pd.isna(row["databook page"])) & (row["is source"] == "y" or row["is sink"] == "y"):
-                raise InvalidFramework('Compartment "%s" is a source or a sink, but has a databook page' % comp_name)
-
-            # It only makes sense to calibrate comps and characs that appear in the databook, because these are the only ones that
-            # will appear in the parset
-            if (pd.isna(row["databook page"])) & (not pd.isna(row["calibrate"])):
-                raise InvalidFramework('Compartment "%s" is marked as being eligible for calibration, but it does not appear in the databook' % comp_name)
-
-            if pd.isna(row["databook page"]) and not pd.isna(row["databook order"]):
-                logger.warning('Compartment "%s" has a databook order (%s), but no databook page', comp_name, row["databook order"])
-
-            if (not pd.isna(row["databook page"])) and not (row["databook page"] in self.sheets["databook pages"][0]["datasheet code name"].values):
-                raise InvalidFramework('Compartment "%s" has databook page "%s" but that page does not appear on the "databook pages" sheet' % (comp_name, row["databook page"]))
-
-            if row["population type"] not in available_pop_types:
-                raise InvalidFramework('Compartment "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (comp_name, row["population type"], available_pop_types))
-
-        # VALIDATE CHARACTERISTICS
-        if "characteristics" not in self.sheets:
-            self.sheets["characteristics"] = [pd.DataFrame(columns=["code name", "display name"])]
-
-        required_columns = ["display name"]
-        defaults = {"components": None, "denominator": None, "default value": None, "databook page": None, "databook order": None, "guidance": None, "population type": None}
-        valid_content = {
-            "display name": None,
-            "components": None,
-        }
-        numeric_columns = ["databook order", "default value"]
-
-        try:
-            self.characs = _sanitize_dataframe(self.characs, required_columns, defaults, valid_content, set_index="code name", numeric_columns=numeric_columns)
-        except Exception as e:
-            message = 'An error was detected on the "Characteristics" sheet in the Framework file'
-            raise Exception("%s -> %s" % (message, e)) from e
-
-        # Assign first population type to any empty population types
-        self.characs["population type"] = self.characs["population type"].fillna(available_pop_types[0])
-
-        if "setup weight" not in self.characs:
-            self.characs["setup weight"] = (~self.characs["databook page"].isnull()).astype(int)
-        else:
-            fill_ones = self.characs["setup weight"].isnull() & self.characs["databook page"]
-            self.characs["setup weight"][fill_ones] = 1
-            self.characs["setup weight"] = self.characs["setup weight"].fillna(0)
-
-        if "calibrate" not in self.characs:
-            # If calibration column is not present, then it calibrate if in the databook
-            default_calibrate = ~self.characs["databook page"].isnull()
-            self.characs["calibrate"] = None
-            self.characs["calibrate"][default_calibrate] = "y"
-
-        for charac_name, row in zip(self.characs.index, self.characs.to_dict(orient="records")):
-            # Block this out because that way, can validate that there are some nonzero setup weights. Otherwise, user could set setup weights but
-            # not put them in the databook, causing an error when actually trying to run the simulation
-            if (row["setup weight"] > 0) and (row["databook page"] is None):
-                raise InvalidFramework('Characteristic "%s" has a nonzero setup weight, but does not appear in the databook' % charac_name)
-
-            if row["denominator"] is not None:
-
-                if row["denominator"] in self.comps.index:
-                    if row["population type"] != self.comps.at[row["denominator"], "population type"]:
-                        raise InvalidFramework('In Characteristic "%s", included compartment "%s" does not have a matching population type' % (charac_name, row["denominator"]))
-
-                    if (row["setup weight"] > 0) and self.comps.at[row["denominator"], "databook page"] is None:
-                        # Check that denominators appear in the databook as described in https://github.com/atomicateam/atomica/issues/433
-                        raise InvalidFramework('Characteristic "%s" is being used for initialization, but the denominator compartment "%s" does not appear in the databook. Denominators that are used in initialization must appear in the databook ' % (charac_name, row["denominator"]))
-
-                elif row["denominator"] in self.characs.index:
-                    if row["population type"] != self.characs.at[row["denominator"], "population type"]:
-                        raise InvalidFramework('In Characteristic "%s", included characteristic "%s" does not have a matching population type' % (charac_name, row["denominator"]))
-
-                    if not (self.characs.loc[row["denominator"]]["denominator"] is None):
-                        raise InvalidFramework('Characteristic "%s" uses the characteristic "%s" as a denominator. However, "%s" also has a denominator, which means that it cannot be used as a denominator for "%s"' % (charac_name, row["denominator"], row["denominator"], charac_name))
-
-                    if (row["setup weight"] > 0) and self.characs.at[row["denominator"], "databook page"] is None:
-                        # Check that denominators appear in the databook as described in https://github.com/atomicateam/atomica/issues/433
-                        raise InvalidFramework('Characteristic "%s" is being used for initialization, but the denominator characteristic "%s" does not appear in the databook. Denominators that are used in initialization must appear in the databook ' % (charac_name, row["denominator"]))
-
-                else:
-                    raise InvalidFramework('In Characteristic "%s", denominator "%s" was not recognized as a Compartment or Characteristic' % (charac_name, row["denominator"]))
-
-            if (row["databook page"] is None) and (row["calibrate"] is not None):
-                raise InvalidFramework('Compartment "%s" is marked as being eligible for calibration, but it does not appear in the databook' % charac_name)
-
-            if (row["databook page"] is not None) and not (row["databook page"] in self.sheets["databook pages"][0]["datasheet code name"].values):
-                raise InvalidFramework('Characteristic "%s" has databook page "%s" but that page does not appear on the "databook pages" sheet' % (charac_name, row["databook page"]))
-
-            if row["population type"] not in available_pop_types:
-                raise InvalidFramework('Characteristic "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (charac_name, row["population type"], available_pop_types))
-
-            for component in row["components"].split(","):
-                component = component.strip()
-                if component in self.comps.index:
-                    if row["population type"] != self.comps.at[component, "population type"]:
-                        raise InvalidFramework('In Characteristic "%s", included compartment "%s" does not have a matching population type' % (charac_name, component))
-                elif component in self.characs.index:
-                    if row["population type"] != self.characs.at[component, "population type"]:
-                        raise InvalidFramework('In Characteristic "%s", included characteristic "%s" does not have a matching population type' % (charac_name, component))
-                else:
-                    raise InvalidFramework('In Characteristic "%s", included component "%s" was not recognized as a Compartment or Characteristic' % (charac_name, component))
-
-        # VALIDATE INTERACTIONS
-        if "interactions" not in self.sheets:
-            self.sheets["interactions"] = [pd.DataFrame(columns=["code name", "display name", "to population type", "from population type"])]
-
-        required_columns = ["display name"]
-        defaults = {"default value": None, "from population type": None, "to population type": None}
-        valid_content = {
-            "display name": None,
-        }
-
-        try:
-            self.interactions = _sanitize_dataframe(self.interactions, required_columns, defaults, valid_content, set_index="code name")
-        except Exception as e:
-            message = 'An error was detected on the "Interactions" sheet in the Framework file'
-            raise Exception("%s -> %s" % (message, e)) from e
-
-        # Assign first population type to any empty population types
-        self.interactions["from population type"] = self.interactions["from population type"].fillna(available_pop_types[0])
-        self.interactions["to population type"] = self.interactions["to population type"].fillna(available_pop_types[0])
-
-        for interaction_name, row in zip(self.interactions.index, self.interactions.to_dict(orient="records")):
-            if row["from population type"] not in available_pop_types:
-                raise InvalidFramework('Interaction "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (interaction_name, row["from population type"], available_pop_types))
-            if row["to population type"] not in available_pop_types:
-                raise InvalidFramework('Interaction "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (interaction_name, row["to population type"], available_pop_types))
-
+    def _validate_parameters(self) -> None:
         # VALIDATE PARAMETERS
         # This is done last, because validating parameter dependencies requires checking compartments and characteristics
-        required_columns = ["display name", "format"]
-        defaults = {
-            "default value": None,
-            "minimum value": None,
-            "maximum value": None,
-            "function": None,
-            "databook page": None,
-            "databook order": None,
-            "targetable": "n",
-            "guidance": None,
-            "timescale": None,
-            "population type": None,
-            "is derivative": "n",
-            "timed": "n",
-        }
-        valid_content = {
-            "display name": None,
-            "targetable": {"y", "n"},
-            "is derivative": {"y", "n"},
-            "timed": {"y", "n"},
-        }
-        numeric_columns = ["databook order", "default value", "minimum value", "maximum value", "timescale"]
-
-        try:
-            self.pars = _sanitize_dataframe(self.pars, required_columns, defaults, valid_content, set_index="code name", numeric_columns=numeric_columns)
-        except Exception as e:
-            message = 'An error was detected on the "Parameters" sheet in the Framework file'
-            raise Exception("%s -> %s" % (message, e)) from e
-
-        # Assign first population type to any empty population types
-        self.pars["population type"] = self.pars["population type"].fillna(available_pop_types[0])
-        self.pars["format"] = self.pars["format"].map(lambda x: x.strip() if sc.isstring(x) else x)
-
-        if "calibrate" not in self.pars:
-            default_calibrate = self.pars["targetable"] == "y"
-            self.pars["calibrate"] = None
-            self.pars["calibrate"][default_calibrate] = "y"
-
-        # Parse the transitions matrix
-        if "transitions" not in self.sheets:
-            self.sheets["transitions"] = []
-        self._process_transitions()
+        available_pop_types = list(self.pop_types.keys())  # Get available pop types
 
         # Now validate each parameter
+        import networkx as nx
+
         G = nx.DiGraph()  # Generate a dependency graph
 
-        def cross_pop_message(par, quantity_type, quantity_name):
+        def cross_pop_message(quantity_type, quantity_name):
+            # nb. this function is exclusively called in the loop below, so it derives par_name and par from the calling loop
             spec = self.get_variable(quantity_name)[0]
-            message = f"The function for parameter '{par.name}' in the '{par['population type']}' population type refers to {quantity_type} '{quantity_name}' in the '{spec['population type']}' population type. All cross-population interactions must take place within either the SRC_POP_SUM or SRC_POP_AVG population aggregations"
+            message = f"The function for parameter '{par_name}' in the '{par['population type']}' population type refers to {quantity_type} '{quantity_name}' in the '{spec['population type']}' population type. All cross-population interactions must take place within either the SRC_POP_SUM or SRC_POP_AVG population aggregations"
             return message
-
-        # If framework has units that case-insensitively match the standard units, then correct the case
-        lower_idx = self.pars["format"].str.lower().isin(FS.STANDARD_UNITS)
-        self.pars["format"][lower_idx] = self.pars["format"][lower_idx].str.lower()
 
         for par_name, par in zip(self.pars.index, self.pars.to_dict(orient="records")):
 
@@ -848,7 +1023,7 @@ class ProjectFramework:
                                 message = 'The function for parameter "%s" depends on the flow rate "%s:flow". This requires a parameter called "%s" to be defined in the Framework, but no parameter with that name was found' % (par_name, dep_name, dep_name)
                                 raise InvalidFramework(message)
                             elif not is_cross_aggregation and self.pars.at[dep_name, "population type"] != par["population type"]:
-                                raise InvalidFramework(cross_pop_message(par, "compartment", dep_name))
+                                raise InvalidFramework(cross_pop_message("compartment", dep_name))
 
                             if not self.transitions[dep_name]:
                                 # If the user is trying to get the flow rate for a non-transition parameter
@@ -862,20 +1037,20 @@ class ProjectFramework:
                                     message = 'The function for parameter "%s" depends on the flow rate "%s". This requires a source compartment called "%s" to be defined in the Framework, but no compartment with that name was found' % (par_name, dep.replace("___", ":"), deps[0])
                                     raise InvalidFramework(message)
                                 elif not is_cross_aggregation and self.comps.at[deps[0], "population type"] != par["population type"]:
-                                    raise InvalidFramework(cross_pop_message(par, "compartment", deps[0]))
+                                    raise InvalidFramework(cross_pop_message("compartment", deps[0]))
                             if deps[1]:
                                 if deps[1] not in self.comps.index:
                                     message = 'The function for parameter "%s" depends on the flow rate "%s". This requires a destination compartment called "%s" to be defined in the Framework, but no compartment with that name was found' % (par_name, dep.replace("___", ":"), deps[1])
                                     raise InvalidFramework(message)
                                 elif not is_cross_aggregation and self.comps.at[deps[1], "population type"] != par["population type"]:
-                                    raise InvalidFramework(cross_pop_message(par, "compartment", deps[1]))
+                                    raise InvalidFramework(cross_pop_message("compartment", deps[1]))
 
                     elif dep in self.comps.index:
                         if not is_cross_aggregation and self.comps.at[dep, "population type"] != par["population type"]:
-                            raise InvalidFramework(cross_pop_message(par, "compartment", dep))
+                            raise InvalidFramework(cross_pop_message("compartment", dep))
                     elif dep in self.characs.index:
                         if not is_cross_aggregation and self.characs.at[dep, "population type"] != par["population type"]:
-                            raise InvalidFramework(cross_pop_message(par, "characteristic", dep))
+                            raise InvalidFramework(cross_pop_message("characteristic", dep))
                     elif dep in self.interactions.index:
                         if not is_aggregation:
                             message = 'The function for parameter "%s" includes the Interaction "%s", which means that the parameter function can only be one of: "SRC_POP_AVG", "TGT_POP_AVG", "SRC_POP_SUM" or "TGT_POP_SUM"' % (par_name, dep)
@@ -930,7 +1105,7 @@ class ProjectFramework:
                             pass
 
                         if self.pars.at[dep, "population type"] != par["population type"] and not is_aggregation:  # Population types for the dependency and the parameter can only differ if it's an aggregation
-                            raise InvalidFramework(cross_pop_message(par, "parameter", dep))
+                            raise InvalidFramework(cross_pop_message("parameter", dep))
                     else:
                         message = 'The function for parameter "%s" depends on a quantity "%s", but no Compartment, Characteristic, or Parameter with this name was found' % (par_name, dep)
                         raise InvalidFramework(message)
@@ -1004,8 +1179,11 @@ class ProjectFramework:
                 message += "\n - " + " -> ".join(cycle)
             raise InvalidFramework(message)
 
+    def _validate_names(self) -> None:
         # VALIDATE NAMES - No collisions, no keywords
-        code_names = list(self.comps.index) + list(self.characs.index) + list(self.pars.index) + list(self.interactions.index) + list(available_pop_types)
+        available_pop_types = list(self.pop_types.keys())  # Get available pop types
+        code_names = list(self.comps.index) + list(self.characs.index) + list(self.pars.index) + list(self.interactions.index) + available_pop_types
+
         tmp = set()
         for name in code_names:
 
@@ -1031,7 +1209,12 @@ class ProjectFramework:
             else:
                 raise InvalidFramework('Duplicate display name "%s"' % name)
 
+    def _validate_cascades(self) -> None:
         # VALIDATE CASCADES
+        available_pop_types = list(self.pop_types.keys())  # Get available pop types
+        code_names = list(self.comps.index) + list(self.characs.index) + list(self.pars.index) + list(self.interactions.index) + available_pop_types
+        display_names = list(self.comps["display name"]) + list(self.characs["display name"]) + list(self.pars["display name"]) + list(self.interactions["display name"])
+
         if "cascades" not in self.sheets or not self.cascades:
             # Make the fallback cascade with name 'Default'
             used_fallback_cascade = True
@@ -1071,6 +1254,7 @@ class ProjectFramework:
         for cascade_name in self.cascades.keys():
             validate_cascade(self, cascade_name, fallback_used=used_fallback_cascade)
 
+    def _validate_plots(self) -> None:
         # VALIDATE PLOTS
         if "plots" not in self.sheets or not self.sheets["plots"] or self.sheets["plots"][0].empty:
             self.sheets["plots"] = [pd.DataFrame(columns=["name", "type", "quantities", "plot group"])]
@@ -1104,8 +1288,9 @@ class ProjectFramework:
                     if variable and variable not in self:
                         raise InvalidFramework(f'Error on "Plots" sheet -> quantity "{variable}" is referenced on the plots sheet but is not defined in the framework')
 
+    def _validate_initialization(self) -> None:
         # VALIDATE INITIALIZATION
-        for pop_type in available_pop_types:
+        for pop_type in self.pop_types:
 
             characs = []
             df = self.characs
@@ -1136,9 +1321,13 @@ class ProjectFramework:
                 if np.linalg.matrix_rank(A) < len(comps):
                     logger.debug("Initialization characteristics are underdetermined - this may be intentional, but check the initial compartment sizes carefully")
 
+    def _assign_junction_duration_groups(self) -> None:
         # ASSIGN DURATION GROUPS
-        # This needs to be done for compartments, as well as junctions
-        # We can also validate that junctions do not have cycles at this point
+        # Duration groups for compartments are assigned when the transition matrix is parsed
+        # Junctions inherit duration groups depending on their flows. Therefore this step
+        # takes place after normal compartment duration groups have been assigned
+        import networkx as nx
+
         if any(self.comps["duration group"]):
 
             # For each junction, work out if there are any upstream or downstream timed compartments
@@ -1225,137 +1414,11 @@ class ProjectFramework:
                 # - If there is exactly one upstream or downstream group, then the junction belongs to the duration group
                 # - Similarly, if there are upstream or downstream groups and no groups in the opposite direction, this is also allowed
                 if len(upstream_attachments) == 1 and len(downstream_attachments) == 1 and upstream_attachments == upstream_groups and downstream_attachments == downstream_groups and upstream_attachments == downstream_attachments:
-                    # If the
                     self.comps.at[junc_name, "duration group"] = list(upstream_attachments)[0]
                 elif len(upstream_attachments) or len(downstream_attachments):
                     # If there is at least one upstream or downstream attachment, then there can be no overlap between the upstream and downstream groups.
                     if downstream_groups.intersection(upstream_groups):
                         raise InvalidFramework(f'Junction "{junc_name}" has inputs and outputs to multiple duration groups. As these are untimed flows, there can be no overlap in the upstream and downstream groups. Upstream compartments are {upstream_comps} with groups {upstream_groups}. Downstream compartments are {downstream_comps} with groups {downstream_groups}')
-
-    def get_databook_units(self, code_name: str) -> str:
-        """
-        Return the user-facing units for a quantity given a code name
-
-        This function returns the units specified in the Framework for quantities defined in the Framework.
-        The units for a quantity are:
-
-            - For compartments, number
-            - For characteristics, number or fraction depending on whether a denominator is present
-            - For parameters, return either the explicitly specified units plus a timescale, or an empty string
-            - Otherwise, return the inapplicable string (e.g. 'N.A.')
-
-        This function computes the units dynamically based on the content of the DataFrames. This ensures that
-        it stays in sync with the actual content - for example, if a denominator is programatically added to
-        a characteristic, the units don't also need to be manually updated.
-
-        Note that at this stage in computation, the units are mainly for managing presentation in the databook.
-        For example, a characteristic with a denominator is technically dimensionless, but we need it to be
-        reported in the databook as a fraction for data entry. Similarly, while the Framework stores the
-        internal units and timescale for a parameter (e.g. 'probability' and '1/365') this function will
-        return 'probability (per day)' for use in the databook.
-
-        :param code_name: Code name of a quantity supported by ``ProjectFramework.get_variable()``
-        :return: String containing the units of the quantity
-
-        """
-
-        item_spec, item_type = self.get_variable(code_name)
-
-        # State variables are in number amounts unless normalized.
-        if item_type in [FS.KEY_COMPARTMENT, FS.KEY_CHARACTERISTIC]:
-            if "denominator" in item_spec.index and item_spec["denominator"] is not None:
-                return FS.QUANTITY_TYPE_FRACTION.title()
-            else:
-                return FS.QUANTITY_TYPE_NUMBER.title()
-        elif item_type == FS.KEY_PARAMETER:
-            units = item_spec["format"].strip() if item_spec["format"] is not None else None
-            if np.isfinite(item_spec["timescale"]):
-                if units is None:
-                    raise InvalidFramework(f"A timescale was provided for Framework quantity {code_name} but no units were provided")
-                elif units.lower() == FS.QUANTITY_TYPE_DURATION:
-                    return "%s (%s)" % (FS.QUANTITY_TYPE_DURATION.title(), format_duration(item_spec["timescale"], pluralize=True))
-                elif units.lower() in {FS.QUANTITY_TYPE_NUMBER, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_RATE}:
-                    return "%s (per %s)" % (units.title(), format_duration(item_spec["timescale"], pluralize=False))
-                else:
-                    if units is None:
-                        raise InvalidFramework(f"A timescale was provided for Framework quantity {code_name} but the units were not one of duration, number, or probability. It is therefore not possible to perform any automatic conversions, simply enter the relevant data entry timescale in the units directly instead.")
-            elif units:
-                return units
-
-        return FS.DEFAULT_SYMBOL_INAPPLICABLE
-
-    def to_spreadsheet(self) -> sc.Spreadsheet:
-        """
-        Return content as a Sciris Spreadsheet
-
-        This
-        :return: A :class:`sciris.Spreadsheet` instance
-
-        """
-
-        # Initialize the bytestream
-        f = io.BytesIO()
-
-        writer = pd.ExcelWriter(f, engine="xlsxwriter")
-        writer.book.set_properties({"category": "atomica:framework"})
-        standard_formats(writer.book)  # Apply formatting
-
-        for sheet_name, dfs in self.sheets.items():
-            if sheet_name == "transitions":
-                # Need to regenerate the transitions based on the actual transitions present
-                dfs = []
-                for pop_type in self.comps["population type"].unique():
-                    matching_comps = self.comps.index[self.comps["population type"] == pop_type]
-                    df = pd.DataFrame(index=matching_comps, columns=matching_comps)
-                    df.fillna("", inplace=True)
-                    df.index.name = pop_type
-
-                    for par, pairs in self.transitions.items():
-                        for pair in pairs:
-                            if pair[0] in matching_comps:
-                                if not df.at[pair[0], pair[1]]:
-                                    df.at[pair[0], pair[1]] = par
-                                else:
-                                    df.at[pair[0], pair[1]] += ", %s" % (par)
-
-                    dfs.append(df)
-
-            worksheet = writer.book.add_worksheet(sheet_name)
-            writer.sheets[sheet_name] = worksheet  # Need to add it to the ExcelWriter for it to behave properly
-
-            row = 0
-            for df in dfs:
-                if df.index.name:
-                    df.to_excel(writer, sheet_name, startcol=0, startrow=row, index=True)  # Write index if present
-                else:
-                    df.to_excel(writer, sheet_name, startcol=0, startrow=row, index=False)  # Write index if present
-
-                row += df.shape[0] + 2
-
-        # Close the workbook
-        writer.close()
-
-        # Dump the file content into a ScirisSpreadsheet
-        spreadsheet = sc.Spreadsheet(f)
-
-        # Return the spreadsheet
-        return spreadsheet
-
-    def save(self, fname) -> None:
-        """
-        Save framework to disk
-
-        This function writes a spreadsheet based on the actual dataframes present. This allows programmatic modifications to
-        frameworks to be viewed in Excel.
-
-        To save the original framework file (if one was loaded in) use `ProjectFramework.original.save()`
-
-        :param fname: File name to write on disk
-
-        """
-
-        ss = self.to_spreadsheet()
-        ss.save(fname)
 
 
 def _sanitize_dataframe(df: pd.DataFrame, required_columns: list, defaults: dict, valid_content: dict, set_index: str = None, numeric_columns: list = None) -> pd.DataFrame:

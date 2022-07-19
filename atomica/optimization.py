@@ -11,6 +11,7 @@ import logging
 import pickle
 from collections import defaultdict
 
+import atomica
 import numpy as np
 import scipy.optimize
 
@@ -289,67 +290,128 @@ class SpendingPackageAdjustment(Adjustment):
     total spend on MDR, and the fraction spent on MDR short.
     """
 
-    def __init__(self, package_name: str, t, prog_names: list, initial_spends, min_props: list = None, max_props: list = None, min_total_spend: float = 0.0, max_total_spend: float = np.inf):
+    def __init__(self, package_name: str, t: float, prog_names: list, initial_spends: np.array, min_props: list = None, max_props: list = None, min_total_spend: float = None, max_total_spend: float = None, fix_props: bool = False):
         """
 
-        :param package_name:
-        :param t:
-        :param prog_names:
-        :param initial_spends:
-        :param min_props: List of minimum proportion to spend on each program, same length as ``prog_names``
-        :param max_props: List of maximum proportion to spend on each program, same length as ``prog_names``
-        :param min_total_spend: Minimum total spend
-        :param max_total_spend: Maximum total spend
+        By default, the total spend on the package is constrained. In practice, it would usual to either
+            - Fix the proportions of the programs within the package
+            OR
+            - Fix the total spend on the package
 
+        Although a less common usage would be to constrain the ratio of the programs within the
+        package (e.g., program B must have no more than half the funding of program A).
+
+        Essentially, if none of `min_props`, `max_props`, `min_total_spend` or `max_total_spend` are
+        specified, the SpendingPackageAdjustment should function the same as simply optimizing each
+        intervention independently.
+
+        :param package_name: The name of this spending package
+        :param t: Year in which to apply spending adjustments
+        :param prog_names: List of program names to include in this package
+        :param initial_spends: Array of spending values for each program, same length as `prog_names`
+        :param min_props: (optional) List of minimum proportion to spend on each program, same length as ``prog_names``. Default: 0 for all programs
+        :param max_props: (optional) List of maximum proportion to spend on each program, same length as ``prog_names``. Default: 1 for all programs
+        :param min_total_spend: (optional) Minimum total spend. Default: equal to the sum of the initial spends
+        :param max_total_spend: (optional) Maximum total spend. Default: equal to the sum of the initial spends
+        :param fix_props: (optional) If True, do not allow initial spending proportion to change
         """
 
-        #        super().__init__(self, name=package_name)
         self.name = package_name
         self.prog_name = prog_names
         self.t = t
-        self.min_props = [0.0 for _ in self.prog_name] if min_props is None else min_props
-        self.max_props = [1.0 for _ in self.prog_name] if max_props is None else max_props
+        self.min_props = np.zeros(len(prog_names)) if min_props is None else sc.promotetoarray(min_props)
+        self.max_props = np.ones(len(prog_names)) if max_props is None else sc.promotetoarray(max_props)
+        self.initial_spends = sc.promotetoarray(initial_spends)
 
-        assert sum(min_props) <= 1, "Constraining fractions of an intervention package where the minimum total is >1 is impossible"
-        assert sum(max_props) >= 1, "Constraining fractions of an intervention package where the maximum total is <1 is impossible"
+        initial_total = self.initial_spends.sum()
+
+        assert self.min_props.sum() <= 1, "Constraining fractions of an intervention package where the minimum total is >1 is impossible"
+        assert self.max_props.sum() >= 1, "Constraining fractions of an intervention package where the maximum total is <1 is impossible"
 
         self.adjustables = []
-        for pn, program in enumerate(self.prog_name):
-            current_prop = initial_spends[pn] / sum(initial_spends)
-            # set to the current proportion - note that the overall fractions won't end up being constrained so will have to be rescaled
-            # Similarly, the upper and lower_bounds here will still need to be enforced later after scaling when updating instructions
-            self.adjustables.append(Adjustable("frac_" + program, initial_value=current_prop, lower_bound=min_props[pn], upper_bound=max_props[pn]))
+
+        if not fix_props:
+            for program, initial_prop, lb, ub in zip(prog_names, self.initial_spends / initial_total, self.min_props, self.max_props):
+                assert initial_prop >= lb, f"SpendingProgramAdjustment: Initial spend on {program} is a smaller proportion of the package than requested minimum proportion"
+                assert initial_prop <= ub, f"SpendingProgramAdjustment: Initial spend on {program} is a larger proportion of the package than requested maximum proportion"
+                # set to the current proportion - note that the overall fractions won't end up being constrained so will have to be rescaled
+                # Similarly, the upper and lower bounds here will still need to be enforced later after scaling when updating instructions
+                self.adjustables.append(Adjustable("frac_" + program, initial_value=initial_prop, lower_bound=lb, upper_bound=ub))
+        else:
+            # If the initial proportions are not to be changed, then the min_props and max_props arguments have no effect. Warn the
+            # user if they have been provided and are going to be ignored (but not with logger.warning since this might be expected)
+            if self.min_props is not None:
+                logger.info("Minimum proportions are being ignored because the `fix_props` flag has been set")
+            if self.max_props is not None:
+                logger.info("Maximum proportions are being ignored because the `fix_props` flag has been set")
+
+        if min_total_spend is not None:
+            assert initial_total >= min_total_spend, "SpendingProgramAdjustment: Initial total spend is less than minimum constraint"
+        else:
+            min_total_spend = initial_total
+
+        if max_total_spend is not None:
+            assert initial_total <= max_total_spend, "SpendingProgramAdjustment: Initial total spend is greater than maximum constraint"
+        else:
+            max_total_spend = initial_total
 
         # total spending can be adjusted as a single adjustable
-        self.adjustables.append(Adjustable("package_spend", initial_value=sum(initial_spends), lower_bound=min_total_spend, upper_bound=max_total_spend))
+        if not (min_total_spend == initial_total and min_total_spend == max_total_spend):
+            self.adjustables.append(Adjustable("package_spend", initial_value=initial_total, lower_bound=min_total_spend, upper_bound=max_total_spend))
+
+    @property
+    def adjust_total_spend(self) -> bool:
+        """
+        Returns True if the total spend on this package can be optimized
+        :return:
+        """
+        if self.adjustables:
+            return self.adjustables[-1].name == "package_spend"
+        else:
+            return False
+
+    @property
+    def fix_props(self) -> bool:
+        if len(self.adjustables) == 0 or self.adjustables[0].name == "package_spend":
+            return True
+        else:
+            return False
 
     def update_instructions(self, adjustable_values, instructions):
-        naive_frac_total = sum(adjustable_values[:-1])
-        scaled_fracs = [av / naive_frac_total for av in adjustable_values[:-1]]  # an array with a sum of 1, scaling all fractions
 
-        # rescale anything violating a lower bound
-        scaled_fracs = [max(self.min_props[pn], min(self.max_props[pn], val)) for pn, val in enumerate(scaled_fracs)]
-        difference = 1.0 - sum(scaled_fracs)
+        adjustable_values = sc.promotetoarray(adjustable_values)
 
-        # just progressively add or subtract the difference to the first program in the list - this is perhaps a bit biased as an algorithm and could be improved,
-        # but if it produces a suboptimal outcome then an adjustment should exist to improve on it!
-        pn = 0
-        while not sc.approx(difference, 0.0):
-            scaled_fracs[pn] = max(self.min_props[pn], min(self.max_props[pn], scaled_fracs[pn] + difference))
-            difference = 1.0 - sum(scaled_fracs)
-            pn += 1
-        if difference != 0.0:  # e.g. if it's some trivial non-zero tiny fraction, let's not care if we're violating a constraint...
-            scaled_fracs[-1] += difference
-        assert sc.approx(sum(scaled_fracs), 1.0), "Need to fix the algorithm if not (difference %s)!" % (difference)
+        if self.fix_props:
+            fracs = self.initial_spends / self.initial_spends.sum()
+        elif self.adjust_total_spend:
+            fracs = adjustable_values[:-1]
+        else:
+            fracs = adjustable_values
 
-        # now that the scaled fractions total to 1 and don't violate any constraints, update the spending on each program
-        total_spending = adjustable_values[-1]  # last on the list
+        # Scale the fractions such that they add to 1
+        fracs = constrain_sum_bounded(fracs, 1, self.min_props, self.max_props)
+
+        # now that the fractions sum to 1 and don't violate any constraints, update the spending on each program
+        if self.adjust_total_spend:
+            total_spending = adjustable_values[-1]  # last on the list
+        else:
+            total_spending = self.initial_spends.sum()
+
         for pn, prog_name in enumerate(self.prog_name):
-            this_prog_spend = [scaled_fracs[pn] * total_spending]
+            this_prog_spend = fracs[pn] * total_spending
             if prog_name not in instructions.alloc:
                 instructions.alloc[prog_name] = TimeSeries(t=self.t, vals=this_prog_spend)
             else:
                 instructions.alloc[prog_name].insert(t=self.t, v=this_prog_spend)
+
+    def get_total_spend(self, instructions):
+        return sum([instructions.alloc[prog_name].get(self.t) for prog_name in self.prog_name])
+
+    def set_total_spend(self, instructions, total_spend):
+        spend_factor = total_spend / self.get_total_spend(instructions)
+        for prog in self.prog_name:
+            ts = instructions.alloc[prog]
+            ts.insert(t=self.t, v=ts.get(self.t) * spend_factor)
 
 
 class PairedLinearSpendingAdjustment(Adjustment):
@@ -770,7 +832,7 @@ class Constraint:
 
         return
 
-    def constrain_instructions(self, instructions: ProgramInstructions, hard_constraints) -> float:
+    def constrain_instructions(self, instructions: ProgramInstructions, hard_constraints, optimization) -> float:
         """
         Apply constraint to instructions
 
@@ -785,6 +847,7 @@ class Constraint:
 
         :param instructions: The ``ProgramInstructions`` instance to constrain (in place)
         :param hard_constraints: The hard constraint returned by ``get_hard_constraint``
+        :param optimization: The parent optimization, in case it is needed
         :return: A numeric penalty value. Return `np.inf` if constraint penalty could not be computed
         :raises: :class:`FailedConstraint` if the instructions could not be constrained
 
@@ -802,7 +865,7 @@ class TotalSpendConstraint(Constraint):
     at the specified time. Spending is constrained independently at all times when any program
     is adjustable.
 
-    The ``total_spend`` argument allows the total spending in a particular year to be explicitly specified
+    The ``initial_total_spend`` argument allows the total spending in a particular year to be explicitly specified
     rather than drawn from the initial allocation. This can be useful when using parametric programs where
     the adjustables do not directly correspond to spending value. If the total spend is not provided, it will
     automatically be computed from the first ASD step. Note that it is computed based on the initial instructions
@@ -829,7 +892,7 @@ class TotalSpendConstraint(Constraint):
                         For times in which the total spend is ``None``, it will be automatically set to the sum of
                         spending on optimizable programs in the corresponding year
     :param t: A time, or list of times, at which to apply the total spending constraint. If None, it will automatically be set to all years in which spending adjustments are being made
-    :param budget_factor: The budget factor multiplies whatever the ``total_spend`` is. This can either be a single value, or a year specific value
+    :param budget_factor: The budget factor multiplies whatever the ``initial_total_spend`` is. This can either be a single value, or a year specific value
 
     """
 
@@ -867,12 +930,20 @@ class TotalSpendConstraint(Constraint):
         # First, we make a dictionary storing the years in which any adjustments are made
         # as well as the upper and lower bounds in that year. This is only done for spending
         # adjustments (i.e. those where `adjustment.prog_name` is defined)
+        _package_adjustments = set()  # Check for duplicate names
         hard_constraints = {}
         hard_constraints["programs"] = defaultdict(set)  # It's a set so that it will work properly if multiple Adjustments reach the same parameter at the same time. However, this would a bad idea and nobody should do this!
         for adjustment in optimization.adjustments:
             if hasattr(adjustment, "prog_name"):
-                for t in list(adjustment.t):
-                    if isinstance(adjustment.prog_name, list):
+                for t in sc.promotetoarray(adjustment.t):
+                    if isinstance(adjustment, SpendingPackageAdjustment):
+                        if adjustment.adjust_total_spend and adjustment.t == t:
+                            hard_constraints["programs"][t].add(adjustment.name)
+                            if adjustment.name in _package_adjustments:
+                                raise Exception("More than one `SpendingPackageAdjustment` in the optimization has the same name - not compatible with total spend constraint")
+                            else:
+                                _package_adjustments.add(adjustment.name)
+                    elif isinstance(adjustment.prog_name, list):
                         hard_constraints["programs"][t].update(adjustment.prog_name)
                     else:
                         hard_constraints["programs"][t].add(adjustment.prog_name)
@@ -887,14 +958,13 @@ class TotalSpendConstraint(Constraint):
         # Now we have a set of times and programs for which we need to get total spend, and
         # also which programs should be included in the total for that year
         #
-        # hard_constraints['total_spend'][2020] = 300
-        # hard_constraints['total_spend'][2030] = 400
-        hard_constraints["total_spend"] = {}
+        # hard_constraints['initial_total_spend'][2020] = 300
+        # hard_constraints['initial_total_spend'][2030] = 400
+        hard_constraints["initial_total_spend"] = {}
         for t, progs in hard_constraints["programs"].items():
             # For every time at which programs are optimizable...
             if len(self.t) and t not in self.t:
-                # If we are not wanting to constrain spending in this year, then
-                # continue
+                # If we are not wanting to constrain spending in this year, then continue
                 continue
             elif len(self.t):
                 idx = np.where(self.t == t)[0][0]  # This is the index for the constraint year
@@ -905,15 +975,21 @@ class TotalSpendConstraint(Constraint):
                 # Get the total spend from the allocation in this year
                 total_spend = 0.0
                 for prog in progs:
-                    total_spend += instructions.alloc[prog].get(t)
+                    if prog in instructions.alloc:
+                        total_spend += instructions.alloc[prog].get(t)
+                    else:
+                        # It's a SpendingPackageAdjustment name
+                        adj = optimization.get_adjustment(prog)
+                        if adj.adjust_total_spend:
+                            total_spend += adj.initial_spends.sum()
             else:
                 total_spend = self.total_spend[idx]
 
             # Lastly, apply the budget factor
             if len(self.budget_factor) == 1:
-                hard_constraints["total_spend"][t] = total_spend * self.budget_factor
+                hard_constraints["initial_total_spend"][t] = total_spend * self.budget_factor
             else:
-                hard_constraints["total_spend"][t] = total_spend * self.budget_factor[idx]
+                hard_constraints["initial_total_spend"][t] = total_spend * self.budget_factor[idx]
 
         # Finally, for each adjustable, we need to store its upper and lower bounds
         # _in the year that the adjustment is being made_
@@ -929,7 +1005,7 @@ class TotalSpendConstraint(Constraint):
         hard_constraints["bounds"] = dict()
 
         for t, progs in hard_constraints["programs"].items():  # For each time point being constrained, and for each program
-            if t not in hard_constraints["total_spend"]:
+            if t not in hard_constraints["initial_total_spend"]:
                 # If the time is not one where the total spending constraint is being applied, then
                 # just skip it
                 continue
@@ -942,17 +1018,16 @@ class TotalSpendConstraint(Constraint):
             maximum_spend = 0.0
 
             for adjustment in optimization.adjustments:
-                if hasattr(adjustment, "prog_name") and np.array([prog in progs for prog in sc.promotetolist(adjustment.prog_name)]).all() and t in adjustment.t:
+                if isinstance(adjustment, SpendingPackageAdjustment):
+                    if adjustment.adjust_total_spend and adjustment.t == t:
+                        hard_constraints["bounds"][t][adjustment.name] = (adjustment.adjustables[-1].lower_bound, adjustment.adjustables[-1].upper_bound)
+                        minimum_spend += adjustment.adjustables[-1].lower_bound
+                        maximum_spend += adjustment.adjustables[-1].upper_bound
+                elif hasattr(adjustment, "prog_name") and np.array([prog in progs for prog in sc.promotetolist(adjustment.prog_name)]).all() and t in adjustment.t:
                     if isinstance(adjustment, SpendingAdjustment):
                         idx = np.where(adjustment.t == t)[0][0]  # If it is a SpendingAdjustment then set bounds from the appropriate Adjustable
                         adjustable = adjustment.adjustables[idx]
                         hard_constraints["bounds"][t][adjustment.prog_name] = adjustable.get_hard_bounds(instructions.alloc[adjustment.prog_name].get(t))  # The instructions should already have the initial spend on this program inserted. This may be inconsistent if multiple Adjustments reach the same program...!
-                    elif isinstance(adjustment, SpendingPackageAdjustment):
-                        spend_bounds = adjustment.adjustables[-1].get_hard_bounds()
-                        for pn, prog in enumerate(sc.promotetolist(adjustment.prog_name)):
-                            frac_bounds = adjustment.adjustables[pn].get_hard_bounds(instructions.alloc[prog].get(t))
-                            #                            print (total_spend_bound, '\n...', adjustable.get_hard_bounds())
-                            hard_constraints["bounds"][t][prog] = (spend_bounds[0] * frac_bounds[0], spend_bounds[1] * frac_bounds[1])
                     else:
                         for prog in sc.promotetolist(adjustment.prog_name):
                             hard_constraints["bounds"][t][prog] = (0.0, np.inf)  # If the Adjustment reaches spending but is not a SpendingAdjustment then do not constrain the alloc
@@ -961,73 +1036,61 @@ class TotalSpendConstraint(Constraint):
                         minimum_spend += hard_constraints["bounds"][t][prog][0]
                         maximum_spend += hard_constraints["bounds"][t][prog][1]
 
-            if minimum_spend > hard_constraints["total_spend"][t]:
-                raise UnresolvableConstraint("The total spend in %.2f is constrained to %.2f but the individual programs have a total minimum spend of %.2f which is impossible to satisfy. Please either raise the total spending, or lower the minimum spend on one or more programs" % (t, hard_constraints["total_spend"][t], minimum_spend))
+            if minimum_spend > hard_constraints["initial_total_spend"][t]:
+                raise UnresolvableConstraint("The total spend in %.2f is constrained to %.2f but the individual programs have a total minimum spend of %.2f which is impossible to satisfy. Please either raise the total spending, or lower the minimum spend on one or more programs" % (t, hard_constraints["initial_total_spend"][t], minimum_spend))
 
-            if maximum_spend < hard_constraints["total_spend"][t]:
-                raise UnresolvableConstraint("The total spend in %.2f is constrained to %.2f but the individual programs have a total maximum spend of %.2f which is impossible to satisfy. Please either lower the total spending, or raise the maximum spend on one or more programs" % (t, hard_constraints["total_spend"][t], maximum_spend))
+            if maximum_spend < hard_constraints["initial_total_spend"][t]:
+                raise UnresolvableConstraint("The total spend in %.2f is constrained to %.2f but the individual programs have a total maximum spend of %.2f which is impossible to satisfy. Please either lower the total spending, or raise the maximum spend on one or more programs" % (t, hard_constraints["initial_total_spend"][t], maximum_spend))
 
         return hard_constraints
 
-    def constrain_instructions(self, instructions: ProgramInstructions, hard_constraints: dict) -> float:
+    def constrain_instructions(self, instructions: ProgramInstructions, hard_constraints: dict, optimization) -> float:
         """
         Apply total spend constraint
 
         :param instructions: The ``ProgramInstructions`` instance to constrain
         :param hard_constraints: Dictionary of hard constraints
+        :param optimization: The parent optimization, in case it's needed
         :return: Distance-like difference between initial spending and constrained spending, `np.inf` if constraint failed
 
         """
 
         penalty = 0.0
 
-        for t, total_spend in hard_constraints["total_spend"].items():
+        for t, total_spend in hard_constraints["initial_total_spend"].items():
 
             total_spend = sc.promotetoarray(total_spend).ravel()[0]  # Make sure total spend is a scalar
             x0 = sc.odict()  # Order matters here
-            bounds = []
+            lb = []
+            ub = []
             progs = hard_constraints["programs"][t]  # Programs eligible for constraining at this time
 
             for prog in progs:
-                x0[prog] = instructions.alloc[prog].get(t)
-                bound = hard_constraints["bounds"][t][prog]
-                bounds.append((bound[0] / total_spend, bound[1] / total_spend))
-            x0_array = np.array(x0.values()).ravel()
-            x0_array_scaled = x0_array / sum(x0_array)
-
-            def jacfcn(x):
-                dist = np.linalg.norm(x - x0_array_scaled)
-                if dist == 0:
-                    return np.zeros(x.shape)
+                if prog not in instructions.alloc:
+                    # The program name corresponds to the name of a SpendingPackageAdjustment
+                    adj = optimization.get_adjustment(prog)  # Find the adjustment. Note that we find the adjustment by name, therefore SpendingPackageAdjustment names must be unique
+                    x0[prog] = adj.get_total_spend(instructions)
                 else:
-                    return (x - x0_array_scaled) / dist
+                    x0[prog] = instructions.alloc[prog].get(t)
 
-            # If x0_array_scaled satisfies all of the individual constraints, then we don't actually need to adjust the spending
-            # at all. So first, check whether any of the individual constraints are being violated, if everything is OK,
-            # then insert x0_array_scaled straight into the instructions
-            for v, (low, high) in zip(x0_array_scaled, bounds):
-                if v < low or v > high:
-                    break
-            else:
-                for name, val in zip(x0.keys(), x0_array_scaled):
-                    instructions.alloc[name].insert(t, val * total_spend)
-                continue
+                low, high = hard_constraints["bounds"][t][prog]
+                lb.append(low)
+                ub.append(high)
 
-            LinearConstraint = [{"type": "eq", "fun": lambda x: np.sum(x) - 1, "jac": lambda x: np.ones(x.shape)}]  # Constrain spend
-            res = scipy.optimize.minimize(lambda x: np.linalg.norm(x - x0_array_scaled), x0_array_scaled, jac=jacfcn, bounds=bounds, constraints=LinearConstraint, method="SLSQP", options={"ftol": 1e-5, "maxiter": 1000})
+            x0_array = np.array(x0.values()).ravel()
+            lb = np.array(lb)
+            ub = np.array(ub)
 
-            if not res["success"]:
-                logger.warning("TotalSpendConstraint failed - rejecting proposed parameters")
-                raise FailedConstraint()
-            else:
-                # TODO - disable this check for performance later on - this is just double checking to make check sure the constraint worked
-                for v, (low, high) in zip(res["x"], bounds):
-                    if v < low or v > high:
-                        raise Exception("Rescaling algorithm did not return a valid result")
+            x1_array = constrain_sum_bounded(x0_array, total_spend, lb, ub)  # scaled spending that optimally satisfies constraints
 
-                penalty += total_spend * np.linalg.norm(res["x"] * total_spend - x0_array * total_spend)  # Penalty is the distance between the unconstrained budget and the constrained budget
-                for name, val in zip(x0.keys(), res["x"]):
-                    instructions.alloc[name].insert(t, val * total_spend)
+            penalty += total_spend * np.linalg.norm(x1_array - x0_array)  # Penalty is the distance between the unconstrained budget and the constrained budget
+            for name, val in zip(x0.keys(), x1_array):
+                if name in instructions.alloc:
+                    instructions.alloc[name].insert(t, val)
+                else:
+                    adj = optimization.get_adjustment(name)
+                    adj.set_total_spend(instructions, val)
+
         return penalty
 
 
@@ -1192,6 +1255,20 @@ class Optimization(NamedItem):
         baselines = [m.get_baseline(model) for m in self.measurables]
         return baselines
 
+    def get_adjustment(self, name: str) -> Adjustment:
+        """
+        Retrieve adjustment by name
+
+        :param name:
+        :return:
+        """
+        for adjustment in self.adjustments:
+            if adjustment.name == name:
+                return adjustment
+        else:
+            sc.suggest(name, [x.name for x in self.adjustments], die=True)
+            raise NotFoundError(f'Adjustment "{name}" could not be found')
+
     def constrain_instructions(self, instructions: ProgramInstructions, hard_constraints: list) -> float:
         """
         Apply all constraints in-place, return penalty
@@ -1209,7 +1286,7 @@ class Optimization(NamedItem):
         constraint_penalty = 0.0
         if self.constraints:
             for constraint, hard_constraint in zip(self.constraints, hard_constraints):
-                constraint_penalty += constraint.constrain_instructions(instructions, hard_constraint)
+                constraint_penalty += constraint.constrain_instructions(instructions, hard_constraint, self)
         return constraint_penalty
 
     def compute_objective(self, model, baselines: list) -> float:
@@ -1409,3 +1486,47 @@ def optimize(project, optimization, parset: ParameterSet, progset: ProgramSet, i
 #            optimized_instructions[i] = optimize(optimization, parset, progset, initial_instructions, x0=None, xmin=xmin, xmax=xmax)
 #        initial_instructions = pick_best(optimized_instructions)
 #    return initial_instructions # Best one from the last round
+
+
+def constrain_sum_bounded(x: np.array, s: float, lb: np.array, ub: np.array) -> np.array:
+    """
+    Bounded nearest constraint sum
+
+    :param x: Array of proposed values to constrain
+    :param s: Target value for `sum(x)`
+    :param lb: Array of lower bounds, same size as x
+    :param ub: Array of upper bounds, same size as x
+    :return: Array same size as `x`, such that sum(x)==s and x[i]>=lb and x[i]<=ub for i<len(x)
+    :raises: FailedConstraint() if it was not possible to constrain
+    """
+
+    # Normalize values
+    x0_scaled = x / x.sum()
+    lb_scaled = lb / s
+    ub_scaled = ub / s
+
+    # First, check if the constraint is already satisfied just by multiplicative rescaling
+    if np.all((x0_scaled >= lb_scaled) & (x0_scaled <= ub_scaled)):
+        return x0_scaled * s
+
+    # If not, we need to actually run the constrained optimization
+    bounds = [(lower, upper) for lower, upper in zip(lb_scaled, ub_scaled)]
+
+    def jacfcn(x):
+        # Explicitly specify the Jacobian associated with changes in the allocation
+        dist = np.linalg.norm(x - x0_scaled)
+        if dist == 0:
+            return np.zeros(x.shape)
+        else:
+            return (x - x0_scaled) / dist
+
+    LinearConstraint = [{"type": "eq", "fun": lambda x: np.sum(x) - 1, "jac": lambda x: np.ones(x.shape)}]
+    res = scipy.optimize.minimize(lambda x: np.linalg.norm(x - x0_scaled), x0_scaled, jac=jacfcn, bounds=bounds, constraints=LinearConstraint, method="SLSQP", options={"ftol": 1e-5, "maxiter": 1000})
+
+    if not res["success"]:
+        logger.warning("constrain_sum_bounded() failed - rejecting proposed parameters")
+        raise FailedConstraint()
+
+    # Confirm constraints are all satisfied
+    assert np.all((res["x"] >= lb_scaled) & (res["x"] <= ub_scaled))
+    return res["x"] * s

@@ -44,9 +44,9 @@ settings["dpi"] = 150  # average quality
 settings["transparent"] = False
 
 
-def save_figs(figs, path=".", prefix="", fnames=None) -> None:
+def save_figs(figs, path=".", prefix="", fnames=None, file_format="png") -> None:
     """
-    Save figures to disk as PNG files
+    Save figures to disk as PNG or other graphics format files
 
     Functions like `plot_series` and `plot_bars` can generate multiple figures, depending on
     the data and legend options. This function facilitates saving those figures together.
@@ -63,7 +63,7 @@ def save_figs(figs, path=".", prefix="", fnames=None) -> None:
     a legend and will be named based on the name of the figure immediately before it.
     If you provide an empty string in the `fnames` argument this same operation will be carried
     out. If the last figure name is omitted, an empty string will automatically be added.
-
+    :param file_format: the file format to save as, default png, allowed formats {png, ps, pdf, svg}
     """
 
     try:
@@ -88,6 +88,8 @@ def save_figs(figs, path=".", prefix="", fnames=None) -> None:
     assert len(fnames) == len(figs), "Number of figures must match number of specified filenames, or the last figure must be a legend with no label"
     assert fnames[0], "The first figure name cannot be empty"
 
+    assert file_format in ["png", "ps", "pdf", "svg"], f'File format {file_format} invalid. Format must be one of "png", "ps", "pdf", or "svg"'
+
     for i, fig in enumerate(figs):
         if not fnames[i]:  # assert above means that i>0
             fnames[i] = fnames[i - 1] + "_legend"
@@ -97,7 +99,7 @@ def save_figs(figs, path=".", prefix="", fnames=None) -> None:
             bbox = legend.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
         else:
             bbox = "tight"
-        fname = prefix + fnames[i] + ".png"
+        fname = prefix + fnames[i] + "." + file_format
         fname = sc.sanitizefilename(fname)  # parameters may have inappropriate characters
         fig.savefig(os.path.join(path, fname), bbox_inches=bbox, dpi=settings["dpi"], transparent=settings["transparent"])
         logger.info('Saved figure "%s"', fname)

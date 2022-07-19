@@ -1173,10 +1173,10 @@ class Parameter(Variable):
                     if isinstance(dep, Link):
                         raise ModelError(f"Parameter '{self.name}' depends on transition flow '{dep.name}' thus it cannot be a dependency, it must be output only.")
                     elif isinstance(dep, Compartment) or isinstance(dep, Characteristic):
-                        dep.set_dynamic()
+                        dep.set_dynamic(progset=progset)
                         self._is_dynamic = True
                     elif isinstance(dep, Parameter):
-                        dep.set_dynamic()  # Run `set_dynamic()` on the parameter which will descend further to see if the Parameter depends on comps/characs or on overwritten parameters
+                        dep.set_dynamic(progset=progset)  # Run `set_dynamic()` on the parameter which will descend further to see if the Parameter depends on comps/characs or on overwritten parameters
                         if dep._is_dynamic or (progset and dep.name in progset.pars):
                             self._is_dynamic = True
                     else:

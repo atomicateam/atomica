@@ -2,9 +2,27 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
-## [1.25.8] - 2021-11-16
+## [1.25.13] - 2021-07-19
 
 - Improve exported results link labelling for transfers
+
+## [1.25.12] - 2022-07-15
+
+- Implemented variable total spend in `SpendingPackageAdjustment`
+- Optimized performance for `SpendingPackageAdjustment` if proportions are fixed by adding a `fix_props` flag that skips adding `Adjustables` for the proportions
+- Improved framework validation robustness when dataframe cells contain NA-like values (`np.nan` or `pd.NA`) instead of just `None`   
+
+## [1.25.11] - 2022-07-05
+
+- Program number eligible defaults to 0 if target compartments are missing (rather than raising a key error)
+- `ProgramSet` spreadsheet constructor is now a class method to allow inheritance
+- Fixed bug where program overwrites that impact a transition parameter via at least one intermediate parameter did not impact outcomes
+- Improved `SpendingPackageAdjustment` performance although varying total spend is not yet supported 
+
+## [1.25.10] - 2022-04-06
+
+- Fix bug in program fractional coverage where not all programs were constrained to a peak coverage of 1
+>>>>>>> develop
 
 ## [1.25.7] - 2021-09-02
 
