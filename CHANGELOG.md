@@ -2,7 +2,11 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
-## [1.25.13] - 2021-07-19
+## [1.25.14] - 2022-08-16
+
+- Unpin `matplotlib` version in `setup.py`
+
+## [1.25.13] - 2022-07-19
 
 - Improve exported results link labelling for transfers
 

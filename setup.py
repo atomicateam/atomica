@@ -40,7 +40,7 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
-        "matplotlib>=3.0,<=3.3.4",
+        "matplotlib",
         "numpy>=1.10.1",
         "scipy>=1.2.1",
         "pandas",
