@@ -419,16 +419,17 @@ class Result(NamedItem):
             for link in pop.links:
                 # Sum over duplicate links and annualize flow rate
                 if link.parameter is None:
-                    par_label = "-"
+                    link_name = "-"
+                    link_label = f"{link.source.name} to {link.dest.name} (flow, no parameter)"
                 else:
-                    par_label = gl(link.parameter.name)
+                    link_name = link.name
+                    link_label = gl(link.parameter.name)
+                    if link_label == "-" and link.source.pop is not link.dest.pop:
+                        link_label = f"Transfer {link.source.pop.name} to {link.dest.pop.name} (flow)"
+                    else:
+                        link_label += " (flow)"
 
-                if par_label == "-":
-                    link_label = par_label
-                else:
-                    link_label = "%s (flow)" % (par_label)
-
-                key = ("Flow rates", pop.name, link.name, link_label)
+                key = ("Flow rates", pop.name, link_name, link_label)
                 if key not in d:
                     d[key] = np.zeros(self.t.shape)
                 d[key] += link.vals / self.dt
@@ -440,7 +441,7 @@ class Result(NamedItem):
         # Optionally save it
         if filename is not None:
             output_fname = Path(filename).with_suffix(".xlsx").resolve()
-            df.T.to_excel(output_fname)
+            df.T.to_excel(output_fname, merge_cells=False)
 
         return df
 
@@ -852,7 +853,7 @@ def _write_df(writer, formats, sheet_name, df, level_ordering):
         for i in range(1, len(level_ordering)):
             table = table.reindex(order[level_ordering[i]], level=i - 1)
         table.index = table.index.set_names([level_substitutions[x] if x in level_substitutions else x.title() for x in table.index.names])
-        table.to_excel(writer, sheet_name, startcol=0, startrow=row)
+        table.to_excel(writer, sheet_name, startcol=0, startrow=row, merge_cells=False)
         row += table.shape[0] + 2
 
         required_width[0] = max(required_width[0], len(title))

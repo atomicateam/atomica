@@ -94,3 +94,13 @@ installing `numpy` may fail due to missing compiler options. In that case, you m
 has been that it is easier to set up the C binaries for `numpy` and the QT dependencies for `matplotlib` via Anaconda
 rather than doing this via the system, which involves different steps on every platform.
 
+### Figure plotting hangs
+
+On some systems, the default `matplotlib` backend may hang - this is not an issue with `atomica`. To resolve, try changing the backend by including 
+
+```
+import matplotlib
+matplotlib.use("Qt5Agg")
+```
+
+at the very start of your script. A different backend may be required for your system. You can make the change persistant by setting the backend in your `matplotlibrc` file.
