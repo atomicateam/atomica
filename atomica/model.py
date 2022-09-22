@@ -583,7 +583,6 @@ class ResidualJunctionCompartment(JunctionCompartment):
                 outflow_fractions[i] = link.parameter.vals[ti]
             else:
                 outflow_fractions[i] = 0
-                residual_link_index = i
 
         total_outflow = outflow_fractions.sum()
         if total_outflow > 1:
