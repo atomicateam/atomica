@@ -249,7 +249,7 @@ class ProjectData(sc.prettyobj):
                     else:
                         order = databook_order
                     pages[databook_page].append((spec.name, order))
-                    data.tdve[spec.name] = TimeDependentValuesEntry(full_name, data.tvec, allowed_units=[framework.get_databook_units(full_name)], comment=spec["guidance"])
+                    data.tdve[spec.name] = TimeDependentValuesEntry(full_name, data.tvec, allowed_units=[framework.get_databook_units(full_name)], comment=spec["guidance"], pop_type=pop_type)
                     data.tdve[spec.name].write_units = True
                     data.tdve[spec.name].write_uncertainty = True
                     if obj_type == "pars":
@@ -459,7 +459,7 @@ class ProjectData(sc.prettyobj):
                         else:
                             logger.warning('TDVE table "%s" (code name "%s") is missing from the databook. Using default values from the framework' % (spec["display name"], spec_name))
                             units = framework.get_databook_units(spec_name)
-                            self.tdve[spec_name] = TimeDependentValuesEntry(spec["display name"], self.tvec.copy(), allowed_units=[units], comment=spec["guidance"])
+                            self.tdve[spec_name] = TimeDependentValuesEntry(spec["display name"], self.tvec.copy(), allowed_units=[units], comment=spec["guidance"], pop_type=spec['population type'])
                             for pop in self.pops.keys():
                                 self.tdve[spec_name].ts[pop] = TimeSeries(assumption=spec["default value"], units=units)
                             tdve_page = framework.sheets["databook pages"][0][framework.sheets["databook pages"][0]["datasheet code name"] == spec["databook page"]]["datasheet title"].values[0]
