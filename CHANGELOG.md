@@ -2,6 +2,10 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.25.15] - 2022-09-26
+
+- Fix array size error for junctions belonging to a duration group (some otherwise valid frameworks previously raised an error when running the model)
+
 ## [1.25.14] - 2022-08-16
 
 - Unpin `matplotlib` version in `setup.py`
