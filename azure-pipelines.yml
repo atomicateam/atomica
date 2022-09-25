@@ -77,14 +77,17 @@ jobs:
       inputs:
         versionSpec: '3.10'
     - script: |
-        pip install -e .
-        python -m pip install -r requirements.txt
         sudo apt install pandoc -y
-      displayName: 'Install dependencies'
+      displayName: 'Install pandoc'
+    - script: |
+        python -m pip install -e .
+        python -m pip install -r requirements.txt
+      displayName: 'Install Python dependencies'
     - script: |
         mkdir doc_build
-        sphinx-build "docs" "doc_build/$(Build.SourceBranchName)" -j2
+        python -m sphinx.cmd.build "docs" "doc_build/$(Build.SourceBranchName)" -j2
       displayName: 'Build documentation'
+      # Invoke directly with `python -m syphinx.cmd.build` instead of `sphinx-build` to avoid "sphinx-build: command not found" on Azure
     - script: |
         git clone --depth 1 https://github.com/atomicateam/docs doc_repo
         rm -rf doc_repo/$(Build.SourceBranchName)
