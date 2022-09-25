@@ -10,7 +10,7 @@ jobs:
 - job: 'tox'
   variables:
     python.version: '3.10'
-    TOXENV: 'py39'
+    TOXENV: 'py310'
   strategy:
     matrix:
       linux:
