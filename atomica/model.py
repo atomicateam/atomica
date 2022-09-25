@@ -589,12 +589,12 @@ class ResidualJunctionCompartment(JunctionCompartment):
             outflow_fractions /= total_outflow
 
         # Calculate outflows
-        outflow = net_inflow.reshape(-1,1) * outflow_fractions.reshape(1,-1)
+        outflow = net_inflow.reshape(-1, 1) * outflow_fractions.reshape(1, -1)
 
         # Finally, assign the inflow to the outflow proportionately accounting for the total outflow downscaling
         for frac, link in zip(outflow_fractions, self.outlinks):
             if link.parameter is None and total_outflow < 1:
-                flow = net_inflow - np.sum(outflow, axis=1) # Sum after multiplying by outflow fractions to reduce numerical precision errors and enforce conserved quantities more accurately
+                flow = net_inflow - np.sum(outflow, axis=1)  # Sum after multiplying by outflow fractions to reduce numerical precision errors and enforce conserved quantities more accurately
             else:
                 flow = net_inflow * frac
 
