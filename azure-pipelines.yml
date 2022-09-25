@@ -80,6 +80,7 @@ jobs:
         sudo apt install pandoc -y
       displayName: 'Install pandoc'
     - script: |
+        python -m pip install wheel
         python -m pip install -e .
         python -m pip install -r requirements.txt
       displayName: 'Install Python dependencies'
