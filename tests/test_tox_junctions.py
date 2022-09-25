@@ -215,6 +215,41 @@ def test_junction_timed_remainder_zero():
     assert res.get_variable("c1")[0].vals[0] == 0
     res.get_variable("c1")[0]._vals.shape == (5, 1)
 
+
+def test_junction_feed_forward():
+    """
+    Test running the model with a timed transition and only initialization (no steps)
+    """
+
+    F = at.ProjectFramework(testdir / "framework_junction_feed_forward_test.xlsx")
+    D = at.ProjectData.new(F, [2018], pops=1, transfers=0)
+    P = at.Project(name="test", framework=F, databook=D.to_spreadsheet(), do_run=False)
+    res = P.run_sim()
+
+    assert res.get_variable("c1")[0].vals[1] == 200*res.dt # 200 inflow, default dt=0.25
+    assert res.get_variable(":j1")[0].vals[1] == 200*res.dt
+    assert res.get_variable(":j2")[0].vals[1] == 200*res.dt
+    assert res.get_variable("c2")[0].vals[1] == 0
+    assert res.get_variable("c2")[0].vals[2] == 200*res.dt
+
+
+def test_junction_feed_forward_timed():
+    """
+    Test running the model with a timed transition and only initialization (no steps)
+    """
+
+    F = at.ProjectFramework(testdir / "framework_junction_feed_forward_timed_test.xlsx")
+    D = at.ProjectData.new(F, [2018], pops=1, transfers=0)
+    P = at.Project(name="test", framework=F, databook=D.to_spreadsheet(), do_run=False)
+    res = P.run_sim()
+
+    assert res.get_variable("c1")[0].vals[1] == 200*res.dt # 200 inflow, default dt=0.25
+    assert res.get_variable(":j1")[0].vals[1] == 200*res.dt
+    assert res.get_variable(":j2")[0].vals[1] == 200*res.dt
+    assert res.get_variable("c2")[0].vals[1] == 0
+    assert res.get_variable("c2")[0].vals[2] == 200*res.dt
+
+
 if __name__ == "__main__":
     test_junctions()
     test_only_junctions()
@@ -224,3 +259,5 @@ if __name__ == "__main__":
     test_junction_timed_remainder_flush()
     test_junction_timed_remainder_single()
     test_junction_timed_remainder_zero()
+    test_junction_feed_forward()
+    test_junction_feed_forward_timed()
