@@ -569,10 +569,10 @@ class ResidualJunctionCompartment(JunctionCompartment):
         """
 
         # First, work out the total inflow that needs to pass through the junction
-        net_inflow = 0
+        net_inflow = np.array([0], dtype=float)
         if self.duration_group:
             for link in self.inlinks:
-                net_inflow += link._vals[:, ti]  # If part of a duration group, get the flow from TimedLink._vals
+                net_inflow = net_inflow + link._vals[:, ti]  # If part of a duration group, get the flow from TimedLink._vals. nb. using += doesn't work with some array size combinations
         else:
             for link in self.inlinks:
                 net_inflow += link.vals[ti]  # If not part of a duration group, get scalar flow from Link.vals
@@ -584,21 +584,17 @@ class ResidualJunctionCompartment(JunctionCompartment):
             else:
                 outflow_fractions[i] = 0
 
-        total_outflow = sum(outflow_fractions)
-
-        if total_outflow < 1:
-            has_residual = True
-        else:
+        total_outflow = outflow_fractions.sum()
+        if total_outflow > 1:
             outflow_fractions /= total_outflow
-            has_residual = False
+
+        # Calculate outflows
+        outflow = net_inflow.reshape(-1, 1) * outflow_fractions.reshape(1, -1)
 
         # Finally, assign the inflow to the outflow proportionately accounting for the total outflow downscaling
         for frac, link in zip(outflow_fractions, self.outlinks):
-            if link.parameter is None:
-                if has_residual:
-                    flow = net_inflow - sum(net_inflow * outflow_fractions)
-                else:
-                    flow = 0
+            if link.parameter is None and total_outflow < 1:
+                flow = net_inflow - np.sum(outflow, axis=1)  # Sum after multiplying by outflow fractions to reduce numerical precision errors and enforce conserved quantities more accurately
             else:
                 flow = net_inflow * frac
 

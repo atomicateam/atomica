@@ -75,6 +75,7 @@ def test_validate_model(model):
     else:
         print("Regenerating  %s parset" % (model))
         P1.save(fname)
+        raise Exception("Regenerated results - re-run to perform comparison")
 
 
 if __name__ == "__main__":
