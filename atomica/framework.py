@@ -1056,7 +1056,7 @@ class ProjectFramework:
                             message = 'The function for parameter "%s" includes the Interaction "%s", which means that the parameter function can only be one of: "SRC_POP_AVG", "TGT_POP_AVG", "SRC_POP_SUM" or "TGT_POP_SUM"' % (par_name, dep)
                             raise InvalidFramework(message)
 
-                        if (len(dep) > 2) and (par["function"].startswith("SRC_POP_SUM") or par["function"].startswith("TGT_POP_SUM")):
+                        if (len(deps) > 2) and (par["function"].startswith("SRC_POP_SUM") or par["function"].startswith("TGT_POP_SUM")):
                             logger.warning(f"Parameter '{par_name}' has a weighting variable but uses a summation aggregation. It should very likely use SRC_POP_AVG or TGT_POP_AVG instead")
 
                         # If a population aggregation includes a weighting interaction, then the 'to' population must match this parameter
