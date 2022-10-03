@@ -10,7 +10,7 @@ nbsphinx
 ipykernel
 pandoc
 pypandoc
-sphinx
+sphinx<5
 sphinx-autodoc-typehints
 sphinx-markdown-tables
 sphinx-rtd-theme
