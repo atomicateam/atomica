@@ -585,7 +585,7 @@ class ProjectFramework:
 
     def _validate_databook_pages(self) -> None:
 
-        required_columns = ['datasheet code name', 'datasheet title']
+        required_columns = ["datasheet code name", "datasheet title"]
 
         if "databook pages" not in self.sheets:
             self.sheets["databook pages"] = [pd.DataFrame(columns=required_columns)]
@@ -668,8 +668,8 @@ class ProjectFramework:
     def _validate_compartments(self) -> None:
         available_pop_types = list(self.pop_types.keys())  # Get available pop types
 
-        missing_pages = sorted(set(self.comps['databook page'].dropna()) - set(self.sheets["databook pages"][0]["datasheet code name"]))
-        self.sheets["databook pages"][0] = pd.concat([self.sheets["databook pages"][0], pd.DataFrame.from_records([{'datasheet code name':x,'datasheet title':x} for x in missing_pages])])
+        missing_pages = sorted(set(self.comps["databook page"].dropna()) - set(self.sheets["databook pages"][0]["datasheet code name"]))
+        self.sheets["databook pages"][0] = pd.concat([self.sheets["databook pages"][0], pd.DataFrame.from_records([{"datasheet code name": x, "datasheet title": x} for x in missing_pages])])
 
         # Check that compartment content is correct
         for comp_name, row in zip(self.comps.index, self.comps.to_dict(orient="records")):
@@ -737,8 +737,8 @@ class ProjectFramework:
         # VALIDATE CHARACTERISTICS
         available_pop_types = list(self.pop_types.keys())  # Get available pop types
 
-        missing_pages = sorted(set(self.characs['databook page'].dropna()) - set(self.sheets["databook pages"][0]["datasheet code name"]))
-        self.sheets["databook pages"][0] = pd.concat([self.sheets["databook pages"][0], pd.DataFrame.from_records([{'datasheet code name':x,'datasheet title':x} for x in missing_pages])])
+        missing_pages = sorted(set(self.characs["databook page"].dropna()) - set(self.sheets["databook pages"][0]["datasheet code name"]))
+        self.sheets["databook pages"][0] = pd.concat([self.sheets["databook pages"][0], pd.DataFrame.from_records([{"datasheet code name": x, "datasheet title": x} for x in missing_pages])])
 
         for charac_name, row in zip(self.characs.index, self.characs.to_dict(orient="records")):
             # Block this out because that way, can validate that there are some nonzero setup weights. Otherwise, user could set setup weights but
@@ -950,8 +950,8 @@ class ProjectFramework:
         G = nx.DiGraph()  # Generate a dependency graph
 
         # Add any missing databook page entries
-        missing_pages = sorted(set(self.pars['databook page'].dropna()) - set(self.sheets["databook pages"][0]["datasheet code name"]))
-        self.sheets["databook pages"][0] = pd.concat([self.sheets["databook pages"][0], pd.DataFrame.from_records([{'datasheet code name':x,'datasheet title':x} for x in missing_pages])])
+        missing_pages = sorted(set(self.pars["databook page"].dropna()) - set(self.sheets["databook pages"][0]["datasheet code name"]))
+        self.sheets["databook pages"][0] = pd.concat([self.sheets["databook pages"][0], pd.DataFrame.from_records([{"datasheet code name": x, "datasheet title": x} for x in missing_pages])])
 
         def cross_pop_message(quantity_type, quantity_name):
             # nb. this function is exclusively called in the loop below, so it derives par_name and par from the calling loop
