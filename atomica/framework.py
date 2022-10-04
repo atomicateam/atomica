@@ -88,7 +88,7 @@ class ProjectFramework:
                     pass
                 else:
                     if len(df.columns):
-                        df.columns = df.columns.str.lower()
+                        df.columns = df.columns.str.lower().str.strip()
         if validate:
             self._validate()
         if name is not None:
@@ -292,7 +292,7 @@ class ProjectFramework:
         for df in cascade_list:
             cascade_name = df.columns[0].strip()
             if cascade_name is None or len(cascade_name) == 0:
-                raise Exception("A cascade was found without a name")
+                raise InvalidFramework("A cascade was found without a name")
 
             if cascade_name in d:
                 raise InvalidFramework('A cascade with name "%s" was already read in' % (cascade_name))
@@ -546,6 +546,7 @@ class ProjectFramework:
         """
 
         self._validate_sheets()
+        self._validate_databook_pages()
         self._validate_metadata()
 
         self._sanitize_compartments()
@@ -569,7 +570,7 @@ class ProjectFramework:
 
     def _validate_sheets(self) -> None:
         # Check for required sheets
-        for page in ["databook pages", "parameters"]:
+        for page in ["parameters"]:
             if page not in self.sheets:
                 raise InvalidFramework('The Framework file is missing a required sheet: "%s"' % (page))
 
@@ -581,6 +582,19 @@ class ProjectFramework:
 
         if "population types" not in self.sheets:
             self.sheets["population types"] = [pd.DataFrame.from_records([(FS.DEFAULT_POP_TYPE, "Default")], columns=["code name", "description"])]
+
+    def _validate_databook_pages(self) -> None:
+
+        required_columns = ['datasheet code name', 'datasheet title']
+
+        if "databook pages" not in self.sheets:
+            self.sheets["databook pages"] = [pd.DataFrame(columns=required_columns)]
+
+        try:
+            self.sheets["databook pages"][0] = _sanitize_dataframe(self.sheets["databook pages"][0], required_columns, {}, {})
+        except Exception as e:
+            message = 'An error was detected on the "Databook Pages" sheet in the Framework file'
+            raise InvalidFramework("%s -> %s" % (message, e)) from e
 
     def _validate_metadata(self) -> None:
         # VALIDATE METADATA
@@ -601,7 +615,7 @@ class ProjectFramework:
             name_df = _sanitize_dataframe(name_df, required_columns, defaults, valid_content)
         except Exception as e:
             message = 'An error was detected on the "About" sheet in the Framework file -> '
-            raise Exception("%s -> %s" % (message, e)) from e
+            raise InvalidFramework("%s -> %s" % (message, e)) from e
 
         name_df["name"] = name_df["name"].astype(str)
         self.name = name_df["name"].iloc[0]
@@ -628,7 +642,7 @@ class ProjectFramework:
             self.comps = _sanitize_dataframe(self.comps, required_columns, defaults, valid_content, set_index="code name", numeric_columns=numeric_columns)
         except Exception as e:
             message = 'An error was detected on the "Compartments" sheet in the Framework file'
-            raise Exception("%s -> %s" % (message, e)) from e
+            raise InvalidFramework("%s -> %s" % (message, e)) from e
 
         # Assign first population type to any empty population types
         # In general, if the user has specified any pop types, then the first population type will be
@@ -654,6 +668,9 @@ class ProjectFramework:
     def _validate_compartments(self) -> None:
         available_pop_types = list(self.pop_types.keys())  # Get available pop types
 
+        missing_pages = sorted(set(self.comps['databook page'].dropna()) - set(self.sheets["databook pages"][0]["datasheet code name"]))
+        self.sheets["databook pages"][0] = pd.concat([self.sheets["databook pages"][0], pd.DataFrame.from_records([{'datasheet code name':x,'datasheet title':x} for x in missing_pages])])
+
         # Check that compartment content is correct
         for comp_name, row in zip(self.comps.index, self.comps.to_dict(orient="records")):
 
@@ -677,9 +694,6 @@ class ProjectFramework:
             if pd.isna(row["databook page"]) and not pd.isna(row["databook order"]):
                 logger.warning('Compartment "%s" has a databook order (%s), but no databook page', comp_name, row["databook order"])
 
-            if (not pd.isna(row["databook page"])) and not (row["databook page"] in self.sheets["databook pages"][0]["datasheet code name"].values):
-                raise InvalidFramework('Compartment "%s" has databook page "%s" but that page does not appear on the "databook pages" sheet' % (comp_name, row["databook page"]))
-
             if row["population type"] not in available_pop_types:
                 raise InvalidFramework('Compartment "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (comp_name, row["population type"], available_pop_types))
 
@@ -701,7 +715,7 @@ class ProjectFramework:
             self.characs = _sanitize_dataframe(self.characs, required_columns, defaults, valid_content, set_index="code name", numeric_columns=numeric_columns)
         except Exception as e:
             message = 'An error was detected on the "Characteristics" sheet in the Framework file'
-            raise Exception("%s -> %s" % (message, e)) from e
+            raise InvalidFramework("%s -> %s" % (message, e)) from e
 
         # Assign first population type to any empty population types
         self.characs["population type"] = self.characs["population type"].fillna(available_pop_types[0])
@@ -722,6 +736,9 @@ class ProjectFramework:
     def _validate_characteristics(self) -> None:
         # VALIDATE CHARACTERISTICS
         available_pop_types = list(self.pop_types.keys())  # Get available pop types
+
+        missing_pages = sorted(set(self.characs['databook page'].dropna()) - set(self.sheets["databook pages"][0]["datasheet code name"]))
+        self.sheets["databook pages"][0] = pd.concat([self.sheets["databook pages"][0], pd.DataFrame.from_records([{'datasheet code name':x,'datasheet title':x} for x in missing_pages])])
 
         for charac_name, row in zip(self.characs.index, self.characs.to_dict(orient="records")):
             # Block this out because that way, can validate that there are some nonzero setup weights. Otherwise, user could set setup weights but
@@ -756,9 +773,6 @@ class ProjectFramework:
             if (pd.isna(row["databook page"])) and (not pd.isna(row["calibrate"])):
                 raise InvalidFramework('Compartment "%s" is marked as being eligible for calibration, but it does not appear in the databook' % charac_name)
 
-            if (not pd.isna(row["databook page"])) and not (row["databook page"] in self.sheets["databook pages"][0]["datasheet code name"].values):
-                raise InvalidFramework('Characteristic "%s" has databook page "%s" but that page does not appear on the "databook pages" sheet' % (charac_name, row["databook page"]))
-
             if row["population type"] not in available_pop_types:
                 raise InvalidFramework('Characteristic "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (charac_name, row["population type"], available_pop_types))
 
@@ -789,7 +803,7 @@ class ProjectFramework:
             self.interactions = _sanitize_dataframe(self.interactions, required_columns, defaults, valid_content, set_index="code name")
         except Exception as e:
             message = 'An error was detected on the "Interactions" sheet in the Framework file'
-            raise Exception("%s -> %s" % (message, e)) from e
+            raise InvalidFramework("%s -> %s" % (message, e)) from e
 
         available_pop_types = list(self.pop_types.keys())  # Get available pop types
 
@@ -835,7 +849,7 @@ class ProjectFramework:
             self.pars = _sanitize_dataframe(self.pars, required_columns, defaults, valid_content, set_index="code name", numeric_columns=numeric_columns)
         except Exception as e:
             message = 'An error was detected on the "Parameters" sheet in the Framework file'
-            raise Exception("%s -> %s" % (message, e)) from e
+            raise InvalidFramework("%s -> %s" % (message, e)) from e
 
         # Assign first population type to any empty population types
         available_pop_types = list(self.pop_types.keys())  # Get available pop types
@@ -935,6 +949,10 @@ class ProjectFramework:
 
         G = nx.DiGraph()  # Generate a dependency graph
 
+        # Add any missing databook page entries
+        missing_pages = sorted(set(self.pars['databook page'].dropna()) - set(self.sheets["databook pages"][0]["datasheet code name"]))
+        self.sheets["databook pages"][0] = pd.concat([self.sheets["databook pages"][0], pd.DataFrame.from_records([{'datasheet code name':x,'datasheet title':x} for x in missing_pages])])
+
         def cross_pop_message(quantity_type, quantity_name):
             # nb. this function is exclusively called in the loop below, so it derives par_name and par from the calling loop
             spec = self.get_variable(quantity_name)[0]
@@ -942,9 +960,6 @@ class ProjectFramework:
             return message
 
         for par_name, par in zip(self.pars.index, self.pars.to_dict(orient="records")):
-
-            if (par["databook page"] is not None) and not (par["databook page"] in self.sheets["databook pages"][0]["datasheet code name"].values):
-                raise InvalidFramework('Parameter "%s" has databook page "%s" but that page does not appear on the "databook pages" sheet' % (par_name, par["databook page"]))
 
             if par["population type"] not in available_pop_types:
                 raise InvalidFramework('Parameter "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (par_name, par["population type"], available_pop_types))
@@ -1269,7 +1284,7 @@ class ProjectFramework:
             self.sheets["plots"][0] = _sanitize_dataframe(self.sheets["plots"][0], required_columns, defaults=defaults, valid_content={})
         except Exception as e:
             message = 'An error was detected on the "Plots" sheet in the Framework file'
-            raise Exception("%s -> %s" % (message, e)) from e
+            raise InvalidFramework("%s -> %s" % (message, e)) from e
 
         if not self.sheets["plots"][0]["name"].is_unique:
             duplicates = list(self.sheets["plots"][0]["name"][self.sheets["plots"][0]["name"].duplicated()])

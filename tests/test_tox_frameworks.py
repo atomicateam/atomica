@@ -2,15 +2,24 @@
 
 import atomica as at
 import numpy as np
+import pytest
 
 testdir = at.parent_dir()
 tmpdir = testdir / "temp"
 
+frameworks = ["framework_blank_sheet.xlsx",
+              "framework_mixed_pages.xlsx",
+              "framework_no_pages.xlsx",
+              "framework_extra_pages.xlsx",
+              "framework_missing_page_column.xlsx",
+              ]
 
-def test_framework_blank_sheet():
-    F_path = testdir / "framework_blank_sheet.xlsx"
-    at.ProjectFramework(F_path)
 
+@pytest.mark.parametrize("fname", frameworks)
+def test_basic_framework(fname):
+    F = at.ProjectFramework(testdir / fname)
+    D = at.ProjectData.new(F, np.arange(2020,2022), 1, 1)
+    D.save(tmpdir / fname.replace('framework','databook'))
 
 def test_framework_par_min_max():
     # Check that the vector min/max functions work properly
@@ -31,7 +40,9 @@ def test_framework_par_min_max():
     assert np.array_equal(minpar, [2, 5, 4])
     assert np.array_equal(maxpar, [5, 10, 6])
 
-
 if __name__ == "__main__":
-    test_framework_blank_sheet()
+
+    for fname in frameworks:
+        test_basic_framework(fname)
+
     test_framework_par_min_max()
