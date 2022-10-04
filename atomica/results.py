@@ -204,7 +204,7 @@ class Result(NamedItem):
             if self.model.progset.programs[prog].capacity_constraint.has_data:
                 cap = self.model.progset.programs[prog].capacity_constraint.interpolate(year)
                 # If prop_covered is higher than the capacity constraint then set it to nan as it wouldn't be possible to reach that coverage
-                pc[pc * num_eligible[prog] > cap] = np.nan
+                pc[(pc * num_eligible[prog] - cap) > 1e-6] = np.nan
 
             # multiply the proportion of naively costed coverage by the number of actually eligible people (catching the case where number covered would be higher than the number eligible)
             num_costed_coverage = pc * num_eligible[prog]
