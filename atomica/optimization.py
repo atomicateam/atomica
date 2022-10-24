@@ -408,7 +408,10 @@ class SpendingPackageAdjustment(Adjustment):
         return sum([instructions.alloc[prog_name].get(self.t) for prog_name in self.prog_name])
 
     def set_total_spend(self, instructions, total_spend):
-        spend_factor = total_spend / self.get_total_spend(instructions)
+        if self.get_total_spend(instructions) > 0:
+            spend_factor = total_spend / self.get_total_spend(instructions)
+        else:
+            spend_factor = 0. #if total spending is zero, spending on each program must be zero?
         for prog in self.prog_name:
             ts = instructions.alloc[prog]
             ts.insert(t=self.t, v=ts.get(self.t) * spend_factor)
