@@ -329,11 +329,17 @@ class SpendingPackageAdjustment(Adjustment):
         assert self.max_props.sum() >= 1, "Constraining fractions of an intervention package where the maximum total is <1 is impossible"
 
         self.adjustables = []
+        
+        if initial_total == 0.:
+            initial_props = np.array([1./len(initial_spends) for _ in initial_spends]) #if there was no spending on the package initially, assume equal proportions for all components
+        else:
+            initial_props = self.initial_spends / initial_total
+        
 
         if not fix_props:
-            for program, initial_prop, lb, ub in zip(prog_names, self.initial_spends / initial_total, self.min_props, self.max_props):
-                assert initial_prop >= lb, f"SpendingProgramAdjustment: Initial spend on {program} is a smaller proportion of the package than requested minimum proportion"
-                assert initial_prop <= ub, f"SpendingProgramAdjustment: Initial spend on {program} is a larger proportion of the package than requested maximum proportion"
+            for program, initial_prop, lb, ub in zip(prog_names, initial_props, self.min_props, self.max_props):
+                assert initial_prop >= lb, f"SpendingProgramAdjustment: Initial spend on {program} is a smaller proportion ({initial_prop}) of the package than requested minimum proportion ({lb})"
+                assert initial_prop <= ub, f"SpendingProgramAdjustment: Initial spend on {program} is a larger proportion ({initial_prop}) of the package than requested maximum proportion ({ub})"
                 # set to the current proportion - note that the overall fractions won't end up being constrained so will have to be rescaled
                 # Similarly, the upper and lower bounds here will still need to be enforced later after scaling when updating instructions
                 self.adjustables.append(Adjustable("frac_" + program, initial_value=initial_prop, lower_bound=lb, upper_bound=ub))
