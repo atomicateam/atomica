@@ -1514,6 +1514,8 @@ def constrain_sum_bounded(x: np.array, s: float, lb: np.array, ub: np.array) -> 
     tolerance = 1e-6
 
     # Normalize values
+    if x.sum() == 0:
+        return np.array([s/len(x) for _ in x]) #if all the start values are zero but there is supposed to be a finite value then divide evenly
     x0_scaled = x / x.sum()
     lb_scaled = lb / s
     ub_scaled = ub / s
