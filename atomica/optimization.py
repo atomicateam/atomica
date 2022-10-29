@@ -388,7 +388,10 @@ class SpendingPackageAdjustment(Adjustment):
         adjustable_values = sc.promotetoarray(adjustable_values)
 
         if self.fix_props:
-            fracs = self.initial_spends / self.initial_spends.sum()
+            if self.initial_spends.sum() == 0:
+                fracs = np.array([1./len(self.initial_spends) for _ in self.initial_spends]) #evenly distributed fractions though it seems unlikely that there would be constrained fractions of zero spending
+            else:
+                fracs = self.initial_spends / self.initial_spends.sum()
         elif self.adjust_total_spend:
             fracs = adjustable_values[:-1]
         else:
@@ -1508,6 +1511,7 @@ def constrain_sum_bounded(x: np.array, s: float, lb: np.array, ub: np.array) -> 
     :return: Array same size as `x`, such that sum(x)==s and x[i]>=lb and x[i]<=ub for i<len(x)
     :raises: FailedConstraint() if it was not possible to constrain
     """
+    tolerance = 1e-6
 
     # Normalize values
     x0_scaled = x / x.sum()
@@ -1537,5 +1541,5 @@ def constrain_sum_bounded(x: np.array, s: float, lb: np.array, ub: np.array) -> 
         raise FailedConstraint()
 
     # Confirm constraints are all satisfied
-    assert np.all((res["x"] >= lb_scaled) & (res["x"] <= ub_scaled))
+    assert np.all((res["x"] >= lb_scaled - tolerance) & (res["x"] <= ub_scaled + tolerance)), f'FAILED as {res["x"]} not within [{lb_scaled}, {ub_scaled}]'
     return res["x"] * s
