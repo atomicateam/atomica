@@ -880,7 +880,7 @@ def parallel_progress(fcn, inputs, num_workers=None, show_progress=True) -> list
     from multiprocessing import pool, cpu_count
 
     if num_workers is None:
-        num_workers = min(cpu_count(), len(inputs))
+        num_workers = min(cpu_count(), inputs if sc.isnumber(inputs) else len(inputs))
 
     pool = pool.Pool(num_workers, initializer=_worker_init)
 
