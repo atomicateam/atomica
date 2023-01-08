@@ -2,10 +2,11 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
-## [1.25.17] - 2023-01-09
+## [1.25.18] - 2023-01-09
 
 - Allow framework variables with single characters (previously, all code names had to be at least two characters long)
 - Improve handling of automatic number of workers if a number is provided instead of a collection of inputs
+- Add `optim_args` argument to `at.optimize` which allows arguments to be passed to optimization functions such as ASD
 
 ## [1.25.17] - 2022-10-05
 
