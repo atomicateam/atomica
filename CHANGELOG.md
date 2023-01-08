@@ -2,6 +2,11 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.25.17] - 2023-01-09
+
+- Allow framework variables with single characters (previously, all code names had to be at least two characters long)
+- Improve handling of automatic number of workers if a number is provided instead of a collection of inputs
+
 ## [1.25.17] - 2022-10-05
 
 - The "Databook pages" sheet in the framework is now optional, if a compartment, characteristic or parameter has a "Databook page" that does not appear in the "Databook pages" sheet (or if the "Databook pages" sheet is missing entirely) then the specified page will be created with the specified name as both the code name and full name. As the "Databook pages" sheet is created and populated with these names during framework validation, downstream code expecting the sheet to exist should not require any changes.

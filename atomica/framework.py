@@ -1202,9 +1202,6 @@ class ProjectFramework:
         tmp = set()
         for name in code_names:
 
-            if len(name) == 1:
-                raise InvalidFramework('Code name "%s" is not valid: code names must be at least two characters long' % (name))
-
             if FS.RESERVED_SYMBOLS.intersection(name):
                 raise InvalidFramework('Code name "%s" is not valid: it cannot contain any of these reserved symbols %s' % (name, FS.RESERVED_SYMBOLS))
 
