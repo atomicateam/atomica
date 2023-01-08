@@ -771,7 +771,7 @@ class ProjectFramework:
                     raise InvalidFramework('In Characteristic "%s", denominator "%s" was not recognized as a Compartment or Characteristic' % (charac_name, row["denominator"]))
 
             if (pd.isna(row["databook page"])) and (not pd.isna(row["calibrate"])):
-                raise InvalidFramework('Compartment "%s" is marked as being eligible for calibration, but it does not appear in the databook' % charac_name)
+                raise InvalidFramework('Characteristic "%s" is marked as being eligible for calibration, but it does not appear in the databook' % charac_name)
 
             if row["population type"] not in available_pop_types:
                 raise InvalidFramework('Characteristic "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (charac_name, row["population type"], available_pop_types))
