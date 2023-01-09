@@ -1353,7 +1353,7 @@ def _objective_fcn(x, pickled_model, optimization, hard_constraints: list, basel
     return obj_val
 
 
-def optimize(project, optimization, parset: ParameterSet, progset: ProgramSet, instructions: ProgramInstructions, x0=None, xmin=None, xmax=None, hard_constraints=None, baselines=None, optim_args: dict=None):
+def optimize(project, optimization, parset: ParameterSet, progset: ProgramSet, instructions: ProgramInstructions, x0=None, xmin=None, xmax=None, hard_constraints=None, baselines=None, optim_args: dict = None):
     """
     Main user entry point for optimization
 

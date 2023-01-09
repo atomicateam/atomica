@@ -37,7 +37,7 @@ release = ""
 
 # -- General configuration ---------------------------------------------------
 
-os.environ['PYDEVD_DISABLE_FILE_VALIDATION'] = '1' # Suppress harmless warning in documentation build
+os.environ["PYDEVD_DISABLE_FILE_VALIDATION"] = "1"  # Suppress harmless warning in documentation build
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
@@ -54,13 +54,13 @@ extensions = [
     "recommonmark",
     "nbsphinx",
     "sphinx.ext.intersphinx",  # Link to other project's documentation (see mapping below)
-    'IPython.sphinxext.ipython_console_highlighting'  # Temporary fix for https://github.com/spatialaudio/nbsphinx/issues/687
+    "IPython.sphinxext.ipython_console_highlighting",  # Temporary fix for https://github.com/spatialaudio/nbsphinx/issues/687
 ]
 
 # Configure intersphinx
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3/", None),
-    "sciris": ("https://sciris.readthedocs.io/en/latest/", None) # This doesn't really work though, because things are accessed via sciris.Spreadsheet not sciris.sc_file.Spreadshee
+    "sciris": ("https://sciris.readthedocs.io/en/latest/", None),  # This doesn't really work though, because things are accessed via sciris.Spreadsheet not sciris.sc_file.Spreadshee
 }
 
 # Configure autosummary
@@ -93,7 +93,7 @@ exclude_patterns = [
     "Thumbs.db",
     ".DS_Store",
     "**.ipynb_checkpoints",
-    "general/programs/saturation.ipynb" # This is not a documentation page - just for generating a figure
+    "general/programs/saturation.ipynb",  # This is not a documentation page - just for generating a figure
 ]
 
 

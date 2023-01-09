@@ -42,10 +42,11 @@ def test_framework_par_min_max():
     assert np.array_equal(minpar, [2, 5, 4])
     assert np.array_equal(maxpar, [5, 10, 6])
 
+
 def test_framework_single_char():
     # Check that single chracter variable names work
 
-    P1 = at.demo('sir')
+    P1 = at.demo("sir")
     r1 = P1.results[0]
 
     F = at.ProjectFramework(testdir / "test_single_char_framework.xlsx")
@@ -54,11 +55,12 @@ def test_framework_single_char():
     P.settings = P1.settings
     r2 = P.run_sim()
 
-    test_equal = lambda var1, var2:     np.testing.assert_array_equal(r1.get_variable(var1)[0].vals, r2.get_variable(var2)[0].vals)
+    test_equal = lambda var1, var2: np.testing.assert_array_equal(r1.get_variable(var1)[0].vals, r2.get_variable(var2)[0].vals)
 
-    test_equal('sus','s')
-    test_equal('inf','i')
-    test_equal('rec','r')
+    test_equal("sus", "s")
+    test_equal("inf", "i")
+    test_equal("rec", "r")
+
 
 if __name__ == "__main__":
 
