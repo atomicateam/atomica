@@ -911,7 +911,7 @@ class ProjectFramework:
                 from_row.dropna(inplace=True)
                 from_comp = from_row.name
 
-                for to_comp, par_names in from_row.iteritems():
+                for to_comp, par_names in from_row.items():
                     if par_names.strip() == ">":
                         self.transitions[">"].append((from_comp, to_comp))  # Add a transition entry for parameter-less junction residual links. This is consistent in that `self.transitions` is a representation of links, not parameters
                         continue
