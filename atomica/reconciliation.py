@@ -272,12 +272,6 @@ def reconcile(project, parset, progset, reconciliation_year: float, max_time=10,
 
     optim_args = {
         # TODO - tune these variables specifically for reconciliation
-        # 'stepsize': project.settings.autofit_params['stepsize'],
-        # 'maxiters': project.settings.autofit_params['maxiters'],
-        # 'maxtime': project.settings.autofit_params['maxtime'],
-        # 'sinc': project.settings.autofit_params['sinc'],
-        # 'sdec': project.settings.autofit_params['sdec'],
-        # 'reltol': None,
         "xmin": xmin,
         "xmax": xmax,
         "verbose": 2,  # default verbosity

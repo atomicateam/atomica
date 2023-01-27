@@ -771,7 +771,7 @@ class ProjectFramework:
                     raise InvalidFramework('In Characteristic "%s", denominator "%s" was not recognized as a Compartment or Characteristic' % (charac_name, row["denominator"]))
 
             if (pd.isna(row["databook page"])) and (not pd.isna(row["calibrate"])):
-                raise InvalidFramework('Compartment "%s" is marked as being eligible for calibration, but it does not appear in the databook' % charac_name)
+                raise InvalidFramework('Characteristic "%s" is marked as being eligible for calibration, but it does not appear in the databook' % charac_name)
 
             if row["population type"] not in available_pop_types:
                 raise InvalidFramework('Characteristic "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (charac_name, row["population type"], available_pop_types))
@@ -911,7 +911,7 @@ class ProjectFramework:
                 from_row.dropna(inplace=True)
                 from_comp = from_row.name
 
-                for to_comp, par_names in from_row.iteritems():
+                for to_comp, par_names in from_row.items():
                     if par_names.strip() == ">":
                         self.transitions[">"].append((from_comp, to_comp))  # Add a transition entry for parameter-less junction residual links. This is consistent in that `self.transitions` is a representation of links, not parameters
                         continue
@@ -1201,9 +1201,6 @@ class ProjectFramework:
 
         tmp = set()
         for name in code_names:
-
-            if len(name) == 1:
-                raise InvalidFramework('Code name "%s" is not valid: code names must be at least two characters long' % (name))
 
             if FS.RESERVED_SYMBOLS.intersection(name):
                 raise InvalidFramework('Code name "%s" is not valid: it cannot contain any of these reserved symbols %s' % (name, FS.RESERVED_SYMBOLS))
