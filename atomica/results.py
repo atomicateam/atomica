@@ -204,7 +204,7 @@ class Result(NamedItem):
             if self.model.progset.programs[prog].capacity_constraint.has_data:
                 cap = self.model.progset.programs[prog].capacity_constraint.interpolate(year)
                 # If prop_covered is higher than the capacity constraint then set it to nan as it wouldn't be possible to reach that coverage
-                pc[pc * num_eligible[prog] > cap] = np.nan
+                pc[(pc * num_eligible[prog] - cap) > 1e-6] = np.nan
 
             # multiply the proportion of naively costed coverage by the number of actually eligible people (catching the case where number covered would be higher than the number eligible)
             num_costed_coverage = pc * num_eligible[prog]
@@ -250,7 +250,9 @@ class Result(NamedItem):
             output = capacities
         else:
             # Get the program coverage denominator
-            num_eligible = dict()  # This is the coverage denominator, number of people covered by the program
+            num_eligible = defaultdict(float)  # This is the coverage denominator, number of people covered by the program
+            # It is a defaultdict because if a virtual product doesn't target a population (due to a population type mismatch) then it won't have an
+            # entry in the dictionary. Setting it to zero here means the number covered will come out as zero rather than a key error
             for prog in self.model.progset.programs.values():  # For each program
                 for pop_name in prog.target_pops:
                     for comp_name in prog.target_comps:
@@ -269,7 +271,7 @@ class Result(NamedItem):
             # Note that `ProgramSet.get_prop_coverage()` takes in capacity in units of 'people' which matches
             # the units of 'num_eligible' so we therefore use the returned value from `ProgramSet.get_capacities()`
             # as-is without doing any annualization
-            prop_coverage = self.model.progset.get_prop_coverage(tvec=self.t, capacities=capacities, num_eligible=num_eligible, instructions=self.model.program_instructions)
+            prop_coverage = self.model.progset.get_prop_coverage(tvec=self.t, dt=self.dt, capacities=capacities, num_eligible=num_eligible, instructions=self.model.program_instructions)
 
             if quantity in {"fraction", "annual_fraction"}:
                 output = prop_coverage
@@ -417,16 +419,17 @@ class Result(NamedItem):
             for link in pop.links:
                 # Sum over duplicate links and annualize flow rate
                 if link.parameter is None:
-                    par_label = "-"
+                    link_name = "-"
+                    link_label = f"{link.source.name} to {link.dest.name} (flow, no parameter)"
                 else:
-                    par_label = gl(link.parameter.name)
+                    link_name = link.name
+                    link_label = gl(link.parameter.name)
+                    if link_label == "-" and link.source.pop is not link.dest.pop:
+                        link_label = f"Transfer {link.source.pop.name} to {link.dest.pop.name} (flow)"
+                    else:
+                        link_label += " (flow)"
 
-                if par_label == "-":
-                    link_label = par_label
-                else:
-                    link_label = "%s (flow)" % (par_label)
-
-                key = ("Flow rates", pop.name, link.name, link_label)
+                key = ("Flow rates", pop.name, link_name, link_label)
                 if key not in d:
                     d[key] = np.zeros(self.t.shape)
                 d[key] += link.vals / self.dt
@@ -438,7 +441,7 @@ class Result(NamedItem):
         # Optionally save it
         if filename is not None:
             output_fname = Path(filename).with_suffix(".xlsx").resolve()
-            df.T.to_excel(output_fname)
+            df.T.to_excel(output_fname, merge_cells=False)
 
         return df
 
@@ -850,7 +853,7 @@ def _write_df(writer, formats, sheet_name, df, level_ordering):
         for i in range(1, len(level_ordering)):
             table = table.reindex(order[level_ordering[i]], level=i - 1)
         table.index = table.index.set_names([level_substitutions[x] if x in level_substitutions else x.title() for x in table.index.names])
-        table.to_excel(writer, sheet_name, startcol=0, startrow=row)
+        table.to_excel(writer, sheet_name, startcol=0, startrow=row, merge_cells=False)
         row += table.shape[0] + 2
 
         required_width[0] = max(required_width[0], len(title))

@@ -531,7 +531,7 @@ class TimeSeries:
 
         so for example, if you wanted to use the base Scipy pchip method with no extrapolation, then could pass in
 
-        >>> TimeSeries.interpolate(...,method=scipy.interpolate.PchipInterpolator)
+            TimeSeries.interpolate(...,method=scipy.interpolate.PchipInterpolator)
 
         Note that the following special behaviours apply:
 
@@ -598,14 +598,14 @@ class TimeSeries:
         :param constant: If True, time series will be perturbed by a single constant offset. If False,
                          an different perturbation will be applied to each time specific value independently.
         :param rng_sampler: Optional random number generator that may have been seeded to generate consistent results
-                         
+
         :return: A copied ``TimeSeries`` with perturbed values
 
         """
 
         if self._sampled:
             raise Exception("Sampling has already been performed - can only sample once")
-        
+
         if rng_sampler is None:
             rng_sampler = np.random.default_rng()
 
@@ -882,7 +882,10 @@ def parallel_progress(fcn, inputs, num_workers=None, show_progress=True) -> list
 
     """
 
-    from multiprocessing import pool
+    from multiprocessing import pool, cpu_count
+
+    if num_workers is None:
+        num_workers = min(cpu_count(), inputs if sc.isnumber(inputs) else len(inputs))
 
     pool = pool.Pool(num_workers, initializer=_worker_init)
 
@@ -899,9 +902,10 @@ def parallel_progress(fcn, inputs, num_workers=None, show_progress=True) -> list
         if show_progress:
             pbar.update(1)
 
+    jobs = []
     if sc.isnumber(inputs):
         for i in range(inputs):
-            pool.apply_async(fcn, callback=partial(callback, idx=i))
+            jobs.append(pool.apply_async(fcn, callback=partial(callback, idx=i)))
     else:
         for i, x in enumerate(inputs):
             if isinstance(x, dict):
@@ -911,6 +915,9 @@ def parallel_progress(fcn, inputs, num_workers=None, show_progress=True) -> list
 
     pool.close()
     pool.join()
+
+    for job in jobs:
+        job.get()  # This will raise any exceptions thrown from within the async task
 
     if show_progress:
         pbar.close()
@@ -1051,11 +1058,10 @@ def stochastic_rounding(x, rng_sampler = None):
     Stochastically round a float up or down to an integer-equivalent value (note: returns still as a float)
     :param x: value to be rounded
     """
-    sample = np.random.random() if rng_sampler is None else rng_sampler.random() 
-    
+    sample = np.random.random() if rng_sampler is None else rng_sampler.random()
+
     floor = np.floor(x)
     remainder = x - floor
     if remainder:
         x = floor + int(sample<remainder)
     return x
-    

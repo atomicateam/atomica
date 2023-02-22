@@ -28,7 +28,7 @@ import logging
 
 logger = logging.getLogger("atomica")
 
-if not logger.hasHandlers():
+if not logger.handlers:
     # Only add handlers if they don't already exist in the module-level logger
     # This means that it's possible for the user to completely customize *a* logger called 'atomica'
     # prior to importing Atomica, and the user's custom logger won't be overwritten as long as it has

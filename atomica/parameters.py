@@ -297,7 +297,8 @@ class ParameterSet(NamedItem):
             par.sample(constant = constant, rng_sampler = rng_sampler)
         return new
 
-    ### SAVE AND LOAD CALIBRATION (Y-FACTORS)
+    # SAVE AND LOAD CALIBRATION (Y-FACTORS)
+
     @property
     def y_factors(self) -> dict:
         """

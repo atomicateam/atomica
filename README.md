@@ -2,6 +2,8 @@
 
 [![Build Status](https://dev.azure.com/AtomicaTeam/Atomica/_apis/build/status/atomicateam.atomica?branchName=master)](https://dev.azure.com/AtomicaTeam/Atomica/_build/latest?definitionId=1&branchName=master)
 
+[![PyPi version](https://badgen.net/pypi/v/atomica/)](https://pypi.com/project/atomica)
+
 Atomica is a simulation engine for compartmental models. It can be used to simulate disease epidemics, health care cascades, and many other things.
 
 For detailed documentation, visit [https://atomica.tools/docs](https://atomica.tools/docs)
@@ -32,7 +34,7 @@ If you want to install a different branch of Atomica, or plan to make changes to
 ```
 git clone https://github.com/atomicateam/atomica.git
 cd atomica
-python setup.py develop
+pip install -e .
 ```
 
 ## Running tests
@@ -86,9 +88,19 @@ to test Python 3.7 only.
 
 ### Installation fails due to missing `numpy`
 
-If running `python setup.py develop` in a new environment, `numpy` must be installed prior to `scipy`. In some cases,
+If running `pip install -e .` in a new environment, `numpy` must be installed prior to `scipy`. In some cases,
 installing `numpy` may fail due to missing compiler options. In that case, you may wish to install `numpy` via Anaconda
 (by installing Python through Anaconda, and using `conda install numpy scipy matplotlib`). In general, our experience
 has been that it is easier to set up the C binaries for `numpy` and the QT dependencies for `matplotlib` via Anaconda
 rather than doing this via the system, which involves different steps on every platform.
 
+### Figure plotting hangs
+
+On some systems, the default `matplotlib` backend may hang - this is not an issue with `atomica`. To resolve, try changing the backend by including 
+
+```
+import matplotlib
+matplotlib.use("Qt5Agg")
+```
+
+at the very start of your script. A different backend may be required for your system. You can make the change persistant by setting the backend in your `matplotlibrc` file.

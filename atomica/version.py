@@ -6,6 +6,6 @@ Standard location for module version number and date.
 
 from .utils import fast_gitinfo
 
-version = "1.25.6"
-versiondate = "2021-07-26"
+version = "1.25.18"
+versiondate = "2023-01-09"
 gitinfo = fast_gitinfo(__file__)

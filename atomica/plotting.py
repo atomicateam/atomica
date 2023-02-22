@@ -44,9 +44,9 @@ settings["dpi"] = 150  # average quality
 settings["transparent"] = False
 
 
-def save_figs(figs, path=".", prefix="", fnames=None) -> None:
+def save_figs(figs, path=".", prefix="", fnames=None, file_format="png") -> None:
     """
-    Save figures to disk as PNG files
+    Save figures to disk as PNG or other graphics format files
 
     Functions like `plot_series` and `plot_bars` can generate multiple figures, depending on
     the data and legend options. This function facilitates saving those figures together.
@@ -63,7 +63,7 @@ def save_figs(figs, path=".", prefix="", fnames=None) -> None:
     a legend and will be named based on the name of the figure immediately before it.
     If you provide an empty string in the `fnames` argument this same operation will be carried
     out. If the last figure name is omitted, an empty string will automatically be added.
-
+    :param file_format: the file format to save as, default png, allowed formats {png, ps, pdf, svg}
     """
 
     try:
@@ -88,6 +88,8 @@ def save_figs(figs, path=".", prefix="", fnames=None) -> None:
     assert len(fnames) == len(figs), "Number of figures must match number of specified filenames, or the last figure must be a legend with no label"
     assert fnames[0], "The first figure name cannot be empty"
 
+    assert file_format in ["png", "ps", "pdf", "svg"], f'File format {file_format} invalid. Format must be one of "png", "ps", "pdf", or "svg"'
+
     for i, fig in enumerate(figs):
         if not fnames[i]:  # assert above means that i>0
             fnames[i] = fnames[i - 1] + "_legend"
@@ -97,7 +99,7 @@ def save_figs(figs, path=".", prefix="", fnames=None) -> None:
             bbox = legend.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
         else:
             bbox = "tight"
-        fname = prefix + fnames[i] + ".png"
+        fname = prefix + fnames[i] + "." + file_format
         fname = sc.sanitizefilename(fname)  # parameters may have inappropriate characters
         fig.savefig(os.path.join(path, fname), bbox_inches=bbox, dpi=settings["dpi"], transparent=settings["transparent"])
         logger.info('Saved figure "%s"', fname)
@@ -329,7 +331,7 @@ class PlotData:
                             continue
 
                         units = list(set([output_units[x] for x in labels]))
-                        timescales = list(set([output_timescales[x] for x in labels]))
+                        timescales = list(set([np.nan if isna(output_timescales[x]) else output_timescales[x] for x in labels]))  # Ensure that None and nan don't appear as different timescales
 
                         # Set default aggregation method depending on the units of the quantity
                         if output_aggregation is None:
@@ -388,8 +390,9 @@ class PlotData:
                             vals = sum(aggregated_outputs[x][output_name] for x in pop_labels)  # Add together all the outputs
                             vals /= len(pop_labels)
                         elif pop_aggregation == "weighted":
-                            vals = sum(aggregated_outputs[x][output_name] * popsize[x] for x in pop_labels)  # Add together all the outputs
-                            vals /= sum([popsize[x] for x in pop_labels])
+                            numerator = sum(aggregated_outputs[x][output_name] * popsize[x] for x in pop_labels)  # Add together all the outputs
+                            denominator = sum([popsize[x] for x in pop_labels])
+                            vals = np.divide(numerator, denominator, out=np.full(numerator.shape, np.nan, dtype=float), where=numerator != 0)
                         else:
                             raise Exception("Unknown pop aggregation method")
                         self.series.append(Series(tvecs[result_label], vals, result_label, pop_name, output_name, data_label[output_name], units=aggregated_units[output_name], timescale=aggregated_timescales[output_name], data_pop=pop_name))
@@ -481,8 +484,8 @@ class PlotData:
         time aggregation can be chained with other operations, the same as `PlotData.interpolate()`.
 
         :param t_bins: Vector of bin edges OR a scalar bin size, which will be automatically expanded to a vector of bin edges
-        :param time_aggregation: can be 'sum' or 'average'. Note that for quantities that have a timescale, 'sum' behaves like integration
-                                 so flow parameters in number units will be adjusted accordingly (e.g. a parameter in units of 'people/day'
+        :param time_aggregation: can be 'integrate' or 'average'. Note that for quantities that have a timescale, flow parameters
+                                 in number units will be adjusted accordingly (e.g. a parameter in units of 'people/day'
                                  aggregated over a 1 year period will display as the equivalent number of people that year)
         :param interpolation_method: Assumption on how the quantity behaves in between timesteps - in general, 'linear' should be suitable for
                                      most dynamic quantities, while 'previous' should be used for spending and other program-related quantities.

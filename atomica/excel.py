@@ -32,7 +32,7 @@ warnings.filterwarnings(action="ignore", category=UserWarning, module="openpyxl.
 def standard_formats(workbook):
     # Add standard formatting to a workbook and return the set of format objects
     # for use when writing within the workbook
-    """ the formats used in the spreadsheet """
+    """the formats used in the spreadsheet"""
     #    darkgray = '#413839'
     #    optima_blue = '#18C1FF'
     atomica_blue = "#98E0FA"
@@ -862,7 +862,7 @@ class TimeDependentValuesEntry:
 
     """
 
-    def __init__(self, name, tvec: np.array = None, ts=None, allowed_units: list = None, comment: str = None):
+    def __init__(self, name, tvec: np.array = None, ts=None, allowed_units: list = None, comment: str = None, pop_type: str = None):
 
         if ts is None:
             ts = sc.odict()
@@ -872,6 +872,7 @@ class TimeDependentValuesEntry:
         self.tvec = [] if tvec is None else tvec  #: time axis (e.g. np.arange(2000,2019)) - all TimeSeries time values must exactly match one of the values here
         self.ts = ts  # : dict of :class:`TimeSeries` objects
         self.allowed_units = [x.title() if x in FS.STANDARD_UNITS else x for x in allowed_units] if allowed_units is not None else None  # Otherwise, can be an odict with keys corresponding to ts - leave as None for no restriction
+        self.pop_type = pop_type
 
         self.ts_attributes = {}  #: Dictionary containing extra attributes to write along with each TimeSeries object.
         self.ts_attributes["Provenance"] = {}  # Include provenance attribute by default

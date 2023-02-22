@@ -34,7 +34,7 @@ def test_load_legacy_calibrations():
         P.parsets[0].load_calibration(testdir / "calibration" / f"test_calibration_{model}.xlsx")
 
     P = at.demo("combined", do_run=False)
-    P.parsets[0].load_calibration(testdir / "calibration" / f"test_calibration_combined_inexact.xlsx")
+    P.parsets[0].load_calibration(testdir / "calibration" / "test_calibration_combined_inexact.xlsx")
 
 
 def test_save_load_calibrations():

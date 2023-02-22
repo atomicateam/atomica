@@ -2,6 +2,52 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.25.18] - 2023-01-09
+
+- Allow framework variables with single characters (previously, all code names had to be at least two characters long)
+- Improve handling of automatic number of workers if a number is provided instead of a collection of inputs
+- Add `optim_args` argument to `at.optimize` which allows arguments to be passed to optimization functions such as ASD
+
+## [1.25.17] - 2022-10-05
+
+- The "Databook pages" sheet in the framework is now optional, if a compartment, characteristic or parameter has a "Databook page" that does not appear in the "Databook pages" sheet (or if the "Databook pages" sheet is missing entirely) then the specified page will be created with the specified name as both the code name and full name. As the "Databook pages" sheet is created and populated with these names during framework validation, downstream code expecting the sheet to exist should not require any changes.
+
+## [1.25.15] - 2022-09-26
+
+- Fix array size error for junctions belonging to a duration group (some otherwise valid frameworks previously raised an error when running the model)
+- Fix missing cells/NaNs in equivalent spending caused by numerical precision errors
+
+## [1.25.14] - 2022-08-16
+
+- Unpin `matplotlib` version in `setup.py`
+
+## [1.25.13] - 2022-07-19
+
+- Improve exported results link labelling for transfers
+
+## [1.25.12] - 2022-07-15
+
+- Implemented variable total spend in `SpendingPackageAdjustment`
+- Optimized performance for `SpendingPackageAdjustment` if proportions are fixed by adding a `fix_props` flag that skips adding `Adjustables` for the proportions
+- Improved framework validation robustness when dataframe cells contain NA-like values (`np.nan` or `pd.NA`) instead of just `None`   
+
+## [1.25.11] - 2022-07-05
+
+- Program number eligible defaults to 0 if target compartments are missing (rather than raising a key error)
+- `ProgramSet` spreadsheet constructor is now a class method to allow inheritance
+- Fixed bug where program overwrites that impact a transition parameter via at least one intermediate parameter did not impact outcomes
+- Improved `SpendingPackageAdjustment` performance although varying total spend is not yet supported 
+
+## [1.25.10] - 2022-04-06
+
+- Fix bug in program fractional coverage where not all programs were constrained to a peak coverage of 1
+
+## [1.25.7] - 2021-09-02
+
+- Update calls to `sc.asd()` to be compatible with Sciris v1.2.3
+- Update installation instructions to use `pip` rather than `setup.py` directly
+- Improve handling of unspecified timescales in plotting routines
+
 ## [1.25.6] - 2021-07-26
 
 - Unfreeze `pandas` dependency because they have fixed some regressions that affected `atomica`

@@ -8,7 +8,6 @@ be numerically integrated. It also implements the methods to actually perform th
 
 """
 
-
 from .system import NotFoundError
 from .system import logger
 from .system import FrameworkSettings as FS
@@ -227,7 +226,7 @@ class Variable:
 
 
 class Compartment(Variable):
-    """ A class to wrap up data for one compartment within a cascade network. """
+    """A class to wrap up data for one compartment within a cascade network."""
 
     def __init__(self, pop, name, stochastic:bool = False, rng_sampler = None):
         Variable.__init__(self, pop=pop, id=(pop.name, name))
@@ -600,10 +599,10 @@ class ResidualJunctionCompartment(JunctionCompartment):
         """
 
         # First, work out the total inflow that needs to pass through the junction
-        net_inflow = 0
+        net_inflow = np.array([0], dtype=float)
         if self.duration_group:
             for link in self.inlinks:
-                net_inflow += link._vals[:, ti]  # If part of a duration group, get the flow from TimedLink._vals
+                net_inflow = net_inflow + link._vals[:, ti]  # If part of a duration group, get the flow from TimedLink._vals. nb. using += doesn't work with some array size combinations
         else:
             for link in self.inlinks:
                 net_inflow += link.vals[ti]  # If not part of a duration group, get scalar flow from Link.vals
@@ -615,13 +614,12 @@ class ResidualJunctionCompartment(JunctionCompartment):
             else:
                 outflow_fractions[i] = 0
 
-        total_outflow = sum(outflow_fractions)
-
-        if total_outflow < 1:
-            has_residual = True
-        else:
+        total_outflow = outflow_fractions.sum()
+        if total_outflow > 1:
             outflow_fractions /= total_outflow
-            has_residual = False
+
+        # Calculate outflows
+        outflow = net_inflow.reshape(-1, 1) * outflow_fractions.reshape(1, -1)
 
         # assign outflow stochastically to compartments based on the probabilities
         if self.stochastic and net_inflow > 0.:
@@ -629,11 +627,8 @@ class ResidualJunctionCompartment(JunctionCompartment):
             
         # Finally, assign the inflow to the outflow proportionately accounting for the total outflow downscaling
         for frac, link in zip(outflow_fractions, self.outlinks):
-            if link.parameter is None:
-                if has_residual:
-                    flow = net_inflow - sum(net_inflow * outflow_fractions)
-                else:
-                    flow = 0
+            if link.parameter is None and total_outflow < 1:
+                flow = net_inflow - np.sum(outflow, axis=1)  # Sum after multiplying by outflow fractions to reduce numerical precision errors and enforce conserved quantities more accurately
             else:
                 flow = net_inflow * frac
 
@@ -1002,7 +997,7 @@ class TimedCompartment(Compartment):
 
 
 class Characteristic(Variable):
-    """ A characteristic represents a grouping of compartments. """
+    """A characteristic represents a grouping of compartments."""
 
     def __init__(self, pop, name):
         # includes is a list of Compartments, whose values are summed
@@ -1220,10 +1215,10 @@ class Parameter(Variable):
                     if isinstance(dep, Link):
                         raise ModelError(f"Parameter '{self.name}' depends on transition flow '{dep.name}' thus it cannot be a dependency, it must be output only.")
                     elif isinstance(dep, Compartment) or isinstance(dep, Characteristic):
-                        dep.set_dynamic()
+                        dep.set_dynamic(progset=progset)
                         self._is_dynamic = True
                     elif isinstance(dep, Parameter):
-                        dep.set_dynamic()  # Run `set_dynamic()` on the parameter which will descend further to see if the Parameter depends on comps/characs or on overwritten parameters
+                        dep.set_dynamic(progset=progset)  # Run `set_dynamic()` on the parameter which will descend further to see if the Parameter depends on comps/characs or on overwritten parameters
                         if dep._is_dynamic or (progset and dep.name in progset.pars):
                             self._is_dynamic = True
                     else:
@@ -1747,14 +1742,14 @@ class Population:
             raise NotFoundError(f"Object '{name}' not found in population '{self.name}'")
 
     def get_comp(self, comp_name):
-        """ Allow compartments to be retrieved by name rather than index. Returns a Compartment. """
+        """Allow compartments to be retrieved by name rather than index. Returns a Compartment."""
         try:
             return self.comp_lookup[comp_name]
         except KeyError:
             raise NotFoundError(f"Compartment {comp_name} not found")
 
     def get_links(self, name) -> list:
-        """ Retrieve Links. """
+        """Retrieve Links."""
         # Links can be looked up by parameter name or by link name, unlike get_variable. This is because
         # get_links() is guaranteed to return a list of Link objects
         # As opposed to get_variable which would retrieve the Parameter for 'doth rate' and the Links for 'z'
@@ -1766,14 +1761,14 @@ class Population:
             raise NotFoundError("Object '{0}' not found.".format(name))
 
     def get_charac(self, charac_name):
-        """ Allow dependencies to be retrieved by name rather than index. Returns a Variable. """
+        """Allow dependencies to be retrieved by name rather than index. Returns a Variable."""
         try:
             return self.charac_lookup[charac_name]
         except KeyError:
             raise NotFoundError(f"Characteristic {charac_name} not found")
 
     def get_par(self, par_name):
-        """ Allow dependencies to be retrieved by name rather than index. Returns a Variable. """
+        """Allow dependencies to be retrieved by name rather than index. Returns a Variable."""
         try:
             return self.par_lookup[par_name]
         except KeyError:
@@ -2012,7 +2007,7 @@ class Population:
 
 
 class Model:
-    """ A class to wrap up multiple populations within model and handle cross-population transitions. """
+    """A class to wrap up multiple populations within model and handle cross-population transitions."""
 
     def __init__(self, settings, framework, parset, progset=None, program_instructions=None, rng_sampler=None, acceptance_criteria=[]):
 
@@ -2124,11 +2119,8 @@ class Model:
             self._program_cache["capacities"] = self.progset.get_capacities(tvec=self.t, dt=self.dt, instructions=self.program_instructions)
 
             # Cache the proportion coverage for coverage scenarios so that we don't call interpolate() every timestep
-            self._program_cache["prop_coverage"] = dict()
-            for prog_name, coverage_ts in self.program_instructions.coverage.items():
-                self._program_cache["prop_coverage"][prog_name] = coverage_ts.interpolate(self.t)
-                if self.progset.programs[prog_name].is_one_off:
-                    self._program_cache["prop_coverage"][prog_name] *= self.dt
+            coverage = self.progset.get_prop_coverage(tvec=self.t, dt=self.dt, capacities=self._program_cache["capacities"], num_eligible={k: np.nan for k in self.progset.programs}, instructions=self.program_instructions)
+            self._program_cache["prop_coverage"] = {k: coverage[k] for k in self.program_instructions.coverage}
 
             # Check that any programs with no coverage denominator have been given coverage overwrites
             # Otherwise, the coverage denominator will be treated as 0 and will result in 100% coverage
@@ -2179,12 +2171,12 @@ class Model:
         return new
 
     def get_pop(self, pop_name):
-        """ Allow model populations to be retrieved by name rather than index. """
+        """Allow model populations to be retrieved by name rather than index."""
         pop_index = self._pop_ids[pop_name]
         return self.pops[pop_index]
 
     def build(self, parset):
-        """ Build the full model. """
+        """Build the full model."""
 
         # First construct populations
         for k, (pop_name, pop_label, pop_type) in enumerate(zip(parset.pop_names, parset.pop_labels, parset.pop_types)):
@@ -2435,7 +2427,7 @@ class Model:
         self._exec_order = exec_order
 
     def process(self) -> None:
-        """ Run the full model. """
+        """Run the full model."""
 
         assert self._t_index == 0  # Only makes sense to process a simulation once, starting at ti=0 - this might be relaxed later on
         self._set_exec_order()  # Set the execution order again in case the user has updated the parameters etc. It is critically important that this is correct during integration
@@ -2622,7 +2614,7 @@ class Model:
         """
         Flush initialization values from junctions
 
-        If junctions have been initialized with nonzero values as a proxy for initializing the
+        If junctions have been initialized with nonzero values as a mcv1 for initializing the
         downstream compartments, then the junctions need to be flushed into the downstream
         compartments at the start of the simulation. This is done using the ``.flush()`` method
         of the ``JunctionCompartment``. The order of the loop is important if junctions flow into

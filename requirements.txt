@@ -1,18 +1,18 @@
 # Dependencies for testing/documentation
-nbconvert<6
-pytest<6  # Pytest 6 breaks nbsmoke and nbval runs each cell as a separate test
-pytest-xdist<2 # xdist 2 requires pytest 6
+nbconvert
+pytest
+pytest-xdist
 pytest-env
 pytest-cov
-nbsmoke<0.5
-git+https://github.com/sciris/mpld3
+nbsmoke
+mpld3
 nbsphinx
 ipykernel
 pandoc
 pypandoc
-sphinx>=1.8
+sphinx
 sphinx-autodoc-typehints
 sphinx-markdown-tables
 sphinx-rtd-theme
 recommonmark
-m2r # Enable mdinclude for changelog
+
