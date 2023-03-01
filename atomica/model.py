@@ -608,26 +608,37 @@ class ResidualJunctionCompartment(JunctionCompartment):
                 net_inflow += link.vals[ti]  # If not part of a duration group, get scalar flow from Link.vals
 
         outflow_fractions = np.zeros(len(self.outlinks))
+        residual_link_index = None
         for i, link in enumerate(self.outlinks):
             if link.parameter is not None:
                 outflow_fractions[i] = link.parameter.vals[ti]
             else:
+                residual_link_index = i
                 outflow_fractions[i] = 0
 
         total_outflow = outflow_fractions.sum()
         if total_outflow > 1:
             outflow_fractions /= total_outflow
 
+        # assign outflow stochastically to compartments based on the probabilities
+        if self.stochastic and net_inflow > 0.:
+            if np.abs(np.round(net_inflow)-net_inflow).sum() > 1e-3:
+                raise Exception(f'Net inflow should be an integer for a stochastic run, was: {net_inflow}')
+
+            # Give residual probability to the residual link if there is one, otherwise normalize probabilities
+            if residual_link_index is not None:
+                outflow_fractions[residual_link_index] = max(0, 1 - outflow_fractions.sum())
+            else: # Probabilities have to sum to one as we have to flush the junction, and multinomials probabilities should sum to 1
+                outflow_fractions = outflow_fractions / outflow_fractions.sum()
+
+            outflow_fractions = self.rng_sampler.multinomial(np.round(net_inflow).astype(int), outflow_fractions, size=1)[0]/(net_inflow)
+
         # Calculate outflows
         outflow = net_inflow.reshape(-1, 1) * outflow_fractions.reshape(1, -1)
 
-        # assign outflow stochastically to compartments based on the probabilities
-        if self.stochastic and net_inflow > 0.:
-            outflow_fractions = self.rng_sampler.multinomial(net_inflow, outflow_fractions, size=1)[0]/(net_inflow * sum(outflow_fractions))
-            
         # Finally, assign the inflow to the outflow proportionately accounting for the total outflow downscaling
         for frac, link in zip(outflow_fractions, self.outlinks):
-            if link.parameter is None and total_outflow < 1:
+            if link.parameter is None and total_outflow < 1 and not self.stochastic:  # If we are stochastic then we have already taken the residual link into account
                 flow = net_inflow - np.sum(outflow, axis=1)  # Sum after multiplying by outflow fractions to reduce numerical precision errors and enforce conserved quantities more accurately
             else:
                 flow = net_inflow * frac
