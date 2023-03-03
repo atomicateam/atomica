@@ -228,7 +228,7 @@ class Variable:
 class Compartment(Variable):
     """A class to wrap up data for one compartment within a cascade network."""
 
-    def __init__(self, pop, name, stochastic:bool = False, rng_sampler = None):
+    def __init__(self, pop, name, stochastic: bool = False, rng_sampler = None):
         Variable.__init__(self, pop=pop, id=(pop.name, name))
         self.units = "Number of people"
         self.outlinks = []
