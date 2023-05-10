@@ -1198,7 +1198,7 @@ class Program(NamedItem):
         """
         return "/year" not in self.unit_cost.units
 
-    def sample(self, constant: bool, rng_sampler = None) -> None:
+    def sample(self, constant: bool, rng_sampler=None) -> None:
         """
         Perturb program values based on uncertainties
 

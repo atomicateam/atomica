@@ -67,7 +67,7 @@ class ProjectSettings:
     @property
     def sim_dt(self):
         return self._sim_dt
-    
+
     @property
     def stochastic(self):
         return self._stochastic

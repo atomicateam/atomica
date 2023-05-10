@@ -90,7 +90,7 @@ class Parameter(NamedItem):
 
         return self.ts[pop_name].interpolate(tvec, method=self._interpolation_method)
 
-    def sample(self, constant: bool, rng_sampler = None) -> None:
+    def sample(self, constant: bool, rng_sampler=None) -> None:
         """
         Perturb parameter based on uncertainties
 
