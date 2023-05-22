@@ -650,18 +650,19 @@ class ProjectFramework:
         self.comps["population type"] = self.comps["population type"].fillna(available_pop_types[0])
         self.comps["duration group"] = None  # Store the duration group (the name of the outgoing timed parameter) if there is one
 
-        # Default setup weight is 1 if in databook or 0 otherwise
+        # Default setup weight is 1 if in databook or has a default value, or 0 otherwise
         # This is a separate check because the default value depends on other columns
         if "setup weight" not in self.comps:
-            self.comps["setup weight"] = (~self.comps["databook page"].isnull()).astype(int)
+            # If no setup weights are specified, then we set a setup weight of
+            self.comps["setup weight"] = ( (~self.comps["databook page"].isna() | ~self.comps["default value"].isna()) & (self.comps['is source'] == 'n') & (self.comps['is sink'] == 'n') ).astype(int)
         else:
-            fill_ones = self.comps["setup weight"].isnull() & self.comps["databook page"]
+            fill_ones = self.comps["setup weight"].isna() & (~self.comps["databook page"].isna() | ~self.comps["default value"].isna()) & (self.comps['is source'] == 'n') & (self.comps['is sink'] == 'n')
             self.comps["setup weight"][fill_ones] = 1
             self.comps["setup weight"] = self.comps["setup weight"].fillna(0)
 
         if "calibrate" not in self.comps:
             # If calibration column is not present, then it calibrate if in the databook
-            default_calibrate = ~self.comps["databook page"].isnull()
+            default_calibrate = ~self.comps["databook page"].isna()
             self.comps["calibrate"] = None
             self.comps["calibrate"][default_calibrate] = "y"
 
@@ -680,8 +681,11 @@ class ProjectFramework:
             if (row["setup weight"] > 0) & (row["is source"] == "y" or row["is sink"] == "y"):
                 raise InvalidFramework('Compartment "%s" is a source or a sink, but has a nonzero setup weight' % comp_name)
 
-            if (row["setup weight"] > 0) & (pd.isna(row["databook page"])):
-                raise InvalidFramework('Compartment "%s" has a nonzero setup weight, but does not appear in the databook' % comp_name)
+            if (row["setup weight"] > 0) and pd.isna(row["databook page"]) and pd.isna(row['default value']):
+                raise InvalidFramework('Compartment "%s" has a nonzero setup weight, but does not appear in the databook and does not have a default value' % comp_name)
+
+            if pd.isna(row["databook page"]) and not pd.isna(row['default value']) and not (row['default value'] == 0):
+                raise InvalidFramework(f'''Compartment "{comp_name}" has no databook page but has a default value of "{row['default value']}" which is not permitted - the only supported default value for a compartment that does not appear in the databook is 0''')
 
             if (not pd.isna(row["databook page"])) & (row["is source"] == "y" or row["is sink"] == "y"):
                 raise InvalidFramework('Compartment "%s" is a source or a sink, but has a databook page' % comp_name)
@@ -721,15 +725,15 @@ class ProjectFramework:
         self.characs["population type"] = self.characs["population type"].fillna(available_pop_types[0])
 
         if "setup weight" not in self.characs:
-            self.characs["setup weight"] = (~self.characs["databook page"].isnull()).astype(int)
+            self.characs["setup weight"] = (~self.characs["databook page"].isna() | ~self.characs["default value"].isna()).astype(int)
         else:
-            fill_ones = self.characs["setup weight"].isnull() & self.characs["databook page"]
+            fill_ones = self.characs["setup weight"].isna() & (~self.characs["databook page"].isna() | ~self.characs["default value"].isna())
             self.characs["setup weight"][fill_ones] = 1
             self.characs["setup weight"] = self.characs["setup weight"].fillna(0)
 
         if "calibrate" not in self.characs:
             # If calibration column is not present, then it calibrate if in the databook
-            default_calibrate = ~self.characs["databook page"].isnull()
+            default_calibrate = ~self.characs["databook page"].isna()
             self.characs["calibrate"] = None
             self.characs["calibrate"][default_calibrate] = "y"
 
@@ -743,8 +747,11 @@ class ProjectFramework:
         for charac_name, row in zip(self.characs.index, self.characs.to_dict(orient="records")):
             # Block this out because that way, can validate that there are some nonzero setup weights. Otherwise, user could set setup weights but
             # not put them in the databook, causing an error when actually trying to run the simulation
-            if (row["setup weight"] > 0) and pd.isna(row["databook page"]):
-                raise InvalidFramework('Characteristic "%s" has a nonzero setup weight, but does not appear in the databook' % charac_name)
+            if (row["setup weight"] > 0) and pd.isna(row["databook page"]) and pd.isna(row['default value']):
+                raise InvalidFramework('Characteristic "%s" has a nonzero setup weight, but does not appear in the databook and does non have a default value' % charac_name)
+
+            if pd.isna(row["databook page"]) and not pd.isna(row['default value']) and not (row['default value'] == 0):
+                raise InvalidFramework(f'''Characteristic "{charac_name}" has no databook page but has a default value of "{row['default value']}" which is not permitted - the only supported default value for a characteristic that does not appear in the databook is 0''')
 
             if not pd.isna(row["denominator"]):
 
@@ -771,7 +778,7 @@ class ProjectFramework:
                     raise InvalidFramework('In Characteristic "%s", denominator "%s" was not recognized as a Compartment or Characteristic' % (charac_name, row["denominator"]))
 
             if (pd.isna(row["databook page"])) and (not pd.isna(row["calibrate"])):
-                raise InvalidFramework('Compartment "%s" is marked as being eligible for calibration, but it does not appear in the databook' % charac_name)
+                raise InvalidFramework('Characteristic "%s" is marked as being eligible for calibration, but it does not appear in the databook' % charac_name)
 
             if row["population type"] not in available_pop_types:
                 raise InvalidFramework('Characteristic "%s" has population type "%s" but that population type does not appear on the "population types" sheet - must be one of %s' % (charac_name, row["population type"], available_pop_types))
@@ -911,7 +918,7 @@ class ProjectFramework:
                 from_row.dropna(inplace=True)
                 from_comp = from_row.name
 
-                for to_comp, par_names in from_row.iteritems():
+                for to_comp, par_names in from_row.items():
                     if par_names.strip() == ">":
                         self.transitions[">"].append((from_comp, to_comp))  # Add a transition entry for parameter-less junction residual links. This is consistent in that `self.transitions` is a representation of links, not parameters
                         continue
@@ -1202,9 +1209,6 @@ class ProjectFramework:
         tmp = set()
         for name in code_names:
 
-            if len(name) == 1:
-                raise InvalidFramework('Code name "%s" is not valid: code names must be at least two characters long' % (name))
-
             if FS.RESERVED_SYMBOLS.intersection(name):
                 raise InvalidFramework('Code name "%s" is not valid: it cannot contain any of these reserved symbols %s' % (name, FS.RESERVED_SYMBOLS))
 
@@ -1472,7 +1476,7 @@ def _sanitize_dataframe(df: pd.DataFrame, required_columns: list, defaults: dict
             raise InvalidFramework(f'Mandatory index column "{set_index}" is missing')
         df.set_index(set_index, inplace=True)
 
-    if any(df.index.isnull()):
+    if any(df.index.isna()):
         raise InvalidFramework('The first column contained an empty cell (this probably indicates that a "code name" was left empty)')
 
     if not df.index.is_unique:
@@ -1495,7 +1499,7 @@ def _sanitize_dataframe(df: pd.DataFrame, required_columns: list, defaults: dict
             raise InvalidFramework('While validating, a required column "%s" was missing' % col)  # NB. This error is likely to be the result of a developer adding validation for a column without setting a default for it
 
         if validation is None:
-            if df[col].isnull().any():
+            if df[col].isna().any():
                 raise InvalidFramework('The column "%s" cannot contain any empty cells' % (col))
         else:
             validation = set(validation)
@@ -1503,7 +1507,7 @@ def _sanitize_dataframe(df: pd.DataFrame, required_columns: list, defaults: dict
                 raise InvalidFramework('The column "%s" can only contain the following values: %s' % (col, validation))
 
     # Strip all strings
-    if df.columns.isnull().any():
+    if df.columns.isna().any():
         raise InvalidFramework("There cannot be any empty cells in the header row")
     df.columns = [x.strip() for x in df.columns]
 

@@ -1353,7 +1353,7 @@ def _objective_fcn(x, pickled_model, optimization, hard_constraints: list, basel
     return obj_val
 
 
-def optimize(project, optimization, parset: ParameterSet, progset: ProgramSet, instructions: ProgramInstructions, x0=None, xmin=None, xmax=None, hard_constraints=None, baselines=None):
+def optimize(project, optimization, parset: ParameterSet, progset: ProgramSet, instructions: ProgramInstructions, x0=None, xmin=None, xmax=None, hard_constraints=None, baselines=None, optim_args: dict = None):
     """
     Main user entry point for optimization
 
@@ -1374,6 +1374,7 @@ def optimize(project, optimization, parset: ParameterSet, progset: ProgramSet, i
     :param xmax: Not for manual use - override upper bounds
     :param hard_constraints: Not for manual use - override hard constraints
     :param baselines: Not for manual use - override Measurable baseline values (for relative Measurables)
+    :param optim_args: Pass a dictionary of keyword arguments to pass to the optimization algorithm (set in ``optimization.method``)
     :return: A :class:`ProgramInstructions` instance representing optimal instructions
 
     """
@@ -1411,12 +1412,9 @@ def optimize(project, optimization, parset: ParameterSet, progset: ProgramSet, i
         raise InvalidInitialConditions("Optimization cannot begin because the objective function was %s for the specified initialization" % (initial_objective))
 
     if optimization.method == "asd":
-        optim_args = {
-            # 'stepsize': proj.settings.autofit_params['stepsize'],
+        default_args = {
             "maxiters": optimization.maxiters,
             "maxtime": optimization.maxtime,
-            # 'sinc': proj.settings.autofit_params['sinc'],
-            # 'sdec': proj.settings.autofit_params['sdec'],
             "xmin": xmin,
             "xmax": xmax,
         }
@@ -1424,10 +1422,11 @@ def optimize(project, optimization, parset: ParameterSet, progset: ProgramSet, i
         # Set ASD verbosity based on Atomica logging level
         log_level = logger.getEffectiveLevel()
         if log_level < logging.WARNING:
-            optim_args["verbose"] = 2
+            default_args["verbose"] = 2
         else:
-            optim_args["verbose"] = 0
+            default_args["verbose"] = 0
 
+        optim_args = sc.mergedicts(default_args, optim_args)
         opt_result = sc.asd(_objective_fcn, x0, args, **optim_args)
         x_opt = opt_result["x"]
 
@@ -1435,12 +1434,15 @@ def optimize(project, optimization, parset: ParameterSet, progset: ProgramSet, i
 
         import pyswarm
 
-        optim_args = {"maxiter": 3, "lb": xmin, "ub": xmax, "minstep": 1e-3, "debug": True}
+        default_args = {"maxiter": 3, "lb": xmin, "ub": xmax, "minstep": 1e-3, "debug": True}
+        optim_args = sc.mergedicts(default_args, optim_args)
+
         if np.any(~np.isfinite(xmin)) or np.any(~np.isfinite(xmax)):
             errormsg = "PSO optimization requires finite upper and lower bounds to specify the search domain (i.e. every Adjustable needs to have finite bounds)"
             raise Exception(errormsg)
 
         x_opt, _ = pyswarm.pso(_objective_fcn, kwargs=args, **optim_args)
+
     elif optimization.method == "hyperopt":
 
         import hyperopt
@@ -1455,10 +1457,21 @@ def optimize(project, optimization, parset: ParameterSet, progset: ProgramSet, i
             space.append(hyperopt.hp.uniform(str(i), lower, upper))
         fcn = functools.partial(_objective_fcn, **args)  # Partial out the extra arguments to the objective
 
-        optim_args = {"max_evals": optimization.maxiters if optimization.maxiters is not None else 100, "algo": hyperopt.tpe.suggest}
+        default_args = {"max_evals": optimization.maxiters if optimization.maxiters is not None else 100, "algo": hyperopt.tpe.suggest}
+        optim_args = sc.mergedicts(default_args, optim_args)
 
         x_opt = hyperopt.fmin(fcn, space, **optim_args)
         x_opt = np.array([x_opt[str(n)] for n in range(len(x_opt.keys()))])
+
+    elif callable(optimization.method):
+        # Use custom optimization function
+        # Placeholder functionality - not tested!
+
+        optim_args = {} if optim_args is None else optim_args
+        x_opt = optimization.method(_objective_fcn, **optim_args)
+
+    else:
+        raise Exception("Unrecognized optimization method")
 
     # Use the optimal parameter values to generate new instructions
     optimization.update_instructions(x_opt, model.program_instructions)
