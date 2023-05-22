@@ -2,6 +2,10 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.26.0] - 2023-05-22
+
+- Allow initializing compartments and characteristics with a 0 value by setting a default value without needing to add the quantity to the databook. This simplifies initialization of models that have large numbers of compartments that should always be initialized with a 0 value, without needing to add many databook entries or extra initialization characteristics. 
+
 ## [1.25.18] - 2023-01-09
 
 - Allow framework variables with single characters (previously, all code names had to be at least two characters long)
