@@ -1848,8 +1848,8 @@ class Population:
         # values for the compartments by solving the set of characteristics simultaneously
 
         # Build up the comps and characs containing the setup values in the databook - the `b` in `x=A*b`
-        characs_to_use = framework.characs.index[((~framework.characs["databook page"].isnull() | ~framework.characs["default value"].isnull()) & framework.characs["setup weight"] & (framework.characs["population type"] == self.type))]
-        comps_to_use = framework.comps.index[((~framework.comps["databook page"].isnull() | ~framework.comps["default value"].isnull()) & framework.comps["setup weight"] & (framework.comps["population type"] == self.type))]
+        characs_to_use = framework.characs.index[framework.characs["setup weight"] & (framework.characs["population type"] == self.type)]
+        comps_to_use = framework.comps.index[framework.comps["setup weight"] & (framework.comps["population type"] == self.type)]
         b_objs = [self.charac_lookup[x] for x in characs_to_use] + [self.comp_lookup[x] for x in comps_to_use]
 
         # Build up the comps corresponding to the `x` values in `x=A*b` i.e. the compartments being solved for
