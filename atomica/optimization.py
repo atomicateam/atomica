@@ -1518,23 +1518,23 @@ def constrain_sum_bounded(x: np.array, s: float, lb: np.array, ub: np.array) -> 
     Bounded nearest constraint sum
 
     :param x: Array of proposed values to constrain
-    :param s: Target value for `sum(x)`
+    :param s: Target value for ``sum(x)``
     :param lb: Array of lower bounds, same size as x
     :param ub: Array of upper bounds, same size as x
-    :return: Array same size as `x`, such that sum(x)==s and x[i]>=lb and x[i]<=ub for i<len(x)
-    :raises: FailedConstraint() if it was not possible to constrain
+    :param tolerance: Absolute tolerance for the constrained sum ``s``
+    :return: Array same size as ``x``, such that ``sum(x)==s`` and ``x[i]>=lb`` and ``x[i]<=ub`` for ``i<len(x)``
+    :raises: :class:`FailedConstraint` if it was not possible to constrain
     """
     tolerance = 1e-6
 
     # Normalize values
-    if x.sum() == 0:
-        return np.array([s/len(x) for _ in x]) #if all the start values are zero but there is supposed to be a finite value then divide evenly
-    x0_scaled = x / x.sum()
+    x0_scaled = x / (x.sum() or 1) # Normalize the initial values, unless they sum to 0 (i.e., they are all zero)
     lb_scaled = lb / s
     ub_scaled = ub / s
 
     # First, check if the constraint is already satisfied just by multiplicative rescaling
-    if np.all((x0_scaled >= lb_scaled) & (x0_scaled <= ub_scaled)):
+    # The final check for x0_scaled.sum()==1 catches the case where all of the input values are 0
+    if np.all((x0_scaled >= lb_scaled) & (x0_scaled <= ub_scaled)) and np.isclose(x0_scaled.sum(), 1):
         return x0_scaled * s
 
     # If not, we need to actually run the constrained optimization
@@ -1555,6 +1555,7 @@ def constrain_sum_bounded(x: np.array, s: float, lb: np.array, ub: np.array) -> 
         logger.warning("constrain_sum_bounded() failed - rejecting proposed parameters")
         raise FailedConstraint()
 
-    # Confirm constraints are all satisfied
-    assert np.all((res["x"] >= lb_scaled - tolerance) & (res["x"] <= ub_scaled + tolerance)), f'FAILED as {res["x"]} not within [{lb_scaled}, {ub_scaled}]'
-    return res["x"] * s
+    # Enforce upper/lower bound constraints to prevent numerically exceeding them
+    sol = np.minimum(np.maximum(res['x'], lb_scaled), ub_scaled) * s
+    assert np.isclose(sol.sum(), s), f'FAILED as {sol} has a total of {sol.sum()} which is not sufficiently close to the target value {s}'
+    return sol
