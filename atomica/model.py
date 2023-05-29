@@ -1674,12 +1674,29 @@ class Population:
                 name_tokens.append("")
             src, dest, par = name_tokens
 
-            if src and dest:
-                links = [link for link in self.get_comp(src).outlinks if link.dest.name == dest]
+            if src in self.charac_lookup:
+                if self.charac_lookup[src].denominator is not None:
+                    raise Exception(f'Attempted to use flow-based indexing on characteristic {src} but this characteristic has a denominator, which is not supported for this type of indexing')
+                else:
+                    src = self.charac_lookup[src].includes
             elif src:
-                links = self.get_comp(src).outlinks
+                src = [self.get_comp(src)]
+
+            if dest in self.charac_lookup:
+                if self.charac_lookup[dest].denominator is not None:
+                    raise Exception(f'Attempted to use flow-based indexing on characteristic {dest} but this characteristic has a denominator, which is not supported for this type of indexing')
+                else:
+                    dest = self.charac_lookup[dest].includes
             elif dest:
-                links = self.get_comp(dest).inlinks
+                dest = [self.get_comp(dest)]
+
+
+            if src and dest:
+                links = [link for comp in src for link in comp.outlinks if link.dest in dest]
+            elif src:
+                links = [link for comp in src for link in comp.outlinks]
+            elif dest:
+                links = [link for comp in dest for link in comp.inlinks]
             else:
                 links = self.links
 

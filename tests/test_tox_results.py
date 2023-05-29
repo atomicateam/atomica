@@ -36,5 +36,23 @@ def test_export():
     P.results["progset1"].export_raw(tmpdir / "export_raw_progset.xlsx")
 
 
+def test_indexing():
+    P = at.demo('usdt')
+    res = P.results[0]
+    res.get_variable('all_screened')[0]
+
+    res.get_variable('scr:')
+
+    # This example retrieves
+    # [Link screen:flow (parameter screen) - undx to scr,
+    #  Link diag:flow (parameter diag) - scr to dx,
+    #  Link loss:flow (parameter loss) - tx to dx,
+    #  Link initiate:flow (parameter initiate) - dx to tx]
+    #  which might be unexpected? Should we exclude compartments that are in both characteristics somehow?
+    res.get_variable(':all_screened')
+    res.get_variable('all_screened:all_screened')
+
+
 if __name__ == "__main__":
-    test_export()
+    # test_export()
+    test_indexing()
