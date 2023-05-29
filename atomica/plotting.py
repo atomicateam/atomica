@@ -465,7 +465,8 @@ class PlotData:
             else:
                 raise Exception("Unknown accumulation type")
 
-            self.outputs[s.output] = "Cumulative " + self.outputs[s.output]
+        for k,v in self.outputs.items():
+            self.outputs[k] = "Cumulative " + v
 
     def time_aggregate(self, t_bins, time_aggregation=None, interpolation_method=None):
         """
