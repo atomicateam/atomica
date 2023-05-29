@@ -329,12 +329,11 @@ class SpendingPackageAdjustment(Adjustment):
         assert self.max_props.sum() >= 1, "Constraining fractions of an intervention package where the maximum total is <1 is impossible"
 
         self.adjustables = []
-        
-        if initial_total == 0.:
-            initial_props = np.array([1./len(initial_spends) for _ in initial_spends]) #if there was no spending on the package initially, assume equal proportions for all components
+
+        if initial_total == 0.0:
+            initial_props = np.array([1.0 / len(initial_spends) for _ in initial_spends])  # if there was no spending on the package initially, assume equal proportions for all components
         else:
             initial_props = self.initial_spends / initial_total
-        
 
         if not fix_props:
             for program, initial_prop, lb, ub in zip(prog_names, initial_props, self.min_props, self.max_props):
@@ -389,7 +388,7 @@ class SpendingPackageAdjustment(Adjustment):
 
         if self.fix_props:
             if self.initial_spends.sum() == 0:
-                fracs = np.array([1./len(self.initial_spends) for _ in self.initial_spends]) #evenly distributed fractions though it seems unlikely that there would be constrained fractions of zero spending
+                fracs = np.array([1.0 / len(self.initial_spends) for _ in self.initial_spends])  # evenly distributed fractions though it seems unlikely that there would be constrained fractions of zero spending
             else:
                 fracs = self.initial_spends / self.initial_spends.sum()
         elif self.adjust_total_spend:
@@ -420,7 +419,7 @@ class SpendingPackageAdjustment(Adjustment):
         if self.get_total_spend(instructions) > 0:
             spend_factor = total_spend / self.get_total_spend(instructions)
         else:
-            spend_factor = 0. #if total spending is zero, spending on each program must be zero?
+            spend_factor = 0.0  # if total spending is zero, spending on each program must be zero?
         for prog in self.prog_name:
             ts = instructions.alloc[prog]
             ts.insert(t=self.t, v=ts.get(self.t) * spend_factor)
@@ -1528,7 +1527,7 @@ def constrain_sum_bounded(x: np.array, s: float, lb: np.array, ub: np.array) -> 
     tolerance = 1e-6
 
     # Normalize values
-    x0_scaled = x / (x.sum() or 1) # Normalize the initial values, unless they sum to 0 (i.e., they are all zero)
+    x0_scaled = x / (x.sum() or 1)  # Normalize the initial values, unless they sum to 0 (i.e., they are all zero)
     lb_scaled = lb / s
     ub_scaled = ub / s
 
@@ -1556,6 +1555,6 @@ def constrain_sum_bounded(x: np.array, s: float, lb: np.array, ub: np.array) -> 
         raise FailedConstraint()
 
     # Enforce upper/lower bound constraints to prevent numerically exceeding them
-    sol = np.minimum(np.maximum(res['x'], lb_scaled), ub_scaled) * s
-    assert np.isclose(sol.sum(), s), f'FAILED as {sol} has a total of {sol.sum()} which is not sufficiently close to the target value {s}'
+    sol = np.minimum(np.maximum(res["x"], lb_scaled), ub_scaled) * s
+    assert np.isclose(sol.sum(), s), f"FAILED as {sol} has a total of {sol.sum()} which is not sufficiently close to the target value {s}"
     return sol

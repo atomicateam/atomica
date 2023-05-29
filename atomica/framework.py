@@ -654,9 +654,9 @@ class ProjectFramework:
         # This is a separate check because the default value depends on other columns
         if "setup weight" not in self.comps:
             # If no setup weights are specified, then we set a setup weight of
-            self.comps["setup weight"] = ( (~self.comps["databook page"].isna() | ~self.comps["default value"].isna()) & (self.comps['is source'] == 'n') & (self.comps['is sink'] == 'n') ).astype(int)
+            self.comps["setup weight"] = ((~self.comps["databook page"].isna() | ~self.comps["default value"].isna()) & (self.comps["is source"] == "n") & (self.comps["is sink"] == "n")).astype(int)
         else:
-            fill_ones = self.comps["setup weight"].isna() & (~self.comps["databook page"].isna() | ~self.comps["default value"].isna()) & (self.comps['is source'] == 'n') & (self.comps['is sink'] == 'n')
+            fill_ones = self.comps["setup weight"].isna() & (~self.comps["databook page"].isna() | ~self.comps["default value"].isna()) & (self.comps["is source"] == "n") & (self.comps["is sink"] == "n")
             self.comps["setup weight"][fill_ones] = 1
             self.comps["setup weight"] = self.comps["setup weight"].fillna(0)
 
@@ -681,11 +681,11 @@ class ProjectFramework:
             if (row["setup weight"] > 0) & (row["is source"] == "y" or row["is sink"] == "y"):
                 raise InvalidFramework('Compartment "%s" is a source or a sink, but has a nonzero setup weight' % comp_name)
 
-            if (row["setup weight"] > 0) and pd.isna(row["databook page"]) and pd.isna(row['default value']):
+            if (row["setup weight"] > 0) and pd.isna(row["databook page"]) and pd.isna(row["default value"]):
                 raise InvalidFramework('Compartment "%s" has a nonzero setup weight, but does not appear in the databook and does not have a default value' % comp_name)
 
-            if pd.isna(row["databook page"]) and not pd.isna(row['default value']) and not (row['default value'] == 0):
-                raise InvalidFramework(f'''Compartment "{comp_name}" has no databook page but has a default value of "{row['default value']}" which is not permitted - the only supported default value for a compartment that does not appear in the databook is 0''')
+            if pd.isna(row["databook page"]) and not pd.isna(row["default value"]) and not (row["default value"] == 0):
+                raise InvalidFramework(f"""Compartment "{comp_name}" has no databook page but has a default value of "{row['default value']}" which is not permitted - the only supported default value for a compartment that does not appear in the databook is 0""")
 
             if (not pd.isna(row["databook page"])) & (row["is source"] == "y" or row["is sink"] == "y"):
                 raise InvalidFramework('Compartment "%s" is a source or a sink, but has a databook page' % comp_name)
@@ -747,11 +747,11 @@ class ProjectFramework:
         for charac_name, row in zip(self.characs.index, self.characs.to_dict(orient="records")):
             # Block this out because that way, can validate that there are some nonzero setup weights. Otherwise, user could set setup weights but
             # not put them in the databook, causing an error when actually trying to run the simulation
-            if (row["setup weight"] > 0) and pd.isna(row["databook page"]) and pd.isna(row['default value']):
+            if (row["setup weight"] > 0) and pd.isna(row["databook page"]) and pd.isna(row["default value"]):
                 raise InvalidFramework('Characteristic "%s" has a nonzero setup weight, but does not appear in the databook and does non have a default value' % charac_name)
 
-            if pd.isna(row["databook page"]) and not pd.isna(row['default value']) and not (row['default value'] == 0):
-                raise InvalidFramework(f'''Characteristic "{charac_name}" has no databook page but has a default value of "{row['default value']}" which is not permitted - the only supported default value for a characteristic that does not appear in the databook is 0''')
+            if pd.isna(row["databook page"]) and not pd.isna(row["default value"]) and not (row["default value"] == 0):
+                raise InvalidFramework(f"""Characteristic "{charac_name}" has no databook page but has a default value of "{row['default value']}" which is not permitted - the only supported default value for a characteristic that does not appear in the databook is 0""")
 
             if not pd.isna(row["denominator"]):
 
