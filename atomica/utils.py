@@ -32,7 +32,6 @@ __all__ = [
     "evaluate_plot_string",
     "format_duration",
     "nested_loop",
-    "fast_gitinfo",
     "datetime_to_year",
     "parallel_progress",
     "start_logging",
@@ -764,67 +763,6 @@ def nested_loop(inputs, loop_order):
         for i in range(len(item)):
             out[loop_order[i]] = item[i]
         yield out
-
-
-def fast_gitinfo(path):
-    """
-    Retrieve git info
-
-    This function reads git branch and commit information from a .git directory.
-    Given a path, it will check for a `.git` directory. If the path doesn't contain
-    that directory, it will search parent directories for `.git` until it finds one.
-    Then, the current information will be parsed.
-
-    :param path: A folder either containing a ``.git`` directory, or with a parent that contains a ``.git`` directory
-
-    """
-
-    try:
-        # First, get the .git directory
-        curpath = os.path.abspath(path)
-        while curpath:
-            if os.path.exists(os.path.join(curpath, ".git")):
-                gitdir = os.path.join(curpath, ".git")
-                break
-            else:
-                parent, _ = os.path.split(curpath)
-                if parent == curpath:
-                    curpath = None
-                else:
-                    curpath = parent
-        else:
-            raise Exception("Could not find .git directory")
-
-        # Then, get the branch and commit
-        with open(os.path.join(gitdir, "HEAD"), "r") as f1:
-            ref = f1.read()
-            if ref.startswith("ref:"):
-                refdir = ref.split(" ")[1].strip()  # The path to the file with the commit
-                gitbranch = refdir.replace("refs/heads/", "")  # / is always used (not os.sep)
-                with open(os.path.join(gitdir, refdir), "r") as f2:
-                    githash = f2.read().strip()  # The hash of the commit
-            else:
-                gitbranch = "Detached head (no branch)"
-                githash = ref.strip()
-
-        # Now read the time from the commit
-        compressed_contents = open(os.path.join(gitdir, "objects", githash[0:2], githash[2:]), "rb").read()
-        decompressed_contents = zlib.decompress(compressed_contents).decode()
-        for line in decompressed_contents.split("\n"):
-            if line.startswith("author"):
-                _re_actor_epoch = re.compile(r"^.+? (.*) (\d+) ([+-]\d+).*$")
-                m = _re_actor_epoch.search(line)
-                actor, epoch, offset = m.groups()
-                t = time.gmtime(int(epoch))
-                gitdate = time.strftime("%Y-%m-%d %H:%M:%S UTC", t)
-
-    except Exception:
-        gitbranch = "Git branch N/A"
-        githash = "Git hash N/A"
-        gitdate = "Git date N/A"
-
-    output = {"branch": gitbranch, "hash": githash, "date": gitdate}  # Assemble outupt
-    return output
 
 
 def datetime_to_year(dt: datetime) -> float:

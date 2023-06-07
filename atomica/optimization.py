@@ -330,10 +330,15 @@ class SpendingPackageAdjustment(Adjustment):
 
         self.adjustables = []
 
+        if initial_total == 0.0:
+            initial_props = np.array([1.0 / len(initial_spends) for _ in initial_spends])  # if there was no spending on the package initially, assume equal proportions for all components
+        else:
+            initial_props = self.initial_spends / initial_total
+
         if not fix_props:
-            for program, initial_prop, lb, ub in zip(prog_names, self.initial_spends / initial_total, self.min_props, self.max_props):
-                assert initial_prop >= lb, f"SpendingProgramAdjustment: Initial spend on {program} is a smaller proportion of the package than requested minimum proportion"
-                assert initial_prop <= ub, f"SpendingProgramAdjustment: Initial spend on {program} is a larger proportion of the package than requested maximum proportion"
+            for program, initial_prop, lb, ub in zip(prog_names, initial_props, self.min_props, self.max_props):
+                assert initial_prop >= lb, f"SpendingProgramAdjustment: Initial spend on {program} is a smaller proportion ({initial_prop}) of the package than requested minimum proportion ({lb})"
+                assert initial_prop <= ub, f"SpendingProgramAdjustment: Initial spend on {program} is a larger proportion ({initial_prop}) of the package than requested maximum proportion ({ub})"
                 # set to the current proportion - note that the overall fractions won't end up being constrained so will have to be rescaled
                 # Similarly, the upper and lower bounds here will still need to be enforced later after scaling when updating instructions
                 self.adjustables.append(Adjustable("frac_" + program, initial_value=initial_prop, lower_bound=lb, upper_bound=ub))
@@ -382,7 +387,10 @@ class SpendingPackageAdjustment(Adjustment):
         adjustable_values = sc.promotetoarray(adjustable_values)
 
         if self.fix_props:
-            fracs = self.initial_spends / self.initial_spends.sum()
+            if self.initial_spends.sum() == 0:
+                fracs = np.array([1.0 / len(self.initial_spends) for _ in self.initial_spends])  # evenly distributed fractions though it seems unlikely that there would be constrained fractions of zero spending
+            else:
+                fracs = self.initial_spends / self.initial_spends.sum()
         elif self.adjust_total_spend:
             fracs = adjustable_values[:-1]
         else:
@@ -408,7 +416,10 @@ class SpendingPackageAdjustment(Adjustment):
         return sum([instructions.alloc[prog_name].get(self.t) for prog_name in self.prog_name])
 
     def set_total_spend(self, instructions, total_spend):
-        spend_factor = total_spend / self.get_total_spend(instructions)
+        if self.get_total_spend(instructions) > 0:
+            spend_factor = total_spend / self.get_total_spend(instructions)
+        else:
+            spend_factor = 0.0  # if total spending is zero, spending on each program must be zero?
         for prog in self.prog_name:
             ts = instructions.alloc[prog]
             ts.insert(t=self.t, v=ts.get(self.t) * spend_factor)
@@ -1506,20 +1517,23 @@ def constrain_sum_bounded(x: np.array, s: float, lb: np.array, ub: np.array) -> 
     Bounded nearest constraint sum
 
     :param x: Array of proposed values to constrain
-    :param s: Target value for `sum(x)`
+    :param s: Target value for ``sum(x)``
     :param lb: Array of lower bounds, same size as x
     :param ub: Array of upper bounds, same size as x
-    :return: Array same size as `x`, such that sum(x)==s and x[i]>=lb and x[i]<=ub for i<len(x)
-    :raises: FailedConstraint() if it was not possible to constrain
+    :param tolerance: Absolute tolerance for the constrained sum ``s``
+    :return: Array same size as ``x``, such that ``sum(x)==s`` and ``x[i]>=lb`` and ``x[i]<=ub`` for ``i<len(x)``
+    :raises: :class:`FailedConstraint` if it was not possible to constrain
     """
+    tolerance = 1e-6
 
     # Normalize values
-    x0_scaled = x / x.sum()
+    x0_scaled = x / (x.sum() or 1)  # Normalize the initial values, unless they sum to 0 (i.e., they are all zero)
     lb_scaled = lb / s
     ub_scaled = ub / s
 
     # First, check if the constraint is already satisfied just by multiplicative rescaling
-    if np.all((x0_scaled >= lb_scaled) & (x0_scaled <= ub_scaled)):
+    # The final check for x0_scaled.sum()==1 catches the case where all of the input values are 0
+    if np.all((x0_scaled >= lb_scaled) & (x0_scaled <= ub_scaled)) and np.isclose(x0_scaled.sum(), 1):
         return x0_scaled * s
 
     # If not, we need to actually run the constrained optimization
@@ -1540,6 +1554,7 @@ def constrain_sum_bounded(x: np.array, s: float, lb: np.array, ub: np.array) -> 
         logger.warning("constrain_sum_bounded() failed - rejecting proposed parameters")
         raise FailedConstraint()
 
-    # Confirm constraints are all satisfied
-    assert np.all((res["x"] >= lb_scaled) & (res["x"] <= ub_scaled))
-    return res["x"] * s
+    # Enforce upper/lower bound constraints to prevent numerically exceeding them
+    sol = np.minimum(np.maximum(res["x"], lb_scaled), ub_scaled) * s
+    assert np.isclose(sol.sum(), s), f"FAILED as {sol} has a total of {sol.sum()} which is not sufficiently close to the target value {s}"
+    return sol

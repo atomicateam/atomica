@@ -2,6 +2,16 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.26.2] - 2023-06-07
+
+- Switch to `sc.gitinfo` from Sciris. The git commit hash recorded in Atomica objects will now only contain the first 7 characters. Code that uses `at.fast_gitinfo` should use `sc.gitinfo` instead.
+- Improve robustness of the table parsing routine used by `at.Framework`. In some cases, the data type of empty cells is now `NaN` rather than `None`. This affects any code that either checks for the contents being `None` or which relies on `None` being treated as `False` in conditional statements e.g., `if <contents>:`.  Affected code should instead use `pandas.isna()` which handles `None`, `NaN`, and `pd.NA`. 
+
+## [1.26.1] - 2023-05-29
+
+- Improve numerical robustness of `SpendingPackageAdjustment` under certain edge cases
+- Fix bug in cumulative plot labelling that could result in the axis label containing more than one 'Cumulative' prefix
+
 ## [1.26.0] - 2023-05-22
 
 - Allow initializing compartments and characteristics with a 0 value by setting a default value without needing to add the quantity to the databook. This simplifies initialization of models that have large numbers of compartments that should always be initialized with a 0 value, without needing to add many databook entries or extra initialization characteristics. 

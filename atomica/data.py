@@ -19,6 +19,7 @@ from .system import NotFoundError
 from . import logger
 from .system import FrameworkSettings as FS
 from collections import defaultdict
+import pandas as pd
 
 _DEFAULT_PROVENANCE = "Framework-supplied default"
 
@@ -239,12 +240,12 @@ class ProjectData(sc.prettyobj):
         for obj_type, df in zip(["comps", "characs", "pars"], [framework.comps, framework.characs, framework.pars]):
             for _, spec in df.iterrows():
                 databook_page = spec.get("databook page")
-                if databook_page is not None:
+                if not pd.isna(databook_page):
                     pop_type = spec.get("population type")
                     databook_order = spec.get("databook order")
                     full_name = spec["display name"]
 
-                    if databook_order is None:
+                    if pd.isna(databook_order):
                         order = np.inf
                     else:
                         order = databook_order
@@ -291,7 +292,7 @@ class ProjectData(sc.prettyobj):
                 # In order to write a default value
                 # - The default value should be present and not None
                 # - The quantity should appear in the databook
-                if "default value" in spec and np.isfinite(spec["default value"]) and spec["databook page"]:
+                if "default value" in spec and np.isfinite(spec["default value"]) and not pd.isna(spec["databook page"]):
                     tdve = data.tdve[spec.name]
                     for key, ts in tdve.ts.items():
                         ts.insert(None, spec["default value"])
@@ -443,7 +444,7 @@ class ProjectData(sc.prettyobj):
         # Make sure that all of the quantities the Framework says we should read in have been read in, and that
         # those quantities all have some data values associated with them
         for pop in self.pops.values():
-            if pop["type"] is None:
+            if pd.isna(pop["type"]):
                 pop["type"] = self._pop_types[0]
             assert pop["type"] in self._pop_types, 'Error in population "%s": population type "%s" not found in framework. If the framework defines a non-default population type, then it must be explicitly specified in databooks and program books.' % (pop["label"], pop["type"])
 
@@ -452,7 +453,7 @@ class ProjectData(sc.prettyobj):
                 if spec_name in self.pops:
                     raise Exception('Code name "%s" has been used for both a population and a framework quantity - population names must be unique' % (spec_name))
 
-                if spec["databook page"] is not None:
+                if not pd.isna(spec["databook page"]):
                     if spec_name not in self.tdve:
                         if not np.isfinite(spec["default value"]):
                             raise Exception('The databook did not contain a required TDVE table named "%s" (code name "%s")' % (spec["display name"], spec_name))
