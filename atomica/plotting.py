@@ -1552,7 +1552,7 @@ def plot_series(plotdata, plot_type="line", axis=None, data=None, legend_mode=No
                 figs.append(fig)
 
                 units = list(set([plotdata[result, pop, output].unit_string for output in plotdata.outputs]))
-                if len(units) == 1 and not isna(units[0]):
+                if len(units) == 1 and not isna(units[0]) and units[0]:
                     ax.set_ylabel(units[0][0].upper() + units[0][1:])
 
                 if plotdata.pops[pop] != FS.DEFAULT_SYMBOL_INAPPLICABLE:
