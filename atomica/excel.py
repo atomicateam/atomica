@@ -234,7 +234,7 @@ def read_tables(worksheet) -> tuple:
     return tables, start_rows
 
 
-def read_dataframes(excelfile: pd.ExcelFile, sheet_name: str, merge: bool=False) -> list:
+def read_dataframes(excelfile: pd.ExcelFile, sheet_name: str, merge: bool = False) -> list:
     """
     Read dataframes from sheet
 
@@ -251,30 +251,32 @@ def read_dataframes(excelfile: pd.ExcelFile, sheet_name: str, merge: bool=False)
     :return: A list of DataFrames
 
     """
-    df = pd.read_excel(excelfile,sheet_name=sheet_name, header=None, dtype=object)
-    if df.empty: return []
+    df = pd.read_excel(excelfile, sheet_name=sheet_name, header=None, dtype=object)
+    if df.empty:
+        return []
 
-    df = df.loc[(df.iloc[:, 0].str.startswith('#ignore') != True),:] # Remove rows starting with #ignore
-    if df.empty: return []
+    df = df.loc[(df.iloc[:, 0].str.startswith("#ignore") != True), :]  # Remove rows starting with #ignore
+    if df.empty:
+        return []
 
     # Otherwise, strip out empty rows and optionally split up into separate dataframes too
     empty = df.isnull().all(axis=1)
     if merge:
-        dfs = [df.loc[~empty,:]]
+        dfs = [df.loc[~empty, :]]
     else:
         df.reset_index(drop=True, inplace=True)
         start_rows = (df.index[empty.astype(int).diff() == -1]).tolist()
         end_rows = (df.index[empty.astype(int).diff() == 1]).tolist()
-        start_rows.insert(0,0)
-        end_rows.append(df.shape[0]+1)
-        dfs = [df.iloc[start:end,:] for start, end in zip(start_rows, end_rows)]
+        start_rows.insert(0, 0)
+        end_rows.append(df.shape[0] + 1)
+        dfs = [df.iloc[start:end, :] for start, end in zip(start_rows, end_rows)]
 
     # Sanitize dataframes by setting heading row on each subtable and dropping unused columns
     for df in dfs:
-        df.dropna(axis=1, how="all", inplace=True) # Drop any blank columns
+        df.dropna(axis=1, how="all", inplace=True)  # Drop any blank columns
         df.columns = df.iloc[0]
-        df.drop(df.index[0], inplace=True) # The first row has been used as the column headings, so remove it
-        df.reset_index(drop=True, inplace=True) # Reset the index to start from 0 with no missing values
+        df.drop(df.index[0], inplace=True)  # The first row has been used as the column headings, so remove it
+        df.reset_index(drop=True, inplace=True)  # Reset the index to start from 0 with no missing values
 
     return dfs
 

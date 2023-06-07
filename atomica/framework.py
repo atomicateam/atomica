@@ -72,7 +72,7 @@ class ProjectFramework:
         # sheets with meaningful whitespace - whereas the other way round, users can always handle flattening their custom
         # sheets in their own code at the point where they use their sheet.
         merge_tables = {"databook pages", "compartments", "parameters", "characteristics", "interactions", "plots", "population types"}
-        excelfile = pd.ExcelFile(workbook, engine='openpyxl')
+        excelfile = pd.ExcelFile(workbook, engine="openpyxl")
 
         for sheet_name in excelfile.sheet_names:
             sheet_title = sheet_name.lower()
