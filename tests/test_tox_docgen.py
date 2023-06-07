@@ -14,7 +14,7 @@ for f in at.LIBRARY_PATH.iterdir():
     if f.name.endswith("_framework.xlsx") and not f.name.startswith("~$"):
         frameworks.append(f)
 
-@pytest.mark.parametrize("framework", frameworks)
+@pytest.mark.parametrize("fname", frameworks)
 def test_docgen(fname):
     F = at.ProjectFramework(fname)
     at.generate_framework_doc(F, fname=tmpdir/(fname.stem+'_doc.md'))
