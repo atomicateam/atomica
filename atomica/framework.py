@@ -95,6 +95,7 @@ class ProjectFramework:
                 else:
                     if len(df.columns):
                         df.columns = df.columns.str.lower().str.strip()
+
         if validate:
             self._validate()
         if name is not None:
@@ -420,12 +421,12 @@ class ProjectFramework:
 
         # State variables are in number amounts unless normalized.
         if item_type in [FS.KEY_COMPARTMENT, FS.KEY_CHARACTERISTIC]:
-            if "denominator" in item_spec.index and item_spec["denominator"] is not None:
+            if "denominator" in item_spec.index and not pd.isna(item_spec["denominator"]):
                 return FS.QUANTITY_TYPE_FRACTION.title()
             else:
                 return FS.QUANTITY_TYPE_NUMBER.title()
         elif item_type == FS.KEY_PARAMETER:
-            units = item_spec["format"].strip() if item_spec["format"] is not None else None
+            units = item_spec["format"].strip() if not pd.isna(item_spec["format"]) else None
             if np.isfinite(item_spec["timescale"]):
                 if units is None:
                     raise InvalidFramework(f"A timescale was provided for Framework quantity {code_name} but no units were provided")
@@ -1012,7 +1013,7 @@ class ProjectFramework:
                 # probability of 0.3 and 1.0 will both have an annual probability of 1.
                 logger.warning(f'Parameter "{par_name}" is in rate units and a maximum value of "1" has been entered. Rates in the framework should generally not be limited to "1"')
 
-            if par["function"] is None:
+            if pd.isna(par["function"]):
                 # In order to have a value, a transition parameter must either be
                 # - have a function
                 # - appear in the databook
@@ -1245,7 +1246,7 @@ class ProjectFramework:
             used_fallback_cascade = True
             records = []
             for _, spec in self.characs.iterrows():
-                if not spec["denominator"]:
+                if pd.isna(spec["denominator"]):
                     records.append((spec["display name"], spec.name))
             self.sheets["cascades"] = sc.promotetolist(pd.DataFrame.from_records(records, columns=["Cascade", "constituents"]))
         else:
@@ -1603,10 +1604,10 @@ def generate_framework_doc(framework, fname, databook_only=False):
             for inc_name in spec["components"].split(","):
                 f.write("\t- %s\n" % (framework.get_label(inc_name.strip())))
 
-            if spec["denominator"]:
+            if not pd.isna(spec["denominator"]):
                 f.write("- Denominator: %s\n" % (framework.get_label(spec["denominator"])))
 
-            if spec["databook page"]:
+            if not pd.isna(spec["databook page"]):
                 f.write("- Appears in the databook\n")
             else:
                 f.write("- Does not appear in the databook\n")
@@ -1616,7 +1617,7 @@ def generate_framework_doc(framework, fname, databook_only=False):
 
             f.write("\n")
             f.write("- Description: <ENTER DESCRIPTION>\n")
-            f.write("- Data entry guidance: %s\n" % (spec["guidance"] if spec["guidance"] else "<ENTER GUIDANCE>"))
+            f.write("- Data entry guidance: %s\n" % (spec["guidance"] if not pd.isna(spec["guidance"]) else "<ENTER GUIDANCE>"))
 
             f.write("\n")
 
@@ -1624,7 +1625,7 @@ def generate_framework_doc(framework, fname, databook_only=False):
         fcn_deps = {x: set() for x in framework.pars.index.values}
         fcn_used_in = {x: set() for x in framework.pars.index.values}
         for _, spec in framework.pars.iterrows():
-            if spec["function"]:
+            if not pd.isna(spec["function"]):
                 _, deps = parse_function(spec["function"])  # Parse the function to get dependencies
                 for dep in deps:
                     if dep.endswith("___flow"):
@@ -1658,11 +1659,11 @@ def generate_framework_doc(framework, fname, databook_only=False):
                 f.write("- Value can be used for calibration\n")
             f.write("- Units/format: %s\n" % (spec["format"]))
 
-            if spec["minimum value"] is not None and spec["maximum value"] is not None:
+            if not pd.isna(spec["minimum value"]) and not pd.isna(spec["maximum value"]):
                 f.write("- Value restrictions: %s-%s\n" % (sc.sigfig(spec["minimum value"], keepints=True), sc.sigfig(spec["maximum value"], keepints=True)))
-            elif spec["minimum value"] is not None:
+            elif not pd.isna(spec["minimum value"]):
                 f.write("- Value restrictions: At least %s\n" % (sc.sigfig(spec["minimum value"], keepints=True)))
-            elif spec["maximum value"] is not None:
+            elif not pd.isna(spec["maximum value"]):
                 f.write("- Value restrictions: At most %s\n" % (sc.sigfig(spec["maximum value"], keepints=True)))
 
             if framework.transitions[spec.name]:
@@ -1671,20 +1672,20 @@ def generate_framework_doc(framework, fname, databook_only=False):
                     f.write('\t- "%s" to "%s"\n' % (framework.get_label(transition[0]), framework.get_label(transition[1])))
 
             f.write("- Default value: %s\n" % (spec["default value"]))
-            if spec["databook page"]:
+            if not pd.isna(spec["databook page"]):
                 f.write("- Appears in the databook\n")
             else:
                 f.write("- Does not appear in the databook\n")
 
-            if spec["function"]:
+            if not pd.isna(spec["function"]):
                 f.write("- This parameter's value is computed by a function: `%s`\n" % (spec["function"]))
 
-            if fcn_deps[spec.name]:
+            if not pd.isna(fcn_deps[spec.name]):
                 f.write("- Depends on:\n")
                 for dep in fcn_deps[spec.name]:
                     f.write('\t- "%s"\n' % (dep))
 
-            if fcn_used_in[spec.name]:
+            if not pd.isna(fcn_used_in[spec.name]):
                 f.write("- Used to compute:\n")
                 for dep in fcn_used_in[spec.name]:
                     f.write('\t- "%s"\n' % (dep))

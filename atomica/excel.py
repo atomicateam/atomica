@@ -1018,7 +1018,7 @@ class TimeDependentValuesEntry:
                 worksheet.write(current_row, i, entry, formats["center_bold"])
             update_widths(widths, i, entry)
 
-        if self.comment:
+        if not pd.isna(self.comment):
             worksheet.write_comment(xlrc(current_row, 0), self.comment)
 
         # Now, write the TimeSeries objects - self.ts is an odict and whatever pops are present will be written in whatever order they are in

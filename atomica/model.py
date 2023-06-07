@@ -22,6 +22,7 @@ from .programs import ProgramSet, ProgramInstructions
 from .parameters import Parameter as ParsetParameter
 from .parameters import ParameterSet as ParameterSet
 import math
+import pandas as pd
 
 model_settings = dict()
 model_settings["tolerance"] = 1e-6
@@ -1784,7 +1785,7 @@ class Population:
             for inc_name in includes:
                 charac.add_include(self.get_variable(inc_name)[0])  # nb. We expect to only get one match for the name, so use index 0
             denominator = characs.at[charac.name, "denominator"]
-            if denominator is not None:
+            if not pd.isna(denominator):
                 charac.add_denom(self.get_variable(denominator)[0])  # nb. framework import strips whitespace from the overall field
 
         # Parameters second pass, create parameter objects and links
@@ -1815,7 +1816,7 @@ class Population:
                 par.limits = [max(-np.inf, min_value), min(np.inf, max_value)]
 
             fcn_str = pars.at[par.name, "function"]
-            if fcn_str is not None:
+            if not pd.isna(fcn_str):
                 par.set_fcn(fcn_str)
 
         # If this Parameter has links and a function, it must be updated before it is needed during integration.

@@ -212,7 +212,7 @@ class ParameterSet(NamedItem):
         # For the moment, framework validation ensures the default value is 0 - to avoid the confusion of default values being invisibly inserted
         # This requirement could be dropped in future if the use cases end up being unambiguous
         for _, spec in itertools.chain(framework.comps.iterrows(), framework.characs.iterrows()):
-            if pd.isna(spec["databook page"]) and ~pd.isna(spec["default value"]):
+            if pd.isna(spec["databook page"]) and not pd.isna(spec["default value"]):
                 assert spec.name not in self.pars, f"Quantity '{spec.name}' is not marked in the framework as having a databook page and it has a default value, but it has been loaded into the ParameterSet as data. If the quantity needs to be populated from the databook, either provide a databook page or remove the default value"
                 ts = dict()
                 units = framework.get_databook_units(name).strip().lower()
