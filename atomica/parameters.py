@@ -15,7 +15,7 @@ import pandas as pd
 import sciris as sc
 from .utils import NamedItem, TimeSeries
 from .system import logger
-import scipy.interpolate
+import itertools
 
 __all__ = ["Parameter", "ParameterSet"]
 
@@ -207,11 +207,25 @@ class ParameterSet(NamedItem):
                     raise Exception(message)
             self.pars[name] = Parameter(name, sc.odict({k: v.copy() for k, v in tdve.ts.items() if k in self.pop_names}))  # Keep only valid populations (discard any extra ones here)
 
+        # Instantiate compartments and characteristics that have a default value and do not appear in the databook
+        # Note that the default value will be used in all populations of the appropriate type
+        # For the moment, framework validation ensures the default value is 0 - to avoid the confusion of default values being invisibly inserted
+        # This requirement could be dropped in future if the use cases end up being unambiguous
+        for _, spec in itertools.chain(framework.comps.iterrows(), framework.characs.iterrows()):
+            if pd.isna(spec["databook page"]) and not pd.isna(spec["default value"]):
+                assert spec.name not in self.pars, f"Quantity '{spec.name}' is not marked in the framework as having a databook page and it has a default value, but it has been loaded into the ParameterSet as data. If the quantity needs to be populated from the databook, either provide a databook page or remove the default value"
+                ts = dict()
+                units = framework.get_databook_units(name).strip().lower()
+                for pop_name in self.pop_names:
+                    if data.pops[pop_name]["type"] == spec["population type"]:
+                        ts[pop_name] = TimeSeries(units=units, assumption=spec["default value"])
+                self.pars[spec.name] = Parameter(spec.name, ts)
+
         # Instantiate parameters not in the databook
         for _, spec in framework.pars.iterrows():
             if spec.name not in self.pars:
                 ts = dict()
-                units = framework.get_databook_units(spec.name)
+                units = framework.get_databook_units(spec.name).strip().lower()
                 for pop_name in self.pop_names:
                     if data.pops[pop_name]["type"] == spec["population type"]:
                         ts[pop_name] = TimeSeries(units=units)

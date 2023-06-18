@@ -23,6 +23,7 @@ from .parameters import Parameter as ParsetParameter
 from .parameters import ParameterSet as ParameterSet
 import math
 from .utils import stochastic_rounding
+import pandas as pd
 
 model_settings = dict()
 model_settings["tolerance"] = 1e-6
@@ -1846,7 +1847,7 @@ class Population:
             for inc_name in includes:
                 charac.add_include(self.get_variable(inc_name)[0])  # nb. We expect to only get one match for the name, so use index 0
             denominator = characs.at[charac.name, "denominator"]
-            if denominator is not None:
+            if not pd.isna(denominator):
                 charac.add_denom(self.get_variable(denominator)[0])  # nb. framework import strips whitespace from the overall field
 
         # Parameters second pass, create parameter objects and links
@@ -1877,7 +1878,7 @@ class Population:
                 par.limits = [max(-np.inf, min_value), min(np.inf, max_value)]
 
             fcn_str = pars.at[par.name, "function"]
-            if fcn_str is not None:
+            if not pd.isna(fcn_str):
                 par.set_fcn(fcn_str)
 
         # If this Parameter has links and a function, it must be updated before it is needed during integration.
@@ -1909,8 +1910,8 @@ class Population:
         # values for the compartments by solving the set of characteristics simultaneously
 
         # Build up the comps and characs containing the setup values in the databook - the `b` in `x=A*b`
-        characs_to_use = framework.characs.index[(~framework.characs["databook page"].isnull() & framework.characs["setup weight"] & (framework.characs["population type"] == self.type))]
-        comps_to_use = framework.comps.index[(~framework.comps["databook page"].isnull() & framework.comps["setup weight"] & (framework.comps["population type"] == self.type))]
+        characs_to_use = framework.characs.index[framework.characs["setup weight"] & (framework.characs["population type"] == self.type)]
+        comps_to_use = framework.comps.index[framework.comps["setup weight"] & (framework.comps["population type"] == self.type)]
         b_objs = [self.charac_lookup[x] for x in characs_to_use] + [self.comp_lookup[x] for x in comps_to_use]
 
         # Build up the comps corresponding to the `x` values in `x=A*b` i.e. the compartments being solved for

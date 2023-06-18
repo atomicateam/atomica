@@ -465,7 +465,8 @@ class PlotData:
             else:
                 raise Exception("Unknown accumulation type")
 
-            self.outputs[s.output] = "Cumulative " + self.outputs[s.output]
+        for k, v in self.outputs.items():
+            self.outputs[k] = "Cumulative " + v
 
     def time_aggregate(self, t_bins, time_aggregation=None, interpolation_method=None):
         """
@@ -1364,7 +1365,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer=None, legend_
     # Calculate the units. As all bar patches are shown on the same axis, they are all expected to have the
     # same units. If they do not, the plot could be misleading
     units = list(set([x.unit_string for x in plotdata.series]))
-    if len(units) == 1 and units[0] is not None:
+    if len(units) == 1 and not isna(units[0]):
         if orientation == "horizontal":
             ax.set_xlabel(units[0].capitalize())
         else:
@@ -1483,7 +1484,7 @@ def plot_series(plotdata, plot_type="line", axis=None, data=None, legend_mode=No
                 figs.append(fig)
 
                 units = list(set([plotdata[result, pop, output].unit_string for result in plotdata.results]))
-                if len(units) == 1 and units[0]:
+                if len(units) == 1 and not isna(units[0]):
                     ax.set_ylabel("%s (%s)" % (plotdata.outputs[output], units[0]))
                 else:
                     ax.set_ylabel("%s" % (plotdata.outputs[output]))
@@ -1518,7 +1519,7 @@ def plot_series(plotdata, plot_type="line", axis=None, data=None, legend_mode=No
                 figs.append(fig)
 
                 units = list(set([plotdata[result, pop, output].unit_string for pop in plotdata.pops]))
-                if len(units) == 1 and units[0]:
+                if len(units) == 1 and not isna(units[0]):
                     ax.set_ylabel("%s (%s)" % (plotdata.outputs[output], units[0]))
                 else:
                     ax.set_ylabel("%s" % (plotdata.outputs[output]))
@@ -1551,7 +1552,7 @@ def plot_series(plotdata, plot_type="line", axis=None, data=None, legend_mode=No
                 figs.append(fig)
 
                 units = list(set([plotdata[result, pop, output].unit_string for output in plotdata.outputs]))
-                if len(units) == 1 and units[0]:
+                if len(units) == 1 and not isna(units[0]) and units[0]:
                     ax.set_ylabel(units[0][0].upper() + units[0][1:])
 
                 if plotdata.pops[pop] != FS.DEFAULT_SYMBOL_INAPPLICABLE:
