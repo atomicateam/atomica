@@ -255,12 +255,18 @@ def read_dataframes(excelfile: pd.ExcelFile, sheet_name: str, merge: bool = Fals
     if df.empty:
         return []
 
-    df = df.loc[(df.iloc[:, 0].str.startswith("#ignore") != True), :]  # Remove rows starting with #ignore
+    # Drop rows starting with #ignore
+    df = df.loc[(df.iloc[:, 0].str.startswith("#ignore") != True), :]
     if df.empty:
         return []
 
-    # Otherwise, strip out empty rows and optionally split up into separate dataframes too
+    # Drop empty rows
     empty = df.isnull().all(axis=1)
+
+    # Strip all strings
+    df = df.applymap(lambda x: x.strip() if sc.isstring(x) else x)
+
+    # Optionally split into multiple dataframes
     if merge:
         dfs = [df.loc[~empty, :]]
     else:
