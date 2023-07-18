@@ -63,7 +63,7 @@ class ProjectFramework:
         else:
             self.spreadsheet = sc.Spreadsheet(inputs)
 
-        workbook = openpyxl.load_workbook(self.spreadsheet.tofile(), read_only=True, data_only=True)
+        workbook = openpyxl.load_workbook(self.spreadsheet.tofile(), read_only=True, data_only=True)  # Load in read-write mode so that we can correctly dump the file
         validate_category(workbook, "atomica:framework")
         # For some pages, we only ever want to read in one DataFrame, and we want empty lines to be ignored. For example, on the
         # 'compartments' sheet, we want to ignore blank lines, while on the 'cascades' sheet we want the blank line to delimit the
@@ -72,17 +72,10 @@ class ProjectFramework:
         # sheets with meaningful whitespace - whereas the other way round, users can always handle flattening their custom
         # sheets in their own code at the point where they use their sheet.
         merge_tables = {"databook pages", "compartments", "parameters", "characteristics", "interactions", "plots", "population types"}
-        excelfile = pd.ExcelFile(workbook, engine="openpyxl")
 
-        for sheet_name in excelfile.sheet_names:
-            sheet_title = sheet_name.lower()
-
-            # try:
-            self.sheets[sheet_title] = read_dataframes(excelfile, sheet_name, sheet_title in merge_tables)
-            # except Exception as e:
-            #     message = f'An error was detected on the "{sheet_name}" sheet in the Framework file'
-            #     raise InvalidFramework("%s -> %s" % (message, e)) from e
-
+        for worksheet in workbook.worksheets:
+            sheet_title = worksheet.title.lower()
+            self.sheets[sheet_title] = read_dataframes(worksheet, sheet_title in merge_tables)
             for df in self.sheets[sheet_title]:
                 if sheet_title == "cascades":
                     # On the cascades sheet, the user-entered name appears in the header row. We must preserve case for this
@@ -94,8 +87,7 @@ class ProjectFramework:
                     pass
                 else:
                     if len(df.columns):
-                        df.columns = df.columns.str.lower().str.strip()
-
+                        df.columns = df.columns.str.lower()
         if validate:
             self._validate()
         if name is not None:

@@ -2,6 +2,10 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.26.3] - 2023-07-18
+
+- Change the table parsing routine again to resolve further edge cases, restore removal of leading and trailing spaces from cells in the framework, and improve performance. The original `None` behaviour has consequently been restored (undoing the change in 1.26.2) although it is still recommended that `pandas.isna()` is used instead of checking for `None`.
+
 ## [1.26.2] - 2023-06-07
 
 - Switch to `sc.gitinfo` from Sciris. The git commit hash recorded in Atomica objects will now only contain the first 7 characters. Code that uses `at.fast_gitinfo` should use `sc.gitinfo` instead.
