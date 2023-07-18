@@ -234,56 +234,98 @@ def read_tables(worksheet) -> tuple:
     return tables, start_rows
 
 
-def read_dataframes(excelfile: pd.ExcelFile, sheet_name: str, merge: bool = False) -> list:
+def read_dataframes(worksheet, merge=False) -> list:
     """
     Read dataframes from sheet
 
     This function operates similarly to ``read_tables`` except it returns Dataframes instead of
     cells. This enables the dataframes to be constructed more quickly, at the expense of being
     able to track the cell references and row numbers. These are shown for databooks (via ``read_tables``)
-    but not for frameworks (which go via ``read_dataframes``). The input object is a ``pd.ExcelFile`` so
-    that standard Pandas parsing can be used, without needing to re-open the file.
+    but not for frameworks (which go via ``read_dataframes``)
 
 
-    :param excelfile: An opened `pd.ExcelFile` instance.
+    :param worksheet: An openpyxl worksheet
     :param merge: If False (default) then blank rows will be used to split the dataframes. If True, only one
                   DataFrame will be returned
     :return: A list of DataFrames
 
     """
-    df = pd.read_excel(excelfile, sheet_name=sheet_name, header=None, dtype=object)
-    if df.empty:
-        return []
+    # This function takes in a openpyxl worksheet, and returns tables
+    # A table consists of a block of rows with any #ignore rows skipped
+    # This function will start at the top of the worksheet, read rows into a buffer
+    # until it gets to the first entirely empty row
+    # And then returns the contents of that buffer as a table. So a table is a list of openpyxl rows
+    # This function continues until it has exhausted all of the rows in the sheet
 
-    # Drop rows starting with #ignore
-    df = df.loc[(df.iloc[:, 0].str.startswith("#ignore") != True), :]
-    if df.empty:
-        return []
+    content = np.empty((worksheet.max_row, worksheet.max_column), dtype="object")
+    ignore = np.zeros((worksheet.max_row), dtype=bool)
+    empty = np.zeros((worksheet.max_row), dtype=bool)  # True for index where a new table begins
 
-    # Drop empty rows
-    empty = df.isnull().all(axis=1)
+    for i, row in enumerate(worksheet.rows):
+        if len(row) > 0 and (row[0].data_type == "s" and row[0].value.startswith("#ignore")):
+            ignore[i] = True
+            continue
 
-    # Strip all strings
-    df = df.applymap(lambda x: x.strip() if sc.isstring(x) else x)
+        any_values = False
+        for j, cell in enumerate(row):
+            v = cell.value
+            try:
+                v = v.strip()
+                has_value = bool(v)  # If it's a string type, call strip() before checking truthiness
+            except AttributeError:
+                has_value = v is not None  # If it's not a string type, then only consider it empty if it's type is None (otherwise, a numerical value of 0 would be treated as empty)
+            if has_value:
+                any_values = True
+            content[i, j] = v
+        if not any_values:
+            empty[i] = True
 
-    # Optionally split into multiple dataframes
+    tables = []
     if merge:
-        dfs = [df.loc[~empty, :]]
+        ignore[empty] = True
+        if all(ignore):
+            return []
+        tables.append(content[~ignore, :])
     else:
-        df.reset_index(drop=True, inplace=True)
-        start_rows = (df.index[empty.astype(int).diff() == -1]).tolist()
-        end_rows = (df.index[empty.astype(int).diff() == 1]).tolist()
-        start_rows.insert(0, 0)
-        end_rows.append(df.shape[0] + 1)
-        dfs = [df.iloc[start:end, :] for start, end in zip(start_rows, end_rows)]
+        # A change from False to True means that we need to start a new table
+        # A True followed by a True doesn't start a new table but instead gets ignored
+        content = content[~ignore, :]
+        empty = empty[~ignore]
 
-    # Sanitize dataframes by setting heading row on each subtable and dropping unused columns
-    for df in dfs:
-        df.dropna(axis=1, how="all", inplace=True)  # Drop any blank columns
+        # If there is no content at all, return immediately
+        if all(empty):
+            return []
+
+        idx = []
+        start = None
+
+        for i in range(len(empty)):
+
+            # Check for the start of a table
+            if not empty[i] and start is None:
+                start = i
+
+            # Check for the end of a table
+            if empty[i] and start is not None:
+                # If we were reading a table and have reached an empty row
+                idx.append((start,i))
+                start = None
+            elif i+1 == len(empty) and start is not None:
+                # If we were reading a table and have reached the end of the data
+                idx.append((start,i+1))
+                start = None
+
+        tables = []
+        for start, stop in idx:
+            tables.append(content[start:stop].copy()) # Use .copy() so that we don't retain any references to the original full array outside this function
+
+    dfs = []
+    for table in tables:
+        df = pd.DataFrame(table)
+        df.dropna(axis=1, how="all", inplace=True)
         df.columns = df.iloc[0]
-        df.drop(df.index[0], inplace=True)  # The first row has been used as the column headings, so remove it
-        df.reset_index(drop=True, inplace=True)  # Reset the index to start from 0 with no missing values
-
+        df = df[1:]
+        dfs.append(df)
     return dfs
 
 
