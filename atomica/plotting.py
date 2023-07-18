@@ -572,7 +572,7 @@ class PlotData:
                     # This would be the usage 99% of the time (esp. for DALYs that are interested in number of person-years)
                     if s.units == "Number of people":
                         s.units = "Number of person-years"
-                    elif s.units is not None:
+                    elif not pd.isna(s.units):
                         s.units += " years"
                     else:
                         # If the units are none, decide what to do. It probably makes sense just to do nothing and
