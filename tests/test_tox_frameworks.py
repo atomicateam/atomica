@@ -67,7 +67,6 @@ def test_framework_spaces():
     F.get_variable('Number of contacts annually') # Has a leading space in the framework
     F.get_variable('Death rate for infected people') # Has a trailing space in the framework
 
-
 if __name__ == "__main__":
 
     for fname in frameworks:
