@@ -519,9 +519,9 @@ class JunctionCompartment(Compartment):
         # Finally, assign the inflow to the outflow proportionately accounting for the total outflow downscaling
         for frac, link in zip(outflow_fractions, self.outlinks):
             if self.duration_group:
-                link._vals[:, ti] = net_inflow * frac / total_outflow
+                link._vals[:, ti] = net_inflow * frac / total_outflow  #HERE? - taken care of
             else:
-                link.vals[ti] = net_inflow * frac / total_outflow
+                link.vals[ti] = net_inflow * frac / total_outflow  #HERE? - taken care of
 
     def initial_flush(self) -> None:
         """
@@ -540,7 +540,7 @@ class JunctionCompartment(Compartment):
         if self.vals[0] > 0:
             # Work out the outflow fractions
             outflow_fractions = np.array([link.parameter.vals[0] for link in self.outlinks])
-            outflow_fractions /= np.sum(outflow_fractions)
+            outflow_fractions /= np.sum(outflow_fractions)  #HERE? - taken care of
 
             # Assign the inflow directly to the outflow compartments
             # This is done using the [] indexing on the downstream compartment so it is agnostic
@@ -1114,7 +1114,7 @@ class Parameter(Variable):
 
         assert sc.isstring(fcn_str), "Parameter function must be supplied as a string"
         self.fcn_str = fcn_str
-        self._fcn, dep_list = parse_function(self.fcn_str)
+        self._fcn, dep_list = parse_function(self.fcn_str)  # HERE2
         if fcn_str.startswith("SRC_POP_AVG") or fcn_str.startswith("TGT_POP_AVG") or fcn_str.startswith("SRC_POP_SUM") or fcn_str.startswith("TGT_POP_SUM"):
             # The function is like 'SRC_POP_AVG(par_name,interaction_name,charac_name)'
             # self.pop_aggregation will be ['SRC_POP_AVG',par_name,interaction_name,charac_object]
@@ -1200,7 +1200,7 @@ class Parameter(Variable):
             for dep_name in self.deps:
                 self.deps[dep_name] = [objs[x] for x in self.deps[dep_name]]
         if self.fcn_str:
-            self._fcn = parse_function(self.fcn_str)[0]
+            self._fcn = parse_function(self.fcn_str)[0]  ##HERE 2
 
     def constrain(self, ti=None) -> None:
         """
@@ -1271,7 +1271,10 @@ class Parameter(Variable):
 
         dep_vals["t"] = self.t[ti]
         dep_vals["dt"] = self.dt
-        v = self.scale_factor * self._fcn(**dep_vals)
+        try:
+            v = self.scale_factor * self._fcn(**dep_vals)
+        except:
+            raise ModelError(f"Error when calculating the value for parameter: {self}")
 
         if self.derivative:
             self._dx = v
@@ -2427,15 +2430,20 @@ class Model:
                 # greater than 1 simply implies that the mean duration is less than the timescale in question, and we need to retain that value
                 # to be able to correctly convert between timescales. The subsequent call to min() then ensures that the fraction moved never
                 # exceeds 1.0 once operating on the timestep level
-                converted_frac = transition * (self.dt / par.timescale)
+                try:
+                    converted_frac = transition * (self.dt / par.timescale)  #HERE? - done
+                except Exception as e:
+                    raise ModelError(f"Error when converting the parameter {par} to a per timestep value.") from e
                 for link in par.links:
                     link._cache = converted_frac
 
             # Linearly convert number down to that appropriate for one timestep.
             elif par.units == FS.QUANTITY_TYPE_NUMBER:
                 # Disaggregate proportionally across all source compartment sizes related to all links.
-                converted_amt = transition * (self.dt / par.timescale)  # Number flow in this timestep, so it includes a timescale factor
-
+                try:
+                    converted_amt = transition * (self.dt / par.timescale)  #HERE?  - done # Number flow in this timestep, so it includes a timescale factor
+                except Exception as e:
+                    raise ModelError(f"Error when converting the parameter {par} to a per timestep value.") from e
                 if isinstance(par.links[0].source, SourceCompartment):
                     # For a source compartment, the link value should be explicitly set directly
                     # Also, there is guaranteed to only be one link per parameter for outflows from source compartments
@@ -2453,7 +2461,10 @@ class Model:
 
             # Convert from duration to equivalent probability
             elif par.units == FS.QUANTITY_TYPE_DURATION:
-                converted_frac = self.dt / (transition * par.timescale)
+                try:
+                    converted_frac = self.dt / (transition * par.timescale)  #HERE? - done
+                except Exception as e:
+                    raise ModelError(f"Error when converting the parameter {par} to a per timestep value.") from e
                 for link in par.links:
                     link._cache = converted_frac
 
@@ -2474,7 +2485,10 @@ class Model:
         # Balance junctions. Note that the order of execution is critical here for junctions that flow into other junctions,
         # so `self._exec_order` must have already been populated
         for j in self._exec_order["junctions"]:
-            j.balance(ti)
+            try:
+                j.balance(ti)
+            except Exception as e:
+                raise ModelError(f"Error when balancing the junction: {j}") from e
 
     def update_comps(self) -> None:
         """
@@ -2505,7 +2519,10 @@ class Model:
         """
 
         for j in self._exec_order["junctions"]:
-            j.initial_flush()
+            try:
+                j.initial_flush()
+            except Exception as e:
+                raise ModelError(f"Error when initially flushing junction: {j}") from e
 
     def update_pars(self) -> None:
         """
