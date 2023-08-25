@@ -1273,8 +1273,8 @@ class Parameter(Variable):
         dep_vals["dt"] = self.dt
         try:
             v = self.scale_factor * self._fcn(**dep_vals)
-        except:
-            raise ModelError(f"Error when calculating the value for parameter: {self}")
+        except Exception as e:
+            raise ModelError(f"Error when calculating the value for parameter: {self}") from e
 
         if self.derivative:
             self._dx = v
