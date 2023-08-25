@@ -1271,7 +1271,10 @@ class Parameter(Variable):
 
         dep_vals["t"] = self.t[ti]
         dep_vals["dt"] = self.dt
-        v = self.scale_factor * self._fcn(**dep_vals)
+        try:
+            v = self.scale_factor * self._fcn(**dep_vals)
+        except Exception as e:
+            raise ModelError(f"Error when calculating the value for parameter: {self}") from e
 
         if self.derivative:
             self._dx = v
@@ -2427,14 +2430,20 @@ class Model:
                 # greater than 1 simply implies that the mean duration is less than the timescale in question, and we need to retain that value
                 # to be able to correctly convert between timescales. The subsequent call to min() then ensures that the fraction moved never
                 # exceeds 1.0 once operating on the timestep level
-                converted_frac = transition * (self.dt / par.timescale)
+                try:
+                    converted_frac = transition * (self.dt / par.timescale)
+                except Exception as e:
+                    raise ModelError(f"Error when converting the parameter {par} to a per timestep value.") from e
                 for link in par.links:
                     link._cache = converted_frac
 
             # Linearly convert number down to that appropriate for one timestep.
             elif par.units == FS.QUANTITY_TYPE_NUMBER:
                 # Disaggregate proportionally across all source compartment sizes related to all links.
-                converted_amt = transition * (self.dt / par.timescale)  # Number flow in this timestep, so it includes a timescale factor
+                try:
+                    converted_amt = transition * (self.dt / par.timescale)  # Number flow in this timestep, so it includes a timescale factor
+                except Exception as e:
+                    raise ModelError(f"Error when converting the parameter {par} to a per timestep value.") from e
 
                 if isinstance(par.links[0].source, SourceCompartment):
                     # For a source compartment, the link value should be explicitly set directly
@@ -2453,7 +2462,10 @@ class Model:
 
             # Convert from duration to equivalent probability
             elif par.units == FS.QUANTITY_TYPE_DURATION:
-                converted_frac = self.dt / (transition * par.timescale)
+                try:
+                    converted_frac = self.dt / (transition * par.timescale)
+                except Exception as e:
+                    raise ModelError(f"Error when converting the parameter {par} to a per timestep value.") from e
                 for link in par.links:
                     link._cache = converted_frac
 
@@ -2474,7 +2486,10 @@ class Model:
         # Balance junctions. Note that the order of execution is critical here for junctions that flow into other junctions,
         # so `self._exec_order` must have already been populated
         for j in self._exec_order["junctions"]:
-            j.balance(ti)
+            try:
+                j.balance(ti)
+            except Exception as e:
+                raise ModelError(f"Error when balancing the junction: {j}") from e
 
     def update_comps(self) -> None:
         """
@@ -2505,7 +2520,10 @@ class Model:
         """
 
         for j in self._exec_order["junctions"]:
-            j.initial_flush()
+            try:
+                j.initial_flush()
+            except Exception as e:
+                raise ModelError(f"Error when initially flushing junction: {j}") from e
 
     def update_pars(self) -> None:
         """
