@@ -2,6 +2,15 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.26.5] - 2023-08-29
+
+- Transfer parameters no longer raise an error if specified in 'Duration' units
+- Transfer parameters in rate units are no longer limited to a maximum value of 1
+
+*Backwards-compatibility notes*
+
+- Transfers in rate units with a databook value greater than 1 were internally limited to a value of 1 previously. Models with such transfers will produce different results. This is expected to be uncommon, as most models have transfer parameters with values less than 1.
+
 ## [1.26.4] - 2023-08-25
 
 - Some numerical errors in `model.py` (particularly relating to errors/warnings in parameter functions) are now caught and printed with more informative error messages. 
