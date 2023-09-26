@@ -2,6 +2,10 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.26.6] - 2023-09-26
+
+- Improve error message if calibration file contains duplicate entries
+
 ## [1.26.5] - 2023-08-29
 
 - Transfer parameters no longer raise an error if specified in 'Duration' units
