@@ -45,6 +45,9 @@ if not logger.handlers:
     debug_handler.addFilter(type("ThresholdFilter", (object,), {"filter": lambda x, logRecord: logRecord.levelno < logging.INFO})())  # Display anything INFO or higher
     info_handler.addFilter(type("ThresholdFilter", (object,), {"filter": lambda x, logRecord: logRecord.levelno < logging.WARNING})())  # Don't display WARNING or higher
 
+    warning_formatter = logging.Formatter("%(levelname)s {%(filename)s:%(lineno)d} - %(message)s")
+    warning_handler.setFormatter(warning_formatter)
+
     debug_formatter = logging.Formatter("%(levelname)s {%(filename)s:%(lineno)d} - %(message)s")
     debug_handler.setFormatter(debug_formatter)
 
