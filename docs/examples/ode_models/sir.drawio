@@ -1,0 +1,30 @@
+<mxfile host="Electron" modified="2023-10-20T02:16:44.495Z" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/21.6.8 Chrome/114.0.5735.289 Electron/25.5.0 Safari/537.36" etag="_eVSu22K65Euh3JWMHRC" version="21.6.8" type="device">
+  <diagram name="Page-1" id="H0ZrTOQyqS4I_QziNJTY">
+    <mxGraphModel dx="1292" dy="824" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="LjiDff0lyCVZId5EFuQ0-3" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="LjiDff0lyCVZId5EFuQ0-1" target="LjiDff0lyCVZId5EFuQ0-2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="LjiDff0lyCVZId5EFuQ0-7" value="Force&lt;br&gt;of&lt;br&gt;infection" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="LjiDff0lyCVZId5EFuQ0-3">
+          <mxGeometry x="-0.15" y="-2" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="LjiDff0lyCVZId5EFuQ0-1" value="Susceptible" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="360" y="330" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="LjiDff0lyCVZId5EFuQ0-5" value="Duration&lt;br&gt;of&lt;br&gt;infection" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="LjiDff0lyCVZId5EFuQ0-2" target="LjiDff0lyCVZId5EFuQ0-4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="LjiDff0lyCVZId5EFuQ0-2" value="Infected" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="630" y="330" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="LjiDff0lyCVZId5EFuQ0-4" value="Recovered" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="900" y="330" width="120" height="60" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

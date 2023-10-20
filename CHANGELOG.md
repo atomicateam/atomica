@@ -2,6 +2,11 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.26.7] - 2023-10-20
+
+- Warning messages now print the file/line they were generated from
+- Added extra documentation on parallels with explicit ODE compartment models
+
 ## [1.26.6] - 2023-09-26
 
 - Improve error message if calibration file contains duplicate entries
