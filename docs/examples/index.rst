@@ -13,6 +13,7 @@ notebooks to try them out interactively and explore the effect of making changes
     Frameworks
     Model-dev
     Model-user
+    ode_models/ode_models
     Plotting
     Plot-Programs
     Plot-Units
