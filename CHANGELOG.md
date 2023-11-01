@@ -2,6 +2,46 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.26.7] - 2023-10-20
+
+- Warning messages now print the file/line they were generated from
+- Added extra documentation on parallels with explicit ODE compartment models
+
+## [1.26.6] - 2023-09-26
+
+- Improve error message if calibration file contains duplicate entries
+
+## [1.26.5] - 2023-08-29
+
+- Transfer parameters no longer raise an error if specified in 'Duration' units
+- Transfer parameters in rate units are no longer limited to a maximum value of 1
+
+*Backwards-compatibility notes*
+
+- Transfers in rate units with a databook value greater than 1 were internally limited to a value of 1 previously. Models with such transfers will produce different results. This is expected to be uncommon, as most models have transfer parameters with values less than 1.
+
+## [1.26.4] - 2023-08-25
+
+- Some numerical errors in `model.py` (particularly relating to errors/warnings in parameter functions) are now caught and printed with more informative error messages. 
+
+## [1.26.3] - 2023-07-18
+
+- Change the table parsing routine again to resolve further edge cases, restore removal of leading and trailing spaces from cells in the framework, and improve performance. The original `None` behaviour has consequently been restored (undoing the change in 1.26.2) although it is still recommended that `pandas.isna()` is used instead of checking for `None`.
+
+## [1.26.2] - 2023-06-07
+
+- Switch to `sc.gitinfo` from Sciris. The git commit hash recorded in Atomica objects will now only contain the first 7 characters. Code that uses `at.fast_gitinfo` should use `sc.gitinfo` instead.
+- Improve robustness of the table parsing routine used by `at.Framework`. In some cases, the data type of empty cells is now `NaN` rather than `None`. This affects any code that either checks for the contents being `None` or which relies on `None` being treated as `False` in conditional statements e.g., `if <contents>:`.  Affected code should instead use `pandas.isna()` which handles `None`, `NaN`, and `pd.NA`. 
+
+## [1.26.1] - 2023-05-29
+
+- Improve numerical robustness of `SpendingPackageAdjustment` under certain edge cases
+- Fix bug in cumulative plot labelling that could result in the axis label containing more than one 'Cumulative' prefix
+
+## [1.26.0] - 2023-05-22
+
+- Allow initializing compartments and characteristics with a 0 value by setting a default value without needing to add the quantity to the databook. This simplifies initialization of models that have large numbers of compartments that should always be initialized with a 0 value, without needing to add many databook entries or extra initialization characteristics. 
+
 ## [1.25.18] - 2023-01-09
 
 - Allow framework variables with single characters (previously, all code names had to be at least two characters long)

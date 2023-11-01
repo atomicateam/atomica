@@ -5,17 +5,22 @@ Check whether automated model documentation template generation works
 import os
 import atomica as at
 import sciris as sc
+import pytest
+
+testdir = at.parent_dir()
+tmpdir = testdir / "temp"
+frameworks = list()
+for f in at.LIBRARY_PATH.iterdir():
+    if f.name.endswith("_framework.xlsx") and not f.name.startswith("~$"):
+        frameworks.append(f)
 
 
-def test_docgen():
-    F = at.ProjectFramework(at.LIBRARY_PATH / "tb_framework.xlsx")
-
-    testdir = at.parent_dir()
-    tmpdir = testdir / "temp"
-    fname = sc.makefilepath(filename="tb_doc.md", folder=tmpdir)
-
-    at.generate_framework_doc(F, fname=fname)
+@pytest.mark.parametrize("fname", frameworks)
+def test_docgen(fname):
+    F = at.ProjectFramework(fname)
+    at.generate_framework_doc(F, fname=tmpdir / (fname.stem + "_doc.md"))
 
 
 if __name__ == "__main__":
-    test_docgen()
+    for fname in frameworks:
+        test_docgen(fname)

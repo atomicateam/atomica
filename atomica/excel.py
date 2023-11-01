@@ -297,27 +297,27 @@ def read_dataframes(worksheet, merge=False) -> list:
             return []
 
         idx = []
-        for i in range(len(empty) - 1):
-            if not empty[i] and not idx:
-                # Write the first line. This could be followed by an empty row, so need to a separate block for this
-                idx.append(i)
+        start = None
 
-            if not empty[i] and empty[i + 1]:
-                # row i is the last row in the table (so need to include it in the range, hence +1)
-                idx.append(i + 1)
-            elif empty[i] and not empty[i + 1]:
-                # Row i+1 marks the start of a table
-                idx.append(i + 1)
+        for i in range(len(empty)):
 
-        if not empty[-1]:
-            # If the last row has content, then make sure that the last table goes all the way up
-            idx.append(empty.size)
+            # Check for the start of a table
+            if not empty[i] and start is None:
+                start = i
 
-        assert not len(idx) % 2, "Error in table parsing routine, did not correctly identify table breaks"
+            # Check for the end of a table
+            if empty[i] and start is not None:
+                # If we were reading a table and have reached an empty row
+                idx.append((start,i))
+                start = None
+            elif i+1 == len(empty) and start is not None:
+                # If we were reading a table and have reached the end of the data
+                idx.append((start,i+1))
+                start = None
 
         tables = []
-        for i in range(0, len(idx) - 1, 2):
-            tables.append(content[idx[i] : idx[i + 1]].copy())
+        for start, stop in idx:
+            tables.append(content[start:stop].copy()) # Use .copy() so that we don't retain any references to the original full array outside this function
 
     dfs = []
     for table in tables:
@@ -1068,7 +1068,7 @@ class TimeDependentValuesEntry:
                 worksheet.write(current_row, i, entry, formats["center_bold"])
             update_widths(widths, i, entry)
 
-        if self.comment:
+        if not pd.isna(self.comment):
             worksheet.write_comment(xlrc(current_row, 0), self.comment)
 
         # Now, write the TimeSeries objects - self.ts is an odict and whatever pops are present will be written in whatever order they are in

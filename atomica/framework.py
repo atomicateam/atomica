@@ -65,7 +65,6 @@ class ProjectFramework:
 
         workbook = openpyxl.load_workbook(self.spreadsheet.tofile(), read_only=True, data_only=True)  # Load in read-write mode so that we can correctly dump the file
         validate_category(workbook, "atomica:framework")
-
         # For some pages, we only ever want to read in one DataFrame, and we want empty lines to be ignored. For example, on the
         # 'compartments' sheet, we want to ignore blank lines, while on the 'cascades' sheet we want the blank line to delimit the
         # start of a new cascade. So, for the sheet names below, multiple tables will be compressed to one table. We could have the
@@ -88,7 +87,7 @@ class ProjectFramework:
                     pass
                 else:
                     if len(df.columns):
-                        df.columns = df.columns.str.lower().str.strip()
+                        df.columns = df.columns.str.lower()
         if validate:
             self._validate()
         if name is not None:
@@ -414,12 +413,12 @@ class ProjectFramework:
 
         # State variables are in number amounts unless normalized.
         if item_type in [FS.KEY_COMPARTMENT, FS.KEY_CHARACTERISTIC]:
-            if "denominator" in item_spec.index and item_spec["denominator"] is not None:
+            if "denominator" in item_spec.index and not pd.isna(item_spec["denominator"]):
                 return FS.QUANTITY_TYPE_FRACTION.title()
             else:
                 return FS.QUANTITY_TYPE_NUMBER.title()
         elif item_type == FS.KEY_PARAMETER:
-            units = item_spec["format"].strip() if item_spec["format"] is not None else None
+            units = item_spec["format"].strip() if not pd.isna(item_spec["format"]) else None
             if np.isfinite(item_spec["timescale"]):
                 if units is None:
                     raise InvalidFramework(f"A timescale was provided for Framework quantity {code_name} but no units were provided")
@@ -650,18 +649,19 @@ class ProjectFramework:
         self.comps["population type"] = self.comps["population type"].fillna(available_pop_types[0])
         self.comps["duration group"] = None  # Store the duration group (the name of the outgoing timed parameter) if there is one
 
-        # Default setup weight is 1 if in databook or 0 otherwise
+        # Default setup weight is 1 if in databook or has a default value, or 0 otherwise
         # This is a separate check because the default value depends on other columns
         if "setup weight" not in self.comps:
-            self.comps["setup weight"] = (~self.comps["databook page"].isnull()).astype(int)
+            # If no setup weights are specified, then we set a setup weight of
+            self.comps["setup weight"] = ((~self.comps["databook page"].isna() | ~self.comps["default value"].isna()) & (self.comps["is source"] == "n") & (self.comps["is sink"] == "n")).astype(int)
         else:
-            fill_ones = self.comps["setup weight"].isnull() & self.comps["databook page"]
+            fill_ones = self.comps["setup weight"].isna() & (~self.comps["databook page"].isna() | ~self.comps["default value"].isna()) & (self.comps["is source"] == "n") & (self.comps["is sink"] == "n")
             self.comps["setup weight"][fill_ones] = 1
             self.comps["setup weight"] = self.comps["setup weight"].fillna(0)
 
         if "calibrate" not in self.comps:
             # If calibration column is not present, then it calibrate if in the databook
-            default_calibrate = ~self.comps["databook page"].isnull()
+            default_calibrate = ~self.comps["databook page"].isna()
             self.comps["calibrate"] = None
             self.comps["calibrate"][default_calibrate] = "y"
 
@@ -680,8 +680,11 @@ class ProjectFramework:
             if (row["setup weight"] > 0) & (row["is source"] == "y" or row["is sink"] == "y"):
                 raise InvalidFramework('Compartment "%s" is a source or a sink, but has a nonzero setup weight' % comp_name)
 
-            if (row["setup weight"] > 0) & (pd.isna(row["databook page"])):
-                raise InvalidFramework('Compartment "%s" has a nonzero setup weight, but does not appear in the databook' % comp_name)
+            if (row["setup weight"] > 0) and pd.isna(row["databook page"]) and pd.isna(row["default value"]):
+                raise InvalidFramework('Compartment "%s" has a nonzero setup weight, but does not appear in the databook and does not have a default value' % comp_name)
+
+            if pd.isna(row["databook page"]) and not pd.isna(row["default value"]) and not (row["default value"] == 0):
+                raise InvalidFramework(f"""Compartment "{comp_name}" has no databook page but has a default value of "{row['default value']}" which is not permitted - the only supported default value for a compartment that does not appear in the databook is 0""")
 
             if (not pd.isna(row["databook page"])) & (row["is source"] == "y" or row["is sink"] == "y"):
                 raise InvalidFramework('Compartment "%s" is a source or a sink, but has a databook page' % comp_name)
@@ -721,15 +724,15 @@ class ProjectFramework:
         self.characs["population type"] = self.characs["population type"].fillna(available_pop_types[0])
 
         if "setup weight" not in self.characs:
-            self.characs["setup weight"] = (~self.characs["databook page"].isnull()).astype(int)
+            self.characs["setup weight"] = (~self.characs["databook page"].isna() | ~self.characs["default value"].isna()).astype(int)
         else:
-            fill_ones = self.characs["setup weight"].isnull() & self.characs["databook page"]
+            fill_ones = self.characs["setup weight"].isna() & (~self.characs["databook page"].isna() | ~self.characs["default value"].isna())
             self.characs["setup weight"][fill_ones] = 1
             self.characs["setup weight"] = self.characs["setup weight"].fillna(0)
 
         if "calibrate" not in self.characs:
             # If calibration column is not present, then it calibrate if in the databook
-            default_calibrate = ~self.characs["databook page"].isnull()
+            default_calibrate = ~self.characs["databook page"].isna()
             self.characs["calibrate"] = None
             self.characs["calibrate"][default_calibrate] = "y"
 
@@ -743,8 +746,11 @@ class ProjectFramework:
         for charac_name, row in zip(self.characs.index, self.characs.to_dict(orient="records")):
             # Block this out because that way, can validate that there are some nonzero setup weights. Otherwise, user could set setup weights but
             # not put them in the databook, causing an error when actually trying to run the simulation
-            if (row["setup weight"] > 0) and pd.isna(row["databook page"]):
-                raise InvalidFramework('Characteristic "%s" has a nonzero setup weight, but does not appear in the databook' % charac_name)
+            if (row["setup weight"] > 0) and pd.isna(row["databook page"]) and pd.isna(row["default value"]):
+                raise InvalidFramework('Characteristic "%s" has a nonzero setup weight, but does not appear in the databook and does non have a default value' % charac_name)
+
+            if pd.isna(row["databook page"]) and not pd.isna(row["default value"]) and not (row["default value"] == 0):
+                raise InvalidFramework(f"""Characteristic "{charac_name}" has no databook page but has a default value of "{row['default value']}" which is not permitted - the only supported default value for a characteristic that does not appear in the databook is 0""")
 
             if not pd.isna(row["denominator"]):
 
@@ -999,7 +1005,7 @@ class ProjectFramework:
                 # probability of 0.3 and 1.0 will both have an annual probability of 1.
                 logger.warning(f'Parameter "{par_name}" is in rate units and a maximum value of "1" has been entered. Rates in the framework should generally not be limited to "1"')
 
-            if par["function"] is None:
+            if pd.isna(par["function"]):
                 # In order to have a value, a transition parameter must either be
                 # - have a function
                 # - appear in the databook
@@ -1232,7 +1238,7 @@ class ProjectFramework:
             used_fallback_cascade = True
             records = []
             for _, spec in self.characs.iterrows():
-                if not spec["denominator"]:
+                if pd.isna(spec["denominator"]):
                     records.append((spec["display name"], spec.name))
             self.sheets["cascades"] = sc.promotetolist(pd.DataFrame.from_records(records, columns=["Cascade", "constituents"]))
         else:
@@ -1469,7 +1475,7 @@ def _sanitize_dataframe(df: pd.DataFrame, required_columns: list, defaults: dict
             raise InvalidFramework(f'Mandatory index column "{set_index}" is missing')
         df.set_index(set_index, inplace=True)
 
-    if any(df.index.isnull()):
+    if any(df.index.isna()):
         raise InvalidFramework('The first column contained an empty cell (this probably indicates that a "code name" was left empty)')
 
     if not df.index.is_unique:
@@ -1492,7 +1498,7 @@ def _sanitize_dataframe(df: pd.DataFrame, required_columns: list, defaults: dict
             raise InvalidFramework('While validating, a required column "%s" was missing' % col)  # NB. This error is likely to be the result of a developer adding validation for a column without setting a default for it
 
         if validation is None:
-            if df[col].isnull().any():
+            if df[col].isna().any():
                 raise InvalidFramework('The column "%s" cannot contain any empty cells' % (col))
         else:
             validation = set(validation)
@@ -1500,7 +1506,7 @@ def _sanitize_dataframe(df: pd.DataFrame, required_columns: list, defaults: dict
                 raise InvalidFramework('The column "%s" can only contain the following values: %s' % (col, validation))
 
     # Strip all strings
-    if df.columns.isnull().any():
+    if df.columns.isna().any():
         raise InvalidFramework("There cannot be any empty cells in the header row")
     df.columns = [x.strip() for x in df.columns]
 
@@ -1590,10 +1596,10 @@ def generate_framework_doc(framework, fname, databook_only=False):
             for inc_name in spec["components"].split(","):
                 f.write("\t- %s\n" % (framework.get_label(inc_name.strip())))
 
-            if spec["denominator"]:
+            if not pd.isna(spec["denominator"]):
                 f.write("- Denominator: %s\n" % (framework.get_label(spec["denominator"])))
 
-            if spec["databook page"]:
+            if not pd.isna(spec["databook page"]):
                 f.write("- Appears in the databook\n")
             else:
                 f.write("- Does not appear in the databook\n")
@@ -1603,7 +1609,7 @@ def generate_framework_doc(framework, fname, databook_only=False):
 
             f.write("\n")
             f.write("- Description: <ENTER DESCRIPTION>\n")
-            f.write("- Data entry guidance: %s\n" % (spec["guidance"] if spec["guidance"] else "<ENTER GUIDANCE>"))
+            f.write("- Data entry guidance: %s\n" % (spec["guidance"] if not pd.isna(spec["guidance"]) else "<ENTER GUIDANCE>"))
 
             f.write("\n")
 
@@ -1611,7 +1617,7 @@ def generate_framework_doc(framework, fname, databook_only=False):
         fcn_deps = {x: set() for x in framework.pars.index.values}
         fcn_used_in = {x: set() for x in framework.pars.index.values}
         for _, spec in framework.pars.iterrows():
-            if spec["function"]:
+            if not pd.isna(spec["function"]):
                 _, deps = parse_function(spec["function"])  # Parse the function to get dependencies
                 for dep in deps:
                     if dep.endswith("___flow"):
@@ -1645,11 +1651,11 @@ def generate_framework_doc(framework, fname, databook_only=False):
                 f.write("- Value can be used for calibration\n")
             f.write("- Units/format: %s\n" % (spec["format"]))
 
-            if spec["minimum value"] is not None and spec["maximum value"] is not None:
+            if not pd.isna(spec["minimum value"]) and not pd.isna(spec["maximum value"]):
                 f.write("- Value restrictions: %s-%s\n" % (sc.sigfig(spec["minimum value"], keepints=True), sc.sigfig(spec["maximum value"], keepints=True)))
-            elif spec["minimum value"] is not None:
+            elif not pd.isna(spec["minimum value"]):
                 f.write("- Value restrictions: At least %s\n" % (sc.sigfig(spec["minimum value"], keepints=True)))
-            elif spec["maximum value"] is not None:
+            elif not pd.isna(spec["maximum value"]):
                 f.write("- Value restrictions: At most %s\n" % (sc.sigfig(spec["maximum value"], keepints=True)))
 
             if framework.transitions[spec.name]:
@@ -1658,20 +1664,20 @@ def generate_framework_doc(framework, fname, databook_only=False):
                     f.write('\t- "%s" to "%s"\n' % (framework.get_label(transition[0]), framework.get_label(transition[1])))
 
             f.write("- Default value: %s\n" % (spec["default value"]))
-            if spec["databook page"]:
+            if not pd.isna(spec["databook page"]):
                 f.write("- Appears in the databook\n")
             else:
                 f.write("- Does not appear in the databook\n")
 
-            if spec["function"]:
+            if not pd.isna(spec["function"]):
                 f.write("- This parameter's value is computed by a function: `%s`\n" % (spec["function"]))
 
-            if fcn_deps[spec.name]:
+            if not pd.isna(fcn_deps[spec.name]):
                 f.write("- Depends on:\n")
                 for dep in fcn_deps[spec.name]:
                     f.write('\t- "%s"\n' % (dep))
 
-            if fcn_used_in[spec.name]:
+            if not pd.isna(fcn_used_in[spec.name]):
                 f.write("- Used to compute:\n")
                 for dep in fcn_used_in[spec.name]:
                     f.write('\t- "%s"\n' % (dep))

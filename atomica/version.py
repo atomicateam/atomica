@@ -4,8 +4,8 @@ Atomica version file.
 Standard location for module version number and date.
 """
 
-from .utils import fast_gitinfo
+import sciris as sc
 
-version = "1.25.18"
-versiondate = "2023-01-09"
-gitinfo = fast_gitinfo(__file__)
+version = "1.26.7"
+versiondate = "2023-10-20"
+gitinfo = sc.gitinfo(__file__)
