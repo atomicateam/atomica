@@ -1118,7 +1118,7 @@ class ProgramSet(NamedItem):
 
         return {(covout.par, covout.pop): covout.get_outcome(prop_coverage) for covout in self.covouts.values()}
 
-    def sample(self, constant: bool = True):
+    def sample(self, constant: bool = True, rng_sampler = None):
         """
         Perturb programs based on uncertainties
 
@@ -1135,9 +1135,9 @@ class ProgramSet(NamedItem):
 
         new = sc.dcp(self)
         for prog in new.programs.values():
-            prog.sample(constant)
+            prog.sample(constant, rng_sampler=rng_sampler)
         for covout in new.covouts.values():
-            covout.sample()
+            covout.sample(rng_sampler=rng_sampler)
         return new
 
 
