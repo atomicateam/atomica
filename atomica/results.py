@@ -849,7 +849,7 @@ def _write_df(writer, formats, sheet_name, df, level_ordering):
     row = 0
     df.to_excel(writer, sheet_name, startcol=0, startrow=row, merge_cells=False)
 
-    required_width = [0] * len(level_ordering)
+    required_width = [len(name) for name in df.index.names]
     for i in range(len(required_width)):
         required_width[i] = max(len(val) for val in order[level_ordering[i]])
 
