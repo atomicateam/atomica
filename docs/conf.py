@@ -55,6 +55,7 @@ extensions = [
     "nbsphinx",
     "sphinx.ext.intersphinx",  # Link to other project's documentation (see mapping below)
     "IPython.sphinxext.ipython_console_highlighting",  # Temporary fix for https://github.com/spatialaudio/nbsphinx/issues/687
+    "sphinxcontrib.jquery",  # Fix for https://github.com/readthedocs/sphinx_rtd_theme/issues/1452
 ]
 
 # Configure intersphinx

@@ -22,6 +22,7 @@ from .programs import ProgramSet, ProgramInstructions
 from .parameters import Parameter as ParsetParameter
 from .parameters import ParameterSet as ParameterSet
 import math
+
 from .utils import stochastic_rounding
 import pandas as pd
 
@@ -356,9 +357,9 @@ class Compartment(Variable):
             rescale = 1 / outflow
         else:
             rescale = 1
-        
+
         self._cached_outflow = 0
-        
+
         if self.stochastic:
             #for every person in the compartment, we now have probabilities for each possible outflow or staying as the remainder
             stays = max(0., 1. - outflow)
@@ -372,8 +373,8 @@ class Compartment(Variable):
             for link in self.outlinks:
                 link.vals[ti] = link._cache * n
                 self._cached_outflow += link.vals[ti]
-        
-        
+
+
 
     def update(self, ti: int) -> None:
         """
@@ -532,9 +533,9 @@ class JunctionCompartment(Compartment):
         # Next, get the total outflow. Note that the parameters are guaranteed to be in proportion units here
         outflow_fractions = [link.parameter.vals[ti] for link in self.outlinks]
         total_outflow = sum(outflow_fractions)
-        
+
         outflow_fractions /= total_outflow #proportionately accounting for the total outflow downscaling
-        
+
         # assign outflow stochastically to compartments based on the probabilities
         if self.stochastic and net_inflow > 0.:
             if self.duration_group:
@@ -567,7 +568,7 @@ class JunctionCompartment(Compartment):
             # Work out the outflow fractions
             outflow_fractions = np.array([link.parameter.vals[0] for link in self.outlinks])
             outflow_fractions /= np.sum(outflow_fractions)
-            
+
             # assign outflow stochastically to compartments based on the probabilities
             if self.stochastic:
                 outflow_fractions = self.rng_sampler.multinomial(self.vals[0], outflow_fractions, size=1)[0]/self.vals[0]
@@ -675,7 +676,7 @@ class ResidualJunctionCompartment(JunctionCompartment):
             # assign outflow stochastically to compartments based on the probabilities
             if self.stochastic and total_outflow > 0.:
                 outflow_fractions = self.rng_sampler.multinomial(self.vals[0], outflow_fractions, size=1)[0]/(self.vals[0] * sum(outflow_fractions))
-                
+
             # Assign the inflow directly to the outflow compartments
             # This is done using the [] indexing on the downstream compartment so it is agnostic
             # to the downstream compartment type
@@ -899,7 +900,7 @@ class TimedCompartment(Compartment):
         :param ti: Time index at which to update link outflows
 
         """
-        
+
         #TODO adjust for stochastic variables
         assert self.stochastic == False, 'resolve_outflows needs to be updated to work with stochastic transitions'
 
@@ -1219,7 +1220,7 @@ class Parameter(Variable):
             # Pop aggregations and derivatives are handled in `update_pars()` so we set the dynamic flag
             # because the values are modified during integration
             self._is_dynamic = True
-            
+
 
         if self.deps:  # If there are no dependencies, then we know that this is precompute-only
             for deps in self.deps.values():  # deps is {'dep_name':[dep_objects]}
@@ -1328,7 +1329,10 @@ class Parameter(Variable):
 
         dep_vals["t"] = self.t[ti]
         dep_vals["dt"] = self.dt
-        v = self.scale_factor * self._fcn(**dep_vals)
+        try:
+            v = self.scale_factor * self._fcn(**dep_vals)
+        except Exception as e:
+            raise ModelError(f"Error when calculating the value for parameter: {self}") from e
 
         if self.derivative:
             self._dx = v
@@ -1599,7 +1603,7 @@ class Population:
         :param name: The code name of the population
         :param label: The full name of the population
         :param progset: A ProgramSet instance
-        
+
         :param stochastic: whether to use stochasticity in determining population movement
         :param rng_sampler: optional Generator for random numbers to give consistent results between model runs
 
@@ -2042,7 +2046,7 @@ class Model:
         self.t = settings.tvec  #: Simulation time vector (this is a brand new instance from the `settings.tvec` property method)
         self.dt = settings.sim_dt  #: Simulation time step
         self.stochastic = settings.stochastic #: Run with discrete numbers of people per compartment instead of fractions.
-        
+
         self.acceptance_criteria = sc.dcp(acceptance_criteria) #: If the model fails to adhere to these criteria, raise a BadInitialization exception
 
         if rng_sampler is None:
@@ -2228,10 +2232,10 @@ class Model:
                         par.units = transfer_parameter.ts[pop_target].units.strip().split()[0].strip().lower()
 
                         # Sampling might result in the parameter value going out of bounds, so make sure the transfer parameter values are constrained
-                        if par.units == FS.QUANTITY_TYPE_RATE or par.units == FS.QUANTITY_TYPE_PROBABILITY:
-                            par.limits = [0, 1]
-                        elif par.units == FS.QUANTITY_TYPE_NUMBER:
+                        if par.units in {FS.QUANTITY_TYPE_RATE,FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_NUMBER}:
                             par.limits = [0, np.inf]
+                        elif par.units == FS.QUANTITY_TYPE_DURATION:
+                            par.limits = [model_settings["tolerance"], np.inf]
                         else:
                             raise Exception("Unknown transfer parameter units")
                         par.constrain()
@@ -2264,7 +2268,7 @@ class Model:
                 # Make the parameter dynamic, because it needs to be computed during integration
                 for par in pars:
                     par.set_dynamic()
-                    
+
                 # Also make the variable being aggregated dynamic
                 for var in self._vars_by_pop[pars[0].pop_aggregation[1]]:
                     var.set_dynamic(progset=self.progset)
@@ -2273,8 +2277,8 @@ class Model:
                 if len(pars[0].pop_aggregation) > 3:
                     for var in self._vars_by_pop[pars[0].pop_aggregation[3]]:
                         var.set_dynamic(progset=self.progset)
-                        
-                
+
+
 
         # Set execution order - needs to be done _after_ pop aggregations have been flagged as dynamic
         self._set_exec_order()
@@ -2317,7 +2321,7 @@ class Model:
             for obj in pop.comps + pop.characs + pop.links:
                 obj.preallocate(self.t, self.dt)
             pop.initialize_compartments(parset, self.framework, self.t[0])
-            
+
         #More finally, set up acceptance criteria for those which should be checked at runtime (variables that have ._is_dynamic = True), and those which can only be checked after conclusion
         if self.acceptance_criteria:
             for criteria in self.acceptance_criteria:
@@ -2328,11 +2332,11 @@ class Model:
                             criteria['evaluate_at'] = self.t[np.where(self.t > criteria['t_range'][1])][0]
                         else:
                             criteria['evaluate_at'] = np.inf #can only evaluate postcompute
-                            
+
             #sort by evaluation time - now we only have to look at the first element every timestep
             self.acceptance_criteria = sorted(self.acceptance_criteria, key=lambda item: item['evaluate_at'])
             self.acceptance_index = 0 #which index to evaluate
-            
+
 
 
     def _set_exec_order(self) -> None:
@@ -2467,7 +2471,7 @@ class Model:
                 if par.fcn_str and not (par._is_dynamic or par._precompute):
                     par.update()
                     par.constrain()
-                    
+
         if self.acceptance_criteria: #call update_acceptance once more for any variables that could only be assessed postcompute
                 self.update_acceptance(evaluate_all = True)
 
@@ -2477,7 +2481,7 @@ class Model:
                 charac._vals = None
 
         self._program_cache = None  # Drop the program cache afterwards to save space
-        
+
 
     def update_links(self) -> None:
         """
@@ -2491,7 +2495,7 @@ class Model:
         """
 
         ti = self._t_index
-        
+
         # First, populate all of the link values without any outflow constraints
         for par in self._exec_order["transition_pars"]:
 
@@ -2523,15 +2527,21 @@ class Model:
                 # greater than 1 simply implies that the mean duration is less than the timescale in question, and we need to retain that value
                 # to be able to correctly convert between timescales. The subsequent call to min() then ensures that the fraction moved never
                 # exceeds 1.0 once operating on the timestep level
-                converted_frac = transition * (self.dt / par.timescale)
+                try:
+                    converted_frac = transition * (self.dt / par.timescale)
+                except Exception as e:
+                    raise ModelError(f"Error when converting the parameter {par} to a per timestep value.") from e
                 for link in par.links:
                     link._cache = converted_frac
 
             # Linearly convert number down to that appropriate for one timestep.
             elif par.units == FS.QUANTITY_TYPE_NUMBER:
                 # Disaggregate proportionally across all source compartment sizes related to all links.
-                converted_amt = transition * (self.dt / par.timescale)  # Number flow in this timestep, so it includes a timescale factor
-                
+                try:
+                    converted_amt = transition * (self.dt / par.timescale)  # Number flow in this timestep, so it includes a timescale factor
+                except Exception as e:
+                    raise ModelError(f"Error when converting the parameter {par} to a per timestep value.") from e
+
                 if isinstance(par.links[0].source, SourceCompartment):
                     # For a source compartment, the link value should be explicitly set directly
                     # Also, there is guaranteed to only be one link per parameter for outflows from source compartments
@@ -2549,7 +2559,10 @@ class Model:
 
             # Convert from duration to equivalent probability
             elif par.units == FS.QUANTITY_TYPE_DURATION:
-                converted_frac = self.dt / (transition * par.timescale)
+                try:
+                    converted_frac = self.dt / (transition * par.timescale)
+                except Exception as e:
+                    raise ModelError(f"Error when converting the parameter {par} to a per timestep value.") from e
                 for link in par.links:
                     link._cache = converted_frac
 
@@ -2570,7 +2583,10 @@ class Model:
         # Balance junctions. Note that the order of execution is critical here for junctions that flow into other junctions,
         # so `self._exec_order` must have already been populated
         for j in self._exec_order["junctions"]:
-            j.balance(ti)
+            try:
+                j.balance(ti)
+            except Exception as e:
+                raise ModelError(f"Error when balancing the junction: {j}") from e
 
     def update_comps(self) -> None:
         """
@@ -2586,15 +2602,15 @@ class Model:
         for pop in self.pops:
             for comp in pop.comps:
                 comp.update(ti)
-                
+
     def update_acceptance(self, evaluate_all = False) -> None:
         """
         Update any acceptance criteria for the model run, raise BadInitialization error if the model run is failing
-        
+
         :param evaluate_all: Final evaluation of all acceptance criteria.
-        
+
         """
-        
+
         time = self.t[self._t_index] #actual time
 
         #We know that these are sorted by evaluation time so we only need to look at the first index
@@ -2607,10 +2623,10 @@ class Model:
             a_times = assessable['t_range']
             accept_vals = assessable['value']
             a_t_inds = np.where(np.logical_and(self.t>=a_times[0], self.t<=a_times[1])) #self.t is the full tvec for the model
-            
+
             pars = self._vars_by_pop[a_par]
             for par in pars: #TODO should be more efficient way to directly access the par values for the pop rather than looping
-                if par.pop.name == a_pop: 
+                if par.pop.name == a_pop:
                     a_t_val = np.mean(par[a_t_inds]) #mean across the time range
                     if a_t_val <= accept_vals[0] or a_t_val >= accept_vals[1]:
                         # print(f'{time} Rejecting run as sampled sim value {a_t_val} outside of acceptable bound {accept_vals} for parameter {a_par}, population {a_pop} at time {a_times}')
@@ -2619,8 +2635,8 @@ class Model:
                         # print(f'{time} ACCEPTING run as sampled sim value {a_t_val} inside of acceptable bound {accept_vals} for parameter {a_par}, population {a_pop} at time {a_times}')
             assessable['assessed_value'] = a_t_val
             self.acceptance_index += 1
-                  
-        
+
+
 
     def flush_junctions(self) -> None:
         """
@@ -2636,7 +2652,10 @@ class Model:
         """
 
         for j in self._exec_order["junctions"]:
-            j.initial_flush()
+            try:
+                j.initial_flush()
+            except Exception as e:
+                raise ModelError(f"Error when initially flushing junction: {j}") from e
 
     def update_pars(self) -> None:
         """
@@ -2780,7 +2799,7 @@ def run_model(settings, framework, parset: ParameterSet, progset: ProgramSet = N
     :param program_instructions: Optional :class:`ProgramInstructions` instance. If ``progset`` is specified, then instructions must be provided
     :param name: Optionally specify the name to assign to the output result
     :param rng_sampler: Optionally specify a random number generator that may have been seeded to generate consistent results
-    
+
     :return: A :class:`Result` object containing the processed model
 
     """
