@@ -157,17 +157,16 @@ class ProjectData(sc.prettyobj):
             if key in self.tdve[name].ts:
                 return self.tdve[name].ts[key]
 
-        # Then, if the key is None, we are working on a transfer parameter. So reconstruct the key
-        if key is None:
-            x = name.split("_to_")
-            code_name, from_pop = x[0].split("_", 1)
-            to_pop = x[1]
-            name = code_name
-            key = (from_pop, to_pop)
-
+        # If the key is specified, then the name corresponds to the code name only, and we can just directly
+        # use the name and the key. However, if the key is none, then the user has passed in the name as
+        # "<code_name>_<from_pop>_to_<to_pop>" e.g., "age_0-4_to_5-14". We need to split this up then into
+        # the transfer/interaction name, and the key. Note that the code name may contain underscores
         for tdc in self.transfers + self.interpops:
-            if name == tdc.code_name:
-                return tdc.ts[key]
+            if name.startswith(tdc.code_name):
+                key = key or tuple(name[len(tdc.code_name)+1:].split('_to_'))
+                if key in tdc.ts:
+                    return tdc.ts[key]
+                break # If we matched the name of the TDC but the requestion populations are wrong, no need to check other TDCs
 
         return None
 
