@@ -2,6 +2,12 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.26.8] - 2023-11-06
+
+- `ProjectData.get_ts()` now correctly handles retrieiving timeseries data from interactions and transfers with underscores in their name
+- `ProjectData` now validates that transfer and interaction names are unique
+- Improved handling Excel cell references if population names and framework variable full names overlap
+
 ## [1.26.7] - 2023-10-20
 
 - Warning messages now print the file/line they were generated from
