@@ -1056,10 +1056,7 @@ class TimeDependentValuesEntry:
 
         headings += [float(x) for x in self.tvec]
         for i, entry in enumerate(headings):
-            if entry in references:
-                worksheet.write_formula(current_row, 0, references[entry], formats["center_bold"], value=entry)
-            else:
-                worksheet.write(current_row, i, entry, formats["center_bold"])
+            worksheet.write(current_row, i, entry, formats["center_bold"])
             update_widths(widths, i, entry)
 
         if not pd.isna(self.comment):
