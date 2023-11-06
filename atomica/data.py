@@ -71,7 +71,7 @@ class ProjectData(sc.prettyobj):
 
         :return: An iterator
         """
-        for table in itertools.chain(self.tdve.values(),self.transfers,self.interpops):
+        for table in itertools.chain(self.tdve.values(), self.transfers, self.interpops):
             yield table
 
     @property
@@ -177,10 +177,10 @@ class ProjectData(sc.prettyobj):
         # the transfer/interaction name, and the key. Note that the code name may contain underscores
         for tdc in self.transfers + self.interpops:
             if name.startswith(tdc.code_name):
-                key = key or tuple(name[len(tdc.code_name)+1:].split('_to_'))
+                key = key or tuple(name[len(tdc.code_name) + 1 :].split("_to_"))
                 if key in tdc.ts:
                     return tdc.ts[key]
-                break # If we matched the name of the TDC but the requestion populations are wrong, no need to check other TDCs
+                break  # If we matched the name of the TDC but the requestion populations are wrong, no need to check other TDCs
 
         return None
 

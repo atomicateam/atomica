@@ -61,11 +61,13 @@ def test_framework_single_char():
     test_equal("inf", "i")
     test_equal("rec", "r")
 
+
 def test_framework_spaces():
     F = at.ProjectFramework(testdir / "test_framework_spaces.xlsx")
-    F.get_variable('Transmission probability per contact') # Has no leading or trailing spaces in the framework
-    F.get_variable('Number of contacts annually') # Has a leading space in the framework
-    F.get_variable('Death rate for infected people') # Has a trailing space in the framework
+    F.get_variable("Transmission probability per contact")  # Has no leading or trailing spaces in the framework
+    F.get_variable("Number of contacts annually")  # Has a leading space in the framework
+    F.get_variable("Death rate for infected people")  # Has a trailing space in the framework
+
 
 if __name__ == "__main__":
 

@@ -383,7 +383,7 @@ class ParameterSet(NamedItem):
         df.set_index(["par", "pop"], inplace=True)
 
         if df.index.duplicated().any():
-            msg = f'The calibration file contained duplicate entries:'
+            msg = f"The calibration file contained duplicate entries:"
             for par, pop in df.index[df.index.duplicated()].unique():
                 msg += f'\n\t- {par} ({"meta/all populations" if pd.isna(pop) else pop})'
             raise Exception(msg)

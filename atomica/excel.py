@@ -308,16 +308,16 @@ def read_dataframes(worksheet, merge=False) -> list:
             # Check for the end of a table
             if empty[i] and start is not None:
                 # If we were reading a table and have reached an empty row
-                idx.append((start,i))
+                idx.append((start, i))
                 start = None
-            elif i+1 == len(empty) and start is not None:
+            elif i + 1 == len(empty) and start is not None:
                 # If we were reading a table and have reached the end of the data
-                idx.append((start,i+1))
+                idx.append((start, i + 1))
                 start = None
 
         tables = []
         for start, stop in idx:
-            tables.append(content[start:stop].copy()) # Use .copy() so that we don't retain any references to the original full array outside this function
+            tables.append(content[start:stop].copy())  # Use .copy() so that we don't retain any references to the original full array outside this function
 
     dfs = []
     for table in tables:

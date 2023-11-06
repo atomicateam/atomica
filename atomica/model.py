@@ -2160,7 +2160,7 @@ class Model:
                         par.units = transfer_parameter.ts[pop_target].units.strip().split()[0].strip().lower()
 
                         # Sampling might result in the parameter value going out of bounds, so make sure the transfer parameter values are constrained
-                        if par.units in {FS.QUANTITY_TYPE_RATE,FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_NUMBER}:
+                        if par.units in {FS.QUANTITY_TYPE_RATE, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_NUMBER}:
                             par.limits = [0, np.inf]
                         elif par.units == FS.QUANTITY_TYPE_DURATION:
                             par.limits = [model_settings["tolerance"], np.inf]
