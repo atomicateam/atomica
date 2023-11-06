@@ -597,9 +597,6 @@ class TimeDependentConnections:
             worksheet.write(current_row + 1, column, value)
             update_widths(widths, column, value)
 
-        references[self.code_name] = "='%s'!%s" % (worksheet.name, xlrc(current_row, 0, True, True))
-        references[self.full_name] = "='%s'!%s" % (worksheet.name, xlrc(current_row, 1, True, True))  # Reference to the full name
-
         # Then, write the Y/N matrix
         current_row += 3  # Leave a blank row below the matrix
         # Note - table_references are local to this TimeDependentConnections instance
