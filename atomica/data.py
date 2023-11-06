@@ -135,7 +135,7 @@ class ProjectData(sc.prettyobj):
 
         self.tvec = sc.promotetoarray(tvec).copy()
         for table in self.tables():
-            td_table.tvec = tvec
+            table.tvec = tvec
 
     def get_ts(self, name: str, key=None):
         """
@@ -719,7 +719,7 @@ class ProjectData(sc.prettyobj):
         :return: None
         :raises: Exception if the name is already present
         """
-        for tdc in self.interactions:
+        for tdc in self.transfers + self.interpops:
             if name == tdc.code_name:
                 raise Exception(f'The databook already contains an existing {tdc.type} with name "{name}"')
 
@@ -739,11 +739,6 @@ class ProjectData(sc.prettyobj):
 
         assert pop_type in self._pop_types, "Population type %s not found in framework" % (pop_type)
         self._assert_unique_tdc(code_name)
-
-        for tdc in self.transfers:
-            assert code_name != tdc.code_name, 'Another transfer with name "%s" already exists' % (code_name)
-        for interaction in self.interactions:
-            assert code_name != tdc.code_name, 'Another interaction with name "%s" already exists' % (code_name)
 
         pop_names = [name for name, pop_spec in self.pops.items() if pop_spec["type"] == pop_type]
 
@@ -765,9 +760,6 @@ class ProjectData(sc.prettyobj):
 
         """
 
-        # Check no name collisions
-        self._assert_unique_tdc(code_name)
-
         # Find the transfer to change
         for transfer in self.transfers:
             if existing_code_name == transfer.code_name:
@@ -775,6 +767,9 @@ class ProjectData(sc.prettyobj):
                 break
         else:
             raise NotFoundError('Transfer with name "%s" was not found' % (existing_code_name))
+
+        # Check no name collisions
+        self._assert_unique_tdc(new_code_name)
 
         # Modify it
         transfer_to_change.code_name = new_code_name
