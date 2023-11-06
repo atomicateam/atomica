@@ -424,10 +424,14 @@ class TimeDependentConnections:
         from_pop_type = None
         to_pop_type = None
 
+        # Start by reading the TDC header row specifying the name and pop types
+        # This is a dense table expected to contain no blank cells in the heading row
+        # Stop parsing when the first blank cell in the heading is encountered
+        # This table also contains only a single row. Any subsequent rows will automatically be ignored
         attributes = {}
         for header_cell, value_cell in zip(tables[0][0], tables[0][1]):
             if header_cell.value is None:
-                continue
+                break
             header = cell_get_string(header_cell)
             lowered_header = header.lower()
             if lowered_header == "abbreviation":
@@ -453,23 +457,37 @@ class TimeDependentConnections:
         # Read the pops from the Y/N table. The Y/N content of the table depends on the timeseries objects that
         # are present. That is, if the Y/N matrix contains a Y then a TimeSeries must be read in, and vice versa.
         # Therefore, we don't actually parse the matrix, and instead just read in all the TimeSeries instances
-        # that are defined and infer the matrix that way.
-        to_pops = [x.value for x in tables[1][0][1:] if x.value]
+        # that are defined and infer the matrix that way. However, we do still need to parse the to_pops and from_pops
+        # These both get parsed because for interactions across pop types they could be different. Blank cells in either
+        # the row or the column signal the end of parsing those population lists
+
+        # Read the to_pops from the first row of the table, until a blank cell is encountered
+        to_pops = []
+        for cell in tables[1][0][1:]:
+            if cell.value is None:
+                break
+            else:
+                to_pops.append(cell.value)
+
+        # Read the from_pops from the first column, until a blank cell is encountered
         from_pops = []
         for row in tables[1][1:]:
-            from_pops.append(row[0].value)
+            if row[0].value is None:
+                break
+            else:
+                from_pops.append(row[0].value)
 
-        # Instantiate it
+        # Instantiate the TDC object based on the metadata from the first two tables
         tdc = TimeDependentConnections(code_name, full_name, None, from_pops=from_pops, to_pops=to_pops, interpop_type=interaction_type, from_pop_type=from_pop_type, to_pop_type=to_pop_type)
         tdc.attributes = attributes
 
-        # Read the time series table
+        # Read the third table that actually contains the time series data
         headings = {}
         times = {}
         known_headings = {"from population", "to population", "units", "uncertainty", "constant", "assumption"}
         for i, cell in enumerate(tables[2][0]):
             v = cell.value
-            if i == 0 or v is None:
+            if v is None:
                 continue
             elif cell.data_type in {"s", "str"}:
                 v = v.strip()
@@ -876,8 +894,8 @@ class TimeDependentValuesEntry:
         self.assumption_heading = "Constant"  #: Heading to use for assumption column
 
         self.write_units = None  #: Write a column for units (if None, units will be written if any of the TimeSeries have units)
-        self.write_uncertainty = None  #: Write a column for units (if None, units will be written if any of the TimeSeries have uncertainty)
-        self.write_assumption = None  #: Write a column for units (if None, units will be written if any of the TimeSeries have an assumption)
+        self.write_uncertainty = None  #: Write a column for uncertainty (if None, uncertainty will be written if any of the TimeSeries have uncertainty)
+        self.write_assumption = None  #: Write a column for assumption/constant (if None, assumption will be written if any of the TimeSeries have an assumption)
 
     def __repr__(self):
         output = sc.prepr(self)
