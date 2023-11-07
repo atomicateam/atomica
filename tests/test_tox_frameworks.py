@@ -3,6 +3,7 @@
 import atomica as at
 import numpy as np
 import pytest
+import pandas as pd
 
 testdir = at.parent_dir()
 tmpdir = testdir / "temp"
@@ -74,6 +75,8 @@ def test_framework_comments():
 
     assert F1.transitions == F2.transitions
     assert F1.pars.equals(F2.pars)
+    assert F1.characs.at['ch_prev','default value'] == 10
+    assert pd.isna(F1.characs.at['ch_propnewinf','default value']) # This will not be NaN if the #ignore was ignored
 
 if __name__ == "__main__":
 

@@ -258,12 +258,6 @@ def read_dataframes(worksheet, merge=False) -> list:
     :return: A list of DataFrames
 
     """
-    # This function takes in a openpyxl worksheet, and returns tables
-    # A table consists of a block of rows with any #ignore rows skipped
-    # This function will start at the top of the worksheet, read rows into a buffer
-    # until it gets to the first entirely empty row
-    # And then returns the contents of that buffer as a table. So a table is a list of openpyxl rows
-    # This function continues until it has exhausted all of the rows in the sheet
 
     content = np.empty((worksheet.max_row, worksheet.max_column), dtype="object")
     ignore = np.zeros((worksheet.max_row), dtype=bool)
@@ -276,8 +270,14 @@ def read_dataframes(worksheet, merge=False) -> list:
             v = cell.value
             if cell.data_type == "s":
                 if not any_values and v.startswith("#ignore"):
+                    # If we encounter a #ignore and it's the first content in the row
                     if j == 0:
+                        # If it's the first cell, ignore the row (i.e., do NOT treat it as a blank row)
                         ignore[i] = True # Ignore the row
+                    break
+                elif v.startswith('#ignore'):
+                    # Skip the rest of the row
+                    content[i,j:] = None
                     break
                 else:
                     v = v.strip()
