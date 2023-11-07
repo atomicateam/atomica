@@ -68,6 +68,12 @@ def test_framework_spaces():
     F.get_variable("Number of contacts annually")  # Has a leading space in the framework
     F.get_variable("Death rate for infected people")  # Has a trailing space in the framework
 
+def test_framework_comments():
+    F1 = at.ProjectFramework(testdir / "sir_framework_ignore.xlsx")
+    F2 = at.ProjectFramework(at.LIBRARY_PATH / "sir_framework.xlsx")
+
+    assert F1.transitions == F2.transitions
+    assert F1.pars.equals(F2.pars)
 
 if __name__ == "__main__":
 
