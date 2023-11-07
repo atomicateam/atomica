@@ -2,11 +2,13 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
-## [1.26.8] - 2023-11-06
+## [1.27.0] - 2023-11-07
 
-- `ProjectData.get_ts()` now correctly handles retrieiving timeseries data from interactions and transfers with underscores in their name
+- `ProjectData.get_ts()` now correctly handles retrieving timeseries data from interactions and transfers with underscores in their name
 - `ProjectData` now validates that transfer and interaction names are unique
 - Improved handling Excel cell references if population names and framework variable full names overlap
+- Added ability to place '#ignore' directives in places other than the first column of a spreadsheet, to selectively ignore parts of lines. Added documentation to cover this functionality.
+- Fixed a bug where cells that were documented as being ignored actually populated content
 
 ## [1.26.7] - 2023-10-20
 
