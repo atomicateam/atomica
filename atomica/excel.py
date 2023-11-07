@@ -270,21 +270,22 @@ def read_dataframes(worksheet, merge=False) -> list:
     empty = np.zeros((worksheet.max_row), dtype=bool)  # True for index where a new table begins
 
     for i, row in enumerate(worksheet.rows):
-        if len(row) > 0 and (row[0].data_type == "s" and row[0].value.startswith("#ignore")):
-            ignore[i] = True
-            continue
 
-        any_values = False
+        any_values = False # Set True if this row contains any values
         for j, cell in enumerate(row):
             v = cell.value
-            try:
-                v = v.strip()
-                has_value = bool(v)  # If it's a string type, call strip() before checking truthiness
-            except AttributeError:
-                has_value = v is not None  # If it's not a string type, then only consider it empty if it's type is None (otherwise, a numerical value of 0 would be treated as empty)
-            if has_value:
+            if cell.data_type == "s":
+                if not any_values and v.startswith("#ignore"):
+                    if j == 0:
+                        ignore[i] = True # Ignore the row
+                    break
+                else:
+                    v = v.strip()
+                    any_values = any_values or bool(v)  # If it's a string type, call strip() before checking truthiness
+            elif v is not None:
                 any_values = True
-            content[i, j] = v
+            content[i,j] = v
+
         if not any_values:
             empty[i] = True
 
