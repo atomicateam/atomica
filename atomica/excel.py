@@ -209,24 +209,32 @@ def read_tables(worksheet) -> tuple:
 
     for i, row in enumerate(worksheet.rows):
 
-        # Skip any rows starting with '#ignore'
-        if len(row) > 0 and row[0].data_type == "s" and row[0].value.startswith("#ignore"):
-            continue  # Move on to the next row if row skipping is marked True
-
-        # Find out whether we need to add the row to the buffer
-        for cell in row:
-            if cell.value:  # If the row has a non-empty cell, add the row to the buffer
-                if not buffer:
-                    start = i + 1  # Excel rows are indexed starting at 1
-                buffer.append(row)
-                break
-        else:  # If the row was empty, then yield the buffer and flag that it should be cleared at the next iteration
+        # Determine whether to skip the row, add it to the buffer, or flush buffer into a table
+        flush = False
+        for j, cell in enumerate(row):
+            if cell.value:
+                if cell.data_type == "s" and cell.value.startswith("#ignore"):
+                    if j == 0:
+                        break # If #ignore is encountered in the first column, skip the row and continue parsing the table
+                    else:
+                        flush = True
+                        break # If #ignore is encoutered after preceding blank cells
+                else:
+                    # Read the row into the buffer and continue parsing the table
+                    if not buffer:
+                        start = i + 1  # Excel rows are indexed starting at 1
+                    buffer.append(row)
+                    break # If the cell has a value in it, continue parsing the table
+        else:
             if buffer:
-                tables.append(buffer)  # Only append the buffer if it is not empty
-                start_rows.append(start)
+                flush = True
+
+        if flush :
+            tables.append(buffer)  # Only append the buffer if it is not empty
+            start_rows.append(start)
             buffer = []
 
-    # After the last row, if the buffer has some un-flushed contents, then yield it
+    # After the last row, if the buffer has some un-flushed contents, then include it in the last table
     if buffer:
         tables.append(buffer)
         start_rows.append(start)
