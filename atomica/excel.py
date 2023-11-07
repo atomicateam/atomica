@@ -16,6 +16,10 @@ from .system import FrameworkSettings as FS
 import pandas as pd
 from .utils import format_duration, datetime_to_year
 import xlsxwriter
+from typing import Tuple
+from openpyxl.utils import get_column_letter
+
+__all__ = ["standard_formats", "apply_widths", "update_widths", "transfer_comments", "copy_sheet", "read_tables", "read_dataframes", "TimeDependentConnections", "TimeDependentValuesEntry", "cell_get_string", "cell_get_number", "validate_category"]
 
 # Suppress known warning in Openpyxl
 # Warnings are:
@@ -25,16 +29,18 @@ import xlsxwriter
 #   warn(msg)
 # This means that conditional formatting and data valuation rules aren't being loaded, but since `data_only=True` these don't matter and can be safely ignored
 import warnings
-
 warnings.filterwarnings(action="ignore", category=UserWarning, module="openpyxl.worksheet", lineno=300)
 
 
-def standard_formats(workbook):
-    # Add standard formatting to a workbook and return the set of format objects
-    # for use when writing within the workbook
-    """the formats used in the spreadsheet"""
-    #    darkgray = '#413839'
-    #    optima_blue = '#18C1FF'
+def standard_formats(workbook: xlsxwriter.Workbook) -> dict:
+    """
+    Add standard formatting to a workbook
+
+    Returns a dictionary of format objects for use when writing the workbook
+
+    :param workbook: an xlsxwriter workbook
+    :return: A dictionary of ``xlsxwriter.workbook.Format`` instances
+    """
     atomica_blue = "#98E0FA"
     optional_orange = "#FFA500"
     BG_COLOR = atomica_blue
@@ -73,7 +79,18 @@ def standard_formats(workbook):
     return formats
 
 
-def apply_widths(worksheet, width_dict):
+def apply_widths(worksheet: xlsxwriter.workbook.Worksheet, width_dict: dict) -> None:
+    """
+    Set column widths
+
+    Given a dictionary of precomputed character counts (typically the maximum number of characters in
+    any cell written to each column), set the width of the column in Excel accordingly. The Excel
+    column width is slightly larger than the character count.
+
+    :param worksheet: A Worksheet instance
+    :param width_dict: A dictionary of character widths to use for each column (by index)
+    """
+
     for idx, width in width_dict.items():
         worksheet.set_column(idx, idx, width * 1.1 + 1)
 
@@ -187,7 +204,7 @@ def copy_sheet(source: str, sheet_name: str, workbook: xlsxwriter.Workbook) -> N
     src_workbook.close()
 
 
-def read_tables(worksheet) -> tuple:
+def read_tables(worksheet) -> Tuple[list,list]:
     """
     Read tables from sheet
 
@@ -405,8 +422,8 @@ class TimeDependentConnections:
     def __repr__(self):
         return '<TDC %s "%s">' % (self.type.title(), self.code_name)
 
-    @staticmethod
-    def from_tables(tables: list, interaction_type):
+    @classmethod
+    def from_tables(cls, tables: list, interaction_type):
         """
         Instantiate based on list of tables
 
@@ -443,7 +460,9 @@ class TimeDependentConnections:
                 break
             header = cell_get_string(header_cell)
             lowered_header = header.lower()
-            if lowered_header == "abbreviation":
+            if lowered_header.startswith('#ignore'):
+                break
+            elif lowered_header == "abbreviation":
                 code_name = cell_get_string(value_cell)
             elif lowered_header == "full name":
                 full_name = cell_get_string(value_cell)
@@ -473,12 +492,13 @@ class TimeDependentConnections:
         # Read the to_pops from the first row of the table, until a blank cell is encountered
         to_pops = []
         for cell in tables[1][0][1:]:
-            if cell.value is None:
+            if cell.value is None or (cell.data_type == "s" and cell.value.startswith("#ignore")):
                 break
             else:
                 to_pops.append(cell.value)
 
-        # Read the from_pops from the first column, until a blank cell is encountered
+        # Read the from_pops from the first column, until a blank cell is encountered. Note that a #ignore
+        # can never be present in the first column, because this would cause the row to be skipped prior to this point
         from_pops = []
         for row in tables[1][1:]:
             if row[0].value is None:
@@ -487,31 +507,11 @@ class TimeDependentConnections:
                 from_pops.append(row[0].value)
 
         # Instantiate the TDC object based on the metadata from the first two tables
-        tdc = TimeDependentConnections(code_name, full_name, None, from_pops=from_pops, to_pops=to_pops, interpop_type=interaction_type, from_pop_type=from_pop_type, to_pop_type=to_pop_type)
+        tdc = cls(code_name, full_name, None, from_pops=from_pops, to_pops=to_pops, interpop_type=interaction_type, from_pop_type=from_pop_type, to_pop_type=to_pop_type)
         tdc.attributes = attributes
 
-        # Read the third table that actually contains the time series data
-        headings = {}
-        times = {}
         known_headings = {"from population", "to population", "units", "uncertainty", "constant", "assumption"}
-        for i, cell in enumerate(tables[2][0]):
-            v = cell.value
-            if v is None:
-                continue
-            elif cell.data_type in {"s", "str"}:
-                v = v.strip()
-                if v.lower() in known_headings:
-                    headings[v.lower()] = i
-                else:
-                    headings[v] = i
-            elif cell.data_type == "n":
-                if cell.is_date:
-                    times[datetime_to_year(v)] = i
-                else:
-                    times[v] = i
-            else:
-                raise Exception("Unknown data type in cell %s of the spreadsheet - quantity must be a string or a number" % cell.coordinate)
-        tdc.tvec = np.array(sorted(times), dtype=float)
+        headings, times, tdc.tvec = _parse_ts_header(tables[2][0], known_headings, skip_first=False)
 
         # Validate and process headings
         if not times and "constant" not in headings:
@@ -524,9 +524,6 @@ class TimeDependentConnections:
             tdc.assumption_heading = "Assumption"
         for heading in headings:
             if heading not in known_headings:
-                # If it's not a known heading and it's a string, then it must be an attribute
-                # Note that the way `headings` is populated by skipping i=0 ensures that the table name
-                # is not interpreted as a heading
                 tdc.ts_attributes[heading] = {}
 
         tdc.ts = sc.odict()
@@ -540,7 +537,7 @@ class TimeDependentConnections:
 
                 if "units" in headings:
                     units = cell_get_string(row[headings["units"]], allow_empty=True)
-                    if units.lower().strip() in FS.STANDARD_UNITS:
+                    if units is not None and units.lower().strip() in FS.STANDARD_UNITS:
                         units = units.lower().strip()  # Only lower and strip units if they are standard units
                 else:
                     units = None
@@ -920,8 +917,8 @@ class TimeDependentValuesEntry:
 
         return all([x.has_data for x in self.ts.values()])
 
-    @staticmethod
-    def from_rows(rows: list):
+    @classmethod
+    def from_rows(cls, rows: list):
         """
         Create new instance from Excel rows
 
@@ -948,29 +945,9 @@ class TimeDependentValuesEntry:
             raise Exception("In cell %s of the spreadsheet, the name of the quantity assigned to this table needs to be a string" % rows[0][0].coordinate)
         name = name.strip()  # The name needs to be written back in a case sensitive form
 
-        tdve = TimeDependentValuesEntry(name)
-
-        # Read the headings
-        headings = {}
-        times = {}
+        tdve = cls(name)
         known_headings = {"units", "uncertainty", "constant", "assumption"}
-        for i, cell in enumerate(rows[0]):
-            v = cell.value
-            if i == 0 or v is None:
-                continue
-            elif cell.data_type in {"s", "str"}:
-                v = v.strip()
-                if v.lower() in known_headings:
-                    headings[v.lower()] = i
-                else:
-                    headings[v] = i
-            elif cell.is_date:
-                times[datetime_to_year(v)] = i
-            elif cell.data_type == "n":
-                times[v] = i
-            else:
-                raise Exception("Unknown data type in cell %s of the spreadsheet - quantity must be a string or a number" % cell.coordinate)
-        tdve.tvec = np.array(sorted(times), dtype=float)
+        headings, times, tdve.tvec = _parse_ts_header(rows[0], known_headings, skip_first=True)
 
         # Validate and process headings
         if not times and "constant" not in headings:
@@ -990,13 +967,16 @@ class TimeDependentValuesEntry:
         ts_entries = sc.odict()
 
         for row in rows[1:]:
+            if row[0].value is None:
+                continue
+
             if not row[0].data_type in {"s", "str"}:
                 raise Exception("In cell %s of the spreadsheet, the name of the entry was expected to be a string, but it was not. The left-most column is expected to be a name. If you are certain the value is correct, add an single quote character at the start of the cell to ensure it remains as text" % row[0].coordinate)
             series_name = row[0].value.strip()
 
             if "units" in headings:
                 units = cell_get_string(row[headings["units"]], allow_empty=True)
-                if units.lower().strip() in FS.STANDARD_UNITS:
+                if units is not None and units.lower().strip() in FS.STANDARD_UNITS:
                     units = units.lower().strip()  # Only lower and strip units if they are standard units
             else:
                 units = None
@@ -1180,6 +1160,58 @@ class TimeDependentValuesEntry:
                     worksheet.conditional_format(xlrc(current_row, constant_index), {"type": "formula", "criteria": "=AND(%s,NOT(ISBLANK(%s)))" % (fcn_empty_times, xlrc(current_row, constant_index)), "format": formats["ignored_warning"]})
 
         return current_row + 2  # Add two so there is a blank line after this table
+
+
+def _parse_ts_header(row: list, known_headings: list, skip_first=False) -> Tuple[dict, dict, np.array]:
+    """
+    Internal function to read TDVE/TDC timeseries tables
+
+    :param row: A list of openpyxl Cell instances corresponding to the heading row (the one containing the
+                 headers for 'constant', 'uncertainty', 'provenance' etc., and the optional year values
+    :param known_headings: A list of known headings that should be lowered for further processing. These
+                           would correspond to the standard/default headings
+    :param skip_first: If True, the first heading cell will be skipped. This is required for TDVE tables
+                       where the top left cell is the name of the variable and not a column heading
+    :return: A tuple containing
+                - A dictionary of heading values (from string cell types) with {heading: column_index}.
+                  Any known headings will have had `str.lower()` called on them.
+                - A dictionary of time values and the columns they appear in. Datetimes will be converted
+                  into floats at this step (so for example a spreadsheet containing 1/1/2022 will have
+                  that converted to 2022.0 at this step)
+                - A numpy array with sorted time values, that can be used as a time vector
+
+    """
+
+    headings = {}
+    times = {}
+    for i, cell in enumerate(row):
+        v = cell.value
+        if v is None or (i == 0 and skip_first):
+            continue
+        elif cell.data_type in {"s", "str"}:
+            v = v.strip()
+            if v.startswith('#ignore'):
+                break
+            elif v.lower() in known_headings:
+                if v.lower() in headings:
+                    raise Exception(f"Duplicate heading in cell {cell.coordinate} - another cell in the same row already has the same header '{v}' (possibly in cell {get_column_letter(1+headings[v.lower()])}{cell.row})")
+                headings[v.lower()] = i
+            else:
+                if v in headings:
+                    raise Exception(f"Duplicate heading in cell {cell.coordinate} - another cell in the same row already has the same header '{v}' (possibly in cell {get_column_letter(1+headings[v.lower()])}{cell.row})")
+                headings[v] = i
+        elif cell.is_date:
+            year = datetime_to_year(v)
+            if year in times:
+                raise Exception(f"Duplicate year in cell {cell.coordinate} - another cell in the same row already contains the same year ({year}) (possibly in cell {get_column_letter(1+times[year])}{cell.row})")
+            times[datetime_to_year(v)] = i
+        elif cell.data_type == "n":
+            if v in times:
+                raise Exception(f"Duplicate year in cell {cell.coordinate} - another cell in the same row already contains the same year ({v}) (possibly in cell {get_column_letter(1+times[v])}{cell.row})")
+            times[v] = i
+        else:
+            raise Exception("Unknown data type in cell %s of the spreadsheet - quantity must be a string or a number" % cell.coordinate)
+    return headings, times, np.array(sorted(times), dtype=float)
 
 
 def cell_get_string(cell, allow_empty=False) -> str:
