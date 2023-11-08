@@ -451,18 +451,18 @@ class TimeDependentConnections:
         to_pop_type = None
 
         # Start by reading the TDC header row specifying the name and pop types
-        # This is a dense table expected to contain no blank cells in the heading row
-        # Stop parsing when the first blank cell in the heading is encountered
         # This table also contains only a single row. Any subsequent rows will automatically be ignored
         attributes = {}
         for header_cell, value_cell in zip(tables[0][0], tables[0][1]):
-            if header_cell.value is None:
+
+            header = cell_get_string(header_cell, allow_empty=True)
+            if header is None:
+                continue
+            elif header.startswith('#ignore'):
                 break
-            header = cell_get_string(header_cell)
+
             lowered_header = header.lower()
-            if lowered_header.startswith('#ignore'):
-                break
-            elif lowered_header == "abbreviation":
+            if lowered_header == "abbreviation":
                 code_name = cell_get_string(value_cell)
             elif lowered_header == "full name":
                 full_name = cell_get_string(value_cell)
