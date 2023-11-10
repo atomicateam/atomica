@@ -122,7 +122,7 @@ class NDict(sc.odict):
         >>> new_parset = proj.parsets.copy('old_name','new_name')
 
         """
-        sc.odict.copy(self, old, new)
+        self[new] = sc.dcp(self[old])
         if isinstance(self[new], NamedItem):
             self[new].name = new
         return self[new]

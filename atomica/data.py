@@ -20,10 +20,15 @@ from . import logger
 from .system import FrameworkSettings as FS
 from collections import defaultdict
 import pandas as pd
+import itertools
 
 _DEFAULT_PROVENANCE = "Framework-supplied default"
 
-__all__ = ["ProjectData"]
+__all__ = ["InvalidDatabook", "ProjectData"]
+
+
+class InvalidDatabook(Exception):
+    pass
 
 
 class ProjectData(sc.prettyobj):
@@ -60,6 +65,15 @@ class ProjectData(sc.prettyobj):
         self._book = None  #: Temporary storage for the workbook while writing a databook
         self._references = None  #: Temporary storage for cell references while writing a databook
 
+    def tables(self):
+        """
+        Return iterator over all TDVE and TDC tables
+
+        :return: An iterator
+        """
+        for table in itertools.chain(self.tdve.values(), self.transfers, self.interpops):
+            yield table
+
     @property
     def start_year(self) -> float:
         """
@@ -75,9 +89,9 @@ class ProjectData(sc.prettyobj):
         """
 
         start_year = np.inf
-        for td_table in list(self.tdve.values()) + self.transfers + self.interpops:
-            if len(td_table.tvec) and np.amin(td_table.tvec) < start_year:
-                start_year = np.amin(td_table.tvec)
+        for table in self.tables():
+            if len(table.tvec) and np.amin(table.tvec) < start_year:
+                start_year = np.amin(table.tvec)
         return start_year
 
     @property
@@ -95,9 +109,9 @@ class ProjectData(sc.prettyobj):
         """
 
         end_year = -np.inf
-        for td_table in list(self.tdve.values()) + self.transfers + self.interpops:
-            if len(td_table.tvec) and np.amax(td_table.tvec) > end_year:
-                end_year = np.amax(td_table.tvec)
+        for table in self.tables():
+            if len(table.tvec) and np.amax(table.tvec) > end_year:
+                end_year = np.amax(table.tvec)
         return end_year
 
     def change_tvec(self, tvec: np.array) -> None:
@@ -120,8 +134,8 @@ class ProjectData(sc.prettyobj):
         """
 
         self.tvec = sc.promotetoarray(tvec).copy()
-        for td_table in list(self.tdve.values()) + self.transfers + self.interpops:
-            td_table.tvec = tvec
+        for table in self.tables():
+            table.tvec = tvec
 
     def get_ts(self, name: str, key=None):
         """
@@ -157,17 +171,16 @@ class ProjectData(sc.prettyobj):
             if key in self.tdve[name].ts:
                 return self.tdve[name].ts[key]
 
-        # Then, if the key is None, we are working on a transfer parameter. So reconstruct the key
-        if key is None:
-            x = name.split("_to_")
-            code_name, from_pop = x[0].split("_", 1)
-            to_pop = x[1]
-            name = code_name
-            key = (from_pop, to_pop)
-
+        # If the key is specified, then the name corresponds to the code name only, and we can just directly
+        # use the name and the key. However, if the key is none, then the user has passed in the name as
+        # "<code_name>_<from_pop>_to_<to_pop>" e.g., "age_0-4_to_5-14". We need to split this up then into
+        # the transfer/interaction name, and the key. Note that the code name may contain underscores
         for tdc in self.transfers + self.interpops:
-            if name == tdc.code_name:
-                return tdc.ts[key]
+            if name.startswith(tdc.code_name):
+                key = key or tuple(name[len(tdc.code_name) + 1 :].split("_to_"))
+                if key in tdc.ts:
+                    return tdc.ts[key]
+                break  # If we matched the name of the TDC but the requestion populations are wrong, no need to check other TDCs
 
         return None
 
@@ -219,7 +232,7 @@ class ProjectData(sc.prettyobj):
                     new_pops[code_name] = spec
 
         if not new_pops:
-            raise Exception("A new databook must have at least 1 population")
+            raise InvalidDatabook("A new databook must have at least 1 population")
 
         new_transfers = sc.odict()
         if sc.isnumber(transfers):
@@ -346,19 +359,19 @@ class ProjectData(sc.prettyobj):
                     self._read_pops(sheet)
                 except Exception as e:
                     message = 'An error was detected on the "Population Definitions" sheet'
-                    raise Exception("%s -> %s" % (message, e)) from e
+                    raise InvalidDatabook("%s -> %s" % (message, e)) from e
             elif sheet.title == "Transfers":
                 try:
                     self._read_transfers(sheet)
                 except Exception as e:
                     message = 'An error was detected on the "Transfers" sheet'
-                    raise Exception("%s -> %s" % (message, e)) from e
+                    raise InvalidDatabook("%s -> %s" % (message, e)) from e
             elif sheet.title == "Interactions":
                 try:
                     self._read_interpops(sheet)
                 except Exception as e:
                     message = 'An error was detected on the "Interactions" sheet'
-                    raise Exception("%s -> %s" % (message, e)) from e
+                    raise InvalidDatabook("%s -> %s" % (message, e)) from e
             elif sheet.title == "Metadata":
                 continue
             else:
@@ -370,7 +383,7 @@ class ProjectData(sc.prettyobj):
                         tdve = TimeDependentValuesEntry.from_rows(table)
                     except Exception as e:
                         message = 'Error on sheet "%s" while trying to read a TDVE table starting on row %d' % (sheet.title, start_row)
-                        raise Exception("%s -> %s" % (message, e)) from e
+                        raise InvalidDatabook("%s -> %s" % (message, e)) from e
 
                     # If the TDVE is not in the Framework, that's a critical stop error, because the framework needs to at least declare
                     # what kind of variable this is - otherwise, we don't know the allowed units and cannot write the databook back properly
@@ -378,7 +391,7 @@ class ProjectData(sc.prettyobj):
                         spec, item_type = framework.get_variable(tdve.name)
                     except NotFoundError:
                         message = 'Error on sheet "%s" while reading TDVE table "%s" (row %d). The variable was not found in the Framework' % (sheet.title, tdve.name, start_row)
-                        raise Exception(message)
+                        raise InvalidDatabook(message)
 
                     code_name = spec.name
                     tdve.allowed_units = [framework.get_databook_units(code_name)]
@@ -398,17 +411,23 @@ class ProjectData(sc.prettyobj):
                     tdve.comment = spec["guidance"]
 
                     if code_name in self.tdve:
-                        raise Exception('A TDVE table for "%s" (%s) appears more than once in the databook. The first table was on sheet "%s" and the first duplicate table is on sheet "%s" starting on row %d' % (tdve.name, code_name, [k for k, v in self.tdve_pages.items() if code_name in v][0], sheet.title, start_row))
+                        raise InvalidDatabook('A TDVE table for "%s" (%s) appears more than once in the databook. The first table was on sheet "%s" and the first duplicate table is on sheet "%s" starting on row %d' % (tdve.name, code_name, [k for k, v in self.tdve_pages.items() if code_name in v][0], sheet.title, start_row))
 
                     self.tdve[code_name] = tdve
                     # Store the TDVE on the page it was actually on, rather than the one in the framework. Then, if users move anything around, the change will persist
                     self.tdve_pages[sheet.title].append(code_name)
 
+        # Check that transfer and interaction names are unique
+        _interactions = {}
+        for interaction in self.transfers + self.interpops:
+            if interaction.code_name not in _interactions:
+                _interactions[interaction.code_name] = interaction
+            else:
+                raise InvalidDatabook(f'Duplicate name - {interaction.type.title()} "{interaction.code_name}" has the same name as an existing {_interactions[interaction.code_name].type}"')
+
         tvals = set()
-        for tdve in self.tdve.values():
-            tvals.update(tdve.tvec)
-        for tdc in self.transfers + self.interpops:
-            tvals.update(tdc.tvec)
+        for table in self.tables():
+            tvals.update(table.tvec)
         self.tvec = np.array(sorted(tvals))
 
         return self
@@ -451,12 +470,12 @@ class ProjectData(sc.prettyobj):
         for obj_type, df in zip(["comps", "characs", "pars"], [framework.comps, framework.characs, framework.pars]):
             for spec_name, spec in zip(df.index, df.to_dict(orient="records")):
                 if spec_name in self.pops:
-                    raise Exception('Code name "%s" has been used for both a population and a framework quantity - population names must be unique' % (spec_name))
+                    raise InvalidDatabook('Code name "%s" has been used for both a population and a framework quantity - population names must be unique' % (spec_name))
 
                 if not pd.isna(spec["databook page"]):
                     if spec_name not in self.tdve:
                         if not np.isfinite(spec["default value"]):
-                            raise Exception('The databook did not contain a required TDVE table named "%s" (code name "%s")' % (spec["display name"], spec_name))
+                            raise InvalidDatabook('The databook did not contain a required TDVE table named "%s" (code name "%s")' % (spec["display name"], spec_name))
                         else:
                             logger.warning('TDVE table "%s" (code name "%s") is missing from the databook. Using default values from the framework' % (spec["display name"], spec_name))
                             units = framework.get_databook_units(spec_name)
@@ -478,7 +497,7 @@ class ProjectData(sc.prettyobj):
                         required_pops = [x for x, y in self.pops.items() if y["type"] == tdve.pop_type]  # The TDVE should contain values for all populations of that type, otherwise cannot construct the ParameterSet. Check that these populations are all present
                         missing_pops = set(required_pops).difference(tdve.ts.keys())
                         if missing_pops:
-                            raise Exception("%s. The following populations were not supplied but are required: %s" % (location, missing_pops))
+                            raise InvalidDatabook("%s. The following populations were not supplied but are required: %s" % (location, missing_pops))
 
                         for name, ts in self.tdve[spec_name].ts.items():
                             assert ts.has_data, "%s. Data values missing for %s (%s)" % (location, tdve.name, name)
@@ -511,7 +530,7 @@ class ProjectData(sc.prettyobj):
                         assert ts.units.lower().title() == FS.DEFAULT_SYMBOL_INAPPLICABLE.lower().title(), 'Units error in interaction %s, %s->%s. Interaction units must be "N.A."' % (spec.name, to_pop, from_pop)
                     break
             else:
-                raise Exception('Required interaction "%s" not found in databook' % spec.name)
+                raise InvalidDatabook('Required interaction "%s" not found in databook' % spec.name)
 
         for tdc in self.transfers:
             for (from_pop, to_pop), ts in tdc.ts.items():
@@ -690,6 +709,20 @@ class ProjectData(sc.prettyobj):
                 if k == pop_name:
                     del tdve.ts[k]
 
+    def _assert_unique_tdc(self, name: str) -> None:
+        """
+        Check if a TDC name already exists
+
+        Used when adding or renaming transfers and interactions
+
+        :param name: Proposed name of new TDC
+        :return: None
+        :raises: Exception if the name is already present
+        """
+        for tdc in self.transfers + self.interpops:
+            if name == tdc.code_name:
+                raise Exception(f'The databook already contains an existing {tdc.type} with name "{name}"')
+
     def add_transfer(self, code_name: str, full_name: str, pop_type: str = None) -> TimeDependentConnections:
         """
         Add a new empty transfer
@@ -705,9 +738,7 @@ class ProjectData(sc.prettyobj):
             pop_type = self._pop_types[0]
 
         assert pop_type in self._pop_types, "Population type %s not found in framework" % (pop_type)
-
-        for transfer in self.transfers:
-            assert code_name != transfer.code_name, 'Transfer with name "%s" already exists' % (code_name)
+        self._assert_unique_tdc(code_name)
 
         pop_names = [name for name, pop_spec in self.pops.items() if pop_spec["type"] == pop_type]
 
@@ -729,10 +760,6 @@ class ProjectData(sc.prettyobj):
 
         """
 
-        # Check no name collisions
-        for transfer in self.transfers:
-            assert new_code_name != transfer.code_name, 'Transfer with name "%s" already exists' % (new_code_name)
-
         # Find the transfer to change
         for transfer in self.transfers:
             if existing_code_name == transfer.code_name:
@@ -740,6 +767,9 @@ class ProjectData(sc.prettyobj):
                 break
         else:
             raise NotFoundError('Transfer with name "%s" was not found' % (existing_code_name))
+
+        # Check no name collisions
+        self._assert_unique_tdc(new_code_name)
 
         # Modify it
         transfer_to_change.code_name = new_code_name
@@ -782,8 +812,7 @@ class ProjectData(sc.prettyobj):
         assert from_pop_type in self._pop_types, "Population type %s not found in framework" % (from_pop_type)
         assert to_pop_type in self._pop_types, "Population type %s not found in framework" % (to_pop_type)
 
-        for interaction in self.interpops:
-            assert code_name != interaction.code_name, 'Interaction with name "%s" already exists' % (code_name)
+        self._assert_unique_tdc(code_name)
 
         from_pops = [name for name, pop_spec in self.pops.items() if pop_spec["type"] == from_pop_type]
         to_pops = [name for name, pop_spec in self.pops.items() if pop_spec["type"] == to_pop_type]
@@ -874,15 +903,19 @@ class ProjectData(sc.prettyobj):
 
     def _read_transfers(self, sheet) -> None:
         """
-        Writes the 'Transfers' sheet
+        Reads the 'Transfers' sheet
 
         """
-
         tables, start_rows = read_tables(sheet)
         assert len(tables) % 3 == 0, "There should be 3 subtables for every transfer"
         self.transfers = []
+        names = set()
         for i in range(0, len(tables), 3):
-            self.transfers.append(TimeDependentConnections.from_tables(tables[i : i + 3], "transfer"))
+            transfer = TimeDependentConnections.from_tables(tables[i : i + 3], "transfer")
+            if transfer.code_name in names:
+                raise Exception(f"Another transfer with name '{transfer.code_name}' already exists")
+            names.add(transfer.code_name)
+            self.transfers.append(transfer)
 
     def _write_transfers(self) -> None:
         """
@@ -906,14 +939,20 @@ class ProjectData(sc.prettyobj):
 
     def _read_interpops(self, sheet) -> None:
         """
-        Writes the 'Interactions' sheet
+        Reads the 'Interactions' sheet
 
         """
         tables, start_rows = read_tables(sheet)
-        assert len(tables) % 3 == 0, "There should be 3 subtables for every transfer"
+        assert len(tables) % 3 == 0, "There should be 3 subtables for every interaction"
         self.interpops = []
+        names = set()
         for i in range(0, len(tables), 3):
-            self.interpops.append(TimeDependentConnections.from_tables(tables[i : i + 3], "interaction"))
+            interaction = TimeDependentConnections.from_tables(tables[i : i + 3], "interaction")
+            if interaction.code_name in names:
+                raise Exception(f"Another interaction with name '{interaction.code_name}' already exists")
+            names.add(interaction.code_name)
+            self.interpops.append(interaction)
+
         return
 
     def _write_interpops(self) -> None:

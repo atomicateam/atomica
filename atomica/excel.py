@@ -16,6 +16,10 @@ from .system import FrameworkSettings as FS
 import pandas as pd
 from .utils import format_duration, datetime_to_year
 import xlsxwriter
+from typing import Tuple
+from openpyxl.utils import get_column_letter
+
+__all__ = ["standard_formats", "apply_widths", "update_widths", "transfer_comments", "copy_sheet", "read_tables", "read_dataframes", "TimeDependentConnections", "TimeDependentValuesEntry", "cell_get_string", "cell_get_number", "validate_category"]
 
 # Suppress known warning in Openpyxl
 # Warnings are:
@@ -25,16 +29,18 @@ import xlsxwriter
 #   warn(msg)
 # This means that conditional formatting and data valuation rules aren't being loaded, but since `data_only=True` these don't matter and can be safely ignored
 import warnings
-
 warnings.filterwarnings(action="ignore", category=UserWarning, module="openpyxl.worksheet", lineno=300)
 
 
-def standard_formats(workbook):
-    # Add standard formatting to a workbook and return the set of format objects
-    # for use when writing within the workbook
-    """the formats used in the spreadsheet"""
-    #    darkgray = '#413839'
-    #    optima_blue = '#18C1FF'
+def standard_formats(workbook: xlsxwriter.Workbook) -> dict:
+    """
+    Add standard formatting to a workbook
+
+    Returns a dictionary of format objects for use when writing the workbook
+
+    :param workbook: an xlsxwriter workbook
+    :return: A dictionary of ``xlsxwriter.workbook.Format`` instances
+    """
     atomica_blue = "#98E0FA"
     optional_orange = "#FFA500"
     BG_COLOR = atomica_blue
@@ -73,7 +79,18 @@ def standard_formats(workbook):
     return formats
 
 
-def apply_widths(worksheet, width_dict):
+def apply_widths(worksheet: xlsxwriter.workbook.Worksheet, width_dict: dict) -> None:
+    """
+    Set column widths
+
+    Given a dictionary of precomputed character counts (typically the maximum number of characters in
+    any cell written to each column), set the width of the column in Excel accordingly. The Excel
+    column width is slightly larger than the character count.
+
+    :param worksheet: A Worksheet instance
+    :param width_dict: A dictionary of character widths to use for each column (by index)
+    """
+
     for idx, width in width_dict.items():
         worksheet.set_column(idx, idx, width * 1.1 + 1)
 
@@ -187,7 +204,7 @@ def copy_sheet(source: str, sheet_name: str, workbook: xlsxwriter.Workbook) -> N
     src_workbook.close()
 
 
-def read_tables(worksheet) -> tuple:
+def read_tables(worksheet) -> Tuple[list,list]:
     """
     Read tables from sheet
 
@@ -209,24 +226,32 @@ def read_tables(worksheet) -> tuple:
 
     for i, row in enumerate(worksheet.rows):
 
-        # Skip any rows starting with '#ignore'
-        if len(row) > 0 and row[0].data_type == "s" and row[0].value.startswith("#ignore"):
-            continue  # Move on to the next row if row skipping is marked True
-
-        # Find out whether we need to add the row to the buffer
-        for cell in row:
-            if cell.value:  # If the row has a non-empty cell, add the row to the buffer
-                if not buffer:
-                    start = i + 1  # Excel rows are indexed starting at 1
-                buffer.append(row)
-                break
-        else:  # If the row was empty, then yield the buffer and flag that it should be cleared at the next iteration
+        # Determine whether to skip the row, add it to the buffer, or flush buffer into a table
+        flush = False
+        for j, cell in enumerate(row):
+            if cell.value:
+                if cell.data_type == "s" and cell.value.startswith("#ignore"):
+                    if j == 0:
+                        break # If #ignore is encountered in the first column, skip the row and continue parsing the table
+                    else:
+                        flush = True
+                        break # If #ignore is encoutered after preceding blank cells
+                else:
+                    # Read the row into the buffer and continue parsing the table
+                    if not buffer:
+                        start = i + 1  # Excel rows are indexed starting at 1
+                    buffer.append(row)
+                    break # If the cell has a value in it, continue parsing the table
+        else:
             if buffer:
-                tables.append(buffer)  # Only append the buffer if it is not empty
-                start_rows.append(start)
+                flush = True
+
+        if flush :
+            tables.append(buffer)  # Only append the buffer if it is not empty
+            start_rows.append(start)
             buffer = []
 
-    # After the last row, if the buffer has some un-flushed contents, then yield it
+    # After the last row, if the buffer has some un-flushed contents, then include it in the last table
     if buffer:
         tables.append(buffer)
         start_rows.append(start)
@@ -250,33 +275,34 @@ def read_dataframes(worksheet, merge=False) -> list:
     :return: A list of DataFrames
 
     """
-    # This function takes in a openpyxl worksheet, and returns tables
-    # A table consists of a block of rows with any #ignore rows skipped
-    # This function will start at the top of the worksheet, read rows into a buffer
-    # until it gets to the first entirely empty row
-    # And then returns the contents of that buffer as a table. So a table is a list of openpyxl rows
-    # This function continues until it has exhausted all of the rows in the sheet
 
     content = np.empty((worksheet.max_row, worksheet.max_column), dtype="object")
     ignore = np.zeros((worksheet.max_row), dtype=bool)
     empty = np.zeros((worksheet.max_row), dtype=bool)  # True for index where a new table begins
 
     for i, row in enumerate(worksheet.rows):
-        if len(row) > 0 and (row[0].data_type == "s" and row[0].value.startswith("#ignore")):
-            ignore[i] = True
-            continue
 
-        any_values = False
+        any_values = False # Set True if this row contains any values
         for j, cell in enumerate(row):
             v = cell.value
-            try:
-                v = v.strip()
-                has_value = bool(v)  # If it's a string type, call strip() before checking truthiness
-            except AttributeError:
-                has_value = v is not None  # If it's not a string type, then only consider it empty if it's type is None (otherwise, a numerical value of 0 would be treated as empty)
-            if has_value:
+            if cell.data_type == "s":
+                if not any_values and v.startswith("#ignore"):
+                    # If we encounter a #ignore and it's the first content in the row
+                    if j == 0:
+                        # If it's the first cell, ignore the row (i.e., do NOT treat it as a blank row)
+                        ignore[i] = True # Ignore the row
+                    break
+                elif v.startswith('#ignore'):
+                    # Skip the rest of the row
+                    content[i,j:] = None
+                    break
+                else:
+                    v = v.strip()
+                    any_values = any_values or bool(v)  # If it's a string type, call strip() before checking truthiness
+            elif v is not None:
                 any_values = True
-            content[i, j] = v
+            content[i,j] = v
+
         if not any_values:
             empty[i] = True
 
@@ -308,16 +334,16 @@ def read_dataframes(worksheet, merge=False) -> list:
             # Check for the end of a table
             if empty[i] and start is not None:
                 # If we were reading a table and have reached an empty row
-                idx.append((start,i))
+                idx.append((start, i))
                 start = None
-            elif i+1 == len(empty) and start is not None:
+            elif i + 1 == len(empty) and start is not None:
                 # If we were reading a table and have reached the end of the data
-                idx.append((start,i+1))
+                idx.append((start, i + 1))
                 start = None
 
         tables = []
         for start, stop in idx:
-            tables.append(content[start:stop].copy()) # Use .copy() so that we don't retain any references to the original full array outside this function
+            tables.append(content[start:stop].copy())  # Use .copy() so that we don't retain any references to the original full array outside this function
 
     dfs = []
     for table in tables:
@@ -396,8 +422,8 @@ class TimeDependentConnections:
     def __repr__(self):
         return '<TDC %s "%s">' % (self.type.title(), self.code_name)
 
-    @staticmethod
-    def from_tables(tables: list, interaction_type):
+    @classmethod
+    def from_tables(cls, tables: list, interaction_type):
         """
         Instantiate based on list of tables
 
@@ -424,11 +450,17 @@ class TimeDependentConnections:
         from_pop_type = None
         to_pop_type = None
 
+        # Start by reading the TDC header row specifying the name and pop types
+        # This table also contains only a single row. Any subsequent rows will automatically be ignored
         attributes = {}
         for header_cell, value_cell in zip(tables[0][0], tables[0][1]):
-            if header_cell.value is None:
+
+            header = cell_get_string(header_cell, allow_empty=True)
+            if header is None:
                 continue
-            header = cell_get_string(header_cell)
+            elif header.startswith('#ignore'):
+                break
+
             lowered_header = header.lower()
             if lowered_header == "abbreviation":
                 code_name = cell_get_string(value_cell)
@@ -453,38 +485,33 @@ class TimeDependentConnections:
         # Read the pops from the Y/N table. The Y/N content of the table depends on the timeseries objects that
         # are present. That is, if the Y/N matrix contains a Y then a TimeSeries must be read in, and vice versa.
         # Therefore, we don't actually parse the matrix, and instead just read in all the TimeSeries instances
-        # that are defined and infer the matrix that way.
-        to_pops = [x.value for x in tables[1][0][1:] if x.value]
+        # that are defined and infer the matrix that way. However, we do still need to parse the to_pops and from_pops
+        # These both get parsed because for interactions across pop types they could be different. Blank cells in either
+        # the row or the column signal the end of parsing those population lists
+
+        # Read the to_pops from the first row of the table, until a blank cell is encountered
+        to_pops = []
+        for cell in tables[1][0][1:]:
+            if cell.value is None or (cell.data_type == "s" and cell.value.startswith("#ignore")):
+                break
+            else:
+                to_pops.append(cell.value)
+
+        # Read the from_pops from the first column, until a blank cell is encountered. Note that a #ignore
+        # can never be present in the first column, because this would cause the row to be skipped prior to this point
         from_pops = []
         for row in tables[1][1:]:
-            from_pops.append(row[0].value)
+            if row[0].value is None:
+                break
+            else:
+                from_pops.append(row[0].value)
 
-        # Instantiate it
-        tdc = TimeDependentConnections(code_name, full_name, None, from_pops=from_pops, to_pops=to_pops, interpop_type=interaction_type, from_pop_type=from_pop_type, to_pop_type=to_pop_type)
+        # Instantiate the TDC object based on the metadata from the first two tables
+        tdc = cls(code_name, full_name, None, from_pops=from_pops, to_pops=to_pops, interpop_type=interaction_type, from_pop_type=from_pop_type, to_pop_type=to_pop_type)
         tdc.attributes = attributes
 
-        # Read the time series table
-        headings = {}
-        times = {}
         known_headings = {"from population", "to population", "units", "uncertainty", "constant", "assumption"}
-        for i, cell in enumerate(tables[2][0]):
-            v = cell.value
-            if i == 0 or v is None:
-                continue
-            elif cell.data_type in {"s", "str"}:
-                v = v.strip()
-                if v.lower() in known_headings:
-                    headings[v.lower()] = i
-                else:
-                    headings[v] = i
-            elif cell.data_type == "n":
-                if cell.is_date:
-                    times[datetime_to_year(v)] = i
-                else:
-                    times[v] = i
-            else:
-                raise Exception("Unknown data type in cell %s of the spreadsheet - quantity must be a string or a number" % cell.coordinate)
-        tdc.tvec = np.array(sorted(times), dtype=float)
+        headings, times, tdc.tvec = _parse_ts_header(tables[2][0], known_headings, skip_first=False)
 
         # Validate and process headings
         if not times and "constant" not in headings:
@@ -497,9 +524,6 @@ class TimeDependentConnections:
             tdc.assumption_heading = "Assumption"
         for heading in headings:
             if heading not in known_headings:
-                # If it's not a known heading and it's a string, then it must be an attribute
-                # Note that the way `headings` is populated by skipping i=0 ensures that the table name
-                # is not interpreted as a heading
                 tdc.ts_attributes[heading] = {}
 
         tdc.ts = sc.odict()
@@ -513,7 +537,7 @@ class TimeDependentConnections:
 
                 if "units" in headings:
                     units = cell_get_string(row[headings["units"]], allow_empty=True)
-                    if units.lower().strip() in FS.STANDARD_UNITS:
+                    if units is not None and units.lower().strip() in FS.STANDARD_UNITS:
                         units = units.lower().strip()  # Only lower and strip units if they are standard units
                 else:
                     units = None
@@ -597,9 +621,6 @@ class TimeDependentConnections:
             worksheet.write(current_row + 1, column, value)
             update_widths(widths, column, value)
 
-        references[self.code_name] = "='%s'!%s" % (worksheet.name, xlrc(current_row, 0, True, True))
-        references[self.full_name] = "='%s'!%s" % (worksheet.name, xlrc(current_row, 1, True, True))  # Reference to the full name
-
         # Then, write the Y/N matrix
         current_row += 3  # Leave a blank row below the matrix
         # Note - table_references are local to this TimeDependentConnections instance
@@ -641,10 +662,7 @@ class TimeDependentConnections:
 
         headings += [float(x) for x in self.tvec]
         for i, entry in enumerate(headings):
-            if entry in references:
-                worksheet.write_formula(current_row, 0, references[entry], formats["center_bold"], value=entry)
-            else:
-                worksheet.write(current_row, i, entry, formats["center_bold"])
+            worksheet.write(current_row, i, entry, formats["center_bold"])
             update_widths(widths, i, entry)
 
         # Now, we will write a wrapper that gates the content
@@ -882,8 +900,8 @@ class TimeDependentValuesEntry:
         self.assumption_heading = "Constant"  #: Heading to use for assumption column
 
         self.write_units = None  #: Write a column for units (if None, units will be written if any of the TimeSeries have units)
-        self.write_uncertainty = None  #: Write a column for units (if None, units will be written if any of the TimeSeries have uncertainty)
-        self.write_assumption = None  #: Write a column for units (if None, units will be written if any of the TimeSeries have an assumption)
+        self.write_uncertainty = None  #: Write a column for uncertainty (if None, uncertainty will be written if any of the TimeSeries have uncertainty)
+        self.write_assumption = None  #: Write a column for assumption/constant (if None, assumption will be written if any of the TimeSeries have an assumption)
 
     def __repr__(self):
         output = sc.prepr(self)
@@ -899,8 +917,8 @@ class TimeDependentValuesEntry:
 
         return all([x.has_data for x in self.ts.values()])
 
-    @staticmethod
-    def from_rows(rows: list):
+    @classmethod
+    def from_rows(cls, rows: list):
         """
         Create new instance from Excel rows
 
@@ -927,29 +945,9 @@ class TimeDependentValuesEntry:
             raise Exception("In cell %s of the spreadsheet, the name of the quantity assigned to this table needs to be a string" % rows[0][0].coordinate)
         name = name.strip()  # The name needs to be written back in a case sensitive form
 
-        tdve = TimeDependentValuesEntry(name)
-
-        # Read the headings
-        headings = {}
-        times = {}
+        tdve = cls(name)
         known_headings = {"units", "uncertainty", "constant", "assumption"}
-        for i, cell in enumerate(rows[0]):
-            v = cell.value
-            if i == 0 or v is None:
-                continue
-            elif cell.data_type in {"s", "str"}:
-                v = v.strip()
-                if v.lower() in known_headings:
-                    headings[v.lower()] = i
-                else:
-                    headings[v] = i
-            elif cell.is_date:
-                times[datetime_to_year(v)] = i
-            elif cell.data_type == "n":
-                times[v] = i
-            else:
-                raise Exception("Unknown data type in cell %s of the spreadsheet - quantity must be a string or a number" % cell.coordinate)
-        tdve.tvec = np.array(sorted(times), dtype=float)
+        headings, times, tdve.tvec = _parse_ts_header(rows[0], known_headings, skip_first=True)
 
         # Validate and process headings
         if not times and "constant" not in headings:
@@ -969,13 +967,16 @@ class TimeDependentValuesEntry:
         ts_entries = sc.odict()
 
         for row in rows[1:]:
+            if row[0].value is None:
+                continue
+
             if not row[0].data_type in {"s", "str"}:
                 raise Exception("In cell %s of the spreadsheet, the name of the entry was expected to be a string, but it was not. The left-most column is expected to be a name. If you are certain the value is correct, add an single quote character at the start of the cell to ensure it remains as text" % row[0].coordinate)
             series_name = row[0].value.strip()
 
             if "units" in headings:
                 units = cell_get_string(row[headings["units"]], allow_empty=True)
-                if units.lower().strip() in FS.STANDARD_UNITS:
+                if units is not None and units.lower().strip() in FS.STANDARD_UNITS:
                     units = units.lower().strip()  # Only lower and strip units if they are standard units
             else:
                 units = None
@@ -1062,10 +1063,7 @@ class TimeDependentValuesEntry:
 
         headings += [float(x) for x in self.tvec]
         for i, entry in enumerate(headings):
-            if entry in references:
-                worksheet.write_formula(current_row, 0, references[entry], formats["center_bold"], value=entry)
-            else:
-                worksheet.write(current_row, i, entry, formats["center_bold"])
+            worksheet.write(current_row, i, entry, formats["center_bold"])
             update_widths(widths, i, entry)
 
         if not pd.isna(self.comment):
@@ -1162,6 +1160,58 @@ class TimeDependentValuesEntry:
                     worksheet.conditional_format(xlrc(current_row, constant_index), {"type": "formula", "criteria": "=AND(%s,NOT(ISBLANK(%s)))" % (fcn_empty_times, xlrc(current_row, constant_index)), "format": formats["ignored_warning"]})
 
         return current_row + 2  # Add two so there is a blank line after this table
+
+
+def _parse_ts_header(row: list, known_headings: list, skip_first=False) -> Tuple[dict, dict, np.array]:
+    """
+    Internal function to read TDVE/TDC timeseries tables
+
+    :param row: A list of openpyxl Cell instances corresponding to the heading row (the one containing the
+                 headers for 'constant', 'uncertainty', 'provenance' etc., and the optional year values
+    :param known_headings: A list of known headings that should be lowered for further processing. These
+                           would correspond to the standard/default headings
+    :param skip_first: If True, the first heading cell will be skipped. This is required for TDVE tables
+                       where the top left cell is the name of the variable and not a column heading
+    :return: A tuple containing
+                - A dictionary of heading values (from string cell types) with {heading: column_index}.
+                  Any known headings will have had `str.lower()` called on them.
+                - A dictionary of time values and the columns they appear in. Datetimes will be converted
+                  into floats at this step (so for example a spreadsheet containing 1/1/2022 will have
+                  that converted to 2022.0 at this step)
+                - A numpy array with sorted time values, that can be used as a time vector
+
+    """
+
+    headings = {}
+    times = {}
+    for i, cell in enumerate(row):
+        v = cell.value
+        if v is None or (i == 0 and skip_first):
+            continue
+        elif cell.data_type in {"s", "str"}:
+            v = v.strip()
+            if v.startswith('#ignore'):
+                break
+            elif v.lower() in known_headings:
+                if v.lower() in headings:
+                    raise Exception(f"Duplicate heading in cell {cell.coordinate} - another cell in the same row already has the same header '{v}' (possibly in cell {get_column_letter(1+headings[v.lower()])}{cell.row})")
+                headings[v.lower()] = i
+            else:
+                if v in headings:
+                    raise Exception(f"Duplicate heading in cell {cell.coordinate} - another cell in the same row already has the same header '{v}' (possibly in cell {get_column_letter(1+headings[v.lower()])}{cell.row})")
+                headings[v] = i
+        elif cell.is_date:
+            year = datetime_to_year(v)
+            if year in times:
+                raise Exception(f"Duplicate year in cell {cell.coordinate} - another cell in the same row already contains the same year ({year}) (possibly in cell {get_column_letter(1+times[year])}{cell.row})")
+            times[datetime_to_year(v)] = i
+        elif cell.data_type == "n":
+            if v in times:
+                raise Exception(f"Duplicate year in cell {cell.coordinate} - another cell in the same row already contains the same year ({v}) (possibly in cell {get_column_letter(1+times[v])}{cell.row})")
+            times[v] = i
+        else:
+            raise Exception("Unknown data type in cell %s of the spreadsheet - quantity must be a string or a number" % cell.coordinate)
+    return headings, times, np.array(sorted(times), dtype=float)
 
 
 def cell_get_string(cell, allow_empty=False) -> str:
