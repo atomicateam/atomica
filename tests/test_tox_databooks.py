@@ -131,8 +131,18 @@ def test_mixed_years_2():
     D = at.ProjectData.from_spreadsheet(tmpdir / "test_databook_mixed_years_2b.xlsx", framework=F)
     assert len(D.tvec) == 1
 
-
+def test_databook_comments():
+    F = ProjectFramework(at.LIBRARY_PATH / "sir_framework.xlsx")
+    D = at.ProjectData.from_spreadsheet(testdir / "sir_databook_comment_test.xlsx", framework=F)
+    assert D.get_ts('sus','Children 0-4').get(2000) == 1 # Should not overwrite existing value
+    assert D.get_ts("age", ("Children 0-4", "Children 5-14")).get(2004) == 14  # Should not overwrite existing value
+    assert D.get_ts("transfer_1", ("Children 0-4", "Adults 15-64")).get(2000) == 10  # Should not overwrite existing value
+    assert D.get_ts('recrate','Children 0-4').get(2000) == 0.5
+    assert D.get_ts("infdeath", "Children 0-4").get(2000) == 0.6
+    assert D.transfers[0].attributes['Extra attribute'] == 'value'
+    
 if __name__ == "__main__":
     test_mixed_years_2()
     test_mixed_years_1()
     test_databooks()
+    test_databook_comments()

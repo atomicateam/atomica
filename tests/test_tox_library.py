@@ -193,6 +193,9 @@ def test_model(model):
     # Test loading the databook and doing a basic run
     P.load_databook(databook_file, make_default_parset=True, do_run=True)
 
+    # Test saving the databook (assume writing to disk works)
+    P.data.to_spreadsheet()
+
     # Test exporting the calibration
     P.parsets[0].calibration_spreadsheet()
 
