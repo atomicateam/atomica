@@ -1256,7 +1256,7 @@ class Ensemble(NamedItem):
 
             proposed_label = "%s (%s)" % (output, these_series[0].unit_string)
             if ax.yaxis.get_label().get_text():
-                assert proposed_label == ax.yaxis.get_label().get_text(), f"The outputs being superimposed have different units: {proposed_label} vs {ax.yaxis.get_label().get_text()} {self} {results} {outputs}"
+                assert proposed_label == ax.yaxis.get_label().get_text(), f"The outputs being superimposed have different units: {proposed_label} vs {ax.yaxis.get_label().get_text()}"
             else:
                 ax.set_ylabel(proposed_label)
 
