@@ -1221,7 +1221,7 @@ class Ensemble(NamedItem):
 
         if fig is None:
             fig = plt.figure()
-        ax = plt.gca()
+        ax = fig.gca()
 
         series_lookup = self._get_series()
 
@@ -1256,7 +1256,7 @@ class Ensemble(NamedItem):
 
             proposed_label = "%s (%s)" % (output, these_series[0].unit_string)
             if ax.yaxis.get_label().get_text():
-                assert proposed_label == ax.yaxis.get_label().get_text(), "The outputs being superimposed have different units"
+                assert proposed_label == ax.yaxis.get_label().get_text(), f"The outputs being superimposed have different units: {proposed_label} vs {ax.yaxis.get_label().get_text()} {self} {results} {outputs}"
             else:
                 ax.set_ylabel(proposed_label)
 
