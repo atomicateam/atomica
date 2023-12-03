@@ -1484,7 +1484,7 @@ def plot_series(plotdata, plot_type="line", axis=None, data=None, legend_mode=No
                 figs.append(fig)
 
                 units = list(set([plotdata[result, pop, output].unit_string for result in plotdata.results]))
-                if len(units) == 1 and not isna(units[0]):
+                if len(units) == 1 and not isna(units[0]) and units[0]:
                     ax.set_ylabel("%s (%s)" % (plotdata.outputs[output], units[0]))
                 else:
                     ax.set_ylabel("%s" % (plotdata.outputs[output]))
@@ -1519,7 +1519,7 @@ def plot_series(plotdata, plot_type="line", axis=None, data=None, legend_mode=No
                 figs.append(fig)
 
                 units = list(set([plotdata[result, pop, output].unit_string for pop in plotdata.pops]))
-                if len(units) == 1 and not isna(units[0]):
+                if len(units) == 1 and not isna(units[0]) and units[0]:
                     ax.set_ylabel("%s (%s)" % (plotdata.outputs[output], units[0]))
                 else:
                     ax.set_ylabel("%s" % (plotdata.outputs[output]))
