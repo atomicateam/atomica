@@ -2,6 +2,10 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.28.0] - 2023-XX-XX
+
+- Added ability to provide a row in the databook for 'all' (or 'All') populations, as shorthand for entering the same value in every population. This option serves as a fallback value if population-specific values have also been provided.
+
 ## [1.27.0] - 2023-11-07
 
 - `ProjectData.get_ts()` now correctly handles retrieving timeseries data from interactions and transfers with underscores in their name

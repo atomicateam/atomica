@@ -165,12 +165,12 @@ def test_databook_all():
     # and 100 susceptible, with pop sizes of 200, 300, 400, 500 should give
     # different values for the inf and rec compartment sizes
     assert np.isclose(res.get_variable('inf','pop_0')[0].vals[0], 100)
-    assert np.isclose(res.get_variable('inf','pop_1')[0].vals[0], 150)
+    assert np.isclose(res.get_variable('inf','pop_1')[0].vals[0], 30)
     assert np.isclose(res.get_variable('inf','pop_2')[0].vals[0], 200)
     assert np.isclose(res.get_variable('inf','pop_3')[0].vals[0], 250)
 
     assert np.isclose(res.get_variable('rec','pop_0')[0].vals[0], 0)
-    assert np.isclose(res.get_variable('rec','pop_1')[0].vals[0], 50)
+    assert np.isclose(res.get_variable('rec','pop_1')[0].vals[0], 170)
     assert np.isclose(res.get_variable('rec','pop_2')[0].vals[0], 100)
     assert np.isclose(res.get_variable('rec','pop_3')[0].vals[0], 150)
 
@@ -178,8 +178,8 @@ def test_databook_all():
     at.plot_series(d, axis='pops', data=P.data)
 
 if __name__ == "__main__":
-    test_mixed_years_2()
-    test_mixed_years_1()
-    test_databooks()
-    test_databook_comments()
+    # test_mixed_years_2()
+    # test_mixed_years_1()
+    # test_databooks()
+    # test_databook_comments()
     test_databook_all()
