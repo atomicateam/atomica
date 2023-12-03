@@ -200,18 +200,23 @@ class ParameterSet(NamedItem):
 
         # Instantiate all quantities that appear in the databook (compartments, characteristics, parameters)
         for name, tdve in data.tdve.items():
-            ts = {}
+            ts = sc.odict()
             units = framework.get_databook_units(name).strip().lower()
+
+            # First check units for all quantities
             for k, v in tdve.ts.items():
                 if units != v.units.strip().lower():
                     message = f'The units for quantity "{framework.get_label(name)}" in the databook do not match the units in the framework. Expecting "{units}" but the databook contained "{ts.units.strip().lower()}"'
                     raise Exception(message)
 
-                if k in self.pop_names:
-                    ts[k] = v.copy()
-                elif k in {'all','All'}:
-                    ts = {k:v.copy() for k in self.pop_names}
-                    break
+            # Then populate the parameter time series
+            for k in self.pop_names:
+                if k in tdve.ts:
+                    ts[k] = tdve.ts[k].copy()
+                elif 'all' in tdve.ts:
+                    ts[k] = tdve.ts['all'].copy()
+                elif 'All' in tdve.ts:
+                    ts[k] = tdve.ts['All'].copy()
 
             self.pars[name] = Parameter(name, ts)  # Keep only valid populations (discard any extra ones here)
 

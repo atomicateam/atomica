@@ -501,11 +501,10 @@ class ProjectData(sc.prettyobj):
                         assert tdve.pop_type in self._pop_types, '%s. Population type "%s" did not match any in the framework' % (location, tdve.pop_type)
                         required_pops = {x for x, y in self.pops.items() if y["type"] == tdve.pop_type}  # The TDVE should contain values for all populations of that type, otherwise cannot construct the ParameterSet. Check that these populations are all present
 
+                        # Check that data is available for all populations. If the TDVE table contains an entry for 'all'
+                        # then further checks are not necessary because a fallback value will be available for every population
                         tdve_pops = tdve.ts.keys()
-                        if 'all' in [x.lower() for x in tdve_pops]:
-                            if required_pops.intersection(tdve_pops):
-                                raise InvalidDatabook(f'{location}. The table contains a row for "all" populations as well as for some of the specific populations, which is not permitted. To specify values for "all" populations, remove the population-specific rows: {required_pops.intersection(tdve_pops)}')
-                        else:
+                        if not set(tdve_pops).intersection({'all','All'}):
                             missing_pops = required_pops.difference(tdve_pops)
                             if missing_pops:
                                 raise InvalidDatabook("%s. The following populations were not supplied but are required: %s" % (location, missing_pops))
