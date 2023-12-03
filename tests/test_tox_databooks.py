@@ -149,6 +149,7 @@ def test_databook_all():
     D = at.ProjectData.from_spreadsheet(testdir / "sir_databook_all.xlsx", framework=F)
 
     P = at.Project(framework=F, databook=D, do_run=False)
+    P.data.save(tmpdir/"databook_all_test.xlsx") # Test saving it back
     res = P.run_sim()
 
     assert len(P.data.tdve['sus'].ts) == 1
