@@ -183,7 +183,7 @@ def sanitize_cascade(framework, cascade, fallback_used: bool = False) -> tuple:
         df = framework.cascades[cascade_name]
         cascade_dict = sc.odict()
         for _, stage in df.iterrows():
-            cascade_dict[stage[0]] = [x.strip() for x in stage[1].split(",")]  # Split the name of the stage and the constituents
+            cascade_dict[stage.iloc[0]] = [x.strip() for x in stage.iloc[1].split(",")]  # Split the name of the stage and the constituents
     else:
         cascade_name = None
         cascade_dict = cascade
