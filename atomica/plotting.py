@@ -1476,7 +1476,7 @@ def plot_series(plotdata, plot_type="line", axis=None, data=None, legend_mode=No
             # Use subplots
             n_cols = int(n_cols)
             n_rows = int(np.ceil(n_figs/n_cols))
-            fig, axes = plt.subplots(ncols=n_cols, nrows=n_rows, sharex=True)
+            fig, axes = plt.subplots(ncols=n_cols, nrows=n_rows, squeeze=False, sharex="all")
             fig.set_label('series')
             size = fig.get_size_inches()
             fig.set_size_inches(size[0]*n_cols, size[1]*n_rows)

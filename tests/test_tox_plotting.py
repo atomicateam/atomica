@@ -11,7 +11,7 @@ def test_plot(n_cols, legend_mode, axis):
 
     P = at.demo('sir')
     d = at.PlotData(P.results[0], project=P)
-    figs = at.plot_series(d, axis='pops',legend_mode=legend_mode, n_cols=n_cols)
+    figs = at.plot_series(d, axis=axis,legend_mode=legend_mode, n_cols=n_cols)
 
     for fig in figs:
         plt.close(fig)
