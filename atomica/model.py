@@ -979,6 +979,70 @@ class TimedCompartment(Compartment):
 
         self._vals[self._vals[:, ti] < 0, ti] = 0
 
+    def update_initial(self) -> None:
+        total_people = self._vals[:, 0].sum()
+        if total_people == 0:
+            return
+
+        total_outflow = np.zeros(self._vals.shape[0])
+
+        for link in self.outlinks:  # Copied from resolve_outflows() but note the negatives
+            # print('!!out', link, link._cache)
+            if isinstance(link, TimedLink):
+                total_outflow[1:] += link._cache  # Timed link outflows do not act on the final subcompartment
+            else:
+                total_outflow[:] += link._cache  # Normal link outflows do act on the final subcompartment
+
+        rescale = np.divide(1, total_outflow, out=np.ones_like(total_outflow), where=total_outflow > 1)
+        n = rescale * self._vals[:, 0]  # Rescaled number of people - to multiply by the cache value on each link
+
+        self._cached_outflow = np.zeros(self._vals.shape[0])  # Cache the outflow, because for Links, we accumulate the subcompartment outflow but we need to record the subcompartment outflow separately
+        for link in self.outlinks:
+            if isinstance(link, TimedLink):
+                link._vals[:, 0] = n * link._cache
+                link._vals[0, 0] = 0.0  # No flow out of final subcompartment
+                self._cached_outflow += link._vals[:, 0]
+            else:
+                link.vals[0] = sum(n * link._cache)
+                self._cached_outflow += n * link._cache
+
+        net_flow = -1 * self._cached_outflow
+
+        for link in self.inlinks:  # Copied from update()
+            if isinstance(link, TimedLink):
+                if self._vals.shape[0] == link._vals.shape[0]:
+                    # The sizes match exactly, no need to index rows at all
+                    net_flow[:] += link._vals[:, 0]
+                elif self._vals.shape[0] > link._vals.shape[0]:
+                    # This compartment has a longer duration, so only insert the rows we've got
+                    net_flow[: link._vals.shape[0]] += link._vals[:, 0]
+                else:
+                    # This compartment has a shorter duration, so first insert the values we've got
+                    # then sum up and add the extra values to the initial subcompartment
+                    net_flow[:] += link._vals[: self._vals.shape[0], 0]
+                    net_flow[-1] += sum(link._vals[self._vals.shape[0]:, 0].tolist()) ## Warning not sure about this one
+
+
+
+        first_inflow = 0
+        for link in self.inlinks:
+            if not isinstance(link, TimedLink):
+                first_inflow += link[0]
+
+        self._vals[-1, 0] = first_inflow
+
+        for i in range(self._vals.shape[0]-1)[::-1]:
+            self._vals[i, 0] = max(self._vals[i+1, 0] + net_flow[i+1], 0)
+
+        if self._vals[:, 0].sum() == 0:
+            self._vals[:, 0] =  total_people / self._vals.shape[0]
+
+        self._vals[:, 0] = self._vals[:, 0] / self._vals[:, 0].sum() * total_people
+
+
+
+
+
     def connect(self, dest, par) -> None:
         """
         Construct link out of this compartment
@@ -2456,6 +2520,11 @@ class Model:
             self.update_pars()  # Update the transition parameters in case junction outflows are functions _and_ they depend on compartment sizes that just changed in the line above
             self.update_links()  # Update all of the links
 
+            found_any = self.update_timed_comps()
+            if found_any:
+                self.update_pars()
+                self.update_links()  # Update all of the links
+
         # Main integration loop
         while self._t_index < (self.t.size - 1):
             self._t_index += 1  # Step the simulation forward
@@ -2772,6 +2841,30 @@ class Model:
                     par.constrain(ti + 1)
                 else:
                     par.constrain(ti)
+
+    def update_timed_comps(self) -> bool:
+        """
+        The timed compartments start with a uniform distribution of people throughout the sub-compartments.
+        This does not match with an approximate steady state if the timed flows in/out of the sub-compartments
+        is non-negligible.
+        We do a first approximation of the steady-state
+        """
+        updated_comps = []
+        for par in self._exec_order['transition_pars']:
+            for link in par.links:
+                if isinstance(link.source, TimedCompartment) or isinstance(link.dest, TimedCompartment):
+                    timed_comp = link.source if isinstance(link.source, TimedCompartment) else link.dest
+
+                    if timed_comp in updated_comps:
+                        continue
+
+                    timed_comp.update_initial()
+                    updated_comps.append(timed_comp)
+
+        return len(updated_comps) > 0
+
+
+
 
 
 def run_model(settings, framework, parset: ParameterSet, progset: ProgramSet = None, program_instructions: ProgramInstructions = None, name: str = None, rng_sampler = None, acceptance_criteria = []):
