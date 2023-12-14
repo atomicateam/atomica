@@ -44,12 +44,13 @@ __all__ = ["ProjectSettings", "Project"]
 
 
 class ProjectSettings:
-    def __init__(self, sim_start=2000, sim_end=2035, sim_dt=0.25, stochastic=False):
+    def __init__(self, sim_start=2000, sim_end=2035, sim_dt=0.25, stochastic=False, distribute_subcompartments=False):
         self._sim_start = sim_start
         self._sim_dt = sim_dt
         self._sim_end = 0.0
         self._stochastic = stochastic
         self.update_time_vector(end=sim_end)
+        self.distribute_subcompartments = distribute_subcompartments
 
     def __repr__(self):
         """Print object"""

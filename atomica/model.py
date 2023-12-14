@@ -2110,6 +2110,7 @@ class Model:
         self.t = settings.tvec  #: Simulation time vector (this is a brand new instance from the `settings.tvec` property method)
         self.dt = settings.sim_dt  #: Simulation time step
         self.stochastic = settings.stochastic #: Run with discrete numbers of people per compartment instead of fractions.
+        self.distribute_subcompartments = settings.distribute_subcompartments if hasattr(settings, 'distribute_subcompartments') else False
 
         self.acceptance_criteria = sc.dcp(acceptance_criteria) #: If the model fails to adhere to these criteria, raise a BadInitialization exception
 
@@ -2520,10 +2521,11 @@ class Model:
             self.update_pars()  # Update the transition parameters in case junction outflows are functions _and_ they depend on compartment sizes that just changed in the line above
             self.update_links()  # Update all of the links
 
-            found_any = self.update_timed_comps()
-            if found_any:
-                self.update_pars()
-                self.update_links()  # Update all of the links
+            if self.distribute_subcompartments:
+                found_any = self.update_timed_comps()
+                if found_any:
+                    self.update_pars()
+                    self.update_links()  # Update all of the links
 
         # Main integration loop
         while self._t_index < (self.t.size - 1):
@@ -2849,6 +2851,9 @@ class Model:
         is non-negligible.
         We do a first approximation of the steady-state
         """
+        if not self.distribute_subcompartments:
+            return False
+
         updated_comps = []
         for par in self._exec_order['transition_pars']:
             for link in par.links:
