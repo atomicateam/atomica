@@ -1422,6 +1422,8 @@ def optimize(project, optimization, parset: ParameterSet, progset: ProgramSet, i
     if not np.isfinite(initial_objective):
         raise InvalidInitialConditions("Optimization cannot begin because the objective function was %s for the specified initialization" % (initial_objective))
 
+    detailed_info = {'time_elapsed': None, 'iterations': None, 'fcn_evals': None}
+
     if optimization.method == "asd":
         default_args = {
             "maxiters": optimization.maxiters,
@@ -1438,21 +1440,36 @@ def optimize(project, optimization, parset: ParameterSet, progset: ProgramSet, i
             default_args["verbose"] = 0
 
         optim_args = sc.mergedicts(default_args, optim_args)
+        start = sc.tic()
         opt_result = sc.asd(_objective_fcn, x0, args, **optim_args)
+        elapsed = sc.toc(start=start, output=True)
+
         x_opt = opt_result["x"]
+
+        detailed_info = {'time_elapsed': elapsed, 'iterations': len(opt_result['details']['fvals']), 'fcn_evals': len(opt_result['details']['fvals'])}
 
     elif optimization.method == "pso":
 
         import pyswarm
 
-        default_args = {"maxiter": 3, "lb": xmin, "ub": xmax, "minstep": 1e-3, "debug": True}
+        default_args = {"maxiter": optimization.maxiters, "maxtime": optimization.maxtime,
+                        "lb": xmin, "ub": xmax, "minstep": 1e-3, "debug": True, "swarmsize": 100}
         optim_args = sc.mergedicts(default_args, optim_args)
 
         if np.any(~np.isfinite(xmin)) or np.any(~np.isfinite(xmax)):
             errormsg = "PSO optimization requires finite upper and lower bounds to specify the search domain (i.e. every Adjustable needs to have finite bounds)"
             raise Exception(errormsg)
 
-        x_opt, _ = pyswarm.pso(_objective_fcn, kwargs=args, **optim_args)
+        if "randseed" in optim_args:
+            np.random.seed(optim_args["randseed"])
+            print(f'Seeding for pso with seed {optim_args["randseed"]}')
+
+        start = sc.tic()
+        x_opt, obj_opt, iterations = pso(_objective_fcn, kwargs=args, **optim_args)
+        elapsed = sc.toc(start=start, output=True)
+
+        detailed_info = {'time_elapsed': elapsed, 'iterations': iterations, 'fcn_evals': iterations * optim_args["swarmsize"]}
+
 
     elif optimization.method == "hyperopt":
 
@@ -1471,8 +1488,12 @@ def optimize(project, optimization, parset: ParameterSet, progset: ProgramSet, i
         default_args = {"max_evals": optimization.maxiters if optimization.maxiters is not None else 100, "algo": hyperopt.tpe.suggest}
         optim_args = sc.mergedicts(default_args, optim_args)
 
+        start = sc.tic()
         x_opt = hyperopt.fmin(fcn, space, **optim_args)
         x_opt = np.array([x_opt[str(n)] for n in range(len(x_opt.keys()))])
+        elapsed = sc.toc(start=start, output=True)
+
+        detailed_info = {'time_elapsed': elapsed, 'iterations': None, 'fcn_evals': None}
 
     elif callable(optimization.method):
         # Use custom optimization function
@@ -1484,10 +1505,12 @@ def optimize(project, optimization, parset: ParameterSet, progset: ProgramSet, i
     else:
         raise Exception("Unrecognized optimization method")
 
+    optimized_objective = _objective_fcn(x_opt, **args)
+
     # Use the optimal parameter values to generate new instructions
     optimization.update_instructions(x_opt, model.program_instructions)
     optimization.constrain_instructions(model.program_instructions, hard_constraints)
-    return model.program_instructions  # Return the modified instructions
+    return model.program_instructions, optimized_objective, detailed_info  # Return the modified instructions
     # Note that we do not return the value of the objective here because *in general* the objective isn't required
     # or expected to have a meaningful interpretation because it may arbitrarily combine quantities (e.g. spending
     # and epi outcomes) or is otherwise subject to the choice of weighting (e.g. impact vs equity). Therefore,
@@ -1561,9 +1584,10 @@ def constrain_sum_bounded(x: np.array, s: float, lb: np.array, ub: np.array) -> 
 
 
 import numpy as np
+import sciris as sc
 
 def pso(func, lb, ub, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
-        swarmsize=100, omega=0.5, phip=0.5, phig=0.5, maxiter=100,
+        swarmsize=100, omega=0.5, phip=0.5, phig=0.5, maxiter=100, maxtime=100,
         minstep=1e-8, minfunc=1e-8, debug=False):
     """
     Perform a particle swarm optimization (PSO)
@@ -1622,6 +1646,9 @@ def pso(func, lb, ub, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
         The objective value at ``g``
 
     """
+    start_time = sc.tic()
+    if maxtime is None: maxtime = np.inf
+    if maxiter is None: maxiter = np.inf
 
     assert len(lb) == len(ub), 'Lower- and upper-bounds must be the same length'
     assert hasattr(func, '__call__'), 'Invalid function handle'
@@ -1688,7 +1715,7 @@ def pso(func, lb, ub, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
 
     # Iterate until termination criterion met ##################################
     it = 1
-    while it <= maxiter:
+    while it <= maxiter and sc.toc(start=start_time, output=True) < maxtime:
         rp = np.random.uniform(size=(S, D))
         rg = np.random.uniform(size=(S, D))
         for i in range(S):
@@ -1721,10 +1748,10 @@ def pso(func, lb, ub, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
                     stepsize = np.sqrt(np.sum((g - tmp) ** 2))
                     if np.abs(fg - fx) <= minfunc:
                         print('Stopping search: Swarm best objective change less than {:}'.format(minfunc))
-                        return tmp, fx
+                        return tmp, fx, it
                     elif stepsize <= minstep:
                         print('Stopping search: Swarm best position change less than {:}'.format(minstep))
-                        return tmp, fx
+                        return tmp, fx, it
                     else:
                         g = tmp.copy()
                         fg = fx
@@ -1737,5 +1764,5 @@ def pso(func, lb, ub, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
 
     if not is_feasible(g):
         print("However, the optimization couldn't find a feasible design. Sorry")
-    return g, fg
+    return g, fg, it
 
