@@ -1461,11 +1461,13 @@ def optimize(project, optimization, parset: ParameterSet, progset: ProgramSet, i
             raise Exception(errormsg)
 
         if "randseed" in optim_args:
-            np.random.seed(optim_args["randseed"])
-            print(f'Seeding for pso with seed {optim_args["randseed"]}')
+            seed = optim_args.pop("randseed")
+            np.random.seed(seed)
+            print(f'Seeding for pso with seed {seed}')
 
         start = sc.tic()
-        x_opt, obj_opt, iterations = pso(_objective_fcn, kwargs=args, **optim_args)
+        print('calling pso with optim_args', optim_args)
+        x_opt, obj_opt, iterations = pso(_objective_fcn, x0=x0, kwargs=args, **optim_args)
         elapsed = sc.toc(start=start, output=True)
 
         detailed_info = {'time_elapsed': elapsed, 'iterations': iterations, 'fcn_evals': iterations * optim_args["swarmsize"]}
@@ -1586,7 +1588,7 @@ def constrain_sum_bounded(x: np.array, s: float, lb: np.array, ub: np.array) -> 
 import numpy as np
 import sciris as sc
 
-def pso(func, lb, ub, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
+def pso(func, lb, ub, x0=None, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
         swarmsize=100, omega=0.5, phip=0.5, phig=0.5, maxiter=100, maxtime=100,
         minstep=1e-8, minfunc=1e-8, debug=False):
     """
@@ -1692,6 +1694,7 @@ def pso(func, lb, ub, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
     for i in range(S):
         # Initialize the particle's position
         x[i, :] = lb + x[i, :] * (ub - lb)
+        if i == 0 and x0 is not None: x[i, :] = x0
 
         # Initialize the particle's best known position
         p[i, :] = x[i, :]
@@ -1713,6 +1716,10 @@ def pso(func, lb, ub, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
         # Initialize the particle's velocity
         v[i, :] = vlow + np.random.rand(D) * (vhigh - vlow)
 
+    if debug:
+        print('New best for swarm at initial iteration: {:} {:}'.format(g, fg))
+
+    init_fg = fg
     # Iterate until termination criterion met ##################################
     it = 1
     while it <= maxiter and sc.toc(start=start_time, output=True) < maxtime:
@@ -1742,7 +1749,7 @@ def pso(func, lb, ub, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
                 # (Can only get here if constraints are satisfied)
                 if fx < fg:
                     if debug:
-                        print('New best for swarm at iteration {:}: {:} {:}'.format(it, x[i, :], fx))
+                        print('New best for swarm at iteration {:}: {:} {:}, init {:}'.format(it, x[i, :], fx, init_fg))
 
                     tmp = x[i, :].copy()
                     stepsize = np.sqrt(np.sum((g - tmp) ** 2))
@@ -1757,7 +1764,7 @@ def pso(func, lb, ub, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
                         fg = fx
 
         if debug:
-            print('Best after iteration {:}: {:} {:}'.format(it, g, fg))
+            print('Best after iteration {:}: {:} {:} initial {:}'.format(it, g, fg, init_fg))
         it += 1
 
     print('Stopping search: maximum iterations reached --> {:}'.format(maxiter))
