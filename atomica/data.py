@@ -291,6 +291,20 @@ class ProjectData(sc.prettyobj):
         # Now, proceed to add pops, transfers, and interactions
         for code_name, spec in new_pops.items():
             data.add_pop(code_name, spec["label"], pop_type=spec["type"])
+        
+        for tdve_label, tdve in data.tdve.items(): #overwrite any specified populations
+            if 'databook populations' in framework.get_variable(tdve_label)[0].index and isinstance(framework.get_variable(tdve_label)[0]['databook populations'], str):
+                # print (f'Detected in {tdve_label}: {framework.get_variable(tdve_label)[0]["databook populations"]}')
+                specified_pops = [extra_pop.strip() for extra_pop in framework.get_variable(tdve_label)[0]['databook populations'].split(',')]
+                for specified_pop in specified_pops:
+                    # print (f'Adding {specified_pop} into {tdve_label}')
+                    if specified_pop!='pops' and not specified_pop in tdve.ts.keys(): #don't overwrite if already present
+                        tdve.ts[specified_pop] = TimeSeries(units=tdve.allowed_units[0])
+                if not 'pops' in specified_pops: #"special" "pops" label means keep standard populations
+                    for pop in tdve.ts.keys():
+                        if pop not in specified_pops and tdve.ts[pop] == TimeSeries(units=tdve.allowed_units[0]): #if it only has default values: don't ever delete a row that has custom changed values
+                            tdve.ts.pop(pop)
+
 
         for code_name, spec in new_transfers.items():
             data.add_transfer(code_name, spec["label"], pop_type=spec["type"])
