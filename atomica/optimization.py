@@ -1390,7 +1390,7 @@ def optimize(project, optimization, parset: ParameterSet, progset: ProgramSet, i
 
     """
 
-    assert optimization.method in ["asd", "pso", "hyperopt"]
+    assert optimization.method in ["asd", "pso", "hyperopt", "bads"]
 
     model = Model(project.settings, project.framework, parset, progset, instructions)
     pickled_model = pickle.dumps(model)  # Unpickling effectively makes a deep copy, so this _should_ be faster
@@ -1418,7 +1418,10 @@ def optimize(project, optimization, parset: ParameterSet, progset: ProgramSet, i
     # Note that this cannot be done by `optimization.get_baselines` because the baselines need to be computed against the
     # initial instructions which might be different to the initial conditions (e.g. baseline spending vs the scaled-up
     # initialization used when minimizing spending)
+    tic = sc.tic()
     initial_objective = _objective_fcn(x0, **args)
+    time_single_iteration = sc.toc(start=tic, output=True)
+
     if not np.isfinite(initial_objective):
         raise InvalidInitialConditions("Optimization cannot begin because the objective function was %s for the specified initialization" % (initial_objective))
 
@@ -1496,6 +1499,43 @@ def optimize(project, optimization, parset: ParameterSet, progset: ProgramSet, i
         elapsed = sc.toc(start=start, output=True)
 
         detailed_info = {'time_elapsed': elapsed, 'iterations': None, 'fcn_evals': None}
+
+    elif  optimization.method == "bads":
+        import pybads
+
+        if np.any(~np.isfinite(xmin)) or np.any(~np.isfinite(xmax)):
+            errormsg = "hyperopt optimization requires finite upper and lower bounds to specify the search domain (i.e. every Adjustable needs to have finite bounds)"
+            raise Exception(errormsg)
+
+        import functools
+        import warnings
+        fcn = functools.partial(_objective_fcn, **args)  # Partial out the extra arguments to the objective
+
+        default_args = {'options': {'display': 'full',
+                                    'random_seed': optim_args.pop("randseed", None),
+                                    'max_fun_evals': optimization.maxiters,
+                                    'tol_fun': initial_objective * 1e-7,
+                                    },
+                        'lower_bounds': xmin,
+                        'upper_bounds': xmax,
+                        }
+        if optimization.maxiters is None and optimization.maxtime is not None:
+            default_args['options']['max_fun_evals'] = optimization.maxtime // time_single_iteration
+        optim_args = sc.mergedicts(default_args, optim_args)
+
+        start = sc.tic()
+        print(optim_args)
+        bads = pybads.BADS(fcn, x0, **optim_args)
+        with warnings.catch_warnings(action="ignore", category=RuntimeWarning):
+            optimize_result = bads.optimize()
+
+        x_opt = optimize_result['x']
+        # print(optimize_result)
+        # sc.saveobj('bads.obj', obj=optimize_result)
+
+        elapsed = sc.toc(start=start, output=True)
+
+        detailed_info = {'time_elapsed': elapsed, 'iterations': optimize_result['iterations'], 'fcn_evals': optimize_result['func_count']}
 
     elif callable(optimization.method):
         # Use custom optimization function
@@ -1785,11 +1825,11 @@ This algorithm is published as:
 
 import time
 import numpy as np
-from . import sc_utils as scu
-from . import sc_printing as scp
-from . import sc_odict as sco
+from sciris import sc_utils as scu
+from sciris import sc_printing as scp
+from sciris import sc_odict as sco
 
-__all__ = ['asd']
+# __all__ = ['asd']
 
 def asd(function, x, args=None, stepsize=0.1, sinc=2, sdec=2, pinc=2, pdec=2,
     pinitial=None, sinitial=None, xmin=None, xmax=None, maxiters=None, maxtime=None,
