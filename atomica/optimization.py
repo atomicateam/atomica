@@ -25,7 +25,7 @@ from .system import logger, NotFoundError
 from .utils import NamedItem
 from .utils import TimeSeries
 
-__all__ = ["InvalidInitialConditions", "UnresolvableConstraint", "FailedConstraint", "Adjustable", "Adjustment", "SpendingAdjustment", "StartTimeAdjustment", "ExponentialSpendingAdjustment", "SpendingPackageAdjustment", "PairedLinearSpendingAdjustment", "Measurable", "MinimizeMeasurable", "MaximizeMeasurable", "AtMostMeasurable", "AtLeastMeasurable", "IncreaseByMeasurable", "DecreaseByMeasurable", "MaximizeCascadeStage", "MaximizeCascadeConversionRate", "Constraint", "TotalSpendConstraint", "Optimization", "optimize"]
+__all__ = ["InvalidInitialConditions", "UnresolvableConstraint", "FailedConstraint", "Adjustable", "Adjustment", "SpendingAdjustment", "CoverageAdjustment", "StartTimeAdjustment", "ExponentialSpendingAdjustment", "SpendingPackageAdjustment", "PairedLinearSpendingAdjustment", "Measurable", "MinimizeMeasurable", "MaximizeMeasurable", "AtMostMeasurable", "AtLeastMeasurable", "IncreaseByMeasurable", "DecreaseByMeasurable", "MaximizeCascadeStage", "MaximizeCascadeConversionRate", "Constraint", "TotalSpendConstraint", "Optimization", "optimize"]
 
 
 class InvalidInitialConditions(Exception):
@@ -468,6 +468,94 @@ class PairedLinearSpendingAdjustment(Adjustment):
         instructions.alloc[self.prog_name[0]].insert(self.t[1], instructions.alloc[self.prog_name[0]].get(self.t[0]) - funding_change)
         instructions.alloc[self.prog_name[1]].insert(self.t[1], instructions.alloc[self.prog_name[1]].get(self.t[0]) + funding_change)
 
+
+class CoverageAdjustment(Adjustment):
+    """
+    # TODO: not much thought has been given to if this needs to be changed for a continuous vs once-off program
+
+    Adjust program proportional coverage
+
+    This adjustment class represents making a proportional coverage quantity adjustable. By default, the
+    base class simply overwrites the coverage value at a particular point in time. This means that the budget
+    for the programdoes not get used to calculate the coverage and therefore the outcome and so any
+    ``SpendingAdjustment``s for the same program will get overriden.
+    Therefore not suggested to use ``CoverageAdjustment`` with other Adjustments for the same program at the moment.
+
+    A CoverageAdjustment has a separate Adjustable for each time reached (independently)
+
+    :param prog_name: The code name of a program
+    :param t: A single time, or list/array of times at which to make adjustments
+    :param limit_type: Interpret ``lower`` and ``upper`` as absolute or relative limits (should be ``'abs'`` or ``'rel'``)
+    :param lower: Lower bound (0 by default). A single value (used for all times) or a list/array the same length as ``t``
+    :param upper: Upper bound (``np.inf`` by default). A single value (used for all times) or a list/array the same length as ``t``
+    :param initial: MUST specify the initial value, either as a scalar or list/array the same length as ``t``. If not specified,
+                    the initial coverage would have to be extracted from a model that has been run (with the rest of the adjustables?)
+    """
+
+    def __init__(self, prog_name, t, limit_type="abs", lower=0.0, upper=1.0, initial=None):
+        Adjustment.__init__(self, name=prog_name)
+        self.prog_name = prog_name
+        self.t = sc.promotetoarray(t)  # Time at which to apply the adjustment
+
+        lower = sc.promotetolist(lower, keepnone=True)
+        if len(lower) == 1:
+            lower = lower * len(self.t)
+        else:
+            assert len(lower) == len(self.t), "If supplying lower bounds, you must either specify one, or one for every time point"
+
+        upper = sc.promotetolist(upper, keepnone=True)
+        if len(upper) == 1:
+            upper = upper * len(self.t)
+        else:
+            assert len(upper) == len(self.t), "If supplying upper bounds, you must either specify one, or one for every time point"
+
+        initial = sc.promotetolist(initial, keepnone=True)
+        if len(initial) == 1:
+            initial = initial * len(self.t)
+        else:
+            assert len(initial) == len(self.t), "If supplying initial values, you must either specify one, or one for every time point"
+
+        if any(np.array(initial) == None):
+            raise ValueError('Must provide initial coverages for a CoverageAdjustment because they cannot be figured out without running the model')
+
+        self.adjustables = [Adjustable(prog_name, limit_type, lower_bound=lb, upper_bound=ub, initial_value=init) for lb, ub, init in zip(lower, upper, initial)]
+
+    def update_instructions(self, adjustable_values, instructions: ProgramInstructions):
+        # There is one Adjustable for each time point, so the adjustable_values
+        # are a list of this same length, one value for each time point
+        for i, t in enumerate(self.t):
+            if self.prog_name not in instructions.coverage:
+                instructions.coverage[self.prog_name] = TimeSeries(t=t, vals=adjustable_values[i])
+            else:
+                instructions.coverage[self.prog_name].insert(t, adjustable_values[i])
+
+    def get_initialization(self, progset: ProgramSet, instructions: ProgramInstructions) -> list:
+        """
+        Return initial values for ASD
+
+        The initial values correspond to either
+
+        - The explicitly specified initial coverage
+        - The initial coverage from the running with the rest of the program set/instructions
+
+        Note that the initial spend is NOT clipped to any bounds. This is because the initial spend is in turn used to compute
+        relative spending constraints. If the initial spend is not consistent then an error will be subsequently raised
+        at that point.
+
+        :param progset: The ``ProgramSet`` being used for the optimization
+        :param instructions: The initial instructions
+        :return: A list of initial values, one for each adjustable
+
+        """
+
+        initialization = []
+        for adjustable, t in zip(self.adjustables, self.t):
+            if adjustable.initial_value is not None:
+                initialization.append(adjustable.initial_value)
+            else:
+                raise ValueError('Must provide initial coverages for a CoverageAdjustment because they cannot be figured out without running the model')
+
+        return initialization
 
 class Measurable:
     """
@@ -945,7 +1033,7 @@ class TotalSpendConstraint(Constraint):
         hard_constraints = {}
         hard_constraints["programs"] = defaultdict(set)  # It's a set so that it will work properly if multiple Adjustments reach the same parameter at the same time. However, this would a bad idea and nobody should do this!
         for adjustment in optimization.adjustments:
-            if hasattr(adjustment, "prog_name"):
+            if hasattr(adjustment, "prog_name") and not isinstance(adjustment, CoverageAdjustment):
                 for t in sc.promotetoarray(adjustment.t):
                     if isinstance(adjustment, SpendingPackageAdjustment):
                         if adjustment.adjust_total_spend and adjustment.t == t:
@@ -958,6 +1046,10 @@ class TotalSpendConstraint(Constraint):
                         hard_constraints["programs"][t].update(adjustment.prog_name)
                     else:
                         hard_constraints["programs"][t].add(adjustment.prog_name)
+            elif isinstance(adjustment, CoverageAdjustment):
+                for t in sc.promotetoarray(adjustment.t):
+                    hard_constraints["programs"][t].update(set())
+
 
         if len(self.t):
             # Check that every explictly specified time has
@@ -1046,6 +1138,9 @@ class TotalSpendConstraint(Constraint):
                     for prog in sc.promotetolist(adjustment.prog_name):
                         minimum_spend += hard_constraints["bounds"][t][prog][0]
                         maximum_spend += hard_constraints["bounds"][t][prog][1]
+                elif isinstance(adjustment, CoverageAdjustment):
+                    # TODO: check if there is any t checks we need to make
+                    maximum_spend += np.inf  # Impossible to know the max spend if we have a CoverageAdjustment
 
             if minimum_spend > hard_constraints["initial_total_spend"][t]:
                 raise UnresolvableConstraint("The total spend in %.2f is constrained to %.2f but the individual programs have a total minimum spend of %.2f which is impossible to satisfy. Please either raise the total spending, or lower the minimum spend on one or more programs" % (t, hard_constraints["initial_total_spend"][t], minimum_spend))
