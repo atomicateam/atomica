@@ -1363,6 +1363,30 @@ def _objective_fcn(x, pickled_model, optimization, hard_constraints: list, basel
 
     return obj_val
 
+def _xINT_to_int(key):
+    if not key.startswith('x'):
+        return None
+
+    try:
+        num = int(key.strip('x'))
+        return num
+    except:
+        logger.warn(f'Could not parse kwargs "{key}"')
+        return None
+
+
+
+def _obj_fnc_kwargs_wrapper(multiplier=1, **kwargs):
+    dict = {_xINT_to_int(key): kwargs.pop(key) for key in list(kwargs.keys()) if _xINT_to_int(key) is not None}
+
+    arr = [dict[key] for key in sorted(dict.keys())]
+
+    print(f'Calling objective function with arr {arr}, kwargs {list(kwargs.keys())}')
+    return multiplier * _objective_fcn(arr, **kwargs)
+
+def _arr_to_dict(arr):
+    return {f'x{i}': val for i, val in enumerate(arr)}
+
 
 def optimize(project, optimization, parset: ParameterSet, progset: ProgramSet, instructions: ProgramInstructions, x0=None, xmin=None, xmax=None, hard_constraints=None, baselines=None, optim_args: dict = None):
     """
@@ -1390,7 +1414,7 @@ def optimize(project, optimization, parset: ParameterSet, progset: ProgramSet, i
 
     """
 
-    assert optimization.method in ["asd", "pso", "hyperopt", "bads"]
+    assert optimization.method in ["asd", "pso", "hyperopt", "bayesian_gp_minimize", "bads"]
 
     model = Model(project.settings, project.framework, parset, progset, instructions)
     pickled_model = pickle.dumps(model)  # Unpickling effectively makes a deep copy, so this _should_ be faster
@@ -1500,6 +1524,48 @@ def optimize(project, optimization, parset: ParameterSet, progset: ProgramSet, i
 
         detailed_info = {'time_elapsed': elapsed, 'iterations': None, 'fcn_evals': None}
 
+    elif optimization.method == "bayesian_gp_minimize":
+        raise Exception('Experimental bayesian_gp_minimize not finished yet')
+        from bayes_opt import BayesianOptimization, SequentialDomainReductionTransformer
+
+        if np.any(~np.isfinite(xmin)) or np.any(~np.isfinite(xmax)):
+            errormsg = "Bayesian optimization requires finite upper and lower bounds to specify the search domain (i.e. every Adjustable needs to have finite bounds)"
+            raise Exception(errormsg)
+
+        bounds = {f'x{i}': (min, max) for i, (min, max) in enumerate(zip(xmin, xmax))}
+
+        default_args = {
+            "pbounds": bounds,
+            "random_state": None
+        }
+
+        if "randseed" in optim_args:
+            seed = optim_args.pop("randseed")
+            default_args["random_state"] = seed
+
+        print('default_args', default_args)
+        import functools
+        fcn = functools.partial(_obj_fnc_kwargs_wrapper, multiplier=-1, **args)  # Partial out the extra arguments to the objective
+
+        bounds_transformer = SequentialDomainReductionTransformer(minimum_window=0.5)
+
+        optimizer = BayesianOptimization(
+            f=fcn,
+            bounds_transformer=bounds_transformer,
+            **default_args
+        )
+        optimizer.probe(_arr_to_dict(x0))
+
+        optimizer.maximize(
+            init_points=10,
+            n_iter=100
+        )
+
+        print(optimizer)
+        print(optimizer.max)
+        print('done??')
+        return
+
     elif  optimization.method == "bads":
         import pybads
 
@@ -1515,6 +1581,7 @@ def optimize(project, optimization, parset: ParameterSet, progset: ProgramSet, i
                                     'random_seed': optim_args.pop("randseed", None),
                                     'max_fun_evals': optimization.maxiters,
                                     'tol_fun': initial_objective * 1e-7,
+                                    'tol_stall_iters': 2,
                                     },
                         'lower_bounds': xmin,
                         'upper_bounds': xmax,
