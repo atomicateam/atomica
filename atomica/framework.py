@@ -94,9 +94,7 @@ class ProjectFramework:
             self.name = name
 
     def __repr__(self):
-        """Print object"""
-        output = sc.prepr(self)
-        return output
+        return sc.prepr(self)
 
     def __setstate__(self, d):
         from .migration import migrate
@@ -132,7 +130,8 @@ class ProjectFramework:
         """
 
         assert sc.isstring(value)
-        self.sheets["about"][0]["name"].iloc[0] = value
+        df = self.sheets["about"][0]
+        df.iloc[0, df.columns.get_loc("name")] = value
 
     # The primary data storage in the Framework are DataFrames with the contents of the Excel file
     # The convenience methods below enable easy access of frequency used contents without having
@@ -494,9 +493,9 @@ class ProjectFramework:
             row = 0
             for df in dfs:
                 if df.index.name:
-                    df.to_excel(writer, sheet_name, startcol=0, startrow=row, index=True)  # Write index if present
+                    df.to_excel(writer, sheet_name=sheet_name, startcol=0, startrow=row, index=True)  # Write index if present
                 else:
-                    df.to_excel(writer, sheet_name, startcol=0, startrow=row, index=False)  # Write index if present
+                    df.to_excel(writer, sheet_name=sheet_name, startcol=0, startrow=row, index=False)  # Write index if present
 
                 row += df.shape[0] + 2
 
@@ -653,17 +652,18 @@ class ProjectFramework:
         # This is a separate check because the default value depends on other columns
         if "setup weight" not in self.comps:
             # If no setup weights are specified, then we set a setup weight of
-            self.comps["setup weight"] = ((~self.comps["databook page"].isna() | ~self.comps["default value"].isna()) & (self.comps["is source"] == "n") & (self.comps["is sink"] == "n")).astype(int)
+            self.comps["setup weight"] = ((~self.comps["databook page"].isna() | ~self.comps["default value"].isna()) & (self.comps["is source"] == "n") & (self.comps["is sink"] == "n")).astype(float)
         else:
             fill_ones = self.comps["setup weight"].isna() & (~self.comps["databook page"].isna() | ~self.comps["default value"].isna()) & (self.comps["is source"] == "n") & (self.comps["is sink"] == "n")
-            self.comps["setup weight"][fill_ones] = 1
-            self.comps["setup weight"] = self.comps["setup weight"].fillna(0)
+            self.comps.loc[fill_ones, "setup weight"] = 1
+            self.comps.loc[self.comps["setup weight"].isna(), "setup weight"] = 0
+            self.comps["setup weight"] = self.comps["setup weight"].astype(float)
 
         if "calibrate" not in self.comps:
             # If calibration column is not present, then it calibrate if in the databook
             default_calibrate = ~self.comps["databook page"].isna()
             self.comps["calibrate"] = None
-            self.comps["calibrate"][default_calibrate] = "y"
+            self.comps.loc[default_calibrate, "calibrate"] = "y"
 
     def _validate_compartments(self) -> None:
         available_pop_types = list(self.pop_types.keys())  # Get available pop types
@@ -724,17 +724,18 @@ class ProjectFramework:
         self.characs["population type"] = self.characs["population type"].fillna(available_pop_types[0])
 
         if "setup weight" not in self.characs:
-            self.characs["setup weight"] = (~self.characs["databook page"].isna() | ~self.characs["default value"].isna()).astype(int)
+            self.characs["setup weight"] = (~self.characs["databook page"].isna() | ~self.characs["default value"].isna()).astype(float)
         else:
             fill_ones = self.characs["setup weight"].isna() & (~self.characs["databook page"].isna() | ~self.characs["default value"].isna())
-            self.characs["setup weight"][fill_ones] = 1
-            self.characs["setup weight"] = self.characs["setup weight"].fillna(0)
+            self.characs.loc[fill_ones, "setup weight"] = 1
+            self.characs.loc[self.characs["setup weight"].isna(), "setup weight"] = 0
+            self.characs["setup weight"] = self.characs["setup weight"].astype(float)
 
         if "calibrate" not in self.characs:
             # If calibration column is not present, then it calibrate if in the databook
             default_calibrate = ~self.characs["databook page"].isna()
             self.characs["calibrate"] = None
-            self.characs["calibrate"][default_calibrate] = "y"
+            self.characs.loc[default_calibrate, "calibrate"] = "y"
 
     def _validate_characteristics(self) -> None:
         # VALIDATE CHARACTERISTICS
@@ -866,7 +867,7 @@ class ProjectFramework:
         if "calibrate" not in self.pars:
             default_calibrate = self.pars["targetable"] == "y"
             self.pars["calibrate"] = None
-            self.pars["calibrate"][default_calibrate] = "y"
+            self.pars.loc[default_calibrate, "calibrate"] = "y"
 
         # If framework has units that case-insensitively match the standard units, then correct the case
         lower_idx = self.pars["format"].str.lower().isin(FS.STANDARD_UNITS)
