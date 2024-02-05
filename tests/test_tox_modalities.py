@@ -1,8 +1,7 @@
 # Simple modalities test
-import atomica as au
 from atomica.programs import Covout
-import sciris as sc
 import numpy as np
+from atomica import logger
 
 
 def test_modalities():
@@ -24,19 +23,19 @@ def test_modalities():
 
         covout.cov_interaction = "additive"
         additive = covout.get_outcome(prop_covered=coverage)
-        print("Additive = %.4f, Target = %.4f" % (additive, expected[0]))
+        logger.debug("Additive = %.4f, Target = %.4f" % (additive, expected[0]))
         if np.isfinite(expected[0]):
             assert np.isclose(additive, expected[0], 1e-4)
 
         covout.cov_interaction = "random"
         random = covout.get_outcome(prop_covered=coverage)
-        print("Random = %.4f, Target = %.4f" % (random, expected[1]))
+        logger.debug("Random = %.4f, Target = %.4f" % (random, expected[1]))
         if np.isfinite(expected[1]):
             assert np.isclose(random, expected[1], 1e-4)
 
         covout.cov_interaction = "nested"
         nested = covout.get_outcome(prop_covered=coverage)
-        print("Nested = %.4f, Target = %.4f" % (nested, expected[2]))
+        logger.debug("Nested = %.4f, Target = %.4f" % (nested, expected[2]))
         if np.isfinite(expected[2]):
             assert np.isclose(nested, expected[2], 1e-4)
 

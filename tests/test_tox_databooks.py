@@ -132,7 +132,58 @@ def test_mixed_years_2():
     assert len(D.tvec) == 1
 
 
+def test_databook_comments():
+    F = ProjectFramework(at.LIBRARY_PATH / "sir_framework.xlsx")
+    D = at.ProjectData.from_spreadsheet(testdir / "sir_databook_comment_test.xlsx", framework=F)
+    assert D.get_ts("sus", "Children 0-4").get(2000) == 1  # Should not overwrite existing value
+    assert D.get_ts("age", ("Children 0-4", "Children 5-14")).get(2004) == 14  # Should not overwrite existing value
+    assert D.get_ts("transfer_1", ("Children 0-4", "Adults 15-64")).get(2000) == 10  # Should not overwrite existing value
+    assert D.get_ts("recrate", "Children 0-4").get(2000) == 0.5
+    assert D.get_ts("infdeath", "Children 0-4").get(2000) == 0.6
+    assert D.transfers[0].attributes["Extra attribute"] == "value"
+
+
+def test_databook_all():
+
+    F = ProjectFramework(at.LIBRARY_PATH / "sir_framework.xlsx")
+    # D = at.ProjectData.new(framework=F, tvec=np.arange(2020,2023),pops=4,transfers=1)
+    # D.save(testdir / "sir_databook_all.xlsx")
+    D = at.ProjectData.from_spreadsheet(testdir / "sir_databook_all.xlsx", framework=F)
+
+    P = at.Project(framework=F, databook=D, do_run=False)
+    P.data.save(tmpdir / "databook_all_test.xlsx")  # Test saving it back
+    res = P.run_sim()
+
+    assert len(P.data.tdve["sus"].ts) == 1
+    assert len(P.parsets[0].get_par("sus").ts) == 4
+    assert len(P.parsets[0].get_par("sus").y_factor) == 4
+
+    # Check all populations have the same susceptible
+    assert np.isclose(res.get_variable("sus", "pop_0")[0].vals[0], 100)
+    assert np.isclose(res.get_variable("sus", "pop_1")[0].vals[0], 100)
+    assert np.isclose(res.get_variable("sus", "pop_2")[0].vals[0], 100)
+    assert np.isclose(res.get_variable("sus", "pop_3")[0].vals[0], 100)
+
+    # Check prevalence calculation - 50% prevalence in all populations
+    # and 100 susceptible, with pop sizes of 200, 300, 400, 500 should give
+    # different values for the inf and rec compartment sizes
+    assert np.isclose(res.get_variable("inf", "pop_0")[0].vals[0], 100)
+    assert np.isclose(res.get_variable("inf", "pop_1")[0].vals[0], 30)
+    assert np.isclose(res.get_variable("inf", "pop_2")[0].vals[0], 200)
+    assert np.isclose(res.get_variable("inf", "pop_3")[0].vals[0], 250)
+
+    assert np.isclose(res.get_variable("rec", "pop_0")[0].vals[0], 0)
+    assert np.isclose(res.get_variable("rec", "pop_1")[0].vals[0], 170)
+    assert np.isclose(res.get_variable("rec", "pop_2")[0].vals[0], 100)
+    assert np.isclose(res.get_variable("rec", "pop_3")[0].vals[0], 150)
+
+    d = at.PlotData(res, outputs=["sus", "ch_prev", "ch_all"], project=P)
+    at.plot_series(d, axis="pops", data=P.data)
+
+
 if __name__ == "__main__":
-    test_mixed_years_2()
-    test_mixed_years_1()
-    test_databooks()
+    # test_mixed_years_2()
+    # test_mixed_years_1()
+    # test_databooks()
+    # test_databook_comments()
+    test_databook_all()

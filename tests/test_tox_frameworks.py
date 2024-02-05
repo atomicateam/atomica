@@ -3,6 +3,7 @@
 import atomica as at
 import numpy as np
 import pytest
+import pandas as pd
 
 testdir = at.parent_dir()
 tmpdir = testdir / "temp"
@@ -61,11 +62,23 @@ def test_framework_single_char():
     test_equal("inf", "i")
     test_equal("rec", "r")
 
+
 def test_framework_spaces():
     F = at.ProjectFramework(testdir / "test_framework_spaces.xlsx")
-    F.get_variable('Transmission probability per contact') # Has no leading or trailing spaces in the framework
-    F.get_variable('Number of contacts annually') # Has a leading space in the framework
-    F.get_variable('Death rate for infected people') # Has a trailing space in the framework
+    F.get_variable("Transmission probability per contact")  # Has no leading or trailing spaces in the framework
+    F.get_variable("Number of contacts annually")  # Has a leading space in the framework
+    F.get_variable("Death rate for infected people")  # Has a trailing space in the framework
+
+
+def test_framework_comments():
+    F1 = at.ProjectFramework(testdir / "sir_framework_ignore.xlsx")
+    F2 = at.ProjectFramework(at.LIBRARY_PATH / "sir_framework.xlsx")
+
+    assert F1.transitions == F2.transitions
+    assert F1.pars.equals(F2.pars)
+    assert F1.characs.at["ch_prev", "default value"] == 10
+    assert pd.isna(F1.characs.at["ch_propnewinf", "default value"])  # This will not be NaN if the #ignore was ignored
+
 
 if __name__ == "__main__":
 

@@ -2,6 +2,30 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.28.1] - 2023-02-05
+
+- Updated various Pandas operations to improve compatibility with Pandas 2.2.0
+- Replaced 'probability' units with 'rate' units in many of the library example frameworks
+- For many of those parameters, also removed the maximum upper limit value of 1 as such parameters should not generally have this limit
+- Numerical indices are no longer inadvertently added to framework dataframes (compartments, characteristics, parameters, and interactions). 
+
+*Backwards-compatibility notes*
+
+- Removing the upper limit of 1 on parameters that were in 'probability' units may change the output of models using the library example frameworks. The updated results should be considered more realistic because the 'probability' parameters were actually behaving as rates, and therefore should not have had an upper limit imposed in the first place.
+
+## [1.28.0] - 2023-12-03
+
+- Added ability to provide a row in the databook for 'all' (or 'All') populations, as shorthand for entering the same value in every population. This option serves as a fallback value if population-specific values have also been provided.
+- Added optional `n_cols` argument to `at.plot_series` to allow series plots to appear in a single figure using subplots
+
+## [1.27.0] - 2023-11-07
+
+- `ProjectData.get_ts()` now correctly handles retrieving timeseries data from interactions and transfers with underscores in their name
+- `ProjectData` now validates that transfer and interaction names are unique
+- Improved handling Excel cell references if population names and framework variable full names overlap
+- Added ability to place '#ignore' directives in places other than the first column of a spreadsheet, to selectively ignore parts of lines. Added documentation to cover this functionality.
+- Fixed a bug where cells that were documented as being ignored actually populated content
+
 ## [1.26.7] - 2023-10-20
 
 - Warning messages now print the file/line they were generated from

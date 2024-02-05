@@ -7,6 +7,7 @@ values that are used to scale model parameters. Therefore, every parameter
 in the model appears in the parset, not just the parameters in the databook.
 
 """
+
 import io
 from collections import defaultdict
 import numpy as np
@@ -77,7 +78,7 @@ class Parameter(NamedItem):
 
         The Parameter internally stores the interpolation method. The default is linear.
         It is possible to set it to 'pchip' or 'previous' or some other method. However,
-        this would also also be applied to any parameter scenarios that have modified the
+        this would also be applied to any parameter scenarios that have modified the
         parameter and require interpolation. Therefore, it is STRONGLY recommended not to
         modify the fallback interpolation method, but to instead call `Parameter.smooth()`
         in advance with the appropriate options, if the interpolation matters.
@@ -98,7 +99,7 @@ class Parameter(NamedItem):
         :meth:`ParameterSet.sample()` which is responsible for copying this instance first.
 
         :param constant: If True, time series will be perturbed by a single constant offset. If False,
-                         an different perturbation will be applied to each time specific value independently.
+                         a different perturbation will be applied to each time specific value independently.
 
         """
 
@@ -179,7 +180,7 @@ class ParameterSet(NamedItem):
         - The ParameterSet expands transfers and interactions into per-population parameters
           so they are stored on an equal basis (whereas ProjectData segregates them in
           :class:`TimeDependentValuesEntry` and :class:`TimeDependentConnections` due to
-          the difference in how they are formatted in the databook
+          the difference in how they are formatted in the databook)
 
     :param framework: A :class:`ProjectFramework` instance
     :param data: A :class:`ProjectData` instance
@@ -200,12 +201,25 @@ class ParameterSet(NamedItem):
 
         # Instantiate all quantities that appear in the databook (compartments, characteristics, parameters)
         for name, tdve in data.tdve.items():
+            ts = sc.odict()
             units = framework.get_databook_units(name).strip().lower()
-            for pop_name, ts in tdve.ts.items():  # The TDVE has already been validated to contain any required populations (although it might also contain extra ones)
-                if units != ts.units.strip().lower():
+
+            # First check units for all quantities
+            for k, v in tdve.ts.items():
+                if units != v.units.strip().lower():
                     message = f'The units for quantity "{framework.get_label(name)}" in the databook do not match the units in the framework. Expecting "{units}" but the databook contained "{ts.units.strip().lower()}"'
                     raise Exception(message)
-            self.pars[name] = Parameter(name, sc.odict({k: v.copy() for k, v in tdve.ts.items() if k in self.pop_names}))  # Keep only valid populations (discard any extra ones here)
+
+            # Then populate the parameter time series
+            for k in self.pop_names:
+                if k in tdve.ts:
+                    ts[k] = tdve.ts[k].copy()
+                elif "all" in tdve.ts:
+                    ts[k] = tdve.ts["all"].copy()
+                elif "All" in tdve.ts:
+                    ts[k] = tdve.ts["All"].copy()
+
+            self.pars[name] = Parameter(name, ts)  # Keep only valid populations (discard any extra ones here)
 
         # Instantiate compartments and characteristics that have a default value and do not appear in the databook
         # Note that the default value will be used in all populations of the appropriate type
@@ -299,7 +313,7 @@ class ParameterSet(NamedItem):
         Return a sampled copy of the ParameterSet
 
         :param constant: If True, time series will be perturbed by a single constant offset. If False,
-                         an different perturbation will be applied to each time specific value independently.
+                         a different perturbation will be applied to each time specific value independently.
         :return: A new :class:`ParameterSet` with perturbed values
 
         """
@@ -383,7 +397,7 @@ class ParameterSet(NamedItem):
         df.set_index(["par", "pop"], inplace=True)
 
         if df.index.duplicated().any():
-            msg = f'The calibration file contained duplicate entries:'
+            msg = "The calibration file contained duplicate entries:"
             for par, pop in df.index[df.index.duplicated()].unique():
                 msg += f'\n\t- {par} ({"meta/all populations" if pd.isna(pop) else pop})'
             raise Exception(msg)
