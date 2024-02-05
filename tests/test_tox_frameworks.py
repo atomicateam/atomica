@@ -69,14 +69,16 @@ def test_framework_spaces():
     F.get_variable("Number of contacts annually")  # Has a leading space in the framework
     F.get_variable("Death rate for infected people")  # Has a trailing space in the framework
 
+
 def test_framework_comments():
     F1 = at.ProjectFramework(testdir / "sir_framework_ignore.xlsx")
     F2 = at.ProjectFramework(at.LIBRARY_PATH / "sir_framework.xlsx")
 
     assert F1.transitions == F2.transitions
     assert F1.pars.equals(F2.pars)
-    assert F1.characs.at['ch_prev','default value'] == 10
-    assert pd.isna(F1.characs.at['ch_propnewinf','default value']) # This will not be NaN if the #ignore was ignored
+    assert F1.characs.at["ch_prev", "default value"] == 10
+    assert pd.isna(F1.characs.at["ch_propnewinf", "default value"])  # This will not be NaN if the #ignore was ignored
+
 
 if __name__ == "__main__":
 

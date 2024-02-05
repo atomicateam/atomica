@@ -172,10 +172,10 @@ class ProjectData(sc.prettyobj):
         if name in self.tdve:
             if key in self.tdve[name].ts:
                 return self.tdve[name].ts[key]
-            elif 'all' in self.tdve[name].ts:
-                return self.tdve[name].ts['all']
-            elif 'All' in self.tdve[name].ts:
-                return self.tdve[name].ts['All']
+            elif "all" in self.tdve[name].ts:
+                return self.tdve[name].ts["all"]
+            elif "All" in self.tdve[name].ts:
+                return self.tdve[name].ts["All"]
 
         # If the key is specified, then the name corresponds to the code name only, and we can just directly
         # use the name and the key. However, if the key is none, then the user has passed in the name as
@@ -504,7 +504,7 @@ class ProjectData(sc.prettyobj):
                         # Check that data is available for all populations. If the TDVE table contains an entry for 'all'
                         # then further checks are not necessary because a fallback value will be available for every population
                         tdve_pops = tdve.ts.keys()
-                        if not set(tdve_pops).intersection({'all','All'}):
+                        if not set(tdve_pops).intersection({"all", "All"}):
                             missing_pops = required_pops.difference(tdve_pops)
                             if missing_pops:
                                 raise InvalidDatabook("%s. The following populations were not supplied but are required: %s" % (location, missing_pops))

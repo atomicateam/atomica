@@ -5,6 +5,7 @@ The :class:`Result` class is a wrapper for a :class:`Model` instance,
 providing methods to conveniently access, plot, and export model outputs.
 
 """
+
 from collections import defaultdict
 
 import matplotlib.pyplot as plt

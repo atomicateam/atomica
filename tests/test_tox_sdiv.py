@@ -6,7 +6,7 @@ import numpy as np
 
 def test_sdiv():
 
-    with np.errstate(divide='ignore'): # Suppress expected numpy division by zero warning
+    with np.errstate(divide="ignore"):  # Suppress expected numpy division by zero warning
 
         # Both scalar
         assert sdiv(1, 2) == 0.5

@@ -1439,7 +1439,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer=None, legend_
     return figs
 
 
-def plot_series(plotdata, plot_type="line", axis=None, data=None, legend_mode=None, lw=None, n_cols:int=None) -> list:
+def plot_series(plotdata, plot_type="line", axis=None, data=None, legend_mode=None, lw=None, n_cols: int = None) -> list:
     """
     Produce a time series plot
 
@@ -1467,19 +1467,19 @@ def plot_series(plotdata, plot_type="line", axis=None, data=None, legend_mode=No
         axis = "outputs"
     assert axis in ["outputs", "results", "pops"]
 
-    subplots = bool(n_cols) # If True, use subplots
+    subplots = bool(n_cols)  # If True, use subplots
 
     def _prepare_figures(dim1, dim2, n_cols):
-        n_figs = len(dim1)*len(dim2) + (1 if legend_mode == 'separate' else 0)
+        n_figs = len(dim1) * len(dim2) + (1 if legend_mode == "separate" else 0)
 
         if subplots:
             # Use subplots
             n_cols = int(n_cols)
-            n_rows = int(np.ceil(n_figs/n_cols))
+            n_rows = int(np.ceil(n_figs / n_cols))
             fig, axes = plt.subplots(ncols=n_cols, nrows=n_rows, squeeze=False, sharex="all")
-            fig.set_label('series')
+            fig.set_label("series")
             size = fig.get_size_inches()
-            fig.set_size_inches(size[0]*n_cols, size[1]*n_rows)
+            fig.set_size_inches(size[0] * n_cols, size[1] * n_rows)
             figs = [fig]
             axes = axes.ravel()
 
@@ -1500,7 +1500,6 @@ def plot_series(plotdata, plot_type="line", axis=None, data=None, legend_mode=No
 
         return figs[:n_figs], axes[:n_figs]
 
-
     plotdata = sc.dcp(plotdata)
     if min([len(s.vals) for s in plotdata.series]) == 1:
         logger.warning("At least one Series has only one timepoint. Series must have at least 2 time points to be rendered as a line - `plot_bars` may be more suitable for such data")
@@ -1510,7 +1509,7 @@ def plot_series(plotdata, plot_type="line", axis=None, data=None, legend_mode=No
 
         figs, axes = _prepare_figures(plotdata.pops, plotdata.outputs, n_cols)
 
-        for i, (pop, output) in enumerate(itertools.product(plotdata.pops.keys(),plotdata.outputs.keys())):
+        for i, (pop, output) in enumerate(itertools.product(plotdata.pops.keys(), plotdata.outputs.keys())):
 
             ax = axes[i]
             if not subplots:
@@ -1545,7 +1544,7 @@ def plot_series(plotdata, plot_type="line", axis=None, data=None, legend_mode=No
 
         figs, axes = _prepare_figures(plotdata.results, plotdata.outputs, n_cols)
 
-        for i, (result, output) in enumerate(itertools.product(plotdata.results.keys(),plotdata.outputs.keys())):
+        for i, (result, output) in enumerate(itertools.product(plotdata.results.keys(), plotdata.outputs.keys())):
 
             ax = axes[i]
             if not subplots:
@@ -1578,7 +1577,7 @@ def plot_series(plotdata, plot_type="line", axis=None, data=None, legend_mode=No
 
         figs, axes = _prepare_figures(plotdata.results, plotdata.pops, n_cols)
 
-        for i, (result, pop) in enumerate(itertools.product(plotdata.results.keys(),plotdata.pops.keys())):
+        for i, (result, pop) in enumerate(itertools.product(plotdata.results.keys(), plotdata.pops.keys())):
 
             ax = axes[i]
             if not subplots:
@@ -1615,16 +1614,16 @@ def plot_series(plotdata, plot_type="line", axis=None, data=None, legend_mode=No
 
         if not subplots:
             # Replace the last figure with a legend figure
-            plt.close(figs[-1]) # TODO - update Sciris to allow passing in an existing figure
+            plt.close(figs[-1])  # TODO - update Sciris to allow passing in an existing figure
             figs[-1] = sc.separatelegend(ax, reverse=reverse_legend)
         else:
             legend_ax = axes[-1]
             handles, labels = ax.get_legend_handles_labels()
             legend_ax.set_axis_off()  # Hide axis lines
-            if reverse_legend: # pragma: no cover
+            if reverse_legend:  # pragma: no cover
                 handles = handles[::-1]
-                labels   = labels[::-1]
-            legend_ax.legend(handles=handles, labels=labels, loc='center', framealpha=0)
+                labels = labels[::-1]
+            legend_ax.legend(handles=handles, labels=labels, loc="center", framealpha=0)
 
     return figs
 
