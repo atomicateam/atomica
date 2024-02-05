@@ -2,6 +2,16 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.28.1] - 2023-02-05
+
+- Updated various Pandas operations to improve compatibility with Pandas 2.2.0
+- Replaced 'probability' units with 'rate' units in many of the library example frameworks
+- For many of those parameters, also removed the maximum upper limit value of 1 as such parameters should not generally have this limit
+
+*Backwards-compatibility notes*
+
+- Removing the upper limit of 1 on parameters that were in 'probability' units may change the output of models using the library example frameworks. The updated results should be considered more realistic because the 'probability' parameters were actually behaving as rates, and therefore should not have had an upper limit imposed in the first place.
+
 ## [1.28.0] - 2023-12-03
 
 - Added ability to provide a row in the databook for 'all' (or 'All') populations, as shorthand for entering the same value in every population. This option serves as a fallback value if population-specific values have also been provided.
