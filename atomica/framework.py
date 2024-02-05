@@ -870,8 +870,9 @@ class ProjectFramework:
             self.pars.loc[default_calibrate, "calibrate"] = "y"
 
         # If framework has units that case-insensitively match the standard units, then correct the case
-        lower_idx = self.pars["format"].str.lower().isin(FS.STANDARD_UNITS)
-        self.pars["format"][lower_idx] = self.pars["format"][lower_idx].str.lower()
+        if not self.pars.empty:
+            lower_idx = self.pars["format"].str.lower().isin(FS.STANDARD_UNITS)
+            self.pars["format"][lower_idx] = self.pars["format"][lower_idx].str.lower()
 
     def _process_transitions(self) -> None:
         """
@@ -1459,7 +1460,7 @@ def _sanitize_dataframe(df: pd.DataFrame, required_columns: list, defaults: dict
 
     """
 
-    if set_index:
+    if set_index and df.index.name == set_index:
         # If a dataframe has been sanitized and an index column was set, then the index needs to be
         # restored first before re-sanitizing. If no index was assigned, then attempting to reset
         # the index will keep creating new columns, so we do not want to reset the index in that case

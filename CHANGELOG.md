@@ -7,6 +7,7 @@ This file records changes to the codebase grouped by version release. Unreleased
 - Updated various Pandas operations to improve compatibility with Pandas 2.2.0
 - Replaced 'probability' units with 'rate' units in many of the library example frameworks
 - For many of those parameters, also removed the maximum upper limit value of 1 as such parameters should not generally have this limit
+- Numerical indices are no longer inadvertently added to framework dataframes (compartments, characteristics, parameters, and interactions). 
 
 *Backwards-compatibility notes*
 
