@@ -1439,7 +1439,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer=None, legend_
     return figs
 
 
-def plot_series(plotdata, plot_type="line", axis=None, data=None, legend_mode=None, lw=None) -> list:
+def plot_series(plotdata, plot_type="line", axis=None, data=None, legend_mode=None, lw=None, n_cols:int=None) -> list:
     """
     Produce a time series plot
 
@@ -1450,6 +1450,8 @@ def plot_series(plotdata, plot_type="line", axis=None, data=None, legend_mode=No
     :param data:  Draw scatter points for data wherever the output label matches a data label. Only draws data if the plot_type is 'line'
     :param legend_mode: override the default legend mode in settings
     :param lw: override the default line width
+    :param n_cols: If None (default), separate figures will be created for each axis. If provided, axes will be tiled as subplots in a single figure
+                   window with the requested number of columns
     :return: A list of newly created Figures
 
     """
@@ -1465,8 +1467,39 @@ def plot_series(plotdata, plot_type="line", axis=None, data=None, legend_mode=No
         axis = "outputs"
     assert axis in ["outputs", "results", "pops"]
 
-    figs = []
-    ax = None
+    subplots = bool(n_cols) # If True, use subplots
+
+    def _prepare_figures(dim1, dim2, n_cols):
+        n_figs = len(dim1)*len(dim2) + (1 if legend_mode == 'separate' else 0)
+
+        if subplots:
+            # Use subplots
+            n_cols = int(n_cols)
+            n_rows = int(np.ceil(n_figs/n_cols))
+            fig, axes = plt.subplots(ncols=n_cols, nrows=n_rows, squeeze=False, sharex="all")
+            fig.set_label('series')
+            size = fig.get_size_inches()
+            fig.set_size_inches(size[0]*n_cols, size[1]*n_rows)
+            figs = [fig]
+            axes = axes.ravel()
+
+            for i in range(n_figs, len(axes)):
+                axes[i].remove()
+        else:
+            figs = []
+            axes = []
+            for i in range(n_figs):
+                fig, ax = plt.subplots()
+                figs.append(fig)
+                axes.append(ax)
+
+        for fig in figs:
+            fig.patch.set_alpha(0)
+        for ax in axes:
+            ax.patch.set_alpha(0)
+
+        return figs[:n_figs], axes[:n_figs]
+
 
     plotdata = sc.dcp(plotdata)
     if min([len(s.vals) for s in plotdata.series]) == 1:
@@ -1475,111 +1508,123 @@ def plot_series(plotdata, plot_type="line", axis=None, data=None, legend_mode=No
     if axis == "results":
         plotdata.set_colors(results=plotdata.results.keys())
 
-        for pop in plotdata.pops.keys():
-            for output in plotdata.outputs.keys():
-                fig, ax = plt.subplots()
-                fig.patch.set_alpha(0)
-                ax.patch.set_alpha(0)
-                fig.set_label("%s_%s" % (pop, output))
-                figs.append(fig)
+        figs, axes = _prepare_figures(plotdata.pops, plotdata.outputs, n_cols)
 
-                units = list(set([plotdata[result, pop, output].unit_string for result in plotdata.results]))
-                if len(units) == 1 and not isna(units[0]):
-                    ax.set_ylabel("%s (%s)" % (plotdata.outputs[output], units[0]))
-                else:
-                    ax.set_ylabel("%s" % (plotdata.outputs[output]))
+        for i, (pop, output) in enumerate(itertools.product(plotdata.pops.keys(),plotdata.outputs.keys())):
 
-                if plotdata.pops[pop] != FS.DEFAULT_SYMBOL_INAPPLICABLE:
-                    ax.set_title("%s" % (plotdata.pops[pop]))
+            ax = axes[i]
+            if not subplots:
+                figs[i].set_label("%s_%s" % (pop, output))
 
-                if plot_type in ["stacked", "proportion"]:
-                    y = np.stack([plotdata[result, pop, output].vals for result in plotdata.results])
-                    y = y / np.sum(y, axis=0) if plot_type == "proportion" else y
-                    ax.stackplot(plotdata[plotdata.results.keys()[0], pop, output].tvec, y, labels=[plotdata.results[x] for x in plotdata.results], colors=[plotdata[result, pop, output].color for result in plotdata.results])
-                    if plot_type == "stacked" and data is not None:
-                        _stack_data(ax, data, [plotdata[result, pop, output] for result in plotdata.results])
-                else:
-                    for i, result in enumerate(plotdata.results):
-                        ax.plot(plotdata[result, pop, output].tvec, plotdata[result, pop, output].vals, color=plotdata[result, pop, output].color, label=plotdata.results[result], lw=lw)
-                        if data is not None and i == 0:
-                            _render_data(ax, data, plotdata[result, pop, output])
-                _apply_series_formatting(ax, plot_type)
-                if legend_mode == "together":
-                    _render_legend(ax, plot_type)
+            units = list(set([plotdata[result, pop, output].unit_string for result in plotdata.results]))
+            if len(units) == 1 and not isna(units[0]) and units[0]:
+                ax.set_ylabel("%s (%s)" % (plotdata.outputs[output], units[0]))
+            else:
+                ax.set_ylabel("%s" % (plotdata.outputs[output]))
+
+            if plotdata.pops[pop] != FS.DEFAULT_SYMBOL_INAPPLICABLE:
+                ax.set_title("%s" % (plotdata.pops[pop]))
+
+            if plot_type in ["stacked", "proportion"]:
+                y = np.stack([plotdata[result, pop, output].vals for result in plotdata.results])
+                y = y / np.sum(y, axis=0) if plot_type == "proportion" else y
+                ax.stackplot(plotdata[plotdata.results.keys()[0], pop, output].tvec, y, labels=[plotdata.results[x] for x in plotdata.results], colors=[plotdata[result, pop, output].color for result in plotdata.results])
+                if plot_type == "stacked" and data is not None:
+                    _stack_data(ax, data, [plotdata[result, pop, output] for result in plotdata.results])
+            else:
+                for i, result in enumerate(plotdata.results):
+                    ax.plot(plotdata[result, pop, output].tvec, plotdata[result, pop, output].vals, color=plotdata[result, pop, output].color, label=plotdata.results[result], lw=lw)
+                    if data is not None and i == 0:
+                        _render_data(ax, data, plotdata[result, pop, output])
+            _apply_series_formatting(ax, plot_type)
+            if legend_mode == "together":
+                _render_legend(ax, plot_type)
 
     elif axis == "pops":
         plotdata.set_colors(pops=plotdata.pops.keys())
 
-        for result in plotdata.results:
-            for output in plotdata.outputs:
-                fig, ax = plt.subplots()
-                fig.patch.set_alpha(0)
-                ax.patch.set_alpha(0)
-                fig.set_label("%s_%s" % (result, output))
-                figs.append(fig)
+        figs, axes = _prepare_figures(plotdata.results, plotdata.outputs, n_cols)
 
-                units = list(set([plotdata[result, pop, output].unit_string for pop in plotdata.pops]))
-                if len(units) == 1 and not isna(units[0]):
-                    ax.set_ylabel("%s (%s)" % (plotdata.outputs[output], units[0]))
-                else:
-                    ax.set_ylabel("%s" % (plotdata.outputs[output]))
+        for i, (result, output) in enumerate(itertools.product(plotdata.results.keys(),plotdata.outputs.keys())):
 
-                ax.set_title("%s" % (plotdata.results[result]))
-                if plot_type in ["stacked", "proportion"]:
-                    y = np.stack([plotdata[result, pop, output].vals for pop in plotdata.pops])
-                    y = y / np.sum(y, axis=0) if plot_type == "proportion" else y
-                    ax.stackplot(plotdata[result, plotdata.pops.keys()[0], output].tvec, y, labels=[plotdata.pops[x] for x in plotdata.pops], colors=[plotdata[result, pop, output].color for pop in plotdata.pops])
-                    if plot_type == "stacked" and data is not None:
-                        _stack_data(ax, data, [plotdata[result, pop, output] for pop in plotdata.pops])
-                else:
-                    for pop in plotdata.pops:
-                        ax.plot(plotdata[result, pop, output].tvec, plotdata[result, pop, output].vals, color=plotdata[result, pop, output].color, label=plotdata.pops[pop], lw=lw)
-                        if data is not None:
-                            _render_data(ax, data, plotdata[result, pop, output])
-                _apply_series_formatting(ax, plot_type)
-                if legend_mode == "together":
-                    _render_legend(ax, plot_type)
+            ax = axes[i]
+            if not subplots:
+                figs[i].set_label("%s_%s" % (result, output))
+
+            units = list(set([plotdata[result, pop, output].unit_string for pop in plotdata.pops]))
+            if len(units) == 1 and not isna(units[0]) and units[0]:
+                ax.set_ylabel("%s (%s)" % (plotdata.outputs[output], units[0]))
+            else:
+                ax.set_ylabel("%s" % (plotdata.outputs[output]))
+
+            ax.set_title("%s" % (plotdata.results[result]))
+            if plot_type in ["stacked", "proportion"]:
+                y = np.stack([plotdata[result, pop, output].vals for pop in plotdata.pops])
+                y = y / np.sum(y, axis=0) if plot_type == "proportion" else y
+                ax.stackplot(plotdata[result, plotdata.pops.keys()[0], output].tvec, y, labels=[plotdata.pops[x] for x in plotdata.pops], colors=[plotdata[result, pop, output].color for pop in plotdata.pops])
+                if plot_type == "stacked" and data is not None:
+                    _stack_data(ax, data, [plotdata[result, pop, output] for pop in plotdata.pops])
+            else:
+                for pop in plotdata.pops:
+                    ax.plot(plotdata[result, pop, output].tvec, plotdata[result, pop, output].vals, color=plotdata[result, pop, output].color, label=plotdata.pops[pop], lw=lw)
+                    if data is not None:
+                        _render_data(ax, data, plotdata[result, pop, output])
+            _apply_series_formatting(ax, plot_type)
+            if legend_mode == "together":
+                _render_legend(ax, plot_type)
 
     elif axis == "outputs":
         plotdata.set_colors(outputs=plotdata.outputs.keys())
 
-        for result in plotdata.results:
-            for pop in plotdata.pops:
-                fig, ax = plt.subplots()
-                fig.patch.set_alpha(0)
-                ax.patch.set_alpha(0)
-                fig.set_label("%s_%s" % (result, pop))
-                figs.append(fig)
+        figs, axes = _prepare_figures(plotdata.results, plotdata.pops, n_cols)
 
-                units = list(set([plotdata[result, pop, output].unit_string for output in plotdata.outputs]))
-                if len(units) == 1 and not isna(units[0]) and units[0]:
-                    ax.set_ylabel(units[0][0].upper() + units[0][1:])
+        for i, (result, pop) in enumerate(itertools.product(plotdata.results.keys(),plotdata.pops.keys())):
 
-                if plotdata.pops[pop] != FS.DEFAULT_SYMBOL_INAPPLICABLE:
-                    ax.set_title("%s-%s" % (plotdata.results[result], plotdata.pops[pop]))
-                else:
-                    ax.set_title("%s" % (plotdata.results[result]))
+            ax = axes[i]
+            if not subplots:
+                figs[i].set_label("%s_%s" % (result, pop))
 
-                if plot_type in ["stacked", "proportion"]:
-                    y = np.stack([plotdata[result, pop, output].vals for output in plotdata.outputs])
-                    y = y / np.sum(y, axis=0) if plot_type == "proportion" else y
-                    ax.stackplot(plotdata[result, pop, plotdata.outputs.keys()[0]].tvec, y, labels=[plotdata.outputs[x] for x in plotdata.outputs], colors=[plotdata[result, pop, output].color for output in plotdata.outputs])
-                    if plot_type == "stacked" and data is not None:
-                        _stack_data(ax, data, [plotdata[result, pop, output] for output in plotdata.outputs])
-                else:
-                    for output in plotdata.outputs:
-                        ax.plot(plotdata[result, pop, output].tvec, plotdata[result, pop, output].vals, color=plotdata[result, pop, output].color, label=plotdata.outputs[output], lw=lw)
-                        if data is not None:
-                            _render_data(ax, data, plotdata[result, pop, output])
-                _apply_series_formatting(ax, plot_type)
-                if legend_mode == "together":
-                    _render_legend(ax, plot_type)
+            units = list(set([plotdata[result, pop, output].unit_string for output in plotdata.outputs]))
+            if len(units) == 1 and not isna(units[0]) and units[0]:
+                ax.set_ylabel(units[0][0].upper() + units[0][1:])
+
+            if plotdata.pops[pop] != FS.DEFAULT_SYMBOL_INAPPLICABLE:
+                ax.set_title("%s-%s" % (plotdata.results[result], plotdata.pops[pop]))
+            else:
+                ax.set_title("%s" % (plotdata.results[result]))
+
+            if plot_type in ["stacked", "proportion"]:
+                y = np.stack([plotdata[result, pop, output].vals for output in plotdata.outputs])
+                y = y / np.sum(y, axis=0) if plot_type == "proportion" else y
+                ax.stackplot(plotdata[result, pop, plotdata.outputs.keys()[0]].tvec, y, labels=[plotdata.outputs[x] for x in plotdata.outputs], colors=[plotdata[result, pop, output].color for output in plotdata.outputs])
+                if plot_type == "stacked" and data is not None:
+                    _stack_data(ax, data, [plotdata[result, pop, output] for output in plotdata.outputs])
+            else:
+                for output in plotdata.outputs:
+                    ax.plot(plotdata[result, pop, output].tvec, plotdata[result, pop, output].vals, color=plotdata[result, pop, output].color, label=plotdata.outputs[output], lw=lw)
+                    if data is not None:
+                        _render_data(ax, data, plotdata[result, pop, output])
+            _apply_series_formatting(ax, plot_type)
+            if legend_mode == "together":
+                _render_legend(ax, plot_type)
     else:
         raise Exception('axis option must be one of "results", "pops" or "outputs"')
 
     if legend_mode == "separate":
         reverse_legend = True if plot_type in ["stacked", "proportion"] else False
-        figs.append(sc.separatelegend(ax, reverse=reverse_legend))
+
+        if not subplots:
+            # Replace the last figure with a legend figure
+            plt.close(figs[-1]) # TODO - update Sciris to allow passing in an existing figure
+            figs[-1] = sc.separatelegend(ax, reverse=reverse_legend)
+        else:
+            legend_ax = axes[-1]
+            handles, labels = ax.get_legend_handles_labels()
+            legend_ax.set_axis_off()  # Hide axis lines
+            if reverse_legend: # pragma: no cover
+                handles = handles[::-1]
+                labels   = labels[::-1]
+            legend_ax.legend(handles=handles, labels=labels, loc='center', framealpha=0)
 
     return figs
 
