@@ -1725,7 +1725,7 @@ def generate_framework_doc(framework, fname, databook_only=False):
                 f.write("- Description: <ENTER DESCRIPTION>\n")
                 f.write("- Stages:\n")
                 for _, stage in df.iterrows():
-                    f.write("\t- %s\n" % (stage[0]))
-                    for inc_name in stage[1].split(","):
+                    f.write("\t- %s\n" % (stage.iloc[0]))
+                    for inc_name in stage.iloc[1].split(","):
                         f.write("\t\t- %s\n" % (framework.get_label(inc_name.strip())))
                 f.write("\n")
