@@ -50,7 +50,6 @@ cascades. There are two types of value retrieval:
 
 """
 
-
 from .plotting import plot_legend
 import matplotlib.pyplot as plt
 import numpy as np

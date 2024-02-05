@@ -7,6 +7,7 @@ values that are used to scale model parameters. Therefore, every parameter
 in the model appears in the parset, not just the parameters in the databook.
 
 """
+
 import io
 from collections import defaultdict
 import numpy as np
@@ -213,10 +214,10 @@ class ParameterSet(NamedItem):
             for k in self.pop_names:
                 if k in tdve.ts:
                     ts[k] = tdve.ts[k].copy()
-                elif 'all' in tdve.ts:
-                    ts[k] = tdve.ts['all'].copy()
-                elif 'All' in tdve.ts:
-                    ts[k] = tdve.ts['All'].copy()
+                elif "all" in tdve.ts:
+                    ts[k] = tdve.ts["all"].copy()
+                elif "All" in tdve.ts:
+                    ts[k] = tdve.ts["All"].copy()
 
             self.pars[name] = Parameter(name, ts)  # Keep only valid populations (discard any extra ones here)
 

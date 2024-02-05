@@ -3,6 +3,7 @@ from atomica.programs import Covout
 import numpy as np
 from atomica import logger
 
+
 def test_modalities():
 
     old_settings = np.seterr(all="raise")

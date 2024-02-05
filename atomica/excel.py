@@ -29,6 +29,7 @@ __all__ = ["standard_formats", "apply_widths", "update_widths", "transfer_commen
 #   warn(msg)
 # This means that conditional formatting and data valuation rules aren't being loaded, but since `data_only=True` these don't matter and can be safely ignored
 import warnings
+
 warnings.filterwarnings(action="ignore", category=UserWarning, module="openpyxl.worksheet", lineno=300)
 
 
@@ -204,7 +205,7 @@ def copy_sheet(source: str, sheet_name: str, workbook: xlsxwriter.Workbook) -> N
     src_workbook.close()
 
 
-def read_tables(worksheet) -> Tuple[list,list]:
+def read_tables(worksheet) -> Tuple[list, list]:
     """
     Read tables from sheet
 
@@ -232,21 +233,21 @@ def read_tables(worksheet) -> Tuple[list,list]:
             if cell.value:
                 if cell.data_type == "s" and cell.value.startswith("#ignore"):
                     if j == 0:
-                        break # If #ignore is encountered in the first column, skip the row and continue parsing the table
+                        break  # If #ignore is encountered in the first column, skip the row and continue parsing the table
                     else:
                         flush = True
-                        break # If #ignore is encoutered after preceding blank cells
+                        break  # If #ignore is encoutered after preceding blank cells
                 else:
                     # Read the row into the buffer and continue parsing the table
                     if not buffer:
                         start = i + 1  # Excel rows are indexed starting at 1
                     buffer.append(row)
-                    break # If the cell has a value in it, continue parsing the table
+                    break  # If the cell has a value in it, continue parsing the table
         else:
             if buffer:
                 flush = True
 
-        if flush :
+        if flush:
             tables.append(buffer)  # Only append the buffer if it is not empty
             start_rows.append(start)
             buffer = []
@@ -282,7 +283,7 @@ def read_dataframes(worksheet, merge=False) -> list:
 
     for i, row in enumerate(worksheet.rows):
 
-        any_values = False # Set True if this row contains any values
+        any_values = False  # Set True if this row contains any values
         for j, cell in enumerate(row):
             v = cell.value
             if cell.data_type == "s":
@@ -290,18 +291,18 @@ def read_dataframes(worksheet, merge=False) -> list:
                     # If we encounter a #ignore and it's the first content in the row
                     if j == 0:
                         # If it's the first cell, ignore the row (i.e., do NOT treat it as a blank row)
-                        ignore[i] = True # Ignore the row
+                        ignore[i] = True  # Ignore the row
                     break
-                elif v.startswith('#ignore'):
+                elif v.startswith("#ignore"):
                     # Skip the rest of the row
-                    content[i,j:] = None
+                    content[i, j:] = None
                     break
                 else:
                     v = v.strip()
                     any_values = any_values or bool(v)  # If it's a string type, call strip() before checking truthiness
             elif v is not None:
                 any_values = True
-            content[i,j] = v
+            content[i, j] = v
 
         if not any_values:
             empty[i] = True
@@ -458,7 +459,7 @@ class TimeDependentConnections:
             header = cell_get_string(header_cell, allow_empty=True)
             if header is None:
                 continue
-            elif header.startswith('#ignore'):
+            elif header.startswith("#ignore"):
                 break
 
             lowered_header = header.lower()
@@ -1190,7 +1191,7 @@ def _parse_ts_header(row: list, known_headings: list, skip_first=False) -> Tuple
             continue
         elif cell.data_type in {"s", "str"}:
             v = v.strip()
-            if v.startswith('#ignore'):
+            if v.startswith("#ignore"):
                 break
             elif v.lower() in known_headings:
                 if v.lower() in headings:
