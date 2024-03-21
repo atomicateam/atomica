@@ -114,7 +114,7 @@ def _calc_wape(y_obs, y_fit):
     return abs(y_fit - y_obs) / (y_obs.mean() + calibration_settings["tolerance"])
 
 
-def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, max_time=60, method="asd") -> ParameterSet:
+def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, max_time=60, method="asd", **kwargs) -> ParameterSet:
     """
     Run automated calibration
 
@@ -128,6 +128,7 @@ def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, 
                               function. pop_name=None will expand to all pops. pop_name='all' is not supported
     :param max_time: If using ASD, the maximum run time
     :param method: 'asd' or 'pso'. If using 'pso' all upper and lower limits must be finite
+    :param kwargs: Dictionary of additional arguments to be passed to the optimization function, e.g. stepsize or pinitial
     :return: A calibrated :class:`ParameterSet`
 
     """
@@ -194,6 +195,7 @@ def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, 
                 "xmin": xmin,
                 "xmax": xmax,
             }
+            optim_args.update(kwargs)
 
             if max_time is not None:
                 optim_args["maxtime"] = max_time
