@@ -46,10 +46,17 @@ def _update_parset(parset, y_factors, pars_to_adjust):
             raise NotImplementedError
 
 
-def _calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, project):
-    # y-factors, array of y-factors to apply to specified output_quantities
-    # pars_to_adjust - list of tuples (par_name,pop_name,...) recognized by parset.update()
-    # output_quantities - a tuple like (pop,var,weight,metric) understood by model.get_pop[pop].getVar
+def _calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, project) -> float:
+    """
+    Run the model for a given set of y-factors and return the objective/goodness-of-fit
+
+    :param y_factors: array of y-factors to apply to specified output_quantities
+    :param pars_to_adjust: list of tuples (par_name,pop_name,...) recognized by parset.update()
+    :param output_quantities: a tuple containing (pop, var, weight, metric, start_year, end_year) - start year and end year are inclusive
+    :param parset:
+    :param project:
+    :return: The value of the objective function defined by the output_quantities
+    """
 
     _update_parset(parset, y_factors, pars_to_adjust)
 
@@ -60,7 +67,8 @@ def _calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, p
 
     objective = 0.0
 
-    for var_label, pop_name, weight, metric in output_quantities:
+    for var_label, pop_name, weight, metric, start_time, end_time in output_quantities:
+
         target = project.data.get_ts(var_label, pop_name)  # This is the TimeSeries with the data for the requested quantity
         if target is None:
             continue
@@ -68,6 +76,12 @@ def _calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, p
             continue
         var = result.model.get_pop(pop_name).get_variable(var_label)
         data_t, data_v = target.get_arrays()
+        inds = (data_t >= start_time) & (data_t <= end_time)
+        if np.count_nonzero(inds) == 0:
+            # If no time points remain after filtering down to the time points the user requested
+            continue
+        data_t = data_t[inds]
+        data_v = data_v[inds]
 
         # Interpolate the model outputs onto the data times
         # If there is data outside the range when the model was simulated, don't
@@ -114,7 +128,7 @@ def _calc_wape(y_obs, y_fit):
     return abs(y_fit - y_obs) / (y_obs.mean() + calibration_settings["tolerance"])
 
 
-def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, max_time=60, method="asd", **kwargs) -> ParameterSet:
+def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, max_time=60, method="asd", time_period=(-np.inf, np.inf), **kwargs) -> ParameterSet:
     """
     Run automated calibration
 
@@ -125,8 +139,13 @@ def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, 
                            relevant to the parameter independently, or 'all' which will instead operate
                            on the meta y factor.
     :param output_quantities: list of tuples, (var_label,pop_name,weight,metric), for use in the objective
-                              function. pop_name=None will expand to all pops. pop_name='all' is not supported
+                              function. pop_name=None will expand to all pops. pop_name='all' is not supported. The
+                              output can optionally contain (var_label, pop_name, weight, metric, start_year, end_year)
+                              to select a subset of the data for evaluating the objective. The start year and end year
+                              specified here will take precedence over the time_period argument
     :param max_time: If using ASD, the maximum run time
+    :param time_period: Tuple of start and end years to use for the objective function. Applies to all outputs unless
+                        the output has an explicitly specified start and end year
     :param method: 'asd' or 'pso'. If using 'pso' all upper and lower limits must be finite
     :param kwargs: Dictionary of additional arguments to be passed to the optimization function, e.g. stepsize or pinitial
     :return: A calibrated :class:`ParameterSet`
@@ -145,15 +164,26 @@ def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, 
     pars_to_adjust = p2
 
     # Expand out pop=None in output_quantities
-    o2 = []
+    outputs = []
     for output_tuple in output_quantities:
-        if output_tuple[1] is None:  # If the pop name is None
-            pops = project.data.pops.keys()
-            for pop_name in pops:
-                o2.append((output_tuple[0], pop_name, output_tuple[2], output_tuple[3]))
+        var_label = output_tuple[0]
+        pop_name = output_tuple[1]
+        weight = output_tuple[2]
+        metric = output_tuple[3]
+        if len(output_tuple) == 6:
+            start_time = output_tuple[4]
+            end_time = output_tuple[5]
         else:
-            o2.append(output_tuple)
-    output_quantities = o2
+            start_time = time_period[0]
+            end_time = time_period[1]
+
+        if pop_name is None:  # If the pop name is None
+            for pop in project.data.pops.keys():
+                outputs.append((var_label, pop, weight, metric, start_time, end_time))
+        else:
+            outputs.append((var_label, pop_name, weight, metric, start_time, end_time))
+
+    output_quantities = outputs
 
     args = {
         "project": project,

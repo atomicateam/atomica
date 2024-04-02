@@ -489,7 +489,7 @@ class TimeSeries:
         """
         Remove times from start
 
-        :param tval: Remove times up to but not including this time
+        :param tval: Remove times after but not including this time
 
         """
 
