@@ -568,7 +568,7 @@ class Project(NamedItem):
 
         return results
 
-    def calibrate(self, parset=None, adjustables=None, measurables=None, max_time=60, save_to_project=False, new_name=None, default_min_scale=0.0, default_max_scale=2.0, default_weight=1.0, default_metric="fractional") -> ParameterSet:
+    def calibrate(self, parset=None, adjustables=None, measurables=None, max_time=60, save_to_project=False, new_name=None, default_min_scale=0.0, default_max_scale=2.0, default_weight=1.0, default_metric="fractional", **kwargs) -> ParameterSet:
         """
         Method to perform automatic calibration.
 
@@ -616,7 +616,7 @@ class Project(NamedItem):
         for index, measurable in enumerate(measurables):
             if sc.isstring(measurable):  # Assume that a parameter name was passed in if not a tuple.
                 measurables[index] = (measurable, None, default_weight, default_metric)
-        new_parset = calibrate(project=self, parset=parset, pars_to_adjust=adjustables, output_quantities=measurables, max_time=max_time)
+        new_parset = calibrate(project=self, parset=parset, pars_to_adjust=adjustables, output_quantities=measurables, max_time=max_time, **kwargs)
         new_parset.name = new_name  # The new parset is a calibrated copy of the old, so change id.
         if save_to_project:
             self.parsets.append(new_parset)
