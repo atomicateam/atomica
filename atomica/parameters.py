@@ -288,7 +288,7 @@ class Initialization:
         if self.init_y_factor_hash is not None and framework is not None and parset is not None:
             init_y_factor_hash = self._hash_y_factors(framework, parset)
             if init_y_factor_hash != self.init_y_factor_hash:
-                logger.warning("Y-factors used for initialization have changed since the saved initialization was generated. These Y-factors will have no effect because a saved initialization is being used")
+                logger.warning("Y-factors used for initialization have changed since the saved initialization was generated. These Y-factors will have no effect because a saved initialization is being used. Remove the initialization by setting `Parset.initialization=None` to return to using the Y-factors to adjust the initialization.")
 
         for comp in pop.comps:
             if isinstance(comp, TimedCompartment):
