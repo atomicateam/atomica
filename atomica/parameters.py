@@ -10,6 +10,7 @@ in the model appears in the parset, not just the parameters in the databook.
 
 import io
 from collections import defaultdict
+
 import numpy as np
 import pandas as pd
 
@@ -17,6 +18,8 @@ import sciris as sc
 from .utils import NamedItem, TimeSeries
 from .system import logger
 import itertools
+import json
+import hashlib
 
 __all__ = ["Parameter", "ParameterSet"]
 
@@ -166,6 +169,138 @@ class Parameter(NamedItem):
                 ts.insert(t, v)
 
 
+class Initialization:
+    """
+    This class stores initial compartment sizes
+
+    In some cases it may be desirable to explicitly set initial compartment sizes rather than
+    having them calculated based on the databook values/characteristics. An example of this could
+    be wanting to initialize the model using steady-state compartment sizes computed from a
+    prior model run. This class facilitates storing/applying the initial compartment sizes as well
+    as capturing metadata for validation purposes.
+    """
+
+    def __init__(self, values=None):
+        """
+        Construct an Initialization with explicit initial values
+
+        This function can be used to explicitly set initial compartment sizes. More typically, the initial compartment
+        sizes would be drawn from a previous model run. In that case, construct the ``Initialization`` using the
+        ``Initialization.from_result()`` method, passing in the parset and result. For users, this is typically handled
+        via ``ParameterSet.set_initialization(result)`` which allows easily passing a result into the ``ParameterSet``
+        to set the initialization in one step.
+
+        :param values: Provide a dictionary of values with compartment sizes. Keys should be tuples with
+                       (comp_name,pop_name) and values should be either scalars (for normal compartments) or
+                       arrays (for timed compartments). The size of the arrays for timed compartments will reflect
+                       both the duration of the timed compartment and the simulation step size (noting that if timed
+                       compartments are being used, the ``Initialization`` instance will not be reusable if the
+                       simulation step size is subsequently changed, and will need to be re-created using the new
+                       step size).
+        """
+        self.year = None
+        self.init_y_factor_hash = None
+        self.dt = None
+        self.values = values
+
+    @classmethod
+    def from_result(cls, res, parset = None, year=None):
+        """
+        Construct an initialization based on a Result
+
+        This method is used to create an ``Initialization`` instance when the initial compartment sizes are
+        drawn from the state of a previously-run model. This facilitates initializing the model after numerically
+        converging to a steady state or after an initial transient has passed.
+
+        :param res: An Atomica ``Result`` instance
+        :param parset: Optionally specify a ``ParameterSet`` instance containing y-factor values. If provided, subsequent
+                       use of the initialization will check if the y-factors have changed since the initialization was
+                       saved and display a warning if so.
+        :param year: Optionally specify the year to draw compartment sizes from in the result. If not provided, the last
+                     time point will be used. The year must exactly match a year contained in the result.
+        :return: A new ``Initialization`` instance
+        """
+
+        from atomica.model import TimedCompartment  # Avoid circular import
+
+        if year is None:
+            year = res.model.t[-1]
+        elif year not in res.model.t:
+            raise Exception(f"Year {year} was not present in the result")
+
+        idx = np.nonzero(res.model.t == year)[0][0]
+        values = dict()  #: Dictionary of values with either {'comp':val} or {'comp':[vals]} depending on
+
+        for pop in res.model.pops:
+            for comp in pop.comps:
+                if isinstance(comp, TimedCompartment):
+                    values[(comp.name, pop.name)] = comp._vals[:, idx]
+                else:
+                    values[(comp.name, pop.name)] = comp.vals[idx]
+
+        self = cls(values)
+        self.year = year  #: Record year from which the initialization was originally computed
+        self.init_y_factor_hash = None if parset is None else self._hash_y_factors(res.model.framework, parset) # Record a hash of the Y-factors used for initialization
+        self.dt = res.dt
+        return self
+
+    def _hash_y_factors(self, framework, parset) -> str:
+        """
+        Hash y-factors used for initialization
+
+        This method calculates a hash of the y-factors for the purpose of identifying if they have
+        changed since the Initialization was originally created.
+
+        :param framework: An ``at.Framework`` instance containing setup weights for compartments/characteristics
+        :param parset: An ``at.ParameterSet`` instance containing y-factors
+        :return: A hash computed from the y-factors used for normal compartment initialization
+        """
+
+        init_quantities = {k for k, v in framework.comps["setup weight"].to_dict().items() if v > 0}
+        init_quantities.update(k for k, v in framework.characs["setup weight"].to_dict().items() if v > 0)
+
+        d = {}
+        for quantity in init_quantities:
+            d[quantity] = dict(parset.pars[quantity].y_factor)
+            d[quantity]["_meta_y_factor"] = parset.pars[quantity].meta_y_factor  # This might fail if there actually was a population called '_meta_y_factor' but that seems unlikely...
+
+        return hashlib.sha256(json.dumps(d, sort_keys=True).encode("utf-8")).hexdigest()
+
+    def apply(self, pop, framework=None, parset=None) -> None:
+        """
+        Insert saved values into compartments
+
+        The Initialization may contain a hash of the y-factors for initialization compartments/characteristics that were
+        used when the Initialization was generated, if the Initialization was generated based on a previous Result.
+        When applying the initialization, if a framework and parset are provided, then the y-factors will be checked to
+        determine if there are any differences in the initialization y-factors or not, and a warning will be displayed
+        if so.
+
+        :param pop: An at.model.Population instance
+        :param framework: Optionally specify a framework object containing the specification of which comps/characs are used for initialization
+        :param parset: Optionally specify the requested parset for initialization containing Y-factors to compare to the saved Y-factors
+        """
+        from atomica.model import TimedCompartment  # Avoid circular import
+
+        # Check the y-factors
+        if self.init_y_factor_hash is not None and framework is not None and parset is not None:
+            init_y_factor_hash = self._hash_y_factors(framework, parset)
+            if init_y_factor_hash != self.init_y_factor_hash:
+                logger.warning("Y-factors used for initialization have changed since the saved initialization was generated. These Y-factors will have no effect because a saved initialization is being used")
+
+        for comp in pop.comps:
+            if isinstance(comp, TimedCompartment):
+                if (comp.name, pop.name) not in self.values:
+                    comp._vals[:, 0] = 0
+                else:
+                    comp._vals[:, 0] = self.values[(comp.name, pop.name)]
+            else:
+                if (comp.name, pop.name) not in self.values:
+                    comp.vals[0] = 0
+                else:
+                    comp.vals[0] = self.values[(comp.name, pop.name)]
+
+
 class ParameterSet(NamedItem):
     """
     Collection of model parameters to run a simulation
@@ -198,6 +333,8 @@ class ParameterSet(NamedItem):
         self.pars = sc.odict()  # : Stores the Parameter instances contained by this ParameterSet associated with framework comps, characs, and parameters
         self.transfers = sc.odict()  # : Stores the Parameter instances contained by this ParameterSet associated with databook transfers, keyed by source population
         self.interactions = sc.odict()  # : Stores the Parameter instances contained by this ParameterSet associated with framework interactions, keyed by source population
+
+        self.initialization = None  #: Optionally store an ``Initialization`` instance to explicitly set initial compartment sizes
 
         # Instantiate all quantities that appear in the databook (compartments, characteristics, parameters)
         for name, tdve in data.tdve.items():
@@ -366,6 +503,23 @@ class ParameterSet(NamedItem):
 
         return sc.Spreadsheet(b)
 
+    def set_initialization(self, res, year=None):
+        self.initialization = Initialization.from_result(res, parset=self, year=year)
+
+    def apply_initialization(self, pop, framework=None) -> None:
+        """
+
+        :param pop: An ``at.Model.Population`` instance containing compartment objects that require initialization
+        :param framework: A Framework containing a specification of which compartments/characteristics are ordinarily
+                          used for initialization. If a framework is not provided, then the y-factors will not be
+                          validated.
+        :return:
+        """
+        if self.initialization is None:
+            raise Exception("Attempted to apply an explicit compartment initialization but the parset does not contain an initialization")
+
+        self.initialization.apply(pop, framework, self)
+
     def save_calibration(self, fname) -> None:
         """
         Save y-values to file
@@ -403,7 +557,6 @@ class ParameterSet(NamedItem):
             raise Exception(msg)
 
         for (par_name, pop_name), values in df.to_dict(orient="index").items():
-
             try:
                 par = self.get_par(par_name, pop_name)
             except KeyError:
