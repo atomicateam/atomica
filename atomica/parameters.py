@@ -21,6 +21,7 @@ from .system import logger
 import itertools
 import json
 import hashlib
+from .version import version, gitinfo
 
 __all__ = ["Parameter", "ParameterSet"]
 
@@ -375,6 +376,8 @@ class ParameterSet(NamedItem):
 
     def __init__(self, framework, data, name="default"):
         NamedItem.__init__(self, name)
+        self.version = version  # Track versioning information
+        self.gitinfo = gitinfo
 
         self.pop_names = data.pops.keys()  # : List of all population code names contained in the ``ParameterSet``
         self.pop_labels = [pop["label"] for pop in data.pops.values()]  # : List of corresponding full names for populations
@@ -451,6 +454,13 @@ class ParameterSet(NamedItem):
 
             for source_pop, ts in ts_dict.items():
                 item_storage[name][source_pop] = Parameter(name + "_from_" + source_pop, sc.dcp(ts))
+
+    def __setstate__(self, d):
+        from .migration import migrate
+
+        self.__dict__ = d
+        parset = migrate(self)
+        self.__dict__ = parset.__dict__
 
     def all_pars(self):
         """
