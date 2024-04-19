@@ -73,7 +73,15 @@ ps2.set_initialization(res1, 2021)
 res3 = P.run_sim(ps2, result_name='advanced')
 
 ps2.pars['alive'].y_factor[0] = 1.1
+
+ps2.save_calibration(tmpdir/'test_cal.xlsx')
 res3 = P.run_sim(ps2, result_name='advanced')
 
-d = at.PlotData([res1, res2, res3], ["sus", "inf", "rec"])
+ps4 = P.make_parset('saved')
+ps4.load_calibration(tmpdir/'test_cal.xlsx')
+res4 = P.run_sim(ps4, result_name='loaded')
+
+
+
+d = at.PlotData([res1, res2, res3, res4], ["sus", "inf", "rec"])
 at.plot_series(d)

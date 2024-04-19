@@ -11,6 +11,7 @@ in the model appears in the parset, not just the parameters in the databook.
 import io
 from collections import defaultdict
 
+import atomica.excel
 import numpy as np
 import pandas as pd
 
@@ -204,7 +205,7 @@ class Initialization:
         self.values = values
 
     @classmethod
-    def from_result(cls, res, parset = None, year=None):
+    def from_result(cls, res, parset=None, year=None):
         """
         Construct an initialization based on a Result
 
@@ -240,7 +241,7 @@ class Initialization:
 
         self = cls(values)
         self.year = year  #: Record year from which the initialization was originally computed
-        self.init_y_factor_hash = None if parset is None else self._hash_y_factors(res.model.framework, parset) # Record a hash of the Y-factors used for initialization
+        self.init_y_factor_hash = None if parset is None else self._hash_y_factors(res.model.framework, parset)  # Record a hash of the Y-factors used for initialization
         self.dt = res.dt
         return self
 
@@ -299,6 +300,55 @@ class Initialization:
                     comp.vals[0] = 0
                 else:
                     comp.vals[0] = self.values[(comp.name, pop.name)]
+
+    def to_excel(self, writer):
+        max_len = max(len(v) if not np.isscalar(v) else 1 for v in self.values.values())
+        d = {}
+        for k, v in self.values.items():
+            d[k] = np.full(max_len, fill_value=np.nan)
+            if np.isscalar(v):
+                d[k][0] = v
+            else:
+                d[k][: len(v)] = v
+
+        values = pd.DataFrame(d).T
+
+        metadata = {
+            "year": self.year,
+            "init_y_factor_hash": self.init_y_factor_hash,
+            "dt": self.dt,
+        }
+        metadata = pd.DataFrame.from_dict(metadata, orient="index")
+
+        metadata.to_excel(writer, sheet_name="Initialization", startcol=0, startrow=0, index=True, header=False)
+        values.to_excel(writer, sheet_name="Initialization", startcol=0, startrow=len(metadata) + 1, index=True, header=False)
+
+    def __repr__(self):
+        return sc.prepr(self)
+
+    @classmethod
+    def from_excel(cls, excelfile: pd.ExcelFile):
+        """
+        Construct an initialization from saved spreadsheet
+
+        :param excelfile: A ``pd.ExcelFile`` containing an 'Initialization' sheet
+        :return:
+        """
+        # excelfile = spreadsheet.pandas()
+
+        metadata, value_df = atomica.excel.read_dataframes(excelfile.book['Initialization'])
+
+        values = {}
+        for k,s in value_df.T.reset_index().T.set_index([0,1]).iterrows():
+            v = s.dropna().values
+            values[k] = v[0] if len(v) == 1 else v
+
+        self = cls(values)
+
+        for k,v in metadata.T.reset_index().T.set_index(0)[1].to_dict().items():
+            setattr(self, k, v)
+
+        return self
 
 
 class ParameterSet(NamedItem):
@@ -495,13 +545,26 @@ class ParameterSet(NamedItem):
         :return: Spreadsheet containing y-factors in tabular form
         """
 
+        # Initialize the bytestream
+        f = io.BytesIO()
+
+        writer = pd.ExcelWriter(f, engine="xlsxwriter")
+        # writer.book.set_properties({"category": "atomica:framework"})
+        # standard_formats(writer.book)  # Apply formatting
+
+        # worksheet = writer.book.add_worksheet("Y-factors")
+
         df = pd.DataFrame(self.y_factors).T
         df.index.set_names(["par", "pop"], inplace=True)
+        df.to_excel(writer, sheet_name="Y-factors", merge_cells=False)  # Write index if present
 
-        b = io.BytesIO()
-        df.to_excel(b, merge_cells=False)
+        if self.initialization:
+            self.initialization.to_excel(writer)
 
-        return sc.Spreadsheet(b)
+        # Close the workbook
+        writer.close()
+
+        return sc.Spreadsheet(f)
 
     def set_initialization(self, res, year=None):
         self.initialization = Initialization.from_result(res, parset=self, year=year)
@@ -547,7 +610,9 @@ class ParameterSet(NamedItem):
         if not isinstance(spreadsheet, sc.Spreadsheet):
             spreadsheet = sc.Spreadsheet(spreadsheet)
 
-        df = spreadsheet.pandas().parse()
+        excelfile = spreadsheet.pandas()
+
+        df = pd.read_excel(excelfile, "Y-factors" if "Y-factors" in excelfile.sheet_names else 0)
         df.set_index(["par", "pop"], inplace=True)
 
         if df.index.duplicated().any():
@@ -577,5 +642,8 @@ class ParameterSet(NamedItem):
                         par.y_factor[k] = v
                     else:
                         logger.debug(f"The ParameterSet does not define a y-factor for {par.name} in the {k} population (e.g., because the population type does not match the parameter) - skipping")
+
+        if "Initialization" in excelfile.sheet_names:
+            self.initialization = Initialization.from_excel(excelfile)
 
         logger.debug("Loaded calibration from file")
