@@ -79,6 +79,7 @@ def _calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, p
         inds = (data_t >= start_time) & (data_t <= end_time)
         if np.count_nonzero(inds) == 0:
             # If no time points remain after filtering down to the time points the user requested
+            logger.info(f'No data points remaining after filtering down to requested time period. Skipping...')
             continue
         data_t = data_t[inds]
         data_v = data_v[inds]
@@ -152,15 +153,22 @@ def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, 
 
     """
 
+
     # Expand out pop=None in pars_to_adjust
     p2 = []
     for par_tuple in pars_to_adjust:
+        if len(par_tuple) == 5:
+            initial_value = par_tuple[4]
+        else:
+            initial_value = None
+
         if par_tuple[1] is None:  # If the pop name is None
             par = parset.pars[par_tuple[0]]
             for pop_name in par.pops:
-                p2.append((par_tuple[0], pop_name, par_tuple[2], par_tuple[3]))
+                p2.append((par_tuple[0], pop_name, par_tuple[2], par_tuple[3], initial_value))
         else:
-            p2.append(par_tuple)
+            p2.append((par_tuple[0], par_tuple[1], par_tuple[2], par_tuple[3], initial_value))
+
     pars_to_adjust = p2
 
     # Expand out pop=None in output_quantities
@@ -185,30 +193,56 @@ def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, 
 
     output_quantities = outputs
 
-    args = {
-        "project": project,
-        "parset": parset.copy(),
-        "pars_to_adjust": pars_to_adjust,
-        "output_quantities": output_quantities,
-    }
-
     x0 = []
     xmin = []
     xmax = []
+    filtered_pars_to_adjust = []
+    parset = parset.copy()
+
     for i, x in enumerate(pars_to_adjust):
-        par_name, pop_name, scale_min, scale_max = x
+        par_name, pop_name, scale_min, scale_max, initial_value = x
+
         if par_name in parset.pars:
             par = parset.pars[par_name]
-            if pop_name == "all":
-                x0.append(par.meta_y_factor)
-            else:
-                x0.append(par.y_factor[pop_name])
         else:
             tokens = par_name.split("_from_")
             par = parset.transfers[tokens[0]][tokens[1]]
-            x0.append(par.y_factor[pop_name])
-        xmin.append(scale_min)
-        xmax.append(scale_max)
+
+        #if initial_value has not been explicitly set in the tuple: use y_factor in parset
+        if initial_value is None:
+            if pop_name == "all":
+                initial_value = par.meta_y_factor
+            else:
+                initial_value = par.y_factor[pop_name]
+            #if this value is outside the min and max bounds, make it equal to min or max (whichever is closest)
+            #if min == max, this should make the initial value equal to min and max
+            initial_value = np.clip(initial_value, scale_min, scale_max)
+        else:
+            assert (initial_value >= scale_min) and (initial_value <= scale_max), 'Initial value is not consistent with the lower/upper bounds'
+
+        #update y_factors in parset
+        if initial_value is not None: #if statement redundant?
+            if pop_name == 'all':
+                par.meta_y_factor = initial_value
+            else:
+                par.y_factor[pop_name] = initial_value
+
+        if scale_min != scale_max:
+            # Only include the y-factor in the adjustments made in the optimization function if a range
+            # of y-factor values is permitted
+            filtered_pars_to_adjust.append(x)
+            x0.append(initial_value)
+            xmin.append(scale_min)
+            xmax.append(scale_max)
+
+
+
+    args = {
+        "project": project,
+        "parset": parset,
+        "pars_to_adjust": filtered_pars_to_adjust,
+        "output_quantities": output_quantities,
+    }
 
     original_sim_end = project.settings.sim_end
     project.settings.sim_end = min(project.data.tvec[-1], original_sim_end)
@@ -254,7 +288,7 @@ def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, 
     finally:
         project.settings.sim_end = original_sim_end  # Restore the simulation end year
 
-    _update_parset(args["parset"], x1, pars_to_adjust)
+    _update_parset(args["parset"], x1, args["pars_to_adjust"])
 
     # Log out the commands required for equivalent manual calibration if desired
     for i, x in enumerate(pars_to_adjust):
