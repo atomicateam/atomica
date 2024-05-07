@@ -1848,6 +1848,16 @@ class Population:
 
         """
 
+
+        if not self.comps:
+            # If this population has no compartments, then nothing needs to be done
+            return
+
+        if parset.initialization is not None:
+            # If the parset contains explicit parameter values, try to apply them
+            parset.apply_initialization(self, framework)
+            return
+
         # Given a set of characteristics and their initial values, compute the initial
         # values for the compartments by solving the set of characteristics simultaneously
 
