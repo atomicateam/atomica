@@ -2,6 +2,10 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.28.3] - 2023-05-16
+
+- Updated `at.Project()` to explicitly take in the settings arguments for `sim_start`, `sim_end`, and `sim_dt`. These are now applied after databooks are loaded, fixing a bug where these arguments would get overwritten when loading the databook.
+
 ## [1.28.2] - 2023-04-05
 
 - `at.calibrate` now supports passing any additional arguments into the optimization function e.g., `sc.asd` allowing additional options for customizing the optimization. 
