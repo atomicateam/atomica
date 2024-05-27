@@ -182,7 +182,7 @@ class Initialization:
     as capturing metadata for validation purposes.
     """
 
-    def __init__(self, values=None):
+    def __init__(self, values=None, year=None, init_y_factor_hash=None, dt=None):
         """
         Construct an Initialization with explicit initial values
 
@@ -199,10 +199,13 @@ class Initialization:
                        compartments are being used, the ``Initialization`` instance will not be reusable if the
                        simulation step size is subsequently changed, and will need to be re-created using the new
                        step size).
+        :param year: Optionally specify the year used to generate the initialization (for provenance)
+        :param init_y_factor_hash: Optionally specify the y-factor hash. If supplied, this will be checked against the parset when the initialization is applied
+        :param dt: Optionally specify the timestep used to generate the initialization (for provenance)
         """
-        self.year = None
-        self.init_y_factor_hash = None
-        self.dt = None
+        self.year = year
+        self.init_y_factor_hash = init_y_factor_hash
+        self.dt = dt
         self.values = values
 
     @classmethod
