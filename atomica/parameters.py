@@ -524,6 +524,24 @@ class ParameterSet(NamedItem):
             par.sample(constant)
         return new
 
+    def make_constant(self, year: float):
+        """
+        Return a constant copy of the ParameterSet
+
+        This function will return a copy of the ParameterSet where all parameter time series have been replaced
+        with temporally static versions.
+
+        :param year: Year to use for interpolation
+        :return: A copy of the ParameterSet with constant parameters
+        """
+        ps = self.copy(f'{self.name} (constant)')
+        for par in ps.all_pars():
+            for ts in par.ts.values():
+                ts.insert(None, ts.interpolate(year))
+                ts.t = []
+                ts.vals = []
+        return ps
+
     # SAVE AND LOAD CALIBRATION (Y-FACTORS)
 
     @property

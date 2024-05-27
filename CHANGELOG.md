@@ -5,6 +5,7 @@ This file records changes to the codebase grouped by version release. Unreleased
 ## [1.28.4] - 2023-05-27
 
 - Added an option to save initial compartment sizes inside a `ParameterSet`. Importantly, this saved representation allows setting the initial _subcompartment_ sizes for a `TimedCompartment`. It therefore offers the possibility of initializing the model in a steady state computed from a previous simulation run, that would not be possible to initialize conventionally because standard initialization uniformly distributes people into the subcompartments of a timed compartment.  
+- Added `ParameterSet.make_constant` to facilitate constructing copies of `ParameterSet` instances that are constant over time.
 
 ## [1.28.3] - 2023-05-16
 
