@@ -990,6 +990,8 @@ class ProjectFramework:
             elif par["format"] == FS.QUANTITY_TYPE_PROPORTION:
                 # Proportion units should never have a timescale since they are time-invariant
                 raise InvalidFramework("Parameter %s is in proportion units, therefore it cannot have a timescale entered for it" % par_name)
+            elif par["timescale"] <= 0:
+                raise InvalidFramework(f"Parameter {par_name} is specified in the framework as having a timescale of {par['timescale']}, which is not valid as timescales must be >0")
 
             if par["timed"] == "y":
                 if par["format"] != FS.QUANTITY_TYPE_DURATION:

@@ -806,3 +806,10 @@ def _convert_framework_columns(framework):
 
     framework._validate()
     return framework
+
+@migration("ParameterSet", "1.28.3", "1.28.4", "Add initialization atttribute")
+def _parset_add_initialization(parset):
+    parset.initialization = None
+    return parset
+
+
