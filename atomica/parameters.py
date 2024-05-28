@@ -182,7 +182,7 @@ class Initialization:
     as capturing metadata for validation purposes.
     """
 
-    def __init__(self, values=None):
+    def __init__(self, values=None, year=None, init_y_factor_hash=None, dt=None):
         """
         Construct an Initialization with explicit initial values
 
@@ -199,10 +199,13 @@ class Initialization:
                        compartments are being used, the ``Initialization`` instance will not be reusable if the
                        simulation step size is subsequently changed, and will need to be re-created using the new
                        step size).
+        :param year: Optionally specify the year used to generate the initialization (for provenance)
+        :param init_y_factor_hash: Optionally specify the y-factor hash. If supplied, this will be checked against the parset when the initialization is applied
+        :param dt: Optionally specify the timestep used to generate the initialization (for provenance)
         """
-        self.year = None
-        self.init_y_factor_hash = None
-        self.dt = None
+        self.year = year
+        self.init_y_factor_hash = init_y_factor_hash
+        self.dt = dt
         self.values = values
 
     @classmethod
@@ -242,11 +245,12 @@ class Initialization:
 
         self = cls(values)
         self.year = year  #: Record year from which the initialization was originally computed
-        self.init_y_factor_hash = None if parset is None else self._hash_y_factors(res.model.framework, parset)  # Record a hash of the Y-factors used for initialization
+        self.init_y_factor_hash = None if parset is None else self.hash_y_factors(res.model.framework, parset)  # Record a hash of the Y-factors used for initialization
         self.dt = res.dt
         return self
 
-    def _hash_y_factors(self, framework, parset) -> str:
+    @staticmethod
+    def hash_y_factors(framework, parset) -> str:
         """
         Hash y-factors used for initialization
 
@@ -286,7 +290,7 @@ class Initialization:
 
         # Check the y-factors
         if self.init_y_factor_hash is not None and framework is not None and parset is not None:
-            init_y_factor_hash = self._hash_y_factors(framework, parset)
+            init_y_factor_hash = self.hash_y_factors(framework, parset)
             if init_y_factor_hash != self.init_y_factor_hash:
                 logger.warning("Y-factors used for initialization have changed since the saved initialization was generated. These Y-factors will have no effect because a saved initialization is being used. Remove the initialization by setting `Parset.initialization=None` to return to using the Y-factors to adjust the initialization.")
 
@@ -519,6 +523,24 @@ class ParameterSet(NamedItem):
         for par in new.all_pars():
             par.sample(constant)
         return new
+
+    def make_constant(self, year: float):
+        """
+        Return a constant copy of the ParameterSet
+
+        This function will return a copy of the ParameterSet where all parameter time series have been replaced
+        with temporally static versions.
+
+        :param year: Year to use for interpolation
+        :return: A copy of the ParameterSet with constant parameters
+        """
+        ps = self.copy(f'{self.name} (constant)')
+        for par in ps.all_pars():
+            for ts in par.ts.values():
+                ts.insert(None, ts.interpolate(year))
+                ts.t = []
+                ts.vals = []
+        return ps
 
     # SAVE AND LOAD CALIBRATION (Y-FACTORS)
 
