@@ -46,9 +46,11 @@ def _update_parset(parset, y_factors, pars_to_adjust):
             raise NotImplementedError
 
 
-def _calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, project) -> float:
+def _calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, project, *args, **kwargs) -> float:
     """
     Run the model for a given set of y-factors and return the objective/goodness-of-fit
+
+    Additional extra arguments will be ignored but will not raise an error.
 
     :param y_factors: array of y-factors to apply to specified output_quantities
     :param pars_to_adjust: list of tuples (par_name,pop_name,...) recognized by parset.update()
@@ -67,7 +69,7 @@ def _calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, p
 
     objective = 0.0
 
-    for var_label, pop_name, weight, metric, start_time, end_time in output_quantities:
+    for var_label, pop_name, weight, metric, start_year, end_year in output_quantities:
 
         target = project.data.get_ts(var_label, pop_name)  # This is the TimeSeries with the data for the requested quantity
         if target is None:
@@ -76,7 +78,7 @@ def _calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, p
             continue
         var = result.model.get_pop(pop_name).get_variable(var_label)
         data_t, data_v = target.get_arrays()
-        inds = (data_t >= start_time) & (data_t <= end_time)
+        inds = (data_t >= start_year) & (data_t <= end_year)
         if np.count_nonzero(inds) == 0:
             # If no time points remain after filtering down to the time points the user requested
             logger.info(f'No data points remaining after filtering down to requested time period. Skipping...')
@@ -135,13 +137,13 @@ def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, 
 
     :param project: A project instance to provide data and sim settings
     :param parset: A :class:`ParameterSet` instance to calibrate
-    :param pars_to_adjust: list of tuples, (par_name,pop_name,lower_limit,upper_limit)
+    :param pars_to_adjust: list of tuples, `(par_name, pop_name, lower_bound, upper_bound, initial_value)`
                            the pop name can be None, which will be expanded to all populations
                            relevant to the parameter independently, or 'all' which will instead operate
                            on the meta y factor.
     :param output_quantities: list of tuples, (var_label,pop_name,weight,metric), for use in the objective
                               function. pop_name=None will expand to all pops. pop_name='all' is not supported. The
-                              output can optionally contain (var_label, pop_name, weight, metric, start_year, end_year)
+                              output can optionally contain `(var_label, pop_name, weight, metric, start_year, end_year)`
                               to select a subset of the data for evaluating the objective. The start year and end year
                               specified here will take precedence over the time_period argument
     :param max_time: If using ASD, the maximum run time
@@ -179,17 +181,17 @@ def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, 
         weight = output_tuple[2]
         metric = output_tuple[3]
         if len(output_tuple) == 6:
-            start_time = output_tuple[4]
-            end_time = output_tuple[5]
+            start_year = output_tuple[4]
+            end_year = output_tuple[5]
         else:
-            start_time = time_period[0]
-            end_time = time_period[1]
+            start_year = time_period[0]
+            end_year = time_period[1]
 
         if pop_name is None:  # If the pop name is None
             for pop in project.data.pops.keys():
-                outputs.append((var_label, pop, weight, metric, start_time, end_time))
+                outputs.append((var_label, pop, weight, metric, start_year, end_year))
         else:
-            outputs.append((var_label, pop_name, weight, metric, start_time, end_time))
+            outputs.append((var_label, pop_name, weight, metric, start_year, end_year))
 
     output_quantities = outputs
 
