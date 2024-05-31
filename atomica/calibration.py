@@ -249,48 +249,51 @@ def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, 
     original_sim_end = project.settings.sim_end
     project.settings.sim_end = min(project.data.tvec[-1], original_sim_end)
 
-    try:
-        if method == "asd":
-            optim_args = {
-                "stepsize": 0.1,
-                "maxiters": 2000,
-                "sinc": 1.5,
-                "sdec": 2.0,
-                "reltol": 1e-3,
-                "abstol": 1e-6,
-                "xmin": xmin,
-                "xmax": xmax,
-            }
-            optim_args.update(kwargs)
+    if len(filtered_pars_to_adjust) > 0:
+        try:
+            if method == "asd":
+                optim_args = {
+                    "stepsize": 0.1,
+                    "maxiters": 2000,
+                    "sinc": 1.5,
+                    "sdec": 2.0,
+                    "reltol": 1e-3,
+                    "abstol": 1e-6,
+                    "xmin": xmin,
+                    "xmax": xmax,
+                }
+                optim_args.update(kwargs)
 
-            if max_time is not None:
-                optim_args["maxtime"] = max_time
+                if max_time is not None:
+                    optim_args["maxtime"] = max_time
 
-            log_level = logger.getEffectiveLevel()
-            if log_level < logging.WARNING:
-                optim_args["verbose"] = 2
+                log_level = logger.getEffectiveLevel()
+                if log_level < logging.WARNING:
+                    optim_args["verbose"] = 2
+                else:
+                    optim_args["verbose"] = 0
+
+                opt_result = sc.asd(_calculate_objective, x0, args, **optim_args)
+                x1 = opt_result["x"]
+            elif method == "pso":
+                import pyswarm
+
+                optim_args = {"maxiter": 3, "lb": xmin, "ub": xmax, "minstep": 1e-3, "debug": True}
+                if np.any(~np.isfinite(xmin)) or np.any(~np.isfinite(xmax)):
+                    errormsg = "PSO optimization requires finite upper and lower bounds to specify the search domain (i.e. every parameter being adjusted needs to have finite bounds)"
+                    raise Exception(errormsg)
+
+                x1, _ = pyswarm.pso(_calculate_objective, kwargs=args, **optim_args)
             else:
-                optim_args["verbose"] = 0
+                raise Exception("Unrecognized method")
+        except Exception as e:
+            raise e
+        finally:
+            project.settings.sim_end = original_sim_end  # Restore the simulation end year
 
-            opt_result = sc.asd(_calculate_objective, x0, args, **optim_args)
-            x1 = opt_result["x"]
-        elif method == "pso":
-            import pyswarm
-
-            optim_args = {"maxiter": 3, "lb": xmin, "ub": xmax, "minstep": 1e-3, "debug": True}
-            if np.any(~np.isfinite(xmin)) or np.any(~np.isfinite(xmax)):
-                errormsg = "PSO optimization requires finite upper and lower bounds to specify the search domain (i.e. every parameter being adjusted needs to have finite bounds)"
-                raise Exception(errormsg)
-
-            x1, _ = pyswarm.pso(_calculate_objective, kwargs=args, **optim_args)
-        else:
-            raise Exception("Unrecognized method")
-    except Exception as e:
-        raise e
-    finally:
-        project.settings.sim_end = original_sim_end  # Restore the simulation end year
-
-    _update_parset(args["parset"], x1, args["pars_to_adjust"])
+        _update_parset(args["parset"], x1, args["pars_to_adjust"])
+    else:
+        logger.info('No parameters to adjust provided to the optimisation function. Skipping optimisation...')
 
     # Log out the commands required for equivalent manual calibration if desired
     for i, x in enumerate(pars_to_adjust):
