@@ -1,0 +1,485 @@
+"""
+This file implements YAML calibration, a mechanism of programming multiple automated calibration steps
+(and related operations). Essentially this scheme coordinates repeated calls to at.calibrate with different
+adjustables and measurables in a pre-defined sequence of automated calibration steps.
+"""
+
+import sciris as sc
+from pathlib import Path
+import atomica as at
+from collections import defaultdict, Counter
+import numpy as np
+import yaml
+
+__all__ = ['build', 'run']
+
+def _get_named_nodes():
+    """
+    Return dictionary with all named Node subclasses
+    """
+    return {x._name: x for x in BaseNode.__subclasses__() if x._name is not None}
+
+def build(instructions=None, context=None, name='calibration'):
+    """
+    Construct nodes representing a calibration
+
+    :param instructions: A dictionary of attributes/settings defined for this node OR a string filename
+                         containing a YAML file that can be loaded to provide instructions
+    :param context: A dictionary of attributes/settings inherited from parent nodes
+    :param name: The name to assign this node
+    :param fname: Optionally read the instructions from a file
+    :return: A Node subclass instance, the type of which depends on the instructions
+    """
+
+    if (sc.isstring(instructions) or isinstance(instructions, Path)) and Path(instructions).exists():
+        with open(instructions) as file:
+            instructions =  yaml.load(file, Loader=yaml.FullLoader)
+
+    named_nodes = _get_named_nodes()
+    if isinstance(instructions, dict) and ('adjustables' in instructions or (context is not None and 'adjustables' in context)) and ('measurables' in instructions or (context is not None and 'measurables' in context)):
+        return CalibrationNode(instructions, context, name)
+    elif name in named_nodes:
+        return named_nodes[name](instructions, context, name)
+    else:
+        return Section(instructions, context, name)
+
+def run(node, project, parset, savedir=None, save_intermediate=False, log_output:bool=False,*args, **kwargs):
+    """
+    Run YAML calibration
+
+    This will execute the YAML calibration using the passed-in node (or instructions to build a node), and any associated children
+
+    :param node: Calibration node to execute. If not a node (i.e., a YAML file, or node instructions), it will be converted into a node
+    :param P: Project to which to apply these instructions
+    :param parset: An `at.ParameterSet` instance to calibrate
+    :param savedir: Optionally specify a directory to save the results. Defaults to the current working directory
+    :param save_intermediate: Set whether to save intermediate calibrations (defaults to False)
+    :return new_parset: A calibrated `at.ParameterSet` instance
+    """
+
+    if not isinstance(node, BaseNode):
+        node = build(node)
+
+    parset = sc.dcp(project.parset(parset))
+
+    if savedir is None:
+        savedir = Path('.')
+    else:
+        savedir = Path(savedir)
+
+    nodes = list(node.walk()) # Make a flat list of all nodes to execute in order
+    n_steps = len([x for x in nodes if not isinstance(x[1], Section)])
+    n = 1
+
+    if log_output:
+        at.start_logging(savedir/'calibration_log.txt')
+
+    at.logger.info(f'Starting calibration ({n_steps} steps)')
+
+    for n_reps, node in nodes:
+
+        if isinstance(node, Section):
+            at.logger.info(f'\nSection "{node.name}" (repeat {n_reps} of {node.repeats})')
+        else:
+            at.logger.info(f'\nStep {n} of {n_steps} "{node.name} (repeat {n_reps} of {node.repeats})')
+            parset = node.apply(project, parset, savedir, save_intermediate, *args, **kwargs)
+            n += 1
+
+            if save_intermediate and not isinstance(node, SaveCalibrationNode):
+                output = savedir / f'intermediate_calibration_{n:0{len(str(n_steps))}}_{self.name.replace(" ", "_")}'
+                parset.save_calibration(output)
+                at.logger.info(f'Saved intermediate calibration to {output}')
+
+    at.logger.info(f'\nCalibration completed')
+
+    if log_output:
+        at.stop_logging()
+
+    return parset
+
+
+class BaseNode:
+    """
+    Node base class
+
+    The base node class implements basic node features. Typically there should not be any
+    instances of this class, only instances of subclasses
+    """
+
+    _name = None  # If specified, this key can be used as the name of the step to create a node of this type
+
+    def __init__(self, instructions, context, name):
+        self.name = name
+        self.instructions = sc.dcp(instructions)
+        self.context = context  # Attributes inherited from parent nodes
+        self.children = []
+        self.validate()
+
+    def walk(self):
+        n_reps = 0
+        for repeat in range(self.repeats):
+            n_reps += 1
+            yield (n_reps, self)
+            for child in self.children:
+                yield from child.walk()
+
+    @property
+    def n_steps(self):
+        if type(self) == BaseNode:
+            return self.repeats * sum(child.n_steps for child in self.children)
+        else:
+            return self.repeats
+
+    def __repr__(self):
+        return f'<{self.__class__.__name__} "{self.name}" x{self.repeats}>'
+
+    def __str__(self, indent=0):
+        """
+        Print a tree representation of this node and all children
+
+        :param indent: Recursively increase the indent for child nodes
+        :return:
+        """
+        s =  '\t' * indent + self.__repr__()
+        for child in self.children:
+            s += '\n' + child.__str__(indent=indent + 1)
+        return s
+
+    @property
+    def attributes(self):
+        return sc.mergedicts(self.context, self.instructions)
+
+    def __getitem__(self, item):
+        # Directly index the Node to extract attributes without merging the dictionaries every time
+        if item in self.instructions:
+            return self.instructions[item]
+        elif item in self.context:
+            return self.context[item]
+        else:
+            raise KeyError(item)
+
+    def __setitem__(self, key, value):
+        self.instructions[key] = value
+
+    def __contains__(self, item):
+        return item in self.instructions or item in self.context
+
+    @property
+    def repeats(self):
+        # Although repeats may be part of the context, we only repeat a node if the instructions requested a repeat
+        # i.e., repeats are not inherited
+        if isinstance(self.instructions, dict) and 'repeats' in self.instructions:
+            return self.instructions['repeats']
+        else:
+            return 1
+
+    def validate(self):
+        """
+        Validate/sanitize contents of this node
+
+        If the node isn't valid, an error should be raised
+        """
+        return
+
+    def apply(self, project: at.Project, parset: at.ParameterSet, savedir, *args, **kwargs) -> tuple:
+        """
+        Perform the action associated with this node
+        """
+        return parset
+
+class Section(BaseNode):
+    """
+    A section node is a special kind of node, that contains other nodes
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.children = self.make_children()
+        self.validate()
+
+    def make_children(self):
+
+        children = []
+
+        # Remove any keys in the instructions that correspond to named nodes
+        # These should be used as instructions for the child node, rather than
+        # forming part of the context that is passed down to all children
+        named_nodes = _get_named_nodes()
+        step_instructions = {k: v for k, v in self.instructions.items() if isinstance(v, dict) or k in named_nodes}
+        for k in step_instructions:
+            del self.instructions[k]
+
+        # Create the child nodes
+        for name, instructions in step_instructions.items():
+            children.append(build(instructions, self.attributes, name))
+
+        return children
+
+class CalibrationNode(BaseNode):
+
+    # Order for list of adjustable parameters and default values
+    adj_defaults = {
+        'lower_bound': 0.1,
+        'upper_bound': 10.0,
+        'initial_value': None,
+    }
+
+    # Order for list of measurable parameters and default values
+    meas_defaults = {
+        'weight': 1.0,
+        'metric': 'fractional',
+        'start_year': -np.inf,
+        'end_year': np.inf,
+    }
+
+    @staticmethod
+    def parse_list(l, defaults):
+        # Routine to parse list of arguments into a dictionary of values
+        d = {}
+        for k, v in zip(list(defaults.keys())[:len(l)], l):
+            d[k] = v
+        return d
+
+    def validate(self):
+        """
+        Pre-parse calibration inputs
+        """
+
+        def process_key(s):
+            # Sanitize key name with optional space separating pop name
+            if ' ' in s:
+                return tuple([x for x in s.split(' ') if x])
+            else:
+                return (s.strip(), None)
+
+        def process_inputs(inputs, defaults):
+            # Process adjustables and measurables, which can be specified in a list representation or nested dict representation
+            # In list representation, the input is a list of lists, where the first item in each list is the quantity (with optional population) and
+            # the remaining items are the supported arguments for the input type, in the order defined by the defaults dictionary.
+            # In a dict representation, the key is the quantity with optional population, and then the value can either be a list (in the order defined by the dictionary)
+            # or a dictionary explicitly naming the inputs.
+            # This function returns a flat dictionary with {(quantity, pop_name):{argument:value}} e.g., {('b_rate','0-5'):{'lower_bound':0.5}}.
+            # In the dict representation, the key can be a comma separated list of quantities with optional values e.g., 'b_rate 0-5, d_rate'. In the list representation,
+            # multiple quantities are not supported (as a comma is already used to separate the arguments)
+            out = {}
+
+            if sc.isstring(inputs):
+                # Support a comma separated string with "quantity pop" specifications of adjustables and measurables
+                # In this case, default values should be used for all other items. Proceed by splitting into a list
+                inputs = inputs.split(',')
+
+            if isinstance(inputs, (tuple, list)):
+                for l in inputs:
+                    l = sc.promotetolist(l)
+                    key, pop_name = process_key(l[0].strip())
+                    d = self.parse_list(l[1:], defaults)
+                    out[key, pop_name] = sc.mergedicts(out.get((key, pop_name), {}), d)
+            elif isinstance(inputs, dict):
+                for keys, v in inputs.items():
+                    for key in keys.split(','):
+                        key, pop_name = process_key(key.strip())
+                        if isinstance(v, (tuple, list)):
+                            d = self.parse_list(v, defaults)
+                        else:
+                            d = v.copy()
+                        out[key, pop_name] = sc.mergedicts(out.get((key, pop_name), {}), d)
+
+            return out
+
+        self['adjustables'] = process_inputs(self['adjustables'], self.adj_defaults)
+        self['measurables'] = process_inputs(self['measurables'], self.meas_defaults)
+
+        # Validate adjustables
+        def check_optional_number(key, v, defaults):
+            if key in v and v[key] is not None:
+                if not sc.isnumber(v[key], isnan=False):
+                    raise TypeError(f"Adjustable argument '{key}' needs to be a number or None (defaults to {defaults[key]}). Provided value: {v[key]} ")
+
+        assert len(self['adjustables']) > 0, f'Cannot calibrate with no adjustables for calibration section {self.name}'
+        for (quantity, pop_name), v in self['adjustables'].items():
+            assert 'pop_name' not in v, f'Setting the population name through "pop_name: {v["pop_name"]}" is not supported. Instead, the name of the adjustable quantity should include the population name ("{quantity} {v["pop_name"]}")'
+            assert isinstance(quantity, str), f'Adjustable codename {quantity} needs to be a string'
+            assert pop_name is None or isinstance(pop_name, str), f'Adjustable population {pop_name} needs to be a string or None (defaults to all populations for that parameter)'
+            check_optional_number('lower_bound',v, self.adj_defaults)
+            check_optional_number('upper_bound',v, self.adj_defaults)
+            check_optional_number('initial_value',v, self.adj_defaults)
+
+        # Validate measurables
+        assert len(self['measurables']) > 0, f'Cannot calibrate with no measurables for calibration section {self.name}'
+        for (quantity, pop_name), v in self['measurables'].items():
+            assert isinstance(quantity, str), f'Measurable codename {quantity} needs to be a string'
+            assert pop_name is None or isinstance(pop_name, str), f'Adjustable population {pop_name} needs to be a string or None (defaults to all populations for that parameter)'
+            assert 'metric' not in v or v['metric'] is None or isinstance(v["metric"], str), f"Measurable metric {v['metric']} needs to be a number or None (defaults to 'fractional')"
+
+            check_optional_number('weight',v, self.meas_defaults)
+            check_optional_number('start_year',v, self.meas_defaults)
+            check_optional_number('end_year',v, self.meas_defaults)
+
+    def apply(self, project: at.Project, parset: at.ParameterSet, n: int, *args, quiet=False, compare_results=False, **kwargs) -> tuple:
+
+        step_name = self.name
+        attributes = self.attributes
+
+        at.logger.info(f'Calibrating adjustable(s) {[adj[0] for adj in attributes["adjustables"]]} to match measurable(s) {[mea[0] for mea in attributes["measurables"]]}...')
+
+        # Expand adjustables
+        adjustables = []
+        par_names = {x[0] for x in attributes['adjustables']}.intersection(x.name for x in parset.all_pars())
+        pop_names = {x[1] for x in attributes['adjustables']}.intersection({*parset.pop_names} | {'all', None})
+
+        for par_name, pop_name in attributes['adjustables']:
+
+            if par_name not in par_names:
+                at.logger.warning(f"Extra YAML adjustable parameter '{par_name}' does not exist in this project's framework and will be ignored")
+                continue
+            elif pop_name not in pop_names:
+                at.logger.warning(f"Extra YAML adjustable population '{pop_name}' does not exist in this project's databook and will be ignored")
+                continue
+
+            if pop_name is None:
+                pops = parset.pop_names
+            else:
+                pops = sc.promotetolist(pop_name)
+
+            for pop in pops:
+                d = sc.mergedicts(self.adj_defaults, attributes['adjustables'].get((par_name, None), None), attributes['adjustables'].get((par_name, pop), None))
+                adjustables.append((par_name, pop, d['lower_bound'], d['upper_bound'], d['initial_value']))
+
+        # Expand measurables
+        measurables = []
+        par_names = {x[0] for x in attributes['measurables']}.intersection(x.name for x in parset.all_pars())  # TODO: This is probably OK for now but will need to support transfer parameters and validate that pars have databook entries in the future
+        pop_names = {x[1] for x in attributes['measurables']}.intersection({*parset.pop_names} | {None})
+
+        for par_name, pop_name in attributes['measurables']:
+
+            if par_name not in par_names:
+                at.logger.warning(f"Extra YAML measurable variable '{par_name}' does not exist in this project's framework and will be ignored")
+                continue
+            elif pop_name not in pop_names:
+                at.logger.warning(f"Extra YAML measurable population '{pop_name}' does not exist in this project's databook and will be ignored")
+                continue
+
+            if pop_name is None:
+                pops = parset.pop_names
+            else:
+                pops = sc.promotetolist(pop_name)
+
+            for pop in pops:
+                d = sc.mergedicts(self.meas_defaults, attributes['measurables'].get((par_name, None), None), attributes['measurables'].get((par_name, pop), None))
+                measurables.append((par_name, pop_name, d['weight'], d['metric'], d['start_year'], d['end_year']))
+
+        # Calibration
+        if len(adjustables):
+
+            kwargs = sc.mergedicts(self.attributes, kwargs)
+
+            del kwargs['adjustables'] # supplied via the adjustables variable
+            del kwargs['measurables'] # supplied via the measurables variable
+
+            if 'repeats' in kwargs:
+                del kwargs['repeats']
+
+            if quiet:
+                with at.Quiet(show_warnings=False):
+                    new_cal_parset = at.calibrate(project, parset, adjustables, measurables, **kwargs)
+            else:
+                new_cal_parset = at.calibrate(project, parset, adjustables, measurables, **kwargs)
+        else:
+            new_cal_parset = parset
+
+        at.logger.info(f'Completed "{step_name}"...')
+        made_changes = False
+
+        for par, pop, *_ in adjustables:
+            if pop == 'all':
+                old = parset.pars[par].meta_y_factor
+                new = new_cal_parset.pars[par].meta_y_factor
+            else:
+                old = parset.pars[par].y_factor[pop]
+                new = new_cal_parset.pars[par].y_factor[pop]
+
+            if new != old:
+                at.logger.info(f'...adjusted the y-factor for {par} in {pop} from {old} to {new}')
+                made_changes = True
+            else:
+                at.logger.debug(f'...did NOT adjust the y-factor for {par} in {pop} from {old} to {new}')
+
+        if not made_changes:
+            at.logger.info(f'...made no changes!')
+
+        if compare_results:
+            base_res = project.run_sim(parset=parset)
+            cal_res = project.run_sim(parset=new_cal_parset)
+            for par_name in [par_measure[0] for par_measure in measurables]:
+                base_rms_error = 0
+                cal_rms_error = 0
+                for pop in parset.pars[par_name].ts.keys():
+                    for time_par_ind, time_value in enumerate(parset.pars[par_name].ts[pop].t):
+                        data_time_val = parset.pars[par_name].ts[pop].vals[time_par_ind]
+                        base_res_time_ind = list(base_res.get_variable(par_name, pop)[0].t).index(time_value)
+                        base_time_val = base_res.get_variable(par_name, pop)[0].vals[base_res_time_ind]
+                        cal_res_time_ind = list(cal_res.get_variable(par_name, pop)[0].t).index(time_value)  # probably redundant as they *should* be the same
+                        cal_time_val = cal_res.get_variable(par_name, pop)[0].vals[cal_res_time_ind]
+
+                        base_rms_error += (data_time_val - base_time_val) ** 2
+                        cal_rms_error += (data_time_val - cal_time_val) ** 2
+
+                        sf = at.get_sigfigs_necessary(base_time_val, cal_time_val)
+                        at.logger.info(f'...for parameter {par_name} and population {pop} at time {time_value} the data value was {sc.sigfig(data_time_val, sf)}, the baseline value was {sc.sigfig(base_time_val, sf)}, and the calibrated value was {sc.sigfig(cal_time_val, sf)}.')
+
+                base_rms_error = base_rms_error ** 0.5
+                cal_rms_error = cal_rms_error ** 0.5
+                sf = get_sigfigs_necessary(base_rms_error, cal_rms_error)
+                at.logger.info(f'...RMS error for parameter {par_name} has changed from baseline {sc.sigfig(base_rms_error, sf)} to calibrated {sc.sigfig(cal_rms_error, sf)}')
+
+        return new_cal_parset
+
+
+class InitializationNode(BaseNode):
+    _name = 'set_initialization'
+
+    def __init__(self, instructions, context, name):
+        if not isinstance(instructions, dict):
+            instructions = {'year': instructions}
+        super().__init__(instructions, context, name)
+
+    def validate(self):
+        assert 'year' in self, f'Initialisation year must be specified'
+        assert sc.isnumber(self['year']), f'Reinitialisation year {self["year"]} must be numeric.'
+
+    def apply(self, project: at.Project, parset: at.ParameterSet, n: int, *args, **kwargs) -> tuple:
+        new_settings = sc.dcp(project.settings)
+        new_settings.update_time_vector(end=self['year'])
+        res = at.run_model(settings=new_settings, framework=project.framework, parset=parset)
+        parset.set_initialization(res, self['year'])
+        return parset
+
+
+class ClearInitializationNode(BaseNode):
+    _name = 'clear_initialization'
+
+    def __init__(self, instructions, context, name):
+        super().__init__(instructions=None, context=context, name=name)
+
+    def apply(self, project: at.Project, parset: at.ParameterSet, n: int, *args, **kwargs) -> tuple:
+        parset.initialization = None
+        return parset
+
+
+class SaveCalibrationNode(BaseNode):
+    """
+    Block in YAML file with "save calibration: <file name>"
+    """
+
+    _name = 'save_calibration'
+
+    def __init__(self, instructions, context, name):
+        if not isinstance(instructions, dict):
+            instructions = {'fname': instructions}
+        super().__init__(instructions, context, name)
+
+    def validate(self):
+        assert self['fname'] is not None, 'A "save calibration" node must have a file name explicitly specified'
+
+    def apply(self, project: at.Project, parset: at.ParameterSet, savedir=None, *args, **kwargs) -> tuple:
+        parset.save_calibration(savedir / self['fname'])
+        return parset

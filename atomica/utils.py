@@ -36,6 +36,7 @@ __all__ = [
     "parallel_progress",
     "start_logging",
     "stop_logging",
+    "get_sigfigs_necessary",
 ]
 
 
@@ -982,3 +983,21 @@ def stop_logging() -> None:
             logger.removeHandler(handler)
             # Don't terminate the loop, if by some change there is more than one handler
             # (not supposed to happen though) then we would want to close them all
+
+
+def get_sigfigs_necessary(x, y, min_sigfigs: int = 2) -> int:
+    """
+    Get how many significant figures are necessary to tell the difference berween two numbers
+
+    :param x, y: numbers to compare
+    :param min_sigfigs: minimum number of sigfigs to use if no difference
+    :return: Number of significant figures required
+    """
+    msf = min_sigfigs
+    assert sc.isnumber(x) and sc.isnumber(y), f'Cannot compare sigfigs as {x} and {y} are not both numbers'
+    if x == y or np.isnan(x) or np.isnan(y):
+        return msf
+    else:
+        while sc.sigfig(x=x, sigfigs=msf) == sc.sigfig(x=y, sigfigs=msf):
+            msf += 1
+        return msf
