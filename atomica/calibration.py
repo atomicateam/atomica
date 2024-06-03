@@ -131,7 +131,7 @@ def _calc_wape(y_obs, y_fit):
     return abs(y_fit - y_obs) / (y_obs.mean() + calibration_settings["tolerance"])
 
 
-def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, max_time=60, method="asd", time_period=(-np.inf, np.inf), **kwargs) -> ParameterSet:
+def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, max_time=None, method="asd", time_period=(-np.inf, np.inf), **kwargs) -> ParameterSet:
     """
     Run automated calibration
 
@@ -223,11 +223,10 @@ def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, 
             assert (initial_value >= scale_min) and (initial_value <= scale_max), 'Initial value is not consistent with the lower/upper bounds'
 
         #update y_factors in parset
-        if initial_value is not None: #if statement redundant?
-            if pop_name == 'all':
-                par.meta_y_factor = initial_value
-            else:
-                par.y_factor[pop_name] = initial_value
+        if pop_name == 'all':
+            par.meta_y_factor = initial_value
+        else:
+            par.y_factor[pop_name] = initial_value
 
         if scale_min != scale_max:
             # Only include the y-factor in the adjustments made in the optimization function if a range
@@ -260,11 +259,9 @@ def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, 
                 "abstol": 1e-6,
                 "xmin": xmin,
                 "xmax": xmax,
+                "maxtime": 60 if max_time is None else max_time,
             }
             optim_args.update(kwargs)
-
-            if max_time is not None:
-                optim_args["maxtime"] = max_time
 
             log_level = logger.getEffectiveLevel()
             if log_level < logging.WARNING:
