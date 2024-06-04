@@ -7,11 +7,15 @@ adjustables and measurables in a pre-defined sequence of automated calibration s
 import sciris as sc
 from pathlib import Path
 import atomica as at
-from collections import defaultdict, Counter
 import numpy as np
 import yaml
+import time
+from at_tools import get_sigfigs_necessary
 
 __all__ = ['build', 'run']
+
+from atomica import ParameterSet
+
 
 def _get_named_nodes():
     """
@@ -74,23 +78,24 @@ def run(node, project, parset, savedir=None, save_intermediate=False, log_output
     if log_output:
         at.start_logging(savedir/'calibration_log.txt')
 
-    at.logger.info(f'Starting calibration ({n_steps} steps)')
+    at.logger.info(f'\nStarting calibration ({n_steps} steps)')
 
     for n_reps, node in nodes:
 
         if isinstance(node, Section):
             at.logger.info(f'\nSection "{node.name}" (repeat {n_reps} of {node.repeats})')
         else:
-            at.logger.info(f'\nStep {n} of {n_steps} "{node.name} (repeat {n_reps} of {node.repeats})')
+            at.logger.info(f'\nStep {n} of {n_steps}: "{node.name}" (repeat {n_reps} of {node.repeats})')
             parset = node.apply(project, parset, savedir, save_intermediate, *args, **kwargs)
             n += 1
 
             if save_intermediate and not isinstance(node, SaveCalibrationNode):
-                output = savedir / f'intermediate_calibration_{n:0{len(str(n_steps))}}_{self.name.replace(" ", "_")}'
+                output = savedir / f'intermediate_calibration_{n:0{len(str(n_steps))}}_{node.name.replace(" ", "_")}'
                 parset.save_calibration(output)
                 at.logger.info(f'Saved intermediate calibration to {output}')
 
-    at.logger.info(f'\nCalibration completed')
+    t = time.process_time()
+    at.logger.info(f'\nCalibration completed. Total time elapsed: {round(t, 2)} seconds ({round(t/60, 2)} minutes)')
 
     if log_output:
         at.stop_logging()
@@ -181,7 +186,7 @@ class BaseNode:
         """
         return
 
-    def apply(self, project: at.Project, parset: at.ParameterSet, savedir, *args, **kwargs) -> tuple:
+    def apply(self, project: at.Project, parset: at.ParameterSet, savedir, *args, **kwargs) -> ParameterSet:
         """
         Perform the action associated with this node
         """
@@ -314,7 +319,7 @@ class CalibrationNode(BaseNode):
             check_optional_number('start_year',v, self.meas_defaults)
             check_optional_number('end_year',v, self.meas_defaults)
 
-    def apply(self, project: at.Project, parset: at.ParameterSet, n: int, *args, quiet=False, compare_results=False, **kwargs) -> tuple:
+    def apply(self, project: at.Project, parset: at.ParameterSet, n: int, *args, quiet=False, compare_results=False, **kwargs) -> ParameterSet:
 
         step_name = self.name
         attributes = self.attributes
@@ -446,7 +451,7 @@ class InitializationNode(BaseNode):
         assert 'year' in self, f'Initialisation year must be specified'
         assert sc.isnumber(self['year']), f'Reinitialisation year {self["year"]} must be numeric.'
 
-    def apply(self, project: at.Project, parset: at.ParameterSet, n: int, *args, **kwargs) -> tuple:
+    def apply(self, project: at.Project, parset: at.ParameterSet, n: int, *args, **kwargs) -> ParameterSet:
         new_settings = sc.dcp(project.settings)
         new_settings.update_time_vector(end=self['year'])
         res = at.run_model(settings=new_settings, framework=project.framework, parset=parset)
@@ -460,7 +465,7 @@ class ClearInitializationNode(BaseNode):
     def __init__(self, instructions, context, name):
         super().__init__(instructions=None, context=context, name=name)
 
-    def apply(self, project: at.Project, parset: at.ParameterSet, n: int, *args, **kwargs) -> tuple:
+    def apply(self, project: at.Project, parset: at.ParameterSet, n: int, *args, **kwargs) -> ParameterSet:
         parset.initialization = None
         return parset
 
@@ -480,6 +485,6 @@ class SaveCalibrationNode(BaseNode):
     def validate(self):
         assert self['fname'] is not None, 'A "save calibration" node must have a file name explicitly specified'
 
-    def apply(self, project: at.Project, parset: at.ParameterSet, savedir=None, *args, **kwargs) -> tuple:
+    def apply(self, project: at.Project, parset: at.ParameterSet, savedir=None, *args, **kwargs) -> ParameterSet:
         parset.save_calibration(savedir / self['fname'])
         return parset
