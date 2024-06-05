@@ -160,6 +160,8 @@ class ProjectData(sc.prettyobj):
         where the former is typically used when working with data and calibrations, and the latter is used in :class:`Model` and
         is therefore encountered on the :class:`Result` and plotting side.
 
+        If retrieving values for a comp/charac/par and the databook contains an entry for 'all' rather
+        than specific populations, then the 'all' time series will be returned regardless of the key
         """
 
         # Exit immediately if the name is not specified
@@ -170,6 +172,10 @@ class ProjectData(sc.prettyobj):
         if name in self.tdve:
             if key in self.tdve[name].ts:
                 return self.tdve[name].ts[key]
+            elif "all" in self.tdve[name].ts:
+                return self.tdve[name].ts["all"]
+            elif "All" in self.tdve[name].ts:
+                return self.tdve[name].ts["All"]
 
         # If the key is specified, then the name corresponds to the code name only, and we can just directly
         # use the name and the key. However, if the key is none, then the user has passed in the name as
@@ -493,11 +499,15 @@ class ProjectData(sc.prettyobj):
                         tdve_sheet = self.get_tdve_page(spec_name)
                         location = 'Error in TDVE table "%s" on sheet "%s"' % (tdve.name, tdve_sheet)
                         assert tdve.pop_type in self._pop_types, '%s. Population type "%s" did not match any in the framework' % (location, tdve.pop_type)
+                        required_pops = {x for x, y in self.pops.items() if y["type"] == tdve.pop_type}  # The TDVE should contain values for all populations of that type, otherwise cannot construct the ParameterSet. Check that these populations are all present
 
-                        required_pops = [x for x, y in self.pops.items() if y["type"] == tdve.pop_type]  # The TDVE should contain values for all populations of that type, otherwise cannot construct the ParameterSet. Check that these populations are all present
-                        missing_pops = set(required_pops).difference(tdve.ts.keys())
-                        if missing_pops:
-                            raise InvalidDatabook("%s. The following populations were not supplied but are required: %s" % (location, missing_pops))
+                        # Check that data is available for all populations. If the TDVE table contains an entry for 'all'
+                        # then further checks are not necessary because a fallback value will be available for every population
+                        tdve_pops = tdve.ts.keys()
+                        if not set(tdve_pops).intersection({"all", "All"}):
+                            missing_pops = required_pops.difference(tdve_pops)
+                            if missing_pops:
+                                raise InvalidDatabook("%s. The following populations were not supplied but are required: %s" % (location, missing_pops))
 
                         for name, ts in self.tdve[spec_name].ts.items():
                             assert ts.has_data, "%s. Data values missing for %s (%s)" % (location, tdve.name, name)

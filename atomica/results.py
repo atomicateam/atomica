@@ -5,6 +5,7 @@ The :class:`Result` class is a wrapper for a :class:`Model` instance,
 providing methods to conveniently access, plot, and export model outputs.
 
 """
+
 from collections import defaultdict
 
 import matplotlib.pyplot as plt
@@ -845,9 +846,7 @@ def _write_df(writer, formats, sheet_name, df, level_ordering):
     writer.sheets[sheet_name] = worksheet  # Need to add it to the ExcelWriter for it to behave properly
 
     df.index = df.index.set_names([level_substitutions[x] if x in level_substitutions else x.title() for x in df.index.names])
-
-    row = 0
-    df.to_excel(writer, sheet_name, startcol=0, startrow=row, merge_cells=False)
+    df.to_excel(writer, sheet_name, startcol=0, startrow=0, merge_cells=False)
 
     required_width = [len(name) for name in df.index.names]
     for i in range(len(required_width)):

@@ -1910,12 +1910,22 @@ class Population:
         :param t_init: The year to use for initialization. This should generally be set to the sim start year
 
         """
+
+        if not self.comps:
+            # If this population has no compartments, then nothing needs to be done
+            return
+
+        if parset.initialization is not None:
+            # If the parset contains explicit parameter values, try to apply them
+            parset.apply_initialization(self, framework)
+            return
+
         # Given a set of characteristics and their initial values, compute the initial
         # values for the compartments by solving the set of characteristics simultaneously
 
         # Build up the comps and characs containing the setup values in the databook - the `b` in `x=A*b`
-        characs_to_use = framework.characs.index[framework.characs["setup weight"] & (framework.characs["population type"] == self.type)]
-        comps_to_use = framework.comps.index[framework.comps["setup weight"] & (framework.comps["population type"] == self.type)]
+        characs_to_use = framework.characs.index[(framework.characs["setup weight"] > 0) & (framework.characs["population type"] == self.type)]
+        comps_to_use = framework.comps.index[(framework.comps["setup weight"] > 0) & (framework.comps["population type"] == self.type)]
         b_objs = [self.charac_lookup[x] for x in characs_to_use] + [self.comp_lookup[x] for x in comps_to_use]
 
         # Build up the comps corresponding to the `x` values in `x=A*b` i.e. the compartments being solved for

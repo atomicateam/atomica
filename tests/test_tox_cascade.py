@@ -39,6 +39,7 @@ def test_cascade_basic_tb():
     result = P.results[-1]
 
     result.plot(plot_name="Active DS-TB", project=P)
+
     result.plot(plot_name="Active DS-TB", pops="all", project=P)
     result.plot(plot_group="latency")
 

@@ -23,8 +23,10 @@ from .version import version, gitinfo
 
 __all__ = ["ProgramInstructions", "ProgramSet", "Program", "Covout", "InvalidProgramBook"]
 
+
 class InvalidProgramBook(Exception):
     pass
+
 
 class ProgramInstructions:
     """
@@ -160,7 +162,7 @@ class ProgramSet(NamedItem):
         assert data is not None, "Must specify framework and data when instantiating a ProgramSet"
 
         NamedItem.__init__(self, name)
-        self.version = version  # Track versioning information for the result. This might change due to migration (whereas by convention, the model version does not)
+        self.version = version  # Track versioning information
         self.gitinfo = gitinfo
 
         self.tvec = tvec  # This is the data tvec that will be used when writing the progset to a spreadsheet
@@ -503,10 +505,6 @@ class ProgramSet(NamedItem):
             message = 'Error on sheet "Program effects"'
             raise InvalidProgramBook("%s -> %s" % (message, e)) from e
 
-
-
-
-
         return self
 
     def to_workbook(self) -> tuple:
@@ -813,7 +811,7 @@ class ProgramSet(NamedItem):
             for i, cell in enumerate(table[0]):
                 v = cell.value
                 if sc.isstring(v):
-                    if v.startswith('#ignore'):
+                    if v.startswith("#ignore"):
                         break
                     else:
                         idx_to_header[i] = v.strip()
@@ -821,7 +819,6 @@ class ProgramSet(NamedItem):
                     continue
                 else:
                     raise Exception(f"Unknown data type in cell {cell.coordinate}")
-
 
             for row in table[1:]:
                 # For each covout row, we will initialize
@@ -864,9 +861,8 @@ class ProgramSet(NamedItem):
                                 raise Exception('The heading "%s" was not recognized as a program name or a special token - spelling error?' % (idx_to_header[i]))
                             progs[idx_to_header[i]] = float(x.value)
                     except Exception as e:
-                        message = f'Error in cell {x.coordinate}'
+                        message = f"Error in cell {x.coordinate}"
                         raise Exception("%s -> %s" % (message, e)) from e
-
 
                 if baseline is None and progs:
                     raise Exception(f'On the "Effects" sheet for Parameter "{table[0][0].value.strip()}" in population "{row[0].value.strip()}", program outcomes are defined but the baseline value is missing')

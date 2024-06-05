@@ -101,7 +101,7 @@ def test_combined_order():
 
 if __name__ == "__main__":
     test_combined_creation()
-    # test_combined_values()
-    # test_combined_cascades()
-    # test_combined_plots()
-    # test_combined_order()
+    test_combined_values()
+    test_combined_cascades()
+    test_combined_plots()
+    test_combined_order()

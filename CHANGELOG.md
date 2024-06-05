@@ -2,6 +2,35 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.28.4] - 2023-05-27
+
+- Added an option to save initial compartment sizes inside a `ParameterSet`. Importantly, this saved representation allows setting the initial _subcompartment_ sizes for a `TimedCompartment`. It therefore offers the possibility of initializing the model in a steady state computed from a previous simulation run, that would not be possible to initialize conventionally because standard initialization uniformly distributes people into the subcompartments of a timed compartment.  
+- Added `ParameterSet.make_constant` to facilitate constructing copies of `ParameterSet` instances that are constant over time.
+
+## [1.28.3] - 2023-05-16
+
+- Updated `at.Project()` to explicitly take in the settings arguments for `sim_start`, `sim_end`, and `sim_dt`. These are now applied after databooks are loaded, fixing a bug where these arguments would get overwritten when loading the databook.
+
+## [1.28.2] - 2023-04-05
+
+- `at.calibrate` now supports passing any additional arguments into the optimization function e.g., `sc.asd` allowing additional options for customizing the optimization. 
+
+## [1.28.1] - 2023-02-05
+
+- Updated various Pandas operations to improve compatibility with Pandas 2.2.0
+- Replaced 'probability' units with 'rate' units in many of the library example frameworks
+- For many of those parameters, also removed the maximum upper limit value of 1 as such parameters should not generally have this limit
+- Numerical indices are no longer inadvertently added to framework dataframes (compartments, characteristics, parameters, and interactions). 
+
+*Backwards-compatibility notes*
+
+- Removing the upper limit of 1 on parameters that were in 'probability' units may change the output of models using the library example frameworks. The updated results should be considered more realistic because the 'probability' parameters were actually behaving as rates, and therefore should not have had an upper limit imposed in the first place.
+
+## [1.28.0] - 2023-12-03
+
+- Added ability to provide a row in the databook for 'all' (or 'All') populations, as shorthand for entering the same value in every population. This option serves as a fallback value if population-specific values have also been provided.
+- Added optional `n_cols` argument to `at.plot_series` to allow series plots to appear in a single figure using subplots
+
 ## [1.27.0] - 2023-11-07
 
 - `ProjectData.get_ts()` now correctly handles retrieving timeseries data from interactions and transfers with underscores in their name
