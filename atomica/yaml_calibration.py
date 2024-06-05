@@ -442,19 +442,34 @@ class CalibrationNode(BaseNode):
 class InitializationNode(BaseNode):
     _name = 'set_initialization'
 
-    def __init__(self, instructions, context, name):
-        if not isinstance(instructions, dict):
-            instructions = {'year': instructions}
-        super().__init__(instructions, context, name)
+    def __init__(self, instructions, context, name ):
+        new_instructions = {'constant_parset': False}
+
+        if isinstance(instructions, dict):
+            new_instructions.update(instructions)
+        elif type(instructions) is int:
+            new_instructions.update({'year': instructions})
+        elif isinstance(instructions, (tuple, list)):
+            sc.promotetolist(instructions)
+            new_instructions.update({'year': instructions[0]})
+            if len(instructions) > 1:
+                new_instructions.update({'constant_parset': instructions[1]})
+
+        super().__init__(new_instructions, context, name)
 
     def validate(self):
-        assert 'year' in self, f'Initialisation year must be specified'
-        assert sc.isnumber(self['year']), f'Reinitialisation year {self["year"]} must be numeric.'
+        assert 'year' in self, f'Initialization year must be specified'
+        assert sc.isnumber(self['year']), f'Initialization year {self["year"]} must be numeric.'
+        if 'constant_parset' in self:
+            assert type(self['constant_parset']) == bool, f'Constant parset (optional) {self["constant_parset"]} must be a boolean.'
 
     def apply(self, project: at.Project, parset: at.ParameterSet, n: int, *args, **kwargs) -> ParameterSet:
+        p2 = sc.dcp(parset)
+        if self.instructions['constant_parset']:
+            p2 = parset.make_constant(year=project.settings.sim_start)
         new_settings = sc.dcp(project.settings)
         new_settings.update_time_vector(end=self['year'])
-        res = at.run_model(settings=new_settings, framework=project.framework, parset=parset)
+        res = at.run_model(settings=new_settings, framework=project.framework, parset=p2)
         parset.set_initialization(res, self['year'])
         return parset
 
