@@ -21,8 +21,10 @@ from .system import logger, FrameworkSettings as FS
 from .utils import NamedItem, TimeSeries
 from .version import version, gitinfo
 
-__all__ = ["ProgramInstructions", "ProgramSet", "Program", "Covout"]
+__all__ = ["ProgramInstructions", "ProgramSet", "Program", "Covout", "InvalidProgramBook"]
 
+class InvalidProgramBook(Exception):
+    pass
 
 class ProgramInstructions:
     """
@@ -483,9 +485,27 @@ class ProgramSet(NamedItem):
         validate_category(workbook, "atomica:progbook")
 
         # Load individual sheets
-        self._read_targeting(workbook["Program targeting"], framework=framework)
-        self._read_spending(workbook["Spending data"], _allow_missing_data=_allow_missing_data)
-        self._read_effects(workbook["Program effects"], framework=framework, data=data)
+        try:
+            self._read_targeting(workbook["Program targeting"], framework=framework)
+        except Exception as e:
+            message = 'Error on sheet "Program targeting"'
+            raise InvalidProgramBook("%s -> %s" % (message, e)) from e
+
+        try:
+            self._read_spending(workbook["Spending data"], _allow_missing_data=_allow_missing_data)
+        except Exception as e:
+            message = 'Error on sheet "Spending data"'
+            raise InvalidProgramBook("%s -> %s" % (message, e)) from e
+
+        try:
+            self._read_effects(workbook["Program effects"], framework=framework, data=data)
+        except Exception as e:
+            message = 'Error on sheet "Program effects"'
+            raise InvalidProgramBook("%s -> %s" % (message, e)) from e
+
+
+
+
 
         return self
 
@@ -787,8 +807,21 @@ class ProgramSet(NamedItem):
                 par_name = table[0][0].value.strip()  # Preserve case
             else:
                 raise Exception('Program name "%s" was not found in the framework parameters or in the databook transfers' % (table[0][0].value.strip()))
-            headers = [x.value.strip() if sc.isstring(x.value) else x.value for x in table[0]]
-            idx_to_header = {i: h for i, h in enumerate(headers)}  # Map index to header
+
+            # Read the headers - on this sheet, string type only
+            idx_to_header = {}
+            for i, cell in enumerate(table[0]):
+                v = cell.value
+                if sc.isstring(v):
+                    if v.startswith('#ignore'):
+                        break
+                    else:
+                        idx_to_header[i] = v.strip()
+                elif cell.value is None:
+                    continue
+                else:
+                    raise Exception(f"Unknown data type in cell {cell.coordinate}")
+
 
             for row in table[1:]:
                 # For each covout row, we will initialize
@@ -811,24 +844,29 @@ class ProgramSet(NamedItem):
                 for i, x in enumerate(row[1:]):
                     i = i + 1  # Offset of 1 because the loop is over row[1:] not row[0:]
 
-                    if idx_to_header[i] is None:  # If the header row had a blank cell, ignore everything in that column - we don't know what it is otherwise
-                        continue
-                    elif idx_to_header[i].lower() == "baseline value":
-                        if x.value is not None:  # test `is not None` because it might be entered as 0
-                            baseline = float(x.value)
-                    elif idx_to_header[i].lower() == "coverage interaction":
-                        if x.value:
-                            cov_interaction = x.value.strip().lower()  # additive, nested, etc.
-                    elif idx_to_header[i].lower() == "impact interaction":
-                        if x.value:
-                            imp_interaction = x.value.strip()  # additive, nested, etc.
-                    elif idx_to_header[i].lower() == "uncertainty":
-                        if x.value is not None:  # test `is not None` because it might be entered as 0
-                            uncertainty = float(x.value)
-                    elif x.value is not None:  # If the header isn't empty, then it should be one of the program names
-                        if idx_to_header[i] not in self.programs:
-                            raise Exception('The heading "%s" was not recognized as a program name or a special token - spelling error?' % (idx_to_header[i]))
-                        progs[idx_to_header[i]] = float(x.value)
+                    try:
+                        if idx_to_header.get(i, None) is None:  # If the header row had a blank cell, ignore everything in that column - we don't know what it is otherwise
+                            continue
+                        elif idx_to_header[i].lower() == "baseline value":
+                            if x.value is not None:  # test `is not None` because it might be entered as 0
+                                baseline = float(x.value)
+                        elif idx_to_header[i].lower() == "coverage interaction":
+                            if x.value:
+                                cov_interaction = x.value.strip().lower()  # additive, nested, etc.
+                        elif idx_to_header[i].lower() == "impact interaction":
+                            if x.value:
+                                imp_interaction = x.value.strip()  # additive, nested, etc.
+                        elif idx_to_header[i].lower() == "uncertainty":
+                            if x.value is not None:  # test `is not None` because it might be entered as 0
+                                uncertainty = float(x.value)
+                        elif x.value is not None:  # If the header isn't empty, then it should be one of the program names
+                            if idx_to_header[i] not in self.programs:
+                                raise Exception('The heading "%s" was not recognized as a program name or a special token - spelling error?' % (idx_to_header[i]))
+                            progs[idx_to_header[i]] = float(x.value)
+                    except Exception as e:
+                        message = f'Error in cell {x.coordinate}'
+                        raise Exception("%s -> %s" % (message, e)) from e
+
 
                 if baseline is None and progs:
                     raise Exception(f'On the "Effects" sheet for Parameter "{table[0][0].value.strip()}" in population "{row[0].value.strip()}", program outcomes are defined but the baseline value is missing')

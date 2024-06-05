@@ -108,6 +108,9 @@ def test_progbooks():
     #             covout.imp_interaction = None
     #     pset.save(at.LIBRARY_PATH+'progbook_%s.xlsx' % (a))
 
+def test_progbook_comments():
+    P = at.demo('sir')
+    P.load_progbook(testdir/'sir_progbook_comment_test.xlsx')
 
 if __name__ == "__main__":
     test_remove_program()
