@@ -11,10 +11,29 @@ from .system import LIBRARY_PATH, logger
 from .scenarios import BudgetScenario
 from .utils import TimeSeries
 
-__all__ = ["demo", "make_demo_scenarios"]
+__all__ = ["demo", "demo_projects", "make_demo_scenarios"]
 
 
-def demo(which: str = None, do_run: bool = True, addprogs: bool = True) -> Project:
+demo_projects = [
+    "udt",
+    "udt_dyn",
+    "usdt",
+    "cervicalcancer",
+    "sir",
+    "diabetes",
+    "combined",
+    'service',
+    "hypertension",
+    "hypertension_dyn",
+    "hiv",
+    "hiv_dyn",
+    "tb_simple",
+    "tb_simple_dyn",
+    "tb",
+    "dt",
+]
+
+def demo(which: str = 'sir', do_run: bool = True, addprogs: bool = True) -> Project:
     """
     Return a demo project
 
@@ -25,30 +44,11 @@ def demo(which: str = None, do_run: bool = True, addprogs: bool = True) -> Proje
 
     """
 
-    options = [
-        "udt",
-        "udt_dyn",
-        "usdt",
-        "cervicalcancer",
-        "sir",
-        "diabetes",
-        "combined",
-        # 'service',
-        "hypertension",
-        "hypertension_dyn",
-        "hiv",
-        "hiv_dyn",
-        "tb_simple",
-        "tb_simple_dyn",
-        "environment",
-        "tb",
-    ]
-
-    dtdict = sc.odict.fromkeys(options, 1.0)
+    dtdict = sc.odict.fromkeys(demo_projects, 1.0)
     dtdict["tb"] = 0.5
 
-    if which is None or which not in options:
-        raise Exception("Supported project types are:\n%s" % ("\n".join(options)))
+    if which not in demo_projects:
+        raise Exception("Supported demonstration projects are:\n%s" % ("\n".join(demos)))
 
     framework = LIBRARY_PATH / f"{which}_framework.xlsx"
     databook = LIBRARY_PATH / f"{which}_databook.xlsx"
@@ -61,7 +61,7 @@ def demo(which: str = None, do_run: bool = True, addprogs: bool = True) -> Proje
     if do_run:
         P.run_sim(store_results=True)
 
-    if addprogs:
+    if addprogs and progbook.exists():
         logger.debug("Loading progbook")
         P.load_progbook(progbook)
 

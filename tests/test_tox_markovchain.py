@@ -10,36 +10,15 @@ import pytest
 dirname = at.parent_dir()
 # np.seterr(all='raise')
 
+@pytest.mark.parametrize("demo", at.demo_projects)
+def test_functional_all_framework_databook(demo):
+    # Test that all demo frameworks can be run with stochastic mode turned on
+    P = at.demo(demo, do_run=False)
+    P.settings.stochastic = True
+    P.run_sim(result_name='DTMC')
 
-def test_functional_all_framework_databook():
-    framework_files = sc.getfilelist(folder=dirname, pattern='*framework*.xlsx')
-    databook_files = sc.getfilelist(folder=dirname, pattern='*databook*.xlsx')
-
-    for framework_file in framework_files:
-        for databook_file in databook_files:
-
-            try:
-                P = at.Project(framework=framework_file, databook=databook_file, do_run=False)
-                P.run_sim(result_name='Original')
-            except:
-                # print(f'Failed when running normally so skipping')
-                continue  # Running without MC didn't work so skip
-
-            print(f'\nTesting framework, databook which runs normally: {framework_file}, {databook_file}')
-
-            try:
-                P.settings.stochastic = True
-                P.run_sim(result_name='DTMC')
-            except Exception as e:
-                raise Exception(f'Ran normally but failed to run with P.settings.stochastic = True. Framework, databook = {framework_file}, {databook_file}') \
-                    from e
-
-            print('Success', framework_file, databook_file, '\n')
-
-    print('\nPASS!')
-
-
-def test_compare_deterministic_markovchain():
+@pytest.mark.parametrize("demo", ['sir','udt','tb_simple']) # This test is expensive so only run it for a few lightweight models
+def test_compare_deterministic_markovchain(demo):
 
     seed = 0
     N = 1000
@@ -121,55 +100,23 @@ def test_compare_deterministic_markovchain():
 
     seed = np.random.default_rng(seed).integers(2**32-1)
 
-    framework_files = sc.getfilelist(folder=dirname, pattern='*framework*.xlsx')
-    databook_files  = sc.getfilelist(folder=dirname, pattern='*databook*.xlsx')
 
-    projects = []
+    P = at.demo(demo, do_run=False)
+    res = P.run_sim(result_name='Original')
 
-    for framework_file in framework_files:
-        for databook_file in databook_files:
+    baseline_results = [res]
 
-            try:
-                P = at.Project(framework=framework_file, databook=databook_file, do_run=False)
-                res = P.run_sim(result_name='Original')
+    P.settings.stochastic = True
+    mc_results = [None] * N
+    with at.Quiet():  # Using at.Quiet should automatically reset the logging level if an exception occurs
+        for i in range(N):
+            this_seed = ( i + seed + hash(demo) )% (2**32)
+            mc_results[i] = P.run_sim(result_name=f'DTMC {i}', rng=this_seed )
 
-                baseline_results = [res]
-
-                if 'stochastic' in framework_file or 'stochastic' in databook_file:
-                    for i in range(N):
-                        baseline_results.append(P.run_sim(result_name=f'Original {i}'))
-
-            except:
-                # print(f'Failed when running normally so skipping')
-                continue  # Running without MC didn't work so skip
-
-
-            print(f'\nTrying framework, databook: {framework_file}, {databook_file}')
-
-            try:
-                at.logger.setLevel("WARN")
-                P.settings.stochastic = True
-                mc_results = [None] * N
-                for i in range(N):
-                    this_seed = ( i + seed + hash(framework_file) + hash(databook_file) )% (2**32)
-                    mc_results[i] = P.run_sim(result_name=f'DTMC {i}', rng=this_seed )
-
-                at.logger.setLevel("INFO")
-            except:
-                print('Ran normally but failed to run with P.settings.stochastic = True')
-                continue # No success so continue without printing success
-
-            # plot_comparison(P, baseline_results=baseline_results, mc_results=mc_results)
-            run_simple_percent_test(P, baseline_results=baseline_results, mc_results=mc_results)
-
-
-            print('Success', framework_file, databook_file)
-            projects.append(P)
-
-    print('\nPASS!')
-
+    run_simple_percent_test(P, baseline_results=baseline_results, mc_results=mc_results)
 
 
 if __name__ == '__main__':
-    test_functional_all_framework_databook()
-    test_compare_deterministic_markovchain()
+    for demo in at.demo_projects:
+        test_functional_all_framework_databook()
+    test_compare_deterministic_markovchain('sir')
