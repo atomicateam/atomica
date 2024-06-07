@@ -587,7 +587,7 @@ class TimeSeries:
         interpolator = method(t1, v1, **kwargs)
         return interpolator(t2)
 
-    def sample(self, constant:bool = True, rng_sampler = None):
+    def sample(self, constant: bool = True, rng_sampler=None):
         """
         Return a sampled copy of the TimeSeries
 
@@ -847,7 +847,7 @@ def parallel_progress(fcn, inputs, num_workers=None, show_progress=True) -> list
     else:
         for i, x in enumerate(inputs):
             if isinstance(x, dict):
-                pool.apply_async(fcn, args=(), kwds=x, callback=partial(callback, idx=i)) #if the list of inputs is given as a dictionary then pass as kwargs (kwds) instead
+                pool.apply_async(fcn, args=(), kwds=x, callback=partial(callback, idx=i))  # if the list of inputs is given as a dictionary then pass as kwargs (kwds) instead
             else:
                 pool.apply_async(fcn, args=(x,), callback=partial(callback, idx=i))
 
@@ -991,7 +991,8 @@ def stop_logging() -> None:
             # Don't terminate the loop, if by some change there is more than one handler
             # (not supposed to happen though) then we would want to close them all
 
-def stochastic_rounding(x, rng_sampler = None):
+
+def stochastic_rounding(x, rng_sampler=None):
     """
     Stochastically round a float up or down to an integer-equivalent value (note: returns still as a float)
     :param x: value to be rounded
@@ -1001,5 +1002,5 @@ def stochastic_rounding(x, rng_sampler = None):
     floor = np.floor(x)
     remainder = x - floor
     if remainder:
-        x = floor + int(sample<remainder)
+        x = floor + int(sample < remainder)
     return x

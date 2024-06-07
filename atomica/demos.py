@@ -22,7 +22,7 @@ demo_projects = [
     "sir",
     "diabetes",
     "combined",
-    'service',
+    "service",
     "hypertension",
     "hypertension_dyn",
     "hiv",
@@ -33,7 +33,8 @@ demo_projects = [
     "dt",
 ]
 
-def demo(which: str = 'sir', do_run: bool = True, addprogs: bool = True) -> Project:
+
+def demo(which: str = "sir", do_run: bool = True, addprogs: bool = True) -> Project:
     """
     Return a demo project
 

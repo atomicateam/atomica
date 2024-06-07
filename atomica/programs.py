@@ -1152,7 +1152,7 @@ class ProgramSet(NamedItem):
 
         return {(covout.par, covout.pop): covout.get_outcome(prop_coverage) for covout in self.covouts.values()}
 
-    def sample(self, constant: bool = True, rng_sampler = None):
+    def sample(self, constant: bool = True, rng_sampler=None):
         """
         Perturb programs based on uncertainties
 
@@ -1409,7 +1409,7 @@ class Covout:
 
         return len(self.progs)
 
-    def sample(self, rng_sampler = None) -> None:
+    def sample(self, rng_sampler=None) -> None:
         """
         Perturb the values entered in the databook
 
@@ -1421,7 +1421,7 @@ class Covout:
 
         if self.sigma is None:
             return
-        
+
         if rng_sampler is None:
             rng_sampler = np.random.default_rng()
 

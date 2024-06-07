@@ -87,9 +87,9 @@ class ProjectSettings:
         assert sim_dt > 0, "Simulation timestep must be greater than 0"
         self._sim_dt = sim_dt
         self.sim_end = self.sim_end  # Call the setter function to change sim_end if it is no longer valid
-        
+
     @stochastic.setter
-    def stochastic(self, stochastic:bool=False):
+    def stochastic(self, stochastic: bool = False):
         self._stochastic = stochastic
 
     @property
@@ -484,7 +484,7 @@ class Project(NamedItem):
         """Modify the project settings, e.g. the simulation time vector."""
         self.settings.update_time_vector(start=sim_start, end=sim_end, dt=sim_dt)
 
-    def run_sim(self, parset=None, progset=None, progset_instructions=None, store_results=False, result_name: str = None, rng = None, acceptance_criteria=[]):
+    def run_sim(self, parset=None, progset=None, progset_instructions=None, store_results=False, result_name: str = None, rng=None, acceptance_criteria=[]):
         """
         Run a single simulation
 
@@ -500,7 +500,7 @@ class Project(NamedItem):
         :param rng: Optionally a random number generator that may have been seeded to generate consistent results, or a random_seed used to generate a Generator
         :param acceptance_criteria: Optional criteria to assert that outputs are within a given tolerance of a given value for given parameters over a given period of time
         tolerance e.g.  = [{'parameter': 'incidence', 'population': 'adults', 'value': (0.02, 0.025), 't_range': (2018, 2018.99)}]
-        
+
         :return: A :class:`Result` instance
 
         """
@@ -558,7 +558,7 @@ class Project(NamedItem):
         :param acceptance_criteria: Optional criteria to assert that outputs are within a given tolerance of a given value for given parameters in given years
             tolerance e.g.  = [{'parameter': 'incidence', 'population': 'adults', 'value': (0.02, 0.025), 't': 2018}]
 
-        
+
         :return: A list of Results that can be passed to `Ensemble.update()`. If multiple instructions are provided, the return value of this
                  function will be a list of lists, where the inner list iterates over different instructions for the same parset/progset samples.
                  It is expected in that case that the Ensemble's mapping function would take in a list of results
@@ -581,19 +581,19 @@ class Project(NamedItem):
             assert (len(result_names) == 1 and not progset) or (len(progset_instructions) == len(result_names)), "Number of result names must match number of instructions"
 
         show_progress = n_samples > 1 and logger.getEffectiveLevel() <= logging.INFO
-        
+
         if rand_seed is not None:
-            rng = np.random.default_rng(seed = rand_seed)
+            rng = np.random.default_rng(seed=rand_seed)
             seed_samples = rng.integers(1e15, size=n_samples)
         else:
-            seed_samples = [None]*n_samples
-            
-        model_rngs = [np.random.default_rng(seed = seed) for seed in seed_samples] #generate a RNG for each model
+            seed_samples = [None] * n_samples
+
+        model_rngs = [np.random.default_rng(seed=seed) for seed in seed_samples]  # generate a RNG for each model
 
         if parallel:
             fcn = functools.partial(_run_sampled_sim, proj=self, parset=parset, progset=progset, progset_instructions=progset_instructions, result_names=result_names, max_attempts=max_attempts, acceptance_criteria=acceptance_criteria)
-            #as multiprocessing does not handle partial functions as compiled functions, need to send the rngs as kwargs in a dictionary, not as args to the partial function
-            model_rng_kwargs = [{'rng_sampler': rng} for rng in model_rngs]
+            # as multiprocessing does not handle partial functions as compiled functions, need to send the rngs as kwargs in a dictionary, not as args to the partial function
+            model_rng_kwargs = [{"rng_sampler": rng} for rng in model_rngs]
             results = parallel_progress(fcn, model_rng_kwargs, show_progress=show_progress, num_workers=num_workers)
         elif show_progress:
             # Print the progress bar if the logging level was INFO or lower
@@ -743,7 +743,8 @@ class Project(NamedItem):
         P = migrate(self)
         self.__dict__ = P.__dict__
 
-def _run_sampled_sim(proj, parset, progset, progset_instructions: list, result_names: list, max_attempts: int = None, rng_sampler =  None, acceptance_criteria = []):
+
+def _run_sampled_sim(proj, parset, progset, progset_instructions: list, result_names: list, max_attempts: int = None, rng_sampler=None, acceptance_criteria=[]):
     """
     Internal function to run simulation with sampling
 
@@ -775,11 +776,11 @@ def _run_sampled_sim(proj, parset, progset, progset_instructions: list, result_n
 
     if max_attempts is None:
         max_attempts = 50
-    
+
     if rng_sampler is None:
         rng_sampler = np.random.default_rng()
-    
-    #Set up separate seeds for each attempt and seed a rng for each one (in case scenarios diverge in later timepoints, it's important to START from the same seeds)
+
+    # Set up separate seeds for each attempt and seed a rng for each one (in case scenarios diverge in later timepoints, it's important to START from the same seeds)
     rand_seeds = rng_sampler.integers(1e15, size=max_attempts)
 
     attempts = 0
@@ -792,7 +793,7 @@ def _run_sampled_sim(proj, parset, progset, progset_instructions: list, result_n
                 results = [proj.run_sim(parset=sampled_parset, progset=sampled_progset, progset_instructions=x, result_name=y, rng=rng_attempt, acceptance_criteria=acceptance_criteria) for x, y in zip(progset_instructions, result_names)]
             else:
                 results = [proj.run_sim(parset=sampled_parset, result_name=y, rng=rng_attempt, acceptance_criteria=acceptance_criteria) for y in result_names]
-            
+
             return results
         except BadInitialization:
             attempts += 1
