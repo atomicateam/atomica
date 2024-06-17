@@ -370,7 +370,7 @@ class CalibrationNode(BaseNode):
 
             for pop in pops:
                 d = sc.mergedicts(self.meas_defaults, attributes['measurables'].get((par_name, None), None), attributes['measurables'].get((par_name, pop), None))
-                measurables.append((par_name, pop_name, d['weight'], d['metric'], d['start_year'], d['end_year']))
+                measurables.append((par_name, pop, d['weight'], d['metric'], d['start_year'], d['end_year']))
 
         # Calibration
         if len(adjustables):
