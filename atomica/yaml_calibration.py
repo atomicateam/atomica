@@ -375,7 +375,7 @@ class CalibrationNode(BaseNode):
         # Calibration
         if len(adjustables):
 
-            kwargs = sc.mergedicts(kwargs, self.attributes)
+            kwargs = sc.mergedicts(self.attributes, kwargs)
 
             del kwargs['adjustables'] # supplied via the adjustables variable
             del kwargs['measurables'] # supplied via the measurables variable
