@@ -1423,7 +1423,7 @@ class Covout:
             return
 
         if rng_sampler is None:
-            rng_sampler = np.random.default_rng()
+            rng_sampler = np.random
 
         for k, v in self.progs.items():
             self.progs[k] = v + self.sigma * rng_sampler.standard_normal(1)[0]

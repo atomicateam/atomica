@@ -9,8 +9,8 @@ schedules:
 jobs:
 - job: 'tox'
   variables:
-    python.version: '3.11'
-    TOXENV: 'py311'
+    python.version: '3.12'
+    TOXENV: 'py312'
   strategy:
     matrix:
       linux:

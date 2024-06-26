@@ -606,7 +606,7 @@ class TimeSeries:
             raise Exception("Sampling has already been performed - can only sample once")
 
         if rng_sampler is None:
-            rng_sampler = np.random.default_rng()
+            rng_sampler = np.random  #
 
         new = self.copy()
         if self.sigma is not None:
