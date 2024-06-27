@@ -2,6 +2,10 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.28.2] - 2023-06-28
+
+- Enable automated calibration of transfers and updated documentation to cover this feature
+
 ## [1.28.1] - 2023-02-05
 
 - Updated various Pandas operations to improve compatibility with Pandas 2.2.0
