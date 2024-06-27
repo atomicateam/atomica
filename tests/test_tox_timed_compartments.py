@@ -73,7 +73,7 @@ def test_timed_tb():
     # Just check that it runs as a demonstration
     P = at.Project(framework=testdir / "timed_tb_framework.xlsx", databook=testdir / "timed_tb_databook.xlsx", do_run=False)
     P.settings.sim_dt = 0.25
-    return P.run_sim()
+    P.run_sim()
 
 
 def test_spike():

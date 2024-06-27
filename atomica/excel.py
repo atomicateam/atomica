@@ -277,6 +277,9 @@ def read_dataframes(worksheet, merge=False) -> list:
 
     """
 
+    if worksheet.max_row is None or worksheet.max_column is None:
+        worksheet.calculate_dimension(force=True)
+
     content = np.empty((worksheet.max_row, worksheet.max_column), dtype="object")
     ignore = np.zeros((worksheet.max_row), dtype=bool)
     empty = np.zeros((worksheet.max_row), dtype=bool)  # True for index where a new table begins

@@ -162,7 +162,7 @@ class ProgramSet(NamedItem):
         assert data is not None, "Must specify framework and data when instantiating a ProgramSet"
 
         NamedItem.__init__(self, name)
-        self.version = version  # Track versioning information for the result. This might change due to migration (whereas by convention, the model version does not)
+        self.version = version  # Track versioning information
         self.gitinfo = gitinfo
 
         self.tvec = tvec  # This is the data tvec that will be used when writing the progset to a spreadsheet

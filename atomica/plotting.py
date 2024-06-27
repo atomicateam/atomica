@@ -1813,7 +1813,12 @@ def reorder_legend(figs, order=None) -> None:
     if order is None:
         return
     elif order == "reverse":
-        order = range(len(legend.legendHandles) - 1, -1, -1)
+        try:
+            # matplotlib<3.8
+            order = range(len(legend.legendHandles) - 1, -1, -1)
+        except AttributeError:
+            # matplotlib>=3.9
+            order = range(len(legend.legend_handles) - 1, -1, -1)
     else:
         assert max(order) < len(vpacker._children), "Requested index greater than number of legend entries"
 
