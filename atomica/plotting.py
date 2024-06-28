@@ -447,9 +447,9 @@ class PlotData:
                 s.vals = np.cumsum(s.vals)
             elif accumulation_method == "integrate":
                 if s.timescale:
-                    s.vals = scipy.integrate.cumtrapz(s.vals, s.tvec / s.timescale)
+                    s.vals = scipy.integrate.cumulative_trapezoid(s.vals, s.tvec / s.timescale)
                 else:
-                    s.vals = scipy.integrate.cumtrapz(s.vals, s.tvec)
+                    s.vals = scipy.integrate.cumulative_trapezoid(s.vals, s.tvec)
                 s.vals = np.insert(s.vals, 0, 0.0)
 
                 # If integrating a quantity with a timescale, then lose the timescale factor

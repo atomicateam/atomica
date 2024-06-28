@@ -47,7 +47,7 @@ setup(
     install_requires=[
         "matplotlib",
         "numpy>=1.10.1,<2",
-        "scipy>=1.2.1",
+        "scipy>=1.6",
         "pandas",
         "xlsxwriter",
         "openpyxl",
