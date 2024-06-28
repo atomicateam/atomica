@@ -447,9 +447,9 @@ class PlotData:
                 s.vals = np.cumsum(s.vals)
             elif accumulation_method == "integrate":
                 if s.timescale:
-                    s.vals = scipy.integrate.cumtrapz(s.vals, s.tvec / s.timescale)
+                    s.vals = scipy.integrate.cumulative_trapezoid(s.vals, s.tvec / s.timescale)
                 else:
-                    s.vals = scipy.integrate.cumtrapz(s.vals, s.tvec)
+                    s.vals = scipy.integrate.cumulative_trapezoid(s.vals, s.tvec)
                 s.vals = np.insert(s.vals, 0, 0.0)
 
                 # If integrating a quantity with a timescale, then lose the timescale factor
@@ -1813,7 +1813,12 @@ def reorder_legend(figs, order=None) -> None:
     if order is None:
         return
     elif order == "reverse":
-        order = range(len(legend.legendHandles) - 1, -1, -1)
+        try:
+            # matplotlib<3.8
+            order = range(len(legend.legendHandles) - 1, -1, -1)
+        except AttributeError:
+            # matplotlib>=3.9
+            order = range(len(legend.legend_handles) - 1, -1, -1)
     else:
         assert max(order) < len(vpacker._children), "Requested index greater than number of legend entries"
 

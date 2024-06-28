@@ -2,6 +2,23 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.28.5] - 2023-06-28
+
+- Enable automated calibration of transfers and updated documentation to cover this feature
+
+## [1.28.4] - 2023-05-27
+
+- Added an option to save initial compartment sizes inside a `ParameterSet`. Importantly, this saved representation allows setting the initial _subcompartment_ sizes for a `TimedCompartment`. It therefore offers the possibility of initializing the model in a steady state computed from a previous simulation run, that would not be possible to initialize conventionally because standard initialization uniformly distributes people into the subcompartments of a timed compartment.  
+- Added `ParameterSet.make_constant` to facilitate constructing copies of `ParameterSet` instances that are constant over time.
+
+## [1.28.3] - 2023-05-16
+
+- Updated `at.Project()` to explicitly take in the settings arguments for `sim_start`, `sim_end`, and `sim_dt`. These are now applied after databooks are loaded, fixing a bug where these arguments would get overwritten when loading the databook.
+
+## [1.28.2] - 2023-04-05
+
+- `at.calibrate` now supports passing any additional arguments into the optimization function e.g., `sc.asd` allowing additional options for customizing the optimization. 
+
 ## [1.28.1] - 2023-02-05
 
 - Updated various Pandas operations to improve compatibility with Pandas 2.2.0

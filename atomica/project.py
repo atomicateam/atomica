@@ -144,11 +144,12 @@ class Project(NamedItem):
                       - None (this should generally not be used though!)
     :param databook: The path to a databook file. The databook will be loaded into Project.data and the spreadsheet saved to Project.databook
     :param do_run: If True, a simulation will be run upon project construction
-    :param kwargs: These are passed to the :class`ProjectSettings` constructor
-
+    :param sim_start: Optionally specify the sim start year (otherwise will default to the first year in the databook)
+    :param sim_end: Optionally specify simulation end year
+    :param sim_dt: Optionally specify simulation timestep
     """
 
-    def __init__(self, name="default", framework=None, databook=None, do_run=True, **kwargs):
+    def __init__(self, name="default", framework=None, databook=None, do_run: bool = True, sim_start: float = None, sim_end: float = None, sim_dt: float = None):
         NamedItem.__init__(self, name)
 
         if isinstance(framework, ProjectFramework):
@@ -173,13 +174,13 @@ class Project(NamedItem):
         self.filename = None
 
         self.progbook = None  # This will contain an sc.Spreadsheet when the user loads one
-        self.settings = ProjectSettings(**kwargs)  # Global settings
+        self.settings = ProjectSettings()  # Global settings
 
         self._update_required = False  # This flag is set to True by migration is the result objects contained in this Project are out of date due to a migration change
 
         # Load project data, if available
         if framework and databook:
-            self.load_databook(databook_path=databook, do_run=do_run)
+            self.load_databook(databook_path=databook, make_default_parset=True, do_run=False)
         elif databook:
             logger.warning("Project was constructed without a Framework - databook spreadsheet is being saved to project, but data is not being loaded")
             self.databook = sc.Spreadsheet(databook)  # Just load the spreadsheet in so that it isn't lost
@@ -187,6 +188,14 @@ class Project(NamedItem):
         else:
             self.databook = None  # This will contain an sc.Spreadsheet when the user loads one
             self.data = None
+
+        # If the user has overridden any of these, apply those values after the databook is loaded
+        # Otherwise, the default logic in `Project.load_databook()` will be used
+        self.settings.update_time_vector(start=sim_start, end=sim_end, dt=sim_dt)
+
+        # Run the model, but only if both a framework and databook were provided
+        if framework and databook and do_run:
+            self.run_sim(parset="default", store_results=True)
 
     def __repr__(self):
         """Print out useful information when called"""
@@ -568,7 +577,7 @@ class Project(NamedItem):
 
         return results
 
-    def calibrate(self, parset=None, adjustables=None, measurables=None, max_time=60, save_to_project=False, new_name=None, default_min_scale=0.0, default_max_scale=2.0, default_weight=1.0, default_metric="fractional") -> ParameterSet:
+    def calibrate(self, parset=None, adjustables=None, measurables=None, max_time=60, save_to_project=False, new_name=None, default_min_scale=0.0, default_max_scale=2.0, default_weight=1.0, default_metric="fractional", **kwargs) -> ParameterSet:
         """
         Method to perform automatic calibration.
 
@@ -616,7 +625,7 @@ class Project(NamedItem):
         for index, measurable in enumerate(measurables):
             if sc.isstring(measurable):  # Assume that a parameter name was passed in if not a tuple.
                 measurables[index] = (measurable, None, default_weight, default_metric)
-        new_parset = calibrate(project=self, parset=parset, pars_to_adjust=adjustables, output_quantities=measurables, max_time=max_time)
+        new_parset = calibrate(project=self, parset=parset, pars_to_adjust=adjustables, output_quantities=measurables, max_time=max_time, **kwargs)
         new_parset.name = new_name  # The new parset is a calibrated copy of the old, so change id.
         if save_to_project:
             self.parsets.append(new_parset)

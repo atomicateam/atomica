@@ -43,7 +43,6 @@ def _update_parset(parset, y_factors, pars_to_adjust):
             tokens = par_name.split("_from_")
             par = parset.transfers[tokens[0]][tokens[1]]
             par.y_factor[pop_name] = y_factors[i]
-            raise NotImplementedError
 
 
 def _calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, project):
@@ -114,7 +113,7 @@ def _calc_wape(y_obs, y_fit):
     return abs(y_fit - y_obs) / (y_obs.mean() + calibration_settings["tolerance"])
 
 
-def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, max_time=60, method="asd") -> ParameterSet:
+def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, max_time=60, method="asd", **kwargs) -> ParameterSet:
     """
     Run automated calibration
 
@@ -123,11 +122,15 @@ def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, 
     :param pars_to_adjust: list of tuples, (par_name,pop_name,lower_limit,upper_limit)
                            the pop name can be None, which will be expanded to all populations
                            relevant to the parameter independently, or 'all' which will instead operate
-                           on the meta y factor.
+                           on the meta y factor. To calibrate a transfer, the parameter name should be set to
+                           ``'<tranfer_code_name>_from_<from_pop>'`` and then the destination population can be specified
+                           as the ``pop_name``. For example, to automatically calibrate an aging transfer 'age' from 5-14
+                           to 15-64, the tuple would contain ``pars_to_adjust=[('age_from_5-14','15-64',...)]``
     :param output_quantities: list of tuples, (var_label,pop_name,weight,metric), for use in the objective
                               function. pop_name=None will expand to all pops. pop_name='all' is not supported
     :param max_time: If using ASD, the maximum run time
     :param method: 'asd' or 'pso'. If using 'pso' all upper and lower limits must be finite
+    :param kwargs: Dictionary of additional arguments to be passed to the optimization function, e.g. stepsize or pinitial
     :return: A calibrated :class:`ParameterSet`
 
     """
@@ -194,6 +197,7 @@ def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, 
                 "xmin": xmin,
                 "xmax": xmax,
             }
+            optim_args.update(kwargs)
 
             if max_time is not None:
                 optim_args["maxtime"] = max_time
@@ -241,7 +245,6 @@ def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, 
             tokens = par_name.split("_from_")
             par = args["parset"].transfers[tokens[0]][tokens[1]]
             logger.debug("parset.transfers['{}']['{}'].y_factor['{}']={:.2f}".format(tokens[0], tokens[1], pop_name, par.y_factor[pop_name]))
-            raise NotImplementedError  # Transfers might be handled differently in Atomica
 
     args["parset"].name = "calibrated_" + args["parset"].name
 
