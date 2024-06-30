@@ -115,6 +115,7 @@ jobs:
       inputs:
         versionSpec: '3.12'
     - script: |
+        python -m pip install setuptools
         python -m pip install wheel
         python -m pip install twine
         python setup.py build
