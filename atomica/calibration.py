@@ -12,6 +12,7 @@ from .model import BadInitialization
 from .system import logger
 from .parameters import ParameterSet
 import logging
+import atomica
 
 __all__ = ["calibrate"]
 
@@ -43,7 +44,6 @@ def _update_parset(parset, y_factors, pars_to_adjust):
             tokens = par_name.split("_from_")
             par = parset.transfers[tokens[0]][tokens[1]]
             par.y_factor[pop_name] = y_factors[i]
-            raise NotImplementedError
 
 
 def _calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, project):
@@ -66,14 +66,21 @@ def _calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, p
             continue
         if not target.has_time_data:  # Only use this output quantity if the user entered time-specific data
             continue
-        var = result.model.get_pop(pop_name).get_variable(var_label)
+        if pop_name == 'Total':
+            var = atomica.PlotData(result, outputs=var_label, pops = 'total', project=project)
+        else:
+            var = result.model.get_pop(pop_name).get_variable(var_label)
+
         data_t, data_v = target.get_arrays()
 
         # Interpolate the model outputs onto the data times
         # If there is data outside the range when the model was simulated, don't
         # extrapolate the model outputs
         y = data_v
-        y2 = np.interp(data_t, var[0].t, var[0].vals, left=np.nan, right=np.nan)
+        if pop_name == 'Total':
+            y2 = np.interp(data_t, var.tvals()[0], var.series[0].vals, left=np.nan, right=np.nan)
+        else:
+            y2 = np.interp(data_t, var[0].t, var[0].vals, left=np.nan, right=np.nan)
 
         idx = ~np.isnan(y) & ~np.isnan(y2)
         objective += weight * sum(_calculate_fitscore(y[idx], y2[idx], metric))
@@ -243,7 +250,6 @@ def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, 
             tokens = par_name.split("_from_")
             par = args["parset"].transfers[tokens[0]][tokens[1]]
             logger.debug("parset.transfers['{}']['{}'].y_factor['{}']={:.2f}".format(tokens[0], tokens[1], pop_name, par.y_factor[pop_name]))
-            raise NotImplementedError  # Transfers might be handled differently in Atomica
 
     args["parset"].name = "calibrated_" + args["parset"].name
 
