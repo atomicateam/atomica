@@ -252,9 +252,9 @@ class CalibrationNode(BaseNode):
         def process_key(s):
             # Sanitize key name with optional space separating pop name
             if ' ' in s:
-                return tuple([x for x in s.split(' ') if x])
+                return tuple([x.replace('~', ' ') for x in s.split(' ') if x])
             else:
-                return (s.strip(), None)
+                return (s.strip().replace('~', ' '), None)
 
         def process_inputs(inputs, defaults):
             # Process adjustables and measurables, which can be specified in a list representation or nested dict representation
