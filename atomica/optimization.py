@@ -1074,7 +1074,7 @@ class TotalSpendConstraint(Constraint):
             x0 = sc.odict()  # Order matters here
             lb = []
             ub = []
-            progs = hard_constraints["programs"][t]  # Programs eligible for constraining at this time
+            progs = sorted(hard_constraints["programs"][t])  # Programs eligible for constraining at this time
 
             for prog in progs:
                 if prog not in instructions.alloc:
