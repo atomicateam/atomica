@@ -78,7 +78,7 @@ def _calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, p
         # extrapolate the model outputs
         y = data_v
         if pop_name == 'Total':
-            y2 = np.interp(data_t, var.tvals()[0], var.series[0].vals, left=np.nan, right=np.nan)
+            y2 = np.interp(data_t, var.series[0].tvec, var.series[0].vals, left=np.nan, right=np.nan)
         else:
             y2 = np.interp(data_t, var[0].t, var[0].vals, left=np.nan, right=np.nan)
 
