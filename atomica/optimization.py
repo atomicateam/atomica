@@ -1526,6 +1526,12 @@ def constrain_sum_bounded(x: np.array, s: float, lb: np.array, ub: np.array) -> 
     """
     tolerance = 1e-6
 
+    sort_inds = np.argsort(x)
+    orig_inds = np.argsort(sort_inds)
+    x  = np.array(x) [sort_inds]
+    lb = np.array(lb)[sort_inds]
+    ub = np.array(ub)[sort_inds]
+
     # Normalize values
     x0_scaled = x / (x.sum() or 1)  # Normalize the initial values, unless they sum to 0 (i.e., they are all zero)
     lb_scaled = lb / s
@@ -1534,7 +1540,7 @@ def constrain_sum_bounded(x: np.array, s: float, lb: np.array, ub: np.array) -> 
     # First, check if the constraint is already satisfied just by multiplicative rescaling
     # The final check for x0_scaled.sum()==1 catches the case where all of the input values are 0
     if np.all((x0_scaled >= lb_scaled) & (x0_scaled <= ub_scaled)) and np.isclose(x0_scaled.sum(), 1):
-        return x0_scaled * s
+        return x0_scaled[orig_inds] * s
 
     # If not, we need to actually run the constrained optimization
     bounds = [(lower, upper) for lower, upper in zip(lb_scaled, ub_scaled)]
@@ -1557,4 +1563,6 @@ def constrain_sum_bounded(x: np.array, s: float, lb: np.array, ub: np.array) -> 
     # Enforce upper/lower bound constraints to prevent numerically exceeding them
     sol = np.minimum(np.maximum(res["x"], lb_scaled), ub_scaled) * s
     assert np.isclose(sol.sum(), s), f"FAILED as {sol} has a total of {sol.sum()} which is not sufficiently close to the target value {s}"
+
+    sol = sol[orig_inds]
     return sol
