@@ -130,7 +130,10 @@ def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, 
     :param pars_to_adjust: list of tuples, (par_name,pop_name,lower_limit,upper_limit)
                            the pop name can be None, which will be expanded to all populations
                            relevant to the parameter independently, or 'all' which will instead operate
-                           on the meta y factor.
+                           on the meta y factor. To calibrate a transfer, the parameter name should be set to
+                           ``'<tranfer_code_name>_from_<from_pop>'`` and then the destination population can be specified
+                           as the ``pop_name``. For example, to automatically calibrate an aging transfer 'age' from 5-14
+                           to 15-64, the tuple would contain ``pars_to_adjust=[('age_from_5-14','15-64',...)]``
     :param output_quantities: list of tuples, (var_label,pop_name,weight,metric), for use in the objective
                               function. pop_name=None will expand to all pops. pop_name='all' is not supported
     :param max_time: If using ASD, the maximum run time
