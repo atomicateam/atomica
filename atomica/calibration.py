@@ -34,7 +34,7 @@ def _update_parset(parset, y_factors, pars_to_adjust):
         pop_name = x[1]
 
         if par_name in parset.pars:
-            if pop_name == "all":
+            if pop_name.lower() == "all":
                 par = parset.pars[par_name]
                 par.meta_y_factor = y_factors[i]
             else:
@@ -66,7 +66,8 @@ def _calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, p
             continue
         if not target.has_time_data:  # Only use this output quantity if the user entered time-specific data
             continue
-        if pop_name == 'Total':
+
+        if pop_name.lower() == 'total':
             var = atomica.PlotData(result, outputs=var_label, pops = 'total', project=project)
         else:
             var = result.model.get_pop(pop_name).get_variable(var_label)
@@ -77,7 +78,7 @@ def _calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, p
         # If there is data outside the range when the model was simulated, don't
         # extrapolate the model outputs
         y = data_v
-        if pop_name == 'Total':
+        if pop_name.lower() == 'total':
             y2 = np.interp(data_t, var.series[0].tvec, var.series[0].vals, left=np.nan, right=np.nan)
         else:
             y2 = np.interp(data_t, var[0].t, var[0].vals, left=np.nan, right=np.nan)
@@ -179,7 +180,7 @@ def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, 
         par_name, pop_name, scale_min, scale_max = x
         if par_name in parset.pars:
             par = parset.pars[par_name]
-            if pop_name == "all":
+            if pop_name.lower() == "all":
                 x0.append(par.meta_y_factor)
             else:
                 x0.append(par.y_factor[pop_name])
@@ -244,7 +245,7 @@ def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, 
         if par_name in parset.pars:
             par = args["parset"].pars[par_name]
 
-            if pop_name == "all":
+            if pop_name.lower() == "all":
                 logger.debug("parset.get_par('{}').meta_y_factor={:.2f}".format(par_name, par.meta_y_factor))
             else:
                 logger.debug("parset.get_par('{}').y_factor['{}']={:.2f}".format(par_name, pop_name, par.y_factor[pop_name]))
