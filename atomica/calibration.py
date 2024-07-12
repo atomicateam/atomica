@@ -136,7 +136,12 @@ def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, 
                            as the ``pop_name``. For example, to automatically calibrate an aging transfer 'age' from 5-14
                            to 15-64, the tuple would contain ``pars_to_adjust=[('age_from_5-14','15-64',...)]``
     :param output_quantities: list of tuples, (var_label,pop_name,weight,metric), for use in the objective
-                              function. pop_name=None will expand to all pops. pop_name='all' is not supported
+                              function. pop_name=None will expand to all pops. pop_name='all' is not supported. In some cases,
+                              it may be desirable to fit to an aggregated total value across populations. In such cases, the
+                              databook should have an extra row in the TDVE table for a population called "Total". The measurable
+                              can then be given pop_name="Total" which will cause the Atomica model outputs to be aggregated over
+                              all populations, and the aggregate value compared to the "Total" data. The aggregation methods will
+                              be automatically selected depending on units of the quantity (sum for "number" units, average for others).
     :param max_time: If using ASD, the maximum run time
     :param method: 'asd' or 'pso'. If using 'pso' all upper and lower limits must be finite
     :param kwargs: Dictionary of additional arguments to be passed to the optimization function, e.g. stepsize or pinitial
