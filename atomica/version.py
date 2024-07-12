@@ -6,6 +6,6 @@ Standard location for module version number and date.
 
 import sciris as sc
 
-version = "1.28.5"
-versiondate = "2024-06-28"
+version = "1.28.6"
+versiondate = "2024-07-12"
 gitinfo = sc.gitinfo(__file__)

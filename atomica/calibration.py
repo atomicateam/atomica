@@ -12,6 +12,7 @@ from .model import BadInitialization
 from .system import logger
 from .parameters import ParameterSet
 import logging
+import atomica
 
 __all__ = ["calibrate"]
 
@@ -33,7 +34,7 @@ def _update_parset(parset, y_factors, pars_to_adjust):
         pop_name = x[1]
 
         if par_name in parset.pars:
-            if pop_name == "all":
+            if pop_name.lower() == "all":
                 par = parset.pars[par_name]
                 par.meta_y_factor = y_factors[i]
             else:
@@ -65,14 +66,22 @@ def _calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, p
             continue
         if not target.has_time_data:  # Only use this output quantity if the user entered time-specific data
             continue
-        var = result.model.get_pop(pop_name).get_variable(var_label)
+
+        if pop_name.lower() == 'total':
+            var = atomica.PlotData(result, outputs=var_label, pops = 'total', project=project)
+        else:
+            var = result.model.get_pop(pop_name).get_variable(var_label)
+
         data_t, data_v = target.get_arrays()
 
         # Interpolate the model outputs onto the data times
         # If there is data outside the range when the model was simulated, don't
         # extrapolate the model outputs
         y = data_v
-        y2 = np.interp(data_t, var[0].t, var[0].vals, left=np.nan, right=np.nan)
+        if pop_name.lower() == 'total':
+            y2 = np.interp(data_t, var.series[0].tvec, var.series[0].vals, left=np.nan, right=np.nan)
+        else:
+            y2 = np.interp(data_t, var[0].t, var[0].vals, left=np.nan, right=np.nan)
 
         idx = ~np.isnan(y) & ~np.isnan(y2)
         objective += weight * sum(_calculate_fitscore(y[idx], y2[idx], metric))
@@ -127,7 +136,12 @@ def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, 
                            as the ``pop_name``. For example, to automatically calibrate an aging transfer 'age' from 5-14
                            to 15-64, the tuple would contain ``pars_to_adjust=[('age_from_5-14','15-64',...)]``
     :param output_quantities: list of tuples, (var_label,pop_name,weight,metric), for use in the objective
-                              function. pop_name=None will expand to all pops. pop_name='all' is not supported
+                              function. pop_name=None will expand to all pops. pop_name='all' is not supported. In some cases,
+                              it may be desirable to fit to an aggregated total value across populations. In such cases, the
+                              databook should have an extra row in the TDVE table for a population called "Total". The measurable
+                              can then be given pop_name="Total" which will cause the Atomica model outputs to be aggregated over
+                              all populations, and the aggregate value compared to the "Total" data. The aggregation methods will
+                              be automatically selected depending on units of the quantity (sum for "number" units, average for others).
     :param max_time: If using ASD, the maximum run time
     :param method: 'asd' or 'pso'. If using 'pso' all upper and lower limits must be finite
     :param kwargs: Dictionary of additional arguments to be passed to the optimization function, e.g. stepsize or pinitial
@@ -171,7 +185,7 @@ def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, 
         par_name, pop_name, scale_min, scale_max = x
         if par_name in parset.pars:
             par = parset.pars[par_name]
-            if pop_name == "all":
+            if pop_name.lower() == "all":
                 x0.append(par.meta_y_factor)
             else:
                 x0.append(par.y_factor[pop_name])
@@ -236,7 +250,7 @@ def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, 
         if par_name in parset.pars:
             par = args["parset"].pars[par_name]
 
-            if pop_name == "all":
+            if pop_name.lower() == "all":
                 logger.debug("parset.get_par('{}').meta_y_factor={:.2f}".format(par_name, par.meta_y_factor))
             else:
                 logger.debug("parset.get_par('{}').y_factor['{}']={:.2f}".format(par_name, pop_name, par.y_factor[pop_name]))

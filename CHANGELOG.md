@@ -2,6 +2,11 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.28.6] - 2023-07-12
+
+- Support entering `'total'` as the population name in auto-calibration measurables to calibrate aggregated values across populations in the model to aggregate values entered in the databook under a 'Total' population
+
+
 ## [1.28.5] - 2023-06-28
 
 - Enable automated calibration of transfers and updated documentation to cover this feature
