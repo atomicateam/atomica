@@ -587,7 +587,7 @@ class TimeSeries:
         interpolator = method(t1, v1, **kwargs)
         return interpolator(t2)
 
-    def sample(self, constant=True):
+    def sample(self, constant: bool = True, rng_sampler=None):
         """
         Return a sampled copy of the TimeSeries
 
@@ -596,6 +596,8 @@ class TimeSeries:
 
         :param constant: If True, time series will be perturbed by a single constant offset. If False,
                          an different perturbation will be applied to each time specific value independently.
+        :param rng_sampler: Optional random number generator that may have been seeded to generate consistent results
+
         :return: A copied ``TimeSeries`` with perturbed values
 
         """
@@ -603,9 +605,12 @@ class TimeSeries:
         if self._sampled:
             raise Exception("Sampling has already been performed - can only sample once")
 
+        if rng_sampler is None:
+            rng_sampler = np.random  #
+
         new = self.copy()
         if self.sigma is not None:
-            delta = self.sigma * np.random.randn(1)[0]
+            delta = self.sigma * rng_sampler.standard_normal(1)[0]
             if self.assumption is not None:
                 new.assumption += delta
 
@@ -614,7 +619,7 @@ class TimeSeries:
                 new.vals = [v + delta for v in new.vals]
             else:
                 # Sample again for each data point
-                for i, (v, delta) in enumerate(zip(new.vals, self.sigma * np.random.randn(len(new.vals)))):
+                for i, (v, delta) in enumerate(zip(new.vals, self.sigma * rng_sampler.standard_normal(len(new.vals)))):
                     new.vals[i] = v + delta
 
         # Sampling flag only needs to be set if the TimeSeries had data to change
@@ -841,7 +846,10 @@ def parallel_progress(fcn, inputs, num_workers=None, show_progress=True) -> list
             jobs.append(pool.apply_async(fcn, callback=partial(callback, idx=i)))
     else:
         for i, x in enumerate(inputs):
-            jobs.append(pool.apply_async(fcn, args=(x,), callback=partial(callback, idx=i)))
+            if isinstance(x, dict):
+                pool.apply_async(fcn, args=(), kwds=x, callback=partial(callback, idx=i))  # if the list of inputs is given as a dictionary then pass as kwargs (kwds) instead
+            else:
+                pool.apply_async(fcn, args=(x,), callback=partial(callback, idx=i))
 
     pool.close()
     pool.join()
@@ -982,3 +990,17 @@ def stop_logging() -> None:
             logger.removeHandler(handler)
             # Don't terminate the loop, if by some change there is more than one handler
             # (not supposed to happen though) then we would want to close them all
+
+
+def stochastic_rounding(x, rng_sampler=None):
+    """
+    Stochastically round a float up or down to an integer-equivalent value (note: returns still as a float)
+    :param x: value to be rounded
+    """
+    sample = np.random.random() if rng_sampler is None else rng_sampler.random()
+
+    floor = np.floor(x)
+    remainder = x - floor
+    if remainder:
+        x = floor + int(sample < remainder)
+    return x
