@@ -265,11 +265,12 @@ def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, 
                 }
                 optim_args.update(kwargs)
 
-                log_level = logger.getEffectiveLevel()
-                if log_level < logging.WARNING:
-                    optim_args["verbose"] = 2
-                else:
-                    optim_args["verbose"] = 0
+                if 'verbose' not in optim_args:
+                    log_level = logger.getEffectiveLevel()
+                    if log_level < logging.WARNING:
+                        optim_args["verbose"] = 2
+                    else:
+                        optim_args["verbose"] = 0
 
                 opt_result = sc.asd(_calculate_objective, x0, args, **optim_args)
                 x1 = opt_result["x"]
