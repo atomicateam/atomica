@@ -324,10 +324,10 @@ class CalibrationNode(BaseNode):
         step_name = self.name
         attributes = self.attributes
 
-        at.logger.info(f'Calibrating adjustable(s) {[adj[0] for adj in attributes["adjustables"]]} to match measurable(s) {[mea[0] for mea in attributes["measurables"]]}...')
+        at.logger.info(f'Calibrating adjustable(s) {set([adj[0] for adj in attributes["adjustables"]])} to match measurable(s) {set([mea[0] for mea in attributes["measurables"]])}...')
 
         # Expand adjustables
-        adjustables = []
+        adjustables = {}
         par_names = {x[0] for x in attributes['adjustables']}.intersection(x.name for x in parset.all_pars())
         pop_names = {x[1] for x in attributes['adjustables']}.intersection({*parset.pop_names} | {'all', None})
 
@@ -346,8 +346,13 @@ class CalibrationNode(BaseNode):
                 pops = sc.promotetolist(pop_name)
 
             for pop in pops:
-                d = sc.mergedicts(self.adj_defaults, attributes['adjustables'].get((par_name, None), None), attributes['adjustables'].get((par_name, pop), None))
-                adjustables.append((par_name, pop, d['lower_bound'], d['upper_bound'], d['initial_value']))
+                d = sc.mergedicts(self.adj_defaults,  attributes['adjustables'].get((par_name, None), None),  attributes['adjustables'].get((par_name, pop), None))
+                adjustables[(par_name, pop)] = (d['lower_bound'], d['upper_bound'], d['initial_value'])
+        # for par_name in attributes['adjustables'].copy():
+        #     # if attributes['adjustables'].get((par_name, None)) is not None:
+        #     attributes['adjustables'].pop((par_name, None), None)
+        adjustables = [(*k, *v) for k,v in adjustables.items()]
+
 
         # Expand measurables
         measurables = []
