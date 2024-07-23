@@ -91,8 +91,8 @@ def run(node, project, parset, savedir=None, save_intermediate=False, log_output
 
             if save_intermediate and not isinstance(node, SaveCalibrationNode):
                 output = savedir / f'intermediate_calibration_{n:0{len(str(n_steps))}}_{node.name.replace(" ", "_")}'
+                at.logger.info(f'Saving intermediate calibration...')
                 parset.save_calibration(output)
-                at.logger.info(f'Saved intermediate calibration to {output}')
 
     t = time.process_time()
     at.logger.info(f'\nCalibration completed. Total time elapsed: {round(t, 2)} seconds ({round(t/60, 2)} minutes)')
