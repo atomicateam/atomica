@@ -260,7 +260,8 @@ def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, 
                     "abstol": 1e-6,
                     "xmin": xmin,
                     "xmax": xmax,
-                    "maxtime": 60 if max_time is None else max_time
+                    "maxtime": 60 if max_time is None else max_time,
+                    "minval": 0,
                 }
                 optim_args.update(kwargs)
 
