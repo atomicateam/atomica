@@ -355,7 +355,7 @@ class CalibrationNode(BaseNode):
 
 
         # Expand measurables
-        measurables = []
+        measurables = {}
         par_names = {x[0] for x in attributes['measurables']}.intersection(x.name for x in parset.all_pars())  # TODO: This is probably OK for now but will need to support transfer parameters and validate that pars have databook entries in the future
         pop_names = {x[1] for x in attributes['measurables']}.intersection({*parset.pop_names} | {None})
 
@@ -374,8 +374,12 @@ class CalibrationNode(BaseNode):
                 pops = sc.promotetolist(pop_name)
 
             for pop in pops:
-                d = sc.mergedicts(self.meas_defaults, attributes['measurables'].get((par_name, None), None), attributes['measurables'].get((par_name, pop), None))
-                measurables.append((par_name, pop, d['weight'], d['metric'], d['start_year'], d['end_year']))
+                d = sc.mergedicts(self.meas_defaults,  attributes['measurables'].get((par_name, None), None), attributes['measurables'].get((par_name, pop), None))
+                measurables[(par_name, pop)] = (d['weight'], d['metric'], d['start_year'], d['end_year'])
+        # for par_name in attributes['adjustables'].copy():
+        #     # if attributes['adjustables'].get((par_name, None)) is not None:
+        #     attributes['adjustables'].pop((par_name, None), None)
+        measurables = [(*k, *v) for k,v in measurables.items()]
 
         # Calibration
         if len(adjustables):
