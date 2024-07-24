@@ -45,7 +45,7 @@ def build(instructions=None, context=None, name='calibration'):
     elif name in named_nodes:
         return named_nodes[name](instructions, context, name)
     else:
-        return Section(instructions, context, name)
+        return SectionNode(instructions, context, name)
 
 def run(node, project, parset, savedir=None, save_intermediate=False, log_output:bool=False,*args, **kwargs):
     """
@@ -72,7 +72,7 @@ def run(node, project, parset, savedir=None, save_intermediate=False, log_output
         savedir = Path(savedir)
 
     nodes = list(node.walk()) # Make a flat list of all nodes to execute in order
-    n_steps = len([x for x in nodes if not isinstance(x[1], Section)])
+    n_steps = len([x for x in nodes if not isinstance(x[1], SectionNode)])
     n = 1
 
     if log_output:
@@ -82,7 +82,7 @@ def run(node, project, parset, savedir=None, save_intermediate=False, log_output
 
     for n_reps, node in nodes:
 
-        if isinstance(node, Section):
+        if isinstance(node, SectionNode):
             at.logger.info(f'\nSection "{node.name}" (repeat {n_reps} of {node.repeats})')
         else:
             at.logger.info(f'\nStep {n} of {n_steps}: "{node.name}" (repeat {n_reps} of {node.repeats})')
@@ -192,7 +192,7 @@ class BaseNode:
         """
         return parset
 
-class Section(BaseNode):
+class SectionNode(BaseNode):
     """
     A section node is a special kind of node, that contains other nodes
     """
@@ -250,21 +250,25 @@ class CalibrationNode(BaseNode):
         """
 
         def process_key(s):
-            # Sanitize key name with optional space separating pop name
+            """
+            Sanitize key name with optional space separating pop name
+            """
             if ' ' in s:
                 return tuple([x.replace('~', ' ') for x in s.split(' ') if x])
             else:
                 return (s.strip().replace('~', ' '), None)
 
         def process_inputs(inputs, defaults):
-            # Process adjustables and measurables, which can be specified in a list representation or nested dict representation
-            # In list representation, the input is a list of lists, where the first item in each list is the quantity (with optional population) and
-            # the remaining items are the supported arguments for the input type, in the order defined by the defaults dictionary.
-            # In a dict representation, the key is the quantity with optional population, and then the value can either be a list (in the order defined by the dictionary)
-            # or a dictionary explicitly naming the inputs.
-            # This function returns a flat dictionary with {(quantity, pop_name):{argument:value}} e.g., {('b_rate','0-5'):{'lower_bound':0.5}}.
-            # In the dict representation, the key can be a comma separated list of quantities with optional values e.g., 'b_rate 0-5, d_rate'. In the list representation,
-            # multiple quantities are not supported (as a comma is already used to separate the arguments)
+            """
+            Process adjustables and measurables, which can be specified in a list representation or nested dict representation
+            In list representation, the input is a list of lists, where the first item in each list is the quantity (with optional population) and
+            the remaining items are the supported arguments for the input type, in the order defined by the defaults dictionary.
+            In a dict representation, the key is the quantity with optional population, and then the value can either be a list (in the order defined by the dictionary)
+            or a dictionary explicitly naming the inputs.
+            This function returns a flat dictionary with {(quantity, pop_name):{argument:value}} e.g., {('b_rate','0-5'):{'lower_bound':0.5}}.
+            In the dict representation, the key can be a comma separated list of quantities with optional values e.g., 'b_rate 0-5, d_rate'. In the list representation,
+            multiple quantities are not supported (as a comma is already used to separate the arguments), but multiple lists (one for each quantity) can be provided.
+            """
             out = {}
 
             if sc.isstring(inputs):
@@ -293,12 +297,12 @@ class CalibrationNode(BaseNode):
         self['adjustables'] = process_inputs(self['adjustables'], self.adj_defaults)
         self['measurables'] = process_inputs(self['measurables'], self.meas_defaults)
 
-        # Validate adjustables
         def check_optional_number(key, v, defaults):
             if key in v and v[key] is not None:
                 if not sc.isnumber(v[key], isnan=False):
                     raise TypeError(f"Adjustable argument '{key}' needs to be a number or None (defaults to {defaults[key]}). Provided value: {v[key]} ")
 
+        # Validate adjustables
         assert len(self['adjustables']) > 0, f'Cannot calibrate with no adjustables for calibration section {self.name}'
         for (quantity, pop_name), v in self['adjustables'].items():
             assert 'pop_name' not in v, f'Setting the population name through "pop_name: {v["pop_name"]}" is not supported. Instead, the name of the adjustable quantity should include the population name ("{quantity} {v["pop_name"]}")'
@@ -324,7 +328,7 @@ class CalibrationNode(BaseNode):
         step_name = self.name
         attributes = self.attributes
 
-        at.logger.info(f'Calibrating adjustable(s) {set([adj[0] for adj in attributes["adjustables"]])} to match measurable(s) {set([mea[0] for mea in attributes["measurables"]])}...')
+        at.logger.info(f"Calibrating adjustable(s) {set([adj[0] for adj in attributes['adjustables']])} to match measurable(s) {set([mea[0] for mea in attributes['measurables']])}...")
 
         # Expand adjustables
         adjustables = {}
@@ -348,9 +352,6 @@ class CalibrationNode(BaseNode):
             for pop in pops:
                 d = sc.mergedicts(self.adj_defaults,  attributes['adjustables'].get((par_name, None), None),  attributes['adjustables'].get((par_name, pop), None))
                 adjustables[(par_name, pop)] = (d['lower_bound'], d['upper_bound'], d['initial_value'])
-        # for par_name in attributes['adjustables'].copy():
-        #     # if attributes['adjustables'].get((par_name, None)) is not None:
-        #     attributes['adjustables'].pop((par_name, None), None)
         adjustables = [(*k, *v) for k,v in adjustables.items()]
 
 
@@ -376,9 +377,6 @@ class CalibrationNode(BaseNode):
             for pop in pops:
                 d = sc.mergedicts(self.meas_defaults,  attributes['measurables'].get((par_name, None), None), attributes['measurables'].get((par_name, pop), None))
                 measurables[(par_name, pop)] = (d['weight'], d['metric'], d['start_year'], d['end_year'])
-        # for par_name in attributes['adjustables'].copy():
-        #     # if attributes['adjustables'].get((par_name, None)) is not None:
-        #     attributes['adjustables'].pop((par_name, None), None)
         measurables = [(*k, *v) for k,v in measurables.items()]
 
         # Calibration
