@@ -334,7 +334,7 @@ class CalibrationNode(BaseNode):
         for par_name, pop_name in attributes['adjustables']:
 
             if par_name not in par_names:
-                at.logger.warning(f"Extra YAML adjustable parameter '{par_name}' does not exist in this project's framework and will be ignored")
+                at.logger.warning(f"Extra YAML adjustable parameter '{par_name}' does not exist in this project's framework/parset and will be ignored")
                 continue
             elif pop_name not in pop_names:
                 at.logger.warning(f"Extra YAML adjustable population '{pop_name}' does not exist in this project's databook and will be ignored")
