@@ -213,15 +213,7 @@ def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, 
     for i, x in enumerate(pars_to_adjust):
         par_name, pop_name, scale_min, scale_max, initial_value = x
 
-        if par_name in parset.pars:
-            par = parset.pars[par_name]
-            if pop_name.lower() == "all":
-                x0.append(par.meta_y_factor)
-            else:
-                x0.append(par.y_factor[pop_name])
-        else:
-            tokens = par_name.split("_from_")
-            par = parset.transfers[tokens[0]][tokens[1]]
+        par = parset.get_par(par_name)
 
         #if initial_value has not been explicitly set in the tuple: use y_factor in parset
         if initial_value is None:
