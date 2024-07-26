@@ -413,7 +413,9 @@ class ProjectData(sc.prettyobj):
                                 ts.units = tdve.allowed_units[0]
 
                     if not spec["databook page"]:
-                        logger.warning('A TDVE table for "%s" (%s) was read in and will be used, but the Framework did not mark this quantity as appearing in the databook', tdve.name, code_name)
+                        # Note that if the parameter doesn't have a databook page and the framework is valid, then the parameter must have a function. Therefore,
+                        # if data is also read in, it will not change the simulation outputs and would only be used for calibration/validation
+                        logger.warning('A TDVE table for "%s" (%s) was read in and data will be available for calibration, but the Framework did not mark this quantity as appearing in the databook', tdve.name, code_name)
                     tdve.comment = spec["guidance"]
 
                     if code_name in self.tdve:
