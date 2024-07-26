@@ -20,30 +20,23 @@ calibration_settings = dict()
 calibration_settings["tolerance"] = 1e-6
 
 
-def _update_parset(parset, y_factors, pars_to_adjust):
-    # Insert updated y-values into the parset
-    # - parset : a ParameterSet object
-    # - y_factors : Array with as many elements as pars_to_adjust
-    # - pars_to_adjust : Array of tuples (par_name,pop_name,...) with special value pop='all' supported to set meta factor
-    #                    Must have as many elements as y_factors. pop=None is not allowed - it must be converted
-    #                    to a full list of pops previously (in perform_autofit)
+def _update_parset(parset, y_factors, pars_to_adjust) -> None:
+    """
 
-    for i, x in enumerate(pars_to_adjust):
-        par_name = x[0]
-        pop_name = x[1]
+    :param parset: a ParameterSet object
+    :param y_factors: Array with as many elements as pars_to_adjust
+    :param pars_to_adjust: Array of tuples (par_name,pop_name,...) with special value pop='all' supported to set meta factor
+                           Must have as many elements as y_factors. pop=None is not allowed - it must be converted
+                           to a full list of pops previously (in perform_autofit)
+    :return: None (parset is modified in-place)
+    """
 
-        if par_name in parset.pars:
-            if pop_name == "all":
-                par = parset.pars[par_name]
-                par.meta_y_factor = y_factors[i]
-            else:
-                parset.pars[par_name].y_factor[pop_name] = y_factors[i]
+    for i, (par_name, pop_name, *_) in enumerate(pars_to_adjust):
+        par = parset.get_par(par_name)
+        if pop_name == "all":
+            par.meta_y_factor = y_factors[i]
         else:
-            # Handle transfers here
-            tokens = par_name.split("_from_")
-            par = parset.transfers[tokens[0]][tokens[1]]
             par.y_factor[pop_name] = y_factors[i]
-
 
 def _calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, project, *args, **kwargs) -> float:
     """
