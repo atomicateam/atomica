@@ -12,6 +12,7 @@ from .model import BadInitialization
 from .system import logger
 from .parameters import ParameterSet
 import logging
+import atomica
 
 __all__ = ["calibrate"]
 
@@ -33,7 +34,7 @@ def _update_parset(parset, y_factors, pars_to_adjust) -> None:
 
     for i, (par_name, pop_name, *_) in enumerate(pars_to_adjust):
         par = parset.get_par(par_name)
-        if pop_name == "all":
+        if pop_name.lower() == "all":
             par.meta_y_factor = y_factors[i]
         else:
             par.y_factor[pop_name] = y_factors[i]
@@ -68,7 +69,12 @@ def _calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, p
             continue
         if not target.has_time_data:  # Only use this output quantity if the user entered time-specific data
             continue
-        var = result.model.get_pop(pop_name).get_variable(var_label)
+
+        if pop_name.lower() == 'total':
+            var = atomica.PlotData(result, outputs=var_label, pops = 'total', project=project)
+        else:
+            var = result.model.get_pop(pop_name).get_variable(var_label)
+
         data_t, data_v = target.get_arrays()
         inds = (data_t >= start_year) & (data_t <= end_year)
         if np.count_nonzero(inds) == 0:
@@ -82,7 +88,10 @@ def _calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, p
         # If there is data outside the range when the model was simulated, don't
         # extrapolate the model outputs
         y = data_v
-        y2 = np.interp(data_t, var[0].t, var[0].vals, left=np.nan, right=np.nan)
+        if pop_name.lower() == 'total':
+            y2 = np.interp(data_t, var.series[0].tvec, var.series[0].vals, left=np.nan, right=np.nan)
+        else:
+            y2 = np.interp(data_t, var[0].t, var[0].vals, left=np.nan, right=np.nan)
 
         idx = ~np.isnan(y) & ~np.isnan(y2)
         objective += weight * sum(_calculate_fitscore(y[idx], y2[idx], metric))
@@ -132,12 +141,20 @@ def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, 
     :param pars_to_adjust: list of tuples, `(par_name, pop_name, lower_bound, upper_bound, initial_value)`
                            the pop name can be None, which will be expanded to all populations
                            relevant to the parameter independently, or 'all' which will instead operate
-                           on the meta y factor.
+                           on the meta y factor. To calibrate a transfer, the parameter name should be set to
+                           ``'<tranfer_code_name>_from_<from_pop>'`` and then the destination population can be specified
+                           as the ``pop_name``. For example, to automatically calibrate an aging transfer 'age' from 5-14
+                           to 15-64, the tuple would contain ``pars_to_adjust=[('age_from_5-14','15-64',...)]``
     :param output_quantities: list of tuples, (var_label,pop_name,weight,metric), for use in the objective
                               function. pop_name=None will expand to all pops. pop_name='all' is not supported. The
                               output can optionally contain `(var_label, pop_name, weight, metric, start_year, end_year)`
                               to select a subset of the data for evaluating the objective. The start year and end year
-                              specified here will take precedence over the time_period argument
+                              specified here will take precedence over the time_period argument. In some cases, it may be desirable
+                              to fit to an aggregated total value across populations. In that case, the databook should have
+                              an extra row in the TDVE table for a population called "Total". The measurable
+                              can then be given pop_name="Total" which will cause the Atomica model outputs to be aggregated over
+                              all populations, and the aggregate value compared to the "Total" data. The aggregation methods will
+                              be automatically selected depending on units of the quantity (sum for "number" units, average for others).
     :param max_time: If using ASD, the maximum run time
     :param time_period: Tuple of start and end years to use for the objective function. Applies to all outputs unless
                         the output has an explicitly specified start and end year
@@ -198,6 +215,10 @@ def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, 
 
         if par_name in parset.pars:
             par = parset.pars[par_name]
+            if pop_name.lower() == "all":
+                x0.append(par.meta_y_factor)
+            else:
+                x0.append(par.y_factor[pop_name])
         else:
             tokens = par_name.split("_from_")
             par = parset.transfers[tokens[0]][tokens[1]]
@@ -294,7 +315,7 @@ def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, 
         if par_name in parset.pars:
             par = args["parset"].pars[par_name]
 
-            if pop_name == "all":
+            if pop_name.lower() == "all":
                 logger.debug("parset.get_par('{}').meta_y_factor={:.2f}".format(par_name, par.meta_y_factor))
             else:
                 logger.debug("parset.get_par('{}').y_factor['{}']={:.2f}".format(par_name, pop_name, par.y_factor[pop_name]))

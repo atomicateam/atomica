@@ -21,8 +21,13 @@ CLASSIFIERS = [
     "Operating System :: OS Independent",
     "Programming Language :: Python",
     "Topic :: Software Development :: Libraries :: Python Modules",
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
 ]
 
 setup(
@@ -41,8 +46,8 @@ setup(
     include_package_data=True,
     install_requires=[
         "matplotlib",
-        "numpy>=1.10.1",
-        "scipy>=1.2.1",
+        "numpy>=1.10.1,<2",
+        "scipy>=1.6",
         "pandas",
         "xlsxwriter",
         "openpyxl",
