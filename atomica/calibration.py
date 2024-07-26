@@ -43,7 +43,6 @@ def _update_parset(parset, y_factors, pars_to_adjust):
             tokens = par_name.split("_from_")
             par = parset.transfers[tokens[0]][tokens[1]]
             par.y_factor[pop_name] = y_factors[i]
-            raise NotImplementedError
 
 
 def _calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, project, *args, **kwargs) -> float:
@@ -311,7 +310,6 @@ def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, 
             tokens = par_name.split("_from_")
             par = args["parset"].transfers[tokens[0]][tokens[1]]
             logger.debug("parset.transfers['{}']['{}'].y_factor['{}']={:.2f}".format(tokens[0], tokens[1], pop_name, par.y_factor[pop_name]))
-            raise NotImplementedError  # Transfers might be handled differently in Atomica
 
     args["parset"].name = "calibrated_" + args["parset"].name
 
