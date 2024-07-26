@@ -405,12 +405,13 @@ class CalibrationNode(BaseNode):
         made_changes = False
 
         for par, pop, *_ in adjustables:
-            if pop == 'all':
-                old = parset.pars[par].meta_y_factor
-                new = new_cal_parset.pars[par].meta_y_factor
+
+            if pop == "all":
+                old = parset.get_par(par).meta_y_factor
+                new = new_cal_parset.get_par(par).meta_y_factor
             else:
-                old = parset.pars[par].y_factor[pop]
-                new = new_cal_parset.pars[par].y_factor[pop]
+                old = parset.get_par(par).y_factor[pop]
+                new = new_cal_parset.get_par(par).y_factor[pop]
 
             if new != old:
                 at.logger.info(f'...adjusted the y-factor for {par} in {pop} from {old} to {new}')
