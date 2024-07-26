@@ -365,8 +365,9 @@ class CalibrationNode(BaseNode):
                 at.logger.warning(f"Extra YAML measurable variable '{par_name}' does not exist in this project's framework and will be ignored")
                 continue
             elif pop_name not in pop_names:
-                at.logger.warning(f"Extra YAML measurable population '{pop_name}' does not exist in this project's databook and will be ignored")
-                continue
+                if pop_name not in project.data.tdve[par_name].ts.keys():
+                    at.logger.warning(f"Extra YAML measurable population '{pop_name}' does not exist in this project's databook and will be ignored")
+                    continue
 
             if pop_name is None:
                 pops = parset.pop_names
