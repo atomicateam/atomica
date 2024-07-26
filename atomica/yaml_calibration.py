@@ -348,9 +348,7 @@ class CalibrationNode(BaseNode):
             for pop in pops:
                 d = sc.mergedicts(self.adj_defaults,  attributes['adjustables'].get((par_name, None), None),  attributes['adjustables'].get((par_name, pop), None))
                 adjustables[(par_name, pop)] = (d['lower_bound'], d['upper_bound'], d['initial_value'])
-        # for par_name in attributes['adjustables'].copy():
-        #     # if attributes['adjustables'].get((par_name, None)) is not None:
-        #     attributes['adjustables'].pop((par_name, None), None)
+
         adjustables = [(*k, *v) for k,v in adjustables.items()]
 
 
@@ -377,9 +375,7 @@ class CalibrationNode(BaseNode):
             for pop in pops:
                 d = sc.mergedicts(self.meas_defaults,  attributes['measurables'].get((par_name, None), None), attributes['measurables'].get((par_name, pop), None))
                 measurables[(par_name, pop)] = (d['weight'], d['metric'], d['start_year'], d['end_year'])
-        # for par_name in attributes['adjustables'].copy():
-        #     # if attributes['adjustables'].get((par_name, None)) is not None:
-        #     attributes['adjustables'].pop((par_name, None), None)
+
         measurables = [(*k, *v) for k,v in measurables.items()]
 
         # Calibration
