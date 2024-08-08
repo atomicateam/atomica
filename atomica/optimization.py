@@ -1364,19 +1364,26 @@ def _objective_fcn(x, pickled_model, optimization, hard_constraints: list, basel
     return obj_val
 
 
-def _calc_skippable_year(optimization):
-    skip_start_year = False
-
+def _calc_skippable_year(optimization, framework):
     allowed_adjustments = (SpendingAdjustment, )
     allowed_measurables = (MinimizeMeasurable, MaximizeMeasurable, AtMostMeasurable, AtLeastMeasurable, IncreaseByMeasurable, DecreaseByMeasurable, MaximizeCascadeStage, MaximizeCascadeConversionRate)
     # type not isinstance because subclasses might have different behaviour
-    if all(type(adjustment) in allowed_adjustments for adjustment in optimization.adjustments) and all(type(measurable) in allowed_measurables for measurable in optimization.measurables):
-        skip_start_year_adj  = min(min(sc.promotetoarray(spending_adjustment.t)) for spending_adjustment in optimization.adjustments)
-        skip_start_year_meas = min(min(sc.promotetoarray(measurable.t))          for measurable in optimization.measurables)
-        skip_start_year = min((skip_start_year_adj, skip_start_year_meas))
+    if any(type(adjustment) not in allowed_adjustments for adjustment in optimization.adjustments):
+        print(f'Could not skip start because we have unknown adjustments: {[adjustment.name for adjustment in optimization.adjustments if type(adjustment) not in allowed_adjustments]}')
+        return False
+    if any(type(measurable) not in allowed_measurables for measurable in optimization.measurables):
+        print(f'Could not skip start because we have non-default measurables: {[measurable.measurable_name for measurable in optimization.measurables if type(measurable) not in allowed_measurables]}')
+        return False
+    if any(framework.pars.at[par_name, "is derivative"] == "y" for par_name in list(framework.pars.index)):
+        print('Could not skip start because we have derivative pars:', [par_name for par_name in list(framework.pars.index) if framework.pars.at[par_name, "is derivative"] == "y"])
+        return False
 
-        if not np.isfinite(skip_start_year):
-            skip_start_year = False
+    skip_start_year_adj  = min(min(sc.promotetoarray(spending_adjustment.t)) for spending_adjustment in optimization.adjustments)
+    skip_start_year_meas = min(min(sc.promotetoarray(measurable.t))          for measurable in optimization.measurables)
+    skip_start_year = min(skip_start_year_adj, skip_start_year_meas)
+
+    if not np.isfinite(skip_start_year):
+        skip_start_year = False
 
     return skip_start_year
 
@@ -1385,16 +1392,17 @@ def _make_skip_model(optimization, project, parset, progset, instructions, skip_
     if skip_start == False:
         return None
 
-    possible_skip_year = _calc_skippable_year(optimization)
+    possible_skip_year = _calc_skippable_year(optimization, project.framework)
 
-    if skip_start is None:
-        if not possible_skip_year:
-            return None
-        skip_start = possible_skip_year
-
-    if type(skip_start) == bool: # skip_start == True
+    if type(skip_start) == bool: # skip_start == True, because checked False above
         if not possible_skip_year:
             raise Exception('skip_start == True, but do not know which year it is possible to skip until, please set skip_start = year you want to skip to')
+        skip_start = possible_skip_year
+
+    if skip_start is None and not possible_skip_year:  # We wanted to skip if possible but it is not known to be possible
+        return None
+
+    if skip_start is None: # We have a valid possible_skip_year to fill in to skip_start
         skip_start = possible_skip_year
 
     # skip_start is now a float or int hopefully
