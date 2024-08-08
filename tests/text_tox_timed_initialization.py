@@ -71,5 +71,52 @@ def test_timed_initialization():
     d = at.PlotData([res1, res2, res3, res4], ["sus", "inf", "rec"])
     at.plot_series(d)
 
+def test_halfway_run():
+    P = at.demo("tb", do_run=False)
+
+    start, middle, end = P.settings.sim_start, 2019.0, 2030.0
+    prog_start = 2018
+    dt = P.settings.sim_dt
+
+    P.settings.update_time_vector(start=start, end=end, dt=dt)
+    middle_ind = sc.findlast(P.settings.tvec, middle)
+
+    parset1 = P.parset()
+    progset = P.progset()
+
+    # res = P.run_sim(parset=parset1, progset=progset)
+    # parset1.set_initialization(res, year=middle)
+    # parset1 now setup to test
+
+    instructions = at.ProgramInstructions(start_year=prog_start, alloc=progset)
+    kwargs = dict(parset=parset1, progset=progset, progset_instructions=instructions)
+
+    res_orig = P.run_sim(**kwargs)
+
+    parset1.set_initialization(res_orig, year=middle)
+    P.settings.update_time_vector(start=middle, end=end, dt=dt)
+
+    res_half = P.run_sim(**kwargs)
+
+    all_equal = True
+
+    for pop in parset1.pop_names:
+        comps = res_orig.comp_names(pop)
+        characs = res_orig.charac_names(pop)
+        pars = res_orig.par_names(pop)
+
+        equal = {out: all(res_orig.get_variable(out, pop)[0].vals[middle_ind:] == res_half.get_variable(out, pop)[0].vals)
+                 for out in comps + characs + pars}
+
+        # print([(out, sum(res_half.get_variable(out, pop)[0].vals)) for out in comps + characs + pars])
+
+        all_equal = all_equal and all(equal.values())
+        if not all_equal:
+            raise Exception(f'Project "{P.name}" pop "{pop}" start, middle, end, dt: {start, middle, end, dt}, equal: {equal}')
+
+    print(f'Project: {P.name}: Success running from halfway through!')
+
+
 if __name__ == '__main__':
     test_timed_initialization()
+    test_halfway_run()

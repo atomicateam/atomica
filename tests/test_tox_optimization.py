@@ -7,6 +7,7 @@ import numpy as np
 import sciris as sc
 import atomica as at
 import logging
+import pickle
 
 logger = logging.getLogger()
 
@@ -670,6 +671,38 @@ def test_package_all_fixed():
     # assert np.isclose(optimized_result.model.program_instructions.alloc["Treatment 1"].get(2020), 10)
 
 
+## Test that skipping until the first adjustable or measurable gives the exact same solution as when we don't skip
+def test_skip_start():
+    seed = 1
+
+    measures = ['dx', 'tx', 'sus']
+
+    for test in ['hypertension']: # at.demos.options:
+        P = at.demo(which=test, do_run=False)
+        P.update_settings(sim_end=2030.0)
+
+        instructions = at.ProgramInstructions(alloc=P.progset(), start_year=2020)  # Instructions for default spending
+
+        adjustments = list()
+        for prog in P.progset().programs.keys():
+            adjustments.append(at.SpendingAdjustment(prog, 2020, "rel", 0.0, 2.0))
+
+        for measure in measures:
+            if measure in P.framework.comps.index: break
+        if measure not in P.framework.comps.index: raise Exception(f'Could not find a measurable for project {P.name} comps {measure} {P.framework.comps.index}')
+        measurables = at.MaximizeMeasurable(measure, [2019, np.inf])
+
+        constraints = at.TotalSpendConstraint()  # Cap total spending in all years
+
+        optimization = at.Optimization(name="default", adjustments=adjustments, measurables=measurables, constraints=constraints)  # Evaluate from 2020 to end of simulation
+
+        instructions_start = at.optimize(P, optimization, parset=P.parset(), progset=P.progset(), instructions=instructions, skip_start=False, optim_args={'randseed':seed})
+        instructions_skip  = at.optimize(P, optimization, parset=P.parset(), progset=P.progset(), instructions=instructions, skip_start=None, optim_args={'randseed':seed})
+
+        assert pickle.dumps(instructions_start) == pickle.dumps(instructions_skip), f'Optimization skipping part of the years did not work: {test}'
+        print(f'Correctly gave the same optimization when skipping through until the first measurable or adjustable: {test}\n')
+
+
 if __name__ == "__main__":
     test_standard()
     test_unresolvable()
@@ -690,3 +723,4 @@ if __name__ == "__main__":
     test_package_variable()
     test_package_fixed_prop()
     test_package_all_fixed()
+    test_skip_start()
