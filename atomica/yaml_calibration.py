@@ -10,7 +10,6 @@ import atomica as at
 import numpy as np
 import yaml
 import time
-from at_tools import get_sigfigs_necessary
 
 __all__ = ['build', 'run']
 
@@ -440,7 +439,7 @@ class CalibrationNode(BaseNode):
 
                 base_rms_error = base_rms_error ** 0.5
                 cal_rms_error = cal_rms_error ** 0.5
-                sf = get_sigfigs_necessary(base_rms_error, cal_rms_error)
+                sf = at.get_sigfigs_necessary(base_rms_error, cal_rms_error)
                 at.logger.info(f'...RMS error for parameter {par_name} has changed from baseline {sc.sigfig(base_rms_error, sf)} to calibrated {sc.sigfig(cal_rms_error, sf)}')
 
         return new_cal_parset
