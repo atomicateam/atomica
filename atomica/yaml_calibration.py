@@ -69,6 +69,7 @@ def run(node, project, parset, savedir=None, save_intermediate=False, log_output
         savedir = Path('.')
     else:
         savedir = Path(savedir)
+    savedir.mkdir(exist_ok=True, parents=True)
 
     nodes = list(node.walk()) # Make a flat list of all nodes to execute in order
     n_steps = len([x for x in nodes if not isinstance(x[1], Section)])
