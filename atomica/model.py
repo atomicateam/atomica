@@ -230,14 +230,14 @@ class Variable:
 class Compartment(Variable):
     """A class to wrap up data for one compartment within a cascade network."""
 
-    def __init__(self, pop, name, stochastic: bool = False, rng_sampler=None):
+    def __init__(self, pop, name, multinomial: bool = False, rng_sampler=None):
         Variable.__init__(self, pop=pop, id=(pop.name, name))
         self.units = "Number of people"
         self.outlinks = []
         self.inlinks = []
-        self.stochastic = stochastic
+        self.multinomial = multinomial
         self.rng_sampler = rng_sampler
-        if self.stochastic and rng_sampler is None:
+        if self.multinomial and rng_sampler is None:
             self.rng_sampler = np.random.default_rng()
         self._cached_outflow = None
 
@@ -360,7 +360,7 @@ class Compartment(Variable):
 
         self._cached_outflow = 0
 
-        if self.stochastic:
+        if self.multinomial:
             # for every person in the compartment, we now have probabilities for each possible outflow or staying as the remainder
             stays = max(0.0, 1.0 - outflow)
             rescaled_frac_flows = [rescale * link._cache for link in self.outlinks] + [stays]
@@ -414,7 +414,7 @@ class Compartment(Variable):
 
 
 class JunctionCompartment(Compartment):
-    def __init__(self, pop, name: str, duration_group: str = None, stochastic: bool = False, rng_sampler=None):
+    def __init__(self, pop, name: str, duration_group: str = None, multinomial: bool = False, rng_sampler=None):
         """
 
         A TimedCompartment has a duration group by virtue of having a `.parameter` attribute and a flush link.
@@ -433,7 +433,7 @@ class JunctionCompartment(Compartment):
         :param duration_group: Optionally specify a duration group
 
         """
-        super().__init__(pop, name, stochastic=stochastic, rng_sampler=rng_sampler)
+        super().__init__(pop, name, multinomial=multinomial, rng_sampler=rng_sampler)
         self.duration_group = duration_group  #: Store the name of the duration group, if the junction belongs to one
 
     def connect(self, dest, par) -> None:
@@ -535,7 +535,7 @@ class JunctionCompartment(Compartment):
         outflow_fractions /= total_outflow  # proportionately accounting for the total outflow downscaling
 
         # assign outflow stochastically to compartments based on the probabilities
-        if self.stochastic and net_inflow > 0.0:
+        if self.multinomial and net_inflow > 0.0:
             if self.duration_group:
                 raise Exception("Need to implement code here to make sure outflows from EACH part of the duration group are integers")
             else:
@@ -568,7 +568,7 @@ class JunctionCompartment(Compartment):
             outflow_fractions /= np.sum(outflow_fractions)
 
             # assign outflow stochastically to compartments based on the probabilities
-            if self.stochastic:
+            if self.multinomial:
                 outflow_fractions = self.rng_sampler.multinomial(self.vals[0], outflow_fractions, size=1)[0] / self.vals[0]
 
             # Assign the inflow directly to the outflow compartments
@@ -621,7 +621,7 @@ class ResidualJunctionCompartment(JunctionCompartment):
             outflow_fractions /= total_outflow
 
         # assign outflow stochastically to compartments based on the probabilities
-        if self.stochastic and net_inflow > 0.0:
+        if self.multinomial and net_inflow > 0.0:
             if np.abs(np.round(net_inflow) - net_inflow).sum() > 1e-3:
                 raise Exception(f"Net inflow should be an integer for a stochastic run, was: {net_inflow}")
 
@@ -638,7 +638,7 @@ class ResidualJunctionCompartment(JunctionCompartment):
 
         # Finally, assign the inflow to the outflow proportionately accounting for the total outflow downscaling
         for frac, link in zip(outflow_fractions, self.outlinks):
-            if link.parameter is None and total_outflow < 1 and not self.stochastic:  # If we are stochastic then we have already taken the residual link into account
+            if link.parameter is None and total_outflow < 1 and not self.multinomial:  # If we are stochastic then we have already taken the residual link into account
                 flow = net_inflow - np.sum(outflow, axis=1)  # Sum after multiplying by outflow fractions to reduce numerical precision errors and enforce conserved quantities more accurately
             else:
                 flow = net_inflow * frac
@@ -672,7 +672,7 @@ class ResidualJunctionCompartment(JunctionCompartment):
                 has_residual = False
 
             # assign outflow stochastically to compartments based on the probabilities
-            if self.stochastic and total_outflow > 0.0:
+            if self.multinomial and total_outflow > 0.0:
                 outflow_fractions = self.rng_sampler.multinomial(self.vals[0], outflow_fractions, size=1)[0] / (self.vals[0] * sum(outflow_fractions))
 
             # Assign the inflow directly to the outflow compartments
@@ -705,8 +705,8 @@ class SourceCompartment(Compartment):
 
     """
 
-    def __init__(self, pop, name, stochastic: bool = False, rng_sampler=None):
-        super().__init__(pop, name, stochastic=stochastic, rng_sampler=rng_sampler)
+    def __init__(self, pop, name, multinomial: bool = False, rng_sampler=None):
+        super().__init__(pop, name, multinomial=multinomial, rng_sampler=rng_sampler)
 
     def preallocate(self, tvec: np.array, dt: float) -> None:
         super().preallocate(tvec, dt)
@@ -715,7 +715,7 @@ class SourceCompartment(Compartment):
     def resolve_outflows(self, ti: int) -> None:
         # Unlike other Compartments, link._cache will still be in Number form and not converted to a proportion
         for link in self.outlinks:
-            if self.stochastic:
+            if self.multinomial:
                 link.vals[ti] = stochastic_rounding(link._cache, rng_sampler=self.rng_sampler)
             else:
                 link.vals[ti] = link._cache
@@ -725,8 +725,8 @@ class SourceCompartment(Compartment):
 
 
 class SinkCompartment(Compartment):
-    def __init__(self, pop, name, stochastic: bool = False, rng_sampler=None):
-        super().__init__(pop, name, stochastic=stochastic, rng_sampler=rng_sampler)
+    def __init__(self, pop, name, multinomial: bool = False, rng_sampler=None):
+        super().__init__(pop, name, multinomial=multinomial, rng_sampler=rng_sampler)
 
     def preallocate(self, tvec: np.array, dt: float) -> None:
         """
@@ -782,7 +782,7 @@ class SinkCompartment(Compartment):
 
 
 class TimedCompartment(Compartment):
-    def __init__(self, pop, name: str, parameter: ParsetParameter, stochastic: bool = False, rng_sampler=None):
+    def __init__(self, pop, name: str, parameter: ParsetParameter, multinomial: bool = False, rng_sampler=None):
         """
         Instantiate the TimedCompartment
 
@@ -795,7 +795,7 @@ class TimedCompartment(Compartment):
 
         """
 
-        Compartment.__init__(self, pop=pop, name=name, stochastic=stochastic, rng_sampler=rng_sampler)
+        Compartment.__init__(self, pop=pop, name=name, multinomial=multinomial, rng_sampler=rng_sampler)
         self._vals = None  #: Primary storage, a matrix of size (duration x timesteps). The first row is the one that people leave from, the last row is the one that people arrive in
         self.parameter = parameter  #: The parameter to read the duration from - this needs to be done after parameters are precomputed though, in case the duration is coming from a (constant) function
         self.flush_link = None  #: Reference to the timed outflow link that flushes the compartment. Note that this needs to be set externally because Links are instantiated after Compartments
@@ -900,7 +900,7 @@ class TimedCompartment(Compartment):
         """
 
         # TODO adjust for stochastic variables
-        assert self.stochastic == False, "resolve_outflows needs to be updated to work with stochastic transitions"
+        assert self.multinomial == False, "resolve_outflows needs to be updated to work with stochastic transitions"
 
         # First, work out the scale factors as usual
         self.flush_link._cache = 0.0  # At this stage, no outflow goes via the flush link
@@ -1587,7 +1587,7 @@ class Population:
     Each model population must contain a set of compartments with equivalent names.
     """
 
-    def __init__(self, framework, name: str, label: str, progset: ProgramSet, pop_type: str, stochastic: bool = False, rng_sampler=None):
+    def __init__(self, framework, name: str, label: str, progset: ProgramSet, pop_type: str, multinomial: bool = False, rng_sampler=None):
         """
         Construct a Population
 
@@ -1601,7 +1601,7 @@ class Population:
         :param label: The full name of the population
         :param progset: A ProgramSet instance
 
-        :param stochastic: whether to use stochasticity in determining population movement
+        :param multinomial: whether to use stochasticity in determining population movement
         :param rng_sampler: optional Generator for random numbers to give consistent results between model runs
 
         """
@@ -1609,7 +1609,7 @@ class Population:
         self.name = name  #: The code name of the population
         self.label = label  #: The full name/label of the population
         self.type = pop_type  #: The population's type
-        self.stochastic = stochastic  #: Whether the population should be handled stochastically as discrete integer people instead of fractions
+        self.multinomial = multinomial  #: Whether the population should be handled stochastically as discrete integer people instead of fractions
         self.rng_sampler = rng_sampler
 
         self.comps = list()  #: List of Compartment objects
@@ -1821,17 +1821,17 @@ class Population:
         for comp_name in list(comps.index):
             if comps.at[comp_name, "population type"] == self.type:
                 if comp_name in residual_junctions:
-                    self.comps.append(ResidualJunctionCompartment(pop=self, name=comp_name, stochastic=self.stochastic, rng_sampler=self.rng_sampler, duration_group=comps.at[comp_name, "duration group"]))
+                    self.comps.append(ResidualJunctionCompartment(pop=self, name=comp_name, multinomial=self.multinomial, rng_sampler=self.rng_sampler, duration_group=comps.at[comp_name, "duration group"]))
                 elif comps.at[comp_name, "is junction"] == "y":
-                    self.comps.append(JunctionCompartment(pop=self, name=comp_name, stochastic=self.stochastic, rng_sampler=self.rng_sampler, duration_group=comps.at[comp_name, "duration group"]))
+                    self.comps.append(JunctionCompartment(pop=self, name=comp_name, multinomial=self.multinomial, rng_sampler=self.rng_sampler, duration_group=comps.at[comp_name, "duration group"]))
                 elif comps.at[comp_name, "duration group"]:
-                    self.comps.append(TimedCompartment(pop=self, name=comp_name, stochastic=self.stochastic, rng_sampler=self.rng_sampler, parameter=self.par_lookup[comps.at[comp_name, "duration group"]]))
+                    self.comps.append(TimedCompartment(pop=self, name=comp_name, multinomial=self.multinomial, rng_sampler=self.rng_sampler, parameter=self.par_lookup[comps.at[comp_name, "duration group"]]))
                 elif comps.at[comp_name, "is source"] == "y":
-                    self.comps.append(SourceCompartment(pop=self, name=comp_name, stochastic=self.stochastic, rng_sampler=self.rng_sampler))
+                    self.comps.append(SourceCompartment(pop=self, name=comp_name, multinomial=self.multinomial, rng_sampler=self.rng_sampler))
                 elif comps.at[comp_name, "is sink"] == "y":
-                    self.comps.append(SinkCompartment(pop=self, name=comp_name, stochastic=self.stochastic, rng_sampler=self.rng_sampler))
+                    self.comps.append(SinkCompartment(pop=self, name=comp_name, multinomial=self.multinomial, rng_sampler=self.rng_sampler))
                 else:
-                    self.comps.append(Compartment(pop=self, name=comp_name, stochastic=self.stochastic, rng_sampler=self.rng_sampler))
+                    self.comps.append(Compartment(pop=self, name=comp_name, multinomial=self.multinomial, rng_sampler=self.rng_sampler))
 
         self.comp_lookup = {comp.name: comp for comp in self.comps}
 
@@ -2023,7 +2023,7 @@ class Population:
 
         # Otherwise, insert the values
         for i, c in enumerate(comps):
-            if self.stochastic:
+            if self.multinomial:
                 c[0] = stochastic_rounding(max(0.0, x[i]), rng_sampler=self.rng_sampler)  # integer values (still represented as floats)
             else:
                 c[0] = max(0.0, x[i])
@@ -2052,7 +2052,7 @@ class Model:
         self.program_instructions = sc.dcp(program_instructions)  # program instructions
         self.t = settings.tvec  #: Simulation time vector (this is a brand new instance from the `settings.tvec` property method)
         self.dt = settings.sim_dt  #: Simulation time step
-        self.stochastic = settings.stochastic  #: Run with discrete numbers of people per compartment instead of fractions.
+        self.multinomial = settings.multinomial  #: Run with discrete numbers of people per compartment instead of fractions.
 
         self.acceptance_criteria = sc.dcp(acceptance_criteria)  #: If the model fails to adhere to these criteria, raise a BadInitialization exception
 
@@ -2203,7 +2203,7 @@ class Model:
 
         # First construct populations
         for k, (pop_name, pop_label, pop_type) in enumerate(zip(parset.pop_names, parset.pop_labels, parset.pop_types)):
-            self.pops.append(Population(framework=self.framework, name=pop_name, label=pop_label, progset=self.progset, pop_type=pop_type, stochastic=self.stochastic, rng_sampler=self.rng_sampler))
+            self.pops.append(Population(framework=self.framework, name=pop_name, label=pop_label, progset=self.progset, pop_type=pop_type, multinomial=self.multinomial, rng_sampler=self.rng_sampler))
             self._pop_ids[pop_name] = k
 
         # Expand interactions into matrix form

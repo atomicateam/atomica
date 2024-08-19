@@ -14,7 +14,7 @@ dirname = at.parent_dir()
 def test_functional_all_framework_databook(demo):
     # Test that all demo frameworks can be run with stochastic mode turned on
     P = at.demo(demo, do_run=False)
-    P.settings.stochastic = True
+    P.settings.multinomial = True
     P.run_sim(result_name="DTMC")
 
 
@@ -105,7 +105,7 @@ def test_compare_deterministic_markovchain(demo):
 
     baseline_results = [res]
 
-    P.settings.stochastic = True
+    P.settings.multinomial = True
     mc_results = [None] * N
     with at.Quiet():  # Using at.Quiet should automatically reset the logging level if an exception occurs
         for i in range(N):
