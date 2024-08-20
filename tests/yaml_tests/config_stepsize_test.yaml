@@ -1,0 +1,34 @@
+---
+#Timestep for the model
+sim_dt: 0.019
+
+#Ordered instructions for how to calibrate the model
+  #adj order: (adjustable var_label, populations to adjust for (default all), minimum value (default 0.1), maximum value (default 10), initial y_factor value (optional, default is parset value))
+  #meas order: #(measurable var_label, populations to measure for (default all), weight (default 1.0), metric (default "fractional"), start_year (optional), end_year (optional))
+calibration:
+    time_period : [2019,2040]
+    max_time: 1
+
+    Population calibration:
+      max_time: 1
+
+      round 1:
+        stepsize: 0.5
+        match population sizes 1:
+          adjustables:
+            b_rate,mig_rate: [ 0.1,10 ]
+          measurables: [alive]
+
+      round 2:
+        match population sizes 2:
+          stepsize: 0.5
+          adjustables:
+            b_rate,mig_rate: [ 0.1,10 ]
+          measurables: [alive]
+
+#      round 3:
+#        match population sizes 3:
+#          adjustables:
+#            stepsize: 0.5
+#            b_rate,mig_rate: [ 0.1,10 ]
+#          measurables: [ alive ]
