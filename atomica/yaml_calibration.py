@@ -10,7 +10,6 @@ import atomica as at
 import numpy as np
 import yaml
 import time
-from at_tools import get_sigfigs_necessary
 
 __all__ = ['build', 'run']
 
@@ -70,6 +69,7 @@ def run(node, project, parset, savedir=None, save_intermediate=False, log_output
         savedir = Path('.')
     else:
         savedir = Path(savedir)
+    savedir.mkdir(exist_ok=True, parents=True)
 
     nodes = list(node.walk()) # Make a flat list of all nodes to execute in order
     n_steps = len([x for x in nodes if not isinstance(x[1], SectionNode)])
@@ -338,7 +338,7 @@ class CalibrationNode(BaseNode):
         for par_name, pop_name in attributes['adjustables']:
 
             if par_name not in par_names:
-                at.logger.warning(f"Extra YAML adjustable parameter '{par_name}' does not exist in this project's framework and will be ignored")
+                at.logger.warning(f"Extra YAML adjustable parameter '{par_name}' does not exist in this project's framework/parset and will be ignored")
                 continue
             elif pop_name not in pop_names:
                 at.logger.warning(f"Extra YAML adjustable population '{pop_name}' does not exist in this project's databook and will be ignored")
@@ -366,8 +366,9 @@ class CalibrationNode(BaseNode):
                 at.logger.warning(f"Extra YAML measurable variable '{par_name}' does not exist in this project's framework and will be ignored")
                 continue
             elif pop_name not in pop_names:
-                at.logger.warning(f"Extra YAML measurable population '{pop_name}' does not exist in this project's databook and will be ignored")
-                continue
+                if not (pop_name.lower() == 'total' and pop_name.lower() in {x.lower() for x in project.data.tdve[par_name].ts.keys()}):
+                    at.logger.warning(f"Extra YAML measurable population '{pop_name}' does not exist in this project's databook and will be ignored")
+                    continue
 
             if pop_name is None:
                 pops = parset.pop_names
@@ -402,12 +403,13 @@ class CalibrationNode(BaseNode):
         made_changes = False
 
         for par, pop, *_ in adjustables:
-            if pop == 'all':
-                old = parset.pars[par].meta_y_factor
-                new = new_cal_parset.pars[par].meta_y_factor
+
+            if pop == "all":
+                old = parset.get_par(par).meta_y_factor
+                new = new_cal_parset.get_par(par).meta_y_factor
             else:
-                old = parset.pars[par].y_factor[pop]
-                new = new_cal_parset.pars[par].y_factor[pop]
+                old = parset.get_par(par).y_factor[pop]
+                new = new_cal_parset.get_par(par).y_factor[pop]
 
             if new != old:
                 at.logger.info(f'...adjusted the y-factor for {par} in {pop} from {old} to {new}')
@@ -440,7 +442,7 @@ class CalibrationNode(BaseNode):
 
                 base_rms_error = base_rms_error ** 0.5
                 cal_rms_error = cal_rms_error ** 0.5
-                sf = get_sigfigs_necessary(base_rms_error, cal_rms_error)
+                sf = at.get_sigfigs_necessary(base_rms_error, cal_rms_error)
                 at.logger.info(f'...RMS error for parameter {par_name} has changed from baseline {sc.sigfig(base_rms_error, sf)} to calibrated {sc.sigfig(cal_rms_error, sf)}')
 
         return new_cal_parset
