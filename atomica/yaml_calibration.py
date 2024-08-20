@@ -382,7 +382,7 @@ class CalibrationNode(BaseNode):
 
         # Calibration
         if len(adjustables):
-
+            # note: attributes = instructions + context
             kwargs = sc.mergedicts(self.attributes, kwargs)
 
             del kwargs['adjustables'] # supplied via the adjustables variable
@@ -452,7 +452,7 @@ class InitializationNode(BaseNode):
     _name = 'set_initialization'
 
     def __init__(self, instructions, context, name ):
-        new_instructions = {'constant_parset': False}
+        new_instructions = {}
 
         if isinstance(instructions, dict):
             new_instructions.update(instructions)
@@ -470,12 +470,15 @@ class InitializationNode(BaseNode):
         assert 'init_year' in self, f'Initialization year must be specified'
         assert sc.isnumber(self['init_year']), f'Initialization year {self["init_year"]} must be numeric.'
         if 'constant_parset' in self:
-            assert type(self['constant_parset']) == bool, f'Constant parset (optional) {self["constant_parset"]} must be a boolean.'
+            assert isinstance(self['constant_parset'], int), f'Constant parset (optional) {self["constant_parset"]} must be numeric (boolean, or int to specify constant parset year).'
 
     def apply(self, project: at.Project, parset: at.ParameterSet, n: int, *args, **kwargs) -> ParameterSet:
         p2 = sc.dcp(parset)
-        if self.instructions['constant_parset']:
-            p2 = parset.make_constant(year=project.settings.sim_start)
+        if 'constant_parset' in self:
+            if self['constant_parset'] == True:
+                p2 = parset.make_constant(year=project.settings.sim_start)
+            elif type(self['constant_parset']) == int: #constant parset year was provided
+                p2 = parset.make_constant(year=self['constant_parset'])
         new_settings = sc.dcp(project.settings)
         new_settings.update_time_vector(end=self['init_year'])
         res = at.run_model(settings=new_settings, framework=project.framework, parset=p2)
