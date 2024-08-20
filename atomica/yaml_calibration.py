@@ -457,18 +457,18 @@ class InitializationNode(BaseNode):
         if isinstance(instructions, dict):
             new_instructions.update(instructions)
         elif type(instructions) is int:
-            new_instructions.update({'year': instructions})
+            new_instructions.update({'init_year': instructions})
         elif isinstance(instructions, (tuple, list)):
             sc.promotetolist(instructions)
-            new_instructions.update({'year': instructions[0]})
+            new_instructions.update({'init_year': instructions[0]})
             if len(instructions) > 1:
                 new_instructions.update({'constant_parset': instructions[1]})
 
         super().__init__(new_instructions, context, name)
 
     def validate(self):
-        assert 'year' in self, f'Initialization year must be specified'
-        assert sc.isnumber(self['year']), f'Initialization year {self["year"]} must be numeric.'
+        assert 'init_year' in self, f'Initialization year must be specified'
+        assert sc.isnumber(self['init_year']), f'Initialization year {self["init_year"]} must be numeric.'
         if 'constant_parset' in self:
             assert type(self['constant_parset']) == bool, f'Constant parset (optional) {self["constant_parset"]} must be a boolean.'
 
@@ -477,9 +477,9 @@ class InitializationNode(BaseNode):
         if self.instructions['constant_parset']:
             p2 = parset.make_constant(year=project.settings.sim_start)
         new_settings = sc.dcp(project.settings)
-        new_settings.update_time_vector(end=self['year'])
+        new_settings.update_time_vector(end=self['init_year'])
         res = at.run_model(settings=new_settings, framework=project.framework, parset=p2)
-        parset.set_initialization(res, self['year'])
+        parset.set_initialization(res, self['init_year'])
         return parset
 
 
