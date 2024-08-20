@@ -232,8 +232,8 @@ class CalibrationNode(BaseNode):
     meas_defaults = {
         'weight': 1.0,
         'metric': 'fractional',
-        'start_year': -np.inf,
-        'end_year': np.inf,
+        'cal_start': -np.inf,
+        'cal_end': np.inf,
     }
 
     @staticmethod
@@ -320,8 +320,8 @@ class CalibrationNode(BaseNode):
             assert 'metric' not in v or v['metric'] is None or isinstance(v["metric"], str), f"Measurable metric {v['metric']} needs to be a number or None (defaults to 'fractional')"
 
             check_optional_number('weight',v, self.meas_defaults)
-            check_optional_number('start_year',v, self.meas_defaults)
-            check_optional_number('end_year',v, self.meas_defaults)
+            check_optional_number('cal_start',v, self.meas_defaults)
+            check_optional_number('cal_end',v, self.meas_defaults)
 
     def apply(self, project: at.Project, parset: at.ParameterSet, n: int, *args, quiet=False, compare_results=False, **kwargs) -> ParameterSet:
 
@@ -377,7 +377,7 @@ class CalibrationNode(BaseNode):
 
             for pop in pops:
                 d = sc.mergedicts(self.meas_defaults,  attributes['measurables'].get((par_name, None), None), attributes['measurables'].get((par_name, pop), None))
-                measurables[(par_name, pop)] = (d['weight'], d['metric'], d['start_year'], d['end_year'])
+                measurables[(par_name, pop)] = (d['weight'], d['metric'], d['cal_start'], d['cal_end'])
         measurables = [(*k, *v) for k,v in measurables.items()]
 
         # Calibration
