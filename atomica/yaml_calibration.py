@@ -44,7 +44,7 @@ def build(instructions=None, context=None, name='calibration'):
     elif name in named_nodes:
         return named_nodes[name](instructions, context, name)
     else:
-        return Section(instructions, context, name)
+        return SectionNode(instructions, context, name)
 
 def run(node, project, parset, savedir=None, save_intermediate=False, log_output:bool=False,*args, **kwargs):
     """
@@ -72,7 +72,7 @@ def run(node, project, parset, savedir=None, save_intermediate=False, log_output
     savedir.mkdir(exist_ok=True, parents=True)
 
     nodes = list(node.walk()) # Make a flat list of all nodes to execute in order
-    n_steps = len([x for x in nodes if not isinstance(x[1], Section)])
+    n_steps = len([x for x in nodes if not isinstance(x[1], SectionNode)])
     n = 1
 
     if log_output:
@@ -82,7 +82,7 @@ def run(node, project, parset, savedir=None, save_intermediate=False, log_output
 
     for n_reps, node in nodes:
 
-        if isinstance(node, Section):
+        if isinstance(node, SectionNode):
             at.logger.info(f'\nSection "{node.name}" (repeat {n_reps} of {node.repeats})')
         else:
             at.logger.info(f'\nStep {n} of {n_steps}: "{node.name}" (repeat {n_reps} of {node.repeats})')
@@ -192,7 +192,7 @@ class BaseNode:
         """
         return parset
 
-class Section(BaseNode):
+class SectionNode(BaseNode):
     """
     A section node is a special kind of node, that contains other nodes
     """
@@ -232,8 +232,8 @@ class CalibrationNode(BaseNode):
     meas_defaults = {
         'weight': 1.0,
         'metric': 'fractional',
-        'start_year': -np.inf,
-        'end_year': np.inf,
+        'cal_start': -np.inf,
+        'cal_end': np.inf,
     }
 
     @staticmethod
@@ -250,21 +250,25 @@ class CalibrationNode(BaseNode):
         """
 
         def process_key(s):
-            # Sanitize key name with optional space separating pop name
+            """
+            Sanitize key name with optional space separating pop name
+            """
             if ' ' in s:
                 return tuple([x.replace('~', ' ') for x in s.split(' ') if x])
             else:
                 return (s.strip().replace('~', ' '), None)
 
         def process_inputs(inputs, defaults):
-            # Process adjustables and measurables, which can be specified in a list representation or nested dict representation
-            # In list representation, the input is a list of lists, where the first item in each list is the quantity (with optional population) and
-            # the remaining items are the supported arguments for the input type, in the order defined by the defaults dictionary.
-            # In a dict representation, the key is the quantity with optional population, and then the value can either be a list (in the order defined by the dictionary)
-            # or a dictionary explicitly naming the inputs.
-            # This function returns a flat dictionary with {(quantity, pop_name):{argument:value}} e.g., {('b_rate','0-5'):{'lower_bound':0.5}}.
-            # In the dict representation, the key can be a comma separated list of quantities with optional values e.g., 'b_rate 0-5, d_rate'. In the list representation,
-            # multiple quantities are not supported (as a comma is already used to separate the arguments)
+            """
+            Process adjustables and measurables, which can be specified in a list representation or nested dict representation
+            In list representation, the input is a list of lists, where the first item in each list is the quantity (with optional population) and
+            the remaining items are the supported arguments for the input type, in the order defined by the defaults dictionary.
+            In a dict representation, the key is the quantity with optional population, and then the value can either be a list (in the order defined by the dictionary)
+            or a dictionary explicitly naming the inputs.
+            This function returns a flat dictionary with {(quantity, pop_name):{argument:value}} e.g., {('b_rate','0-5'):{'lower_bound':0.5}}.
+            In the dict representation, the key can be a comma separated list of quantities with optional values e.g., 'b_rate 0-5, d_rate'. In the list representation,
+            multiple quantities are not supported (as a comma is already used to separate the arguments), but multiple lists (one for each quantity) can be provided.
+            """
             out = {}
 
             if sc.isstring(inputs):
@@ -293,12 +297,12 @@ class CalibrationNode(BaseNode):
         self['adjustables'] = process_inputs(self['adjustables'], self.adj_defaults)
         self['measurables'] = process_inputs(self['measurables'], self.meas_defaults)
 
-        # Validate adjustables
         def check_optional_number(key, v, defaults):
             if key in v and v[key] is not None:
                 if not sc.isnumber(v[key], isnan=False):
                     raise TypeError(f"Adjustable argument '{key}' needs to be a number or None (defaults to {defaults[key]}). Provided value: {v[key]} ")
 
+        # Validate adjustables
         assert len(self['adjustables']) > 0, f'Cannot calibrate with no adjustables for calibration section {self.name}'
         for (quantity, pop_name), v in self['adjustables'].items():
             assert 'pop_name' not in v, f'Setting the population name through "pop_name: {v["pop_name"]}" is not supported. Instead, the name of the adjustable quantity should include the population name ("{quantity} {v["pop_name"]}")'
@@ -316,15 +320,15 @@ class CalibrationNode(BaseNode):
             assert 'metric' not in v or v['metric'] is None or isinstance(v["metric"], str), f"Measurable metric {v['metric']} needs to be a number or None (defaults to 'fractional')"
 
             check_optional_number('weight',v, self.meas_defaults)
-            check_optional_number('start_year',v, self.meas_defaults)
-            check_optional_number('end_year',v, self.meas_defaults)
+            check_optional_number('cal_start',v, self.meas_defaults)
+            check_optional_number('cal_end',v, self.meas_defaults)
 
     def apply(self, project: at.Project, parset: at.ParameterSet, n: int, *args, quiet=False, compare_results=False, **kwargs) -> ParameterSet:
 
         step_name = self.name
         attributes = self.attributes
 
-        at.logger.info(f'Calibrating adjustable(s) {set([adj[0] for adj in attributes["adjustables"]])} to match measurable(s) {set([mea[0] for mea in attributes["measurables"]])}...')
+        at.logger.info(f"Calibrating adjustable(s) {set([adj[0] for adj in attributes['adjustables']])} to match measurable(s) {set([mea[0] for mea in attributes['measurables']])}...")
 
         # Expand adjustables
         adjustables = {}
@@ -348,7 +352,6 @@ class CalibrationNode(BaseNode):
             for pop in pops:
                 d = sc.mergedicts(self.adj_defaults,  attributes['adjustables'].get((par_name, None), None),  attributes['adjustables'].get((par_name, pop), None))
                 adjustables[(par_name, pop)] = (d['lower_bound'], d['upper_bound'], d['initial_value'])
-
         adjustables = [(*k, *v) for k,v in adjustables.items()]
 
 
@@ -374,13 +377,12 @@ class CalibrationNode(BaseNode):
 
             for pop in pops:
                 d = sc.mergedicts(self.meas_defaults,  attributes['measurables'].get((par_name, None), None), attributes['measurables'].get((par_name, pop), None))
-                measurables[(par_name, pop)] = (d['weight'], d['metric'], d['start_year'], d['end_year'])
-
+                measurables[(par_name, pop)] = (d['weight'], d['metric'], d['cal_start'], d['cal_end'])
         measurables = [(*k, *v) for k,v in measurables.items()]
 
         # Calibration
         if len(adjustables):
-
+            # note: attributes = instructions + context
             kwargs = sc.mergedicts(self.attributes, kwargs)
 
             del kwargs['adjustables'] # supplied via the adjustables variable
@@ -450,34 +452,37 @@ class InitializationNode(BaseNode):
     _name = 'set_initialization'
 
     def __init__(self, instructions, context, name ):
-        new_instructions = {'constant_parset': False}
+        new_instructions = {}
 
         if isinstance(instructions, dict):
             new_instructions.update(instructions)
         elif type(instructions) is int:
-            new_instructions.update({'year': instructions})
+            new_instructions.update({'init_year': instructions})
         elif isinstance(instructions, (tuple, list)):
             sc.promotetolist(instructions)
-            new_instructions.update({'year': instructions[0]})
+            new_instructions.update({'init_year': instructions[0]})
             if len(instructions) > 1:
                 new_instructions.update({'constant_parset': instructions[1]})
 
         super().__init__(new_instructions, context, name)
 
     def validate(self):
-        assert 'year' in self, f'Initialization year must be specified'
-        assert sc.isnumber(self['year']), f'Initialization year {self["year"]} must be numeric.'
+        assert 'init_year' in self, f'Initialization year must be specified'
+        assert sc.isnumber(self['init_year']), f'Initialization year {self["init_year"]} must be numeric.'
         if 'constant_parset' in self:
-            assert type(self['constant_parset']) == bool, f'Constant parset (optional) {self["constant_parset"]} must be a boolean.'
+            assert isinstance(self['constant_parset'], int), f'Constant parset (optional) {self["constant_parset"]} must be numeric (boolean, or int to specify constant parset year).'
 
     def apply(self, project: at.Project, parset: at.ParameterSet, n: int, *args, **kwargs) -> ParameterSet:
         p2 = sc.dcp(parset)
-        if self.instructions['constant_parset']:
-            p2 = parset.make_constant(year=project.settings.sim_start)
+        if 'constant_parset' in self:
+            if self['constant_parset'] == True:
+                p2 = parset.make_constant(year=project.settings.sim_start)
+            elif type(self['constant_parset']) == int: #constant parset year was provided
+                p2 = parset.make_constant(year=self['constant_parset'])
         new_settings = sc.dcp(project.settings)
-        new_settings.update_time_vector(end=self['year'])
+        new_settings.update_time_vector(end=self['init_year'])
         res = at.run_model(settings=new_settings, framework=project.framework, parset=p2)
-        parset.set_initialization(res, self['year'])
+        parset.set_initialization(res, self['init_year'])
         return parset
 
 
