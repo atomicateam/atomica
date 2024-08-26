@@ -1,17 +1,21 @@
 ---
 #Timestep for the model
 sim_dt: 0.019
+cal_start: 2000
+cal_end: 2040
 
 #Ordered instructions for how to calibrate the model
   #adj order: (adjustable var_label, populations to adjust for (default all), minimum value (default 0.1), maximum value (default 10), initial y_factor value (optional, default is parset value))
   #meas order: #(measurable var_label, populations to measure for (default all), weight (default 1.0), metric (default "fractional"), start_year (optional), end_year (optional))
 calibration:
-    stepsize: 1
+    cal_start: 2000
+    cal_end: 2040
 
     Population calibration:
 
       round 1:
-        stepsize: 0.5
+        cal_start: 2000
+        cal_end: 2040
         match population sizes 1:
           adjustables:
             b_rate,mig_rate: [ 0.1,10 ]
@@ -19,14 +23,17 @@ calibration:
 
       round 2:
         match population sizes 2:
-          stepsize: 0.5
+          cal_start: 2000 #is this meant to work?
+          cal_end: 2040
           adjustables:
             b_rate,mig_rate: [ 0.1,10 ]
           measurables: [alive]
 
-#      round 3:
-#        match population sizes 3:
-#          adjustables:
-#            stepsize: 0.5
-#            b_rate,mig_rate: [ 0.1,10 ]
-#          measurables: [ alive ]
+      round 3:
+        match population sizes 3:
+          adjustables:
+            b_rate,mig_rate: [ 0.1,10 ]
+          measurables:
+            alive:
+              cal_start: 2000
+              cal_end: 2040
