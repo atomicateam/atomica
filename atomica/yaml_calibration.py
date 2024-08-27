@@ -251,10 +251,12 @@ class CalibrationNode(BaseNode):
 
         def process_key(s):
             """
-            Sanitize key name with optional space separating pop name
+            Sanitize key name with optional commas or spaces separating pop name/s from par name
             """
-            if ' ' in s:
-                return tuple([x.replace('~', ' ') for x in s.split(' ') if x])
+            if ',' in s:
+                return tuple([x.strip().replace('~', ' ') for x in s.split(',') if x])
+            elif ' ' in s:
+                return tuple([x.strip().replace('~', ' ') for x in s.split(' ') if x])
             else:
                 return (s.strip().replace('~', ' '), None)
 
