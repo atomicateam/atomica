@@ -1,0 +1,13 @@
+
+calibration:
+    pop cal:
+
+      match population sizes:
+        adjustables:
+          b_rate, mig_rate: [ 0.1, 10 ]
+        measurables:  alive
+
+      turn off epi y-factors:
+        adjustables:
+          typ_active_inf, typ_car, par_active_inf, par_car: [0, 0] #set  y-factor w/o going through cal algorithm
+        measurables:  deaths
