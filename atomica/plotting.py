@@ -590,7 +590,7 @@ class PlotData:
             if sc.isstring(t_bins) and t_bins == "all":
                 s.t_labels = ["All"]
             else:
-                s.t_labels = ["%d-%d" % (low, high) for low, high in zip(lower, upper)]
+                s.t_labels = [f"{np.format_float_positional(low,trim='-')}-{np.format_float_positional(high,trim='-')}" for low, high in zip(lower, upper)]
 
         return self
 
