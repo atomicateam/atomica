@@ -307,7 +307,7 @@ class PlotData:
                     displayed_annualization_warning = False
                     for dep_label in dep_labels:
                         vars = pop.get_variable(dep_label)
-                        if t_bins is not None and (isinstance(vars[0], Link) or isinstance(vars[0], Parameter)) and time_aggregation == "sum" and not displayed_annualization_warning:
+                        if t_bins is not None and (isinstance(vars[0], Link) or isinstance(vars[0], Parameter)) and time_aggregation == "integrate" and not displayed_annualization_warning:
                             raise Exception("Function includes Parameter/Link so annualized rates are being used. Aggregation should therefore use 'average' rather than 'sum'.")
                         deps[dep_label] = vars
                     par._fcn = fcn
