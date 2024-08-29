@@ -2,10 +2,17 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.28.7] - 2023-08-12
+
+- `Project.load_databook()` will no longer populate `Project.databook` when a `ProjectData` instance is supplied rather than a spreadsheet. The intention of `Project.databook` as opposed to `Project.data.to_spreadsheet()` is that the original databook may contain comments or other content that is not preserved when the databook is loaded into a `ProjectData` instance. Therefore, `Project.databook` serves as a record of the original inputs. However, in previous versions of Atomica, if a `ProjectData` instance was provided rather than a spreadsheet, `ProjectData.to_spreadsheet()` would be used to populate `Project.databook`. For large databooks, this can be computationally expensive and particularly affect the use case of passing in a preloaded databook to improve performance. Since the conversion of the `ProjectData` to a spreadsheet upon loading offers no functional difference to creating the spreadsheet from `Project.data` when required, Atomica no longer performs this conversion upfront.
+
+*Backwards-compatibility notes*
+
+- If accessing `Project.databook`, in some cases this may now be `None` rather than an `sc.Spreadsheet()`. If that occurs, `Project.data.to_spreadsheet()` should be used to produce an equivalent spreadsheet. 
+
 ## [1.28.6] - 2023-07-12
 
 - Support entering `'total'` as the population name in auto-calibration measurables to calibrate aggregated values across populations in the model to aggregate values entered in the databook under a 'Total' population
-
 
 ## [1.28.5] - 2023-06-28
 
