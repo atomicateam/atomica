@@ -10,6 +10,7 @@ import atomica as at
 import numpy as np
 import yaml
 import time
+import re
 
 __all__ = ['build', 'run']
 
@@ -249,16 +250,30 @@ class CalibrationNode(BaseNode):
         Pre-parse calibration inputs
         """
 
+        def separate_keys(s):
+            """
+            Separate inputs that kave been defined together as one key in the YAML file
+            """
+            s1 = re.findall(r'\(.*?\)', s)
+            s2 = s
+            for x in s1:
+                s2 = s2.replace(x, '')
+            all_strings = [x for x in s1 if x]
+            s2 = re.sub(r'(,\s)+', ', ', s2).strip(', ').split(',')
+            if s2 != ['']:
+                all_strings += s2
+            return all_strings
+
         def process_key(s):
             """
             Sanitize key name with optional commas or spaces separating pop name/s from par name
             """
-            if ',' in s:
-                return tuple([x.strip().replace('~', ' ') for x in s.split(',') if x])
+            if '(' and ')' in s:
+                return tuple([x.strip() for x in s.strip('() ').split(',') if x])
             elif ' ' in s:
-                return tuple([x.strip().replace('~', ' ') for x in s.split(' ') if x])
+                return tuple([x.strip() for x in s.split(' ') if x])
             else:
-                return (s.strip().replace('~', ' '), None)
+                return (s.strip(), None)
 
         def process_inputs(inputs, defaults):
             """
@@ -281,19 +296,35 @@ class CalibrationNode(BaseNode):
             if isinstance(inputs, (tuple, list)):
                 for l in inputs:
                     l = sc.promotetolist(l)
+                    #TODO enable and test transfers in full list format
                     key, pop_name = process_key(l[0].strip())
                     d = self.parse_list(l[1:], defaults)
                     out[key, pop_name] = sc.mergedicts(out.get((key, pop_name), {}), d)
+
             elif isinstance(inputs, dict):
                 for keys, v in inputs.items():
-                    for key in keys.split(','):
-                        key, pop_name = process_key(key.strip())
+
+                    separated_keys = separate_keys(keys)
+                    for key in separated_keys:
+                        #separate par name from pop name/s
+                        keyspops = process_key(key.strip())
+                        if len(keyspops) == 2:
+                            key, pop_name = keyspops
+                        else:
+                            assert len(keyspops) == 3, f'Number of populations must be 1, 2 or None)'
+                            key, pop_name, pop_name2 = keyspops
+
+                        #process values
                         if isinstance(v, (tuple, list)):
                             d = self.parse_list(v, defaults)
                         else:
                             d = v.copy()
-                        out[key, pop_name] = sc.mergedicts(out.get((key, pop_name), {}), d)
 
+                        #add keys and values to outputs dict
+                        if len(keyspops) == 2:
+                            out[key, pop_name] = sc.mergedicts(out.get((key, pop_name), {}), d)
+                        else:
+                            out[key, pop_name, pop_name2] = sc.mergedicts(out.get((key, pop_name), {}), d)
             return out
 
         self['adjustables'] = process_inputs(self['adjustables'], self.adj_defaults)
