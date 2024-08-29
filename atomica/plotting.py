@@ -203,6 +203,7 @@ class PlotData:
 
         assert output_aggregation in [None, "sum", "average", "weighted"]
         assert pop_aggregation in [None, "sum", "average", "weighted"]
+        assert time_aggregation in [None, "integrate", "average"]
 
         # First, get all of the pops and outputs requested by flattening the lists
         pops_required = _extract_labels(pops)
