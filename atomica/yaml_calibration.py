@@ -331,7 +331,7 @@ class CalibrationNode(BaseNode):
         def check_optional_number(key, v, defaults):
             if key in v and v[key] is not None:
                 if not sc.isnumber(v[key], isnan=False):
-                    raise TypeError(f"Adjustable argument '{key}' needs to be a number or None (defaults to {defaults[key]}). Provided value: {v[key]} ")
+                    raise TypeError(f"Adjustable argument {key} needs to be a number or None (defaults to {defaults[key]}). Provided value: {v[key]} ")
 
         # Validate adjustables
         assert len(self['adjustables']) > 0, f'Cannot calibrate with no adjustables for calibration section {self.name}'
