@@ -312,7 +312,8 @@ class CalibrationNode(BaseNode):
                             key, pop_name = keyspops
                         else:
                             assert len(keyspops) == 3, f'Number of populations must be 1, 2 or None)'
-                            key, pop_name, pop_name2 = keyspops
+                            key = f'{keyspops[0]}_from_{keyspops[1]}'
+                            pop_name = keyspops[2]
 
                         #process values
                         if isinstance(v, (tuple, list)):
@@ -321,10 +322,7 @@ class CalibrationNode(BaseNode):
                             d = v.copy()
 
                         #add keys and values to outputs dict
-                        if len(keyspops) == 2:
-                            out[key, pop_name] = sc.mergedicts(out.get((key, pop_name), {}), d)
-                        else:
-                            out[key, pop_name, pop_name2] = sc.mergedicts(out.get((key, pop_name), {}), d)
+                        out[key, pop_name] = sc.mergedicts(out.get((key, pop_name), {}), d)
             return out
 
         self['adjustables'] = process_inputs(self['adjustables'], self.adj_defaults)
