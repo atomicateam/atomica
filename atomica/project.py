@@ -260,7 +260,7 @@ class Project(NamedItem):
         if isinstance(databook_path, ProjectData):
             # If the user passed in a ProjectData instance, use it directly
             data = databook_path
-            databook = data.to_spreadsheet()
+            databook = None
         else:
             if isinstance(databook_path, sc.Spreadsheet):
                 databook = databook_path
