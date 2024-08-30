@@ -174,7 +174,7 @@ def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, 
             initial_value = None
 
         if par_tuple[1] is None:  # If the pop name is None
-            par = parset.pars[par_tuple[0]]
+            par = parset.get_par(par_tuple[0])
             for pop_name in par.pops:
                 p2.append((par_tuple[0], pop_name, par_tuple[2], par_tuple[3], initial_value))
         else:
