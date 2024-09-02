@@ -834,7 +834,7 @@ class TimeDependentConnections:
             from_idx = self.from_pops.index(from_pop)
             to_idx = self.to_pops.index(to_pop)
             if boolean_choice:
-                value = "Y" if value else "N"
+                value = "Y" if (value.vals or value.assumption) else "N"
             content[from_idx, to_idx] = value
 
         # Write the content
