@@ -424,7 +424,8 @@ class TimeDependentConnections:
             raise Exception('Unknown TimeDependentConnections type - must be "transfer" or "interaction"')
 
     def __repr__(self):
-        return '<TDC %s "%s">' % (self.type.title(), self.code_name)
+        # return '<TDC %s "%s">' % (self.type.title(), self.code_name)
+        return sc.prepr(self)
 
     @classmethod
     def from_tables(cls, tables: list, interaction_type):
