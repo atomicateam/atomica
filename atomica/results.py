@@ -838,30 +838,21 @@ def _write_df(writer, formats, sheet_name, df, level_ordering):
     for level in level_ordering:
         order[level] = list(dict.fromkeys(df.index.get_level_values(level)))
 
-    required_width = [0] * (len(level_ordering) - 1)
-
-    row = 0
+    df = df.reorder_levels(level_ordering)
+    for i in range(len(level_ordering)):
+        df = df.reindex(order[level_ordering[i]], level=i)
 
     worksheet = writer.book.add_worksheet(sheet_name)
     writer.sheets[sheet_name] = worksheet  # Need to add it to the ExcelWriter for it to behave properly
 
-    for title, table in df.groupby(level=level_ordering[0], sort=False):
-        worksheet.write_string(row, 0, title, formats["center_bold"])
-        row += 1
+    df.index = df.index.set_names([level_substitutions[x] if x in level_substitutions else x.title() for x in df.index.names])
+    df.to_excel(writer, sheet_name, startcol=0, startrow=0, merge_cells=False)
 
-        table.reset_index(level=level_ordering[0], drop=True, inplace=True)  # Drop the title column
-        table = table.reorder_levels(level_ordering[1:])
-        for i in range(1, len(level_ordering)):
-            table = table.reindex(order[level_ordering[i]], level=i - 1)
-        table.index = table.index.set_names([level_substitutions[x] if x in level_substitutions else x.title() for x in table.index.names])
-        table.to_excel(writer, sheet_name=sheet_name, startcol=0, startrow=row, merge_cells=False)
-        row += table.shape[0] + 2
+    required_width = [len(name) for name in df.index.names]
+    for i in range(len(required_width)):
+        required_width[i] = max(len(val) for val in order[level_ordering[i]])
 
-        required_width[0] = max(required_width[0], len(title))
-        for i in range(0, len(required_width)):
-            required_width[i] = max(required_width[i], max(table.index.get_level_values(i).str.len()))
-
-    for i in range(0, len(required_width)):
+    for i in range(len(required_width)):
         if required_width[i] > 0:
             worksheet.set_column(i, i, required_width[i] * 1.1 + 1)
 
@@ -1229,7 +1220,7 @@ class Ensemble(NamedItem):
 
         if fig is None:
             fig = plt.figure()
-        ax = plt.gca()
+        ax = fig.gca()
 
         series_lookup = self._get_series()
 
@@ -1264,7 +1255,7 @@ class Ensemble(NamedItem):
 
             proposed_label = "%s (%s)" % (output, these_series[0].unit_string)
             if ax.yaxis.get_label().get_text():
-                assert proposed_label == ax.yaxis.get_label().get_text(), "The outputs being superimposed have different units"
+                assert proposed_label == ax.yaxis.get_label().get_text(), f"The outputs being superimposed have different units: {proposed_label} vs {ax.yaxis.get_label().get_text()}"
             else:
                 ax.set_ylabel(proposed_label)
 
