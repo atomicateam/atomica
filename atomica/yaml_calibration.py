@@ -366,6 +366,8 @@ class CalibrationNode(BaseNode):
         par_names = {x[0] for x in attributes['adjustables']}.intersection(x.name for x in parset.all_pars())
         pop_names = {x[1] for x in attributes['adjustables']}.intersection({*parset.pop_names} | {'all', None})
 
+        adj_defaults = {k:self.attributes[k] if k in self.attributes else self.adj_defaults[k] for k in self.adj_defaults}
+
         for par_name, pop_name in attributes['adjustables']:
 
             if par_name not in par_names:
@@ -381,7 +383,7 @@ class CalibrationNode(BaseNode):
                 pops = sc.promotetolist(pop_name)
 
             for pop in pops:
-                d = sc.mergedicts(self.adj_defaults,  attributes['adjustables'].get((par_name, None), None),  attributes['adjustables'].get((par_name, pop), None))
+                d = sc.mergedicts(adj_defaults,  attributes['adjustables'].get((par_name, None), None),  attributes['adjustables'].get((par_name, pop), None))
                 adjustables[(par_name, pop)] = (d['lower_bound'], d['upper_bound'], d['initial_value'])
         adjustables = [(*k, *v) for k,v in adjustables.items()]
 
@@ -390,6 +392,8 @@ class CalibrationNode(BaseNode):
         measurables = {}
         par_names = {x[0] for x in attributes['measurables']}.intersection(x.name for x in parset.all_pars())  # TODO: This is probably OK for now but will need to support transfer parameters and validate that pars have databook entries in the future
         pop_names = {x[1] for x in attributes['measurables']}.intersection({*parset.pop_names} | {None})
+
+        meas_defaults = {k: self.attributes[k] if k in self.attributes else self.meas_defaults[k] for k in self.meas_defaults}
 
         for par_name, pop_name in attributes['measurables']:
 
@@ -407,7 +411,7 @@ class CalibrationNode(BaseNode):
                 pops = sc.promotetolist(pop_name)
 
             for pop in pops:
-                d = sc.mergedicts(self.meas_defaults,  attributes['measurables'].get((par_name, None), None), attributes['measurables'].get((par_name, pop), None))
+                d = sc.mergedicts(meas_defaults,  attributes['measurables'].get((par_name, None), None), attributes['measurables'].get((par_name, pop), None))
                 measurables[(par_name, pop)] = (d['weight'], d['metric'], d['cal_start'], d['cal_end'])
         measurables = [(*k, *v) for k,v in measurables.items()]
 
