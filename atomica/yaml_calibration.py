@@ -6,6 +6,7 @@ adjustables and measurables in a pre-defined sequence of automated calibration s
 
 import sciris as sc
 from pathlib import Path
+import shutil
 import atomica as at
 import numpy as np
 import yaml
@@ -61,16 +62,19 @@ def run(node, project, parset, savedir=None, save_intermediate=False, log_output
     :return new_parset: A calibrated `at.ParameterSet` instance
     """
 
-    if not isinstance(node, BaseNode):
-        node = build(node)
-
-    parset = sc.dcp(project.parset(parset))
-
     if savedir is None:
         savedir = Path('.')
     else:
         savedir = Path(savedir)
     savedir.mkdir(exist_ok=True, parents=True)
+
+    if not isinstance(node, BaseNode):
+        # Save a copy of the yaml-file if saving log output
+        if isinstance(node, Path) and log_output:
+            shutil.copyfile(node, savedir / node.name)
+        node = build(node)
+
+    parset = sc.dcp(project.parset(parset))
 
     nodes = list(node.walk()) # Make a flat list of all nodes to execute in order
     n_steps = len([x for x in nodes if not isinstance(x[1], SectionNode)])
