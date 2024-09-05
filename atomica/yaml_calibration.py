@@ -6,6 +6,7 @@ adjustables and measurables in a pre-defined sequence of automated calibration s
 
 import sciris as sc
 from pathlib import Path
+import shutil
 import atomica as at
 import numpy as np
 import yaml
@@ -61,16 +62,19 @@ def run(node, project, parset, savedir=None, save_intermediate=False, log_output
     :return new_parset: A calibrated `at.ParameterSet` instance
     """
 
-    if not isinstance(node, BaseNode):
-        node = build(node)
-
-    parset = sc.dcp(project.parset(parset))
-
     if savedir is None:
         savedir = Path('.')
     else:
         savedir = Path(savedir)
     savedir.mkdir(exist_ok=True, parents=True)
+
+    if not isinstance(node, BaseNode):
+        # Save a copy of the yaml-file if saving log output
+        if isinstance(node, Path) and log_output:
+            shutil.copyfile(node, savedir / node.name)
+        node = build(node)
+
+    parset = sc.dcp(project.parset(parset))
 
     nodes = list(node.walk()) # Make a flat list of all nodes to execute in order
     n_steps = len([x for x in nodes if not isinstance(x[1], SectionNode)])
@@ -312,7 +316,8 @@ class CalibrationNode(BaseNode):
                             key, pop_name = keyspops
                         else:
                             assert len(keyspops) == 3, f'Number of populations must be 1, 2 or None)'
-                            key, pop_name, pop_name2 = keyspops
+                            key = f'{keyspops[0]}_from_{keyspops[1]}'
+                            pop_name = keyspops[2]
 
                         #process values
                         if isinstance(v, (tuple, list)):
@@ -321,10 +326,7 @@ class CalibrationNode(BaseNode):
                             d = v.copy()
 
                         #add keys and values to outputs dict
-                        if len(keyspops) == 2:
-                            out[key, pop_name] = sc.mergedicts(out.get((key, pop_name), {}), d)
-                        else:
-                            out[key, pop_name, pop_name2] = sc.mergedicts(out.get((key, pop_name), {}), d)
+                        out[key, pop_name] = sc.mergedicts(out.get((key, pop_name), {}), d)
             return out
 
         self['adjustables'] = process_inputs(self['adjustables'], self.adj_defaults)
@@ -368,6 +370,8 @@ class CalibrationNode(BaseNode):
         par_names = {x[0] for x in attributes['adjustables']}.intersection(x.name for x in parset.all_pars())
         pop_names = {x[1] for x in attributes['adjustables']}.intersection({*parset.pop_names} | {'all', None})
 
+        adj_defaults = {k:self.attributes[k] if k in self.attributes else self.adj_defaults[k] for k in self.adj_defaults}
+
         for par_name, pop_name in attributes['adjustables']:
 
             if par_name not in par_names:
@@ -383,7 +387,7 @@ class CalibrationNode(BaseNode):
                 pops = sc.promotetolist(pop_name)
 
             for pop in pops:
-                d = sc.mergedicts(self.adj_defaults,  attributes['adjustables'].get((par_name, None), None),  attributes['adjustables'].get((par_name, pop), None))
+                d = sc.mergedicts(adj_defaults,  attributes['adjustables'].get((par_name, None), None),  attributes['adjustables'].get((par_name, pop), None))
                 adjustables[(par_name, pop)] = (d['lower_bound'], d['upper_bound'], d['initial_value'])
         adjustables = [(*k, *v) for k,v in adjustables.items()]
 
@@ -392,6 +396,8 @@ class CalibrationNode(BaseNode):
         measurables = {}
         par_names = {x[0] for x in attributes['measurables']}.intersection(x.name for x in parset.all_pars())  # TODO: This is probably OK for now but will need to support transfer parameters and validate that pars have databook entries in the future
         pop_names = {x[1] for x in attributes['measurables']}.intersection({*parset.pop_names} | {None})
+
+        meas_defaults = {k: self.attributes[k] if k in self.attributes else self.meas_defaults[k] for k in self.meas_defaults}
 
         for par_name, pop_name in attributes['measurables']:
 
@@ -409,7 +415,7 @@ class CalibrationNode(BaseNode):
                 pops = sc.promotetolist(pop_name)
 
             for pop in pops:
-                d = sc.mergedicts(self.meas_defaults,  attributes['measurables'].get((par_name, None), None), attributes['measurables'].get((par_name, pop), None))
+                d = sc.mergedicts(meas_defaults,  attributes['measurables'].get((par_name, None), None), attributes['measurables'].get((par_name, pop), None))
                 measurables[(par_name, pop)] = (d['weight'], d['metric'], d['cal_start'], d['cal_end'])
         measurables = [(*k, *v) for k,v in measurables.items()]
 
