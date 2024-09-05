@@ -642,6 +642,7 @@ class Project(NamedItem):
             import atomica.yaml_calibration # Avoid circular import
             assert adjustables is None, "If a YAML file is specified, adjustables should not be set"
             assert measurables is None, "If a YAML file is specified, measurables should not be set"
+            assert 'time_period' not in kwargs, "If a YAML file is specified, time_period should not be set - instead, set cal_start and cal_end in the YAML file"
             new_parset = atomica.yaml_calibration.run(yaml, self, parset, **kwargs)
         else:
             if adjustables is None:
