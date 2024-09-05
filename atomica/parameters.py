@@ -685,5 +685,7 @@ class ParameterSet(NamedItem):
 
         if "Initialization" in excelfile.sheet_names:
             self.initialization = Initialization.from_excel(excelfile)
+        else:
+            self.initialization = None
 
         logger.debug("Loaded calibration from file")
