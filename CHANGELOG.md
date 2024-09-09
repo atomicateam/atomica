@@ -2,9 +2,13 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.29.0] - 2023-09-09
 
-version = "1.28.8"
-versiondate = "2024-09-05"
+- `ProjectSettings` now computes the simulation time vector in a more robust way to reduce edge cases where the reported `sim_dt` doesn't match the input.
+
+*Backwards-compatibility notes*
+
+- In some edge cases, the simulation time points in the output may be different. In those cases, the difference between simulation time points in the model output would not have matched the model input, although the correct time step would have been used to calculate parameter values. In these cases, there may be an extra time point in the model output. Re-running the model should produce results that are close to the original results.
 
 ## [1.28.8] - 2023-09-05
 
