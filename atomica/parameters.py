@@ -299,7 +299,19 @@ class Initialization:
                 if (comp.name, pop.name) not in self.values:
                     comp._vals[:, 0] = 0
                 else:
-                    comp._vals[:, 0] = self.values[(comp.name, pop.name)]
+                    if len(self.values[(comp.name, pop.name)]) != comp._vals.shape[0]:
+                        # If there is a mismatch between the saved initialization duration and the
+                        # duration for the current simulation, if the values were all zero it would probably
+                        # be safe to assume the values can remain zero. If there are fewer time points in the saved
+                        # initialization we *could* insert them, however, there is a risk that the time points are different
+                        # because the step size was changed rather than the duration being changed, so it would not be valid
+                        # to do that. Therefore, if the sizes don't match and any values are nonzero, simply raise an error
+                        if np.all(self.values[(comp.name, pop.name)] == 0):
+                            comp._vals[:, 0] = 0
+                        else:
+                            raise Exception(f'The saved initialization for "{comp.name}" ({pop.name}) has {len(self.values[(comp.name, pop.name)])} time points, but the current parameters lead to a timed compartment duration with {comp._vals.shape[0]} time points. As nonzero values are present, the initialization cannot be applied.')
+                    else:
+                        comp._vals[:, 0] = self.values[(comp.name, pop.name)]
             else:
                 if (comp.name, pop.name) not in self.values:
                     comp.vals[0] = 0
@@ -685,5 +697,7 @@ class ParameterSet(NamedItem):
 
         if "Initialization" in excelfile.sheet_names:
             self.initialization = Initialization.from_excel(excelfile)
+        else:
+            self.initialization = None
 
         logger.debug("Loaded calibration from file")

@@ -94,8 +94,11 @@ class ProjectSettings:
         :return: Array of simulation times
 
         """
-
-        return np.linspace(self.sim_start, self.sim_end, int((self.sim_end - self.sim_start) / self.sim_dt) + 1)
+        # The int(np.float32()) helps cases where the numerical precision results in unwanted truncation e.g.,
+        # running a model over the range [2000,2066) with dt=1/12, it calculates 791.9999999999982 time steps
+        # rather than 792, in that case we can convert to a float32 to effectively round it to 792 before
+        # taking the integer. This should generally be safe for the types of values that get used for simulation years
+        return np.linspace(self.sim_start, self.sim_end, int(np.float32(((self.sim_end - self.sim_start) / self.sim_dt))) + 1)
 
     def update_time_vector(self, start: float = None, end: float = None, dt: float = None) -> None:
         """
@@ -642,6 +645,7 @@ class Project(NamedItem):
             import atomica.yaml_calibration # Avoid circular import
             assert adjustables is None, "If a YAML file is specified, adjustables should not be set"
             assert measurables is None, "If a YAML file is specified, measurables should not be set"
+            assert 'time_period' not in kwargs, "If a YAML file is specified, time_period should not be set - instead, set cal_start and cal_end in the YAML file"
             new_parset = atomica.yaml_calibration.run(yaml, self, parset, **kwargs)
         else:
             if adjustables is None:
