@@ -299,7 +299,8 @@ class Initialization:
                 if (comp.name, pop.name) not in self.values:
                     comp._vals[:, 0] = 0
                 else:
-                    if len(self.values[(comp.name, pop.name)]) != comp._vals.shape[0]:
+                    vals = self.values[(comp.name, pop.name)]
+                    if (comp._vals.shape[0] > 1 and len(vals) != comp._vals.shape[0]) or (comp._vals.shape[0] == 1 and not np.isscalar(vals)):
                         # If there is a mismatch between the saved initialization duration and the
                         # duration for the current simulation, if the values were all zero it would probably
                         # be safe to assume the values can remain zero. If there are fewer time points in the saved
