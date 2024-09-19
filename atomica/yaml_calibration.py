@@ -254,21 +254,42 @@ class CalibrationNode(BaseNode):
         Pre-parse calibration inputs
         """
 
-        def separate_keys(s):
+        def separate_keys(keys_str: str) -> list:
             """
-            Separate inputs that kave been defined together as one key in the YAML file
+            Separate inputs that kave been defined together as one key in the YAML file into a list of strnigs.
             """
-            s1 = re.findall(r'\(.*?\)', s)
-            s2 = s
-            for x in s1:
-                s2 = s2.replace(x, '')
-            all_strings = [x for x in s1 if x]
-            s2 = re.sub(r'(,\s)+', ', ', s2).strip(', ').split(',')
-            if s2 != ['']:
-                all_strings += s2
-            return all_strings
+            in_brackets = False
+            brackets_str = ''
+            nobrackets_str = ''
+            separated_keys = []
 
-        def process_key(s):
+            for ch in keys_str:
+                if ch == '(':
+                    in_brackets = True
+                    continue
+                elif ch == ')':
+                    in_brackets = False
+                    separated_keys.append(brackets_str)
+                    brackets_str = ''
+                    continue
+
+                if in_brackets:
+                    brackets_str += ch
+                else:
+                    if ch == ',':
+                        if nobrackets_str == ' ' or nobrackets_str == '':
+                            nobrackets_str = ''
+                            continue
+                        else:
+                            separated_keys.append(nobrackets_str)
+                            nobrackets_str = ''
+                    else:
+                        nobrackets_str += ch
+
+            if nobrackets_str != '' and nobrackets_str != ' ':
+                separated_keys.append(nobrackets_str)
+
+            return [x.strip() for x in separated_keys]
             """
             Sanitize key name with optional commas or spaces separating pop name/s from par name
             """
