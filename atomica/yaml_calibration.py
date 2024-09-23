@@ -387,6 +387,8 @@ class CalibrationNode(BaseNode):
                         #process values
                         if isinstance(v, (tuple, list)):
                             value = self.parse_list(v, defaults)
+                        elif v is None:
+                            value = defaults
                         else:
                             value = v.copy()
 
