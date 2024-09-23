@@ -322,7 +322,7 @@ class CalibrationNode(BaseNode):
             if ',' in key:
                 return tuple([x.strip() for x in key.strip('() ').split(',') if x])
             else:
-                return (key.strip(), None)
+                return tuple(key.strip(), None)
 
         def process_list(l: list) -> (tuple,list):
             """
