@@ -299,7 +299,8 @@ class Initialization:
                 if (comp.name, pop.name) not in self.values:
                     comp._vals[:, 0] = 0
                 else:
-                    if len(self.values[(comp.name, pop.name)]) != comp._vals.shape[0]:
+                    vals = self.values[(comp.name, pop.name)]
+                    if (comp._vals.shape[0] > 1 and len(vals) != comp._vals.shape[0]) or (comp._vals.shape[0] == 1 and not np.isscalar(vals)):
                         # If there is a mismatch between the saved initialization duration and the
                         # duration for the current simulation, if the values were all zero it would probably
                         # be safe to assume the values can remain zero. If there are fewer time points in the saved
@@ -356,13 +357,13 @@ class Initialization:
         metadata, value_df = atomica.excel.read_dataframes(excelfile.book['Initialization'])
 
         values = {}
-        for k,s in value_df.T.reset_index().T.set_index([0,1]).iterrows():
+        for k, s in value_df.T.reset_index().T.set_index([0, 1]).iterrows():
             v = s.dropna().values
             values[k] = v[0] if len(v) == 1 else v
 
         self = cls(values)
 
-        for k,v in metadata.T.reset_index().T.set_index(0)[1].to_dict().items():
+        for k, v in metadata.T.reset_index().T.set_index(0)[1].to_dict().items():
             setattr(self, k, v)
 
         return self
