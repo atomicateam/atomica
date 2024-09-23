@@ -263,7 +263,10 @@ class CalibrationNode(BaseNode):
 
         def separate_keys(keys_str: str) -> list:
             """
-            Separate inputs that kave been defined together as one key in the YAML file into a list of strnigs.
+            Separate inputs that kave been defined together as one key in the YAML file but actually represent multiple
+            parameters.
+            :param str keys_str: Unprocessed input key from the YAML file.
+            :return list : A list of strings, each of which represents a single key.
             """
             in_brackets = False
             brackets_str = ''
@@ -300,16 +303,42 @@ class CalibrationNode(BaseNode):
 
         def process_key(key: str) -> tuple:
             """
-            Sanitize key name, separating optional pop name/s from par name
-            #TODO add example and further explanation
+            Sanitize the key name, separating the parameter codename from the optional population name/s.
+            :par str key: Key representing an adjustable or measurable parameter. It can also contain one or two
+            population names (two in the case of a transfer), separated from the parameter name by a comma.
+            :returns: A tuple of the parameter codename and population name/s. Population defaults to None
+            if not specified.
+
+            EXAMPLES:
+                INPUT: 'b_rate'
+                OUTPUT: (b_rate, None)
+
+                INPUT: 'b_rate, 0-4'
+                OUTPUT: (b_rate, 0-4)
+
+                INPUT: 'aging, 0-4, 5-14'
+                OUTPUT: (aging, 0-4, 5-14)
             """
             if ',' in key:
                 return tuple([x.strip() for x in key.strip('() ').split(',') if x])
             else:
                 return (key.strip(), None)
 
-        def process_list(l) -> (str,list):
-            """description"""
+        def process_list(l: list) -> (tuple,list):
+            """
+            Process list-format inputs and separate them into a key (par_name, pop_name tuple) and a value (list of
+            parameter settings).
+            @param l: List representing the settings for one parameter.
+            @return:    tuple key: Tuple of the parameter codename and the population (default None).
+                        list value: List of calibration settings for this parameter.
+
+            EXAMPLES:
+                INPUT: [b_rate, 0.1, 10]
+                OUTPUT: (b_rate, None) ; [0.1, 10]
+
+                INPUT: [(b_rate, 0-4), 0.1, 10, 1.5]
+                OUTPUT: (b_rate, 0-4) ; [0.1, 10, 1.5]
+            """
             if len(l) == 1:
                 #if the list is already just one string, return that string as key with None pop and vals
                 return (l[0].strip('() '), None), None
@@ -331,16 +360,22 @@ class CalibrationNode(BaseNode):
                 value = l[1:]
                 return key, value
 
-        def process_inputs(inputs, defaults):
+        def process_inputs(inputs, defaults: dict) -> dict:
             """
-            Process adjustables and measurables, which can be specified in a list representation or nested dict representation
-            In list representation, the input is a list of lists, where the first item in each list is the quantity (with optional population) and
-            the remaining items are the supported arguments for the input type, in the order defined by the defaults dictionary.
-            In a dict representation, the key is the quantity with optional population, and then the value can either be a list (in the order defined by the dictionary)
-            or a dictionary explicitly naming the inputs.
+            Process adjustables and measurables, which can be specified as a string, list or nested dict representation.
+            * In string representation, only the parameter name is specified, and the default settings are used.
+            * In list representation, the input is a list of lists, where the first item in each list is the parameter
+            (with optional population) and the remaining items are the supported arguments for the input type, in the
+            order defined by the defaults dictionary.
+            *In dict representation, the key is the quantity with optional population, and the value can either be
+            a list (in the order defined by the dictionary) or a dictionary explicitly naming the inputs.
+
             This function returns a flat dictionary with {(quantity, pop_name):{argument:value}} e.g., {('b_rate','0-5'):{'lower_bound':0.5}}.
-            In the dict representation, the key can be a comma separated list of quantities with optional values e.g., 'b_rate 0-5, d_rate'. In the list representation,
-            multiple quantities are not supported (as a comma is already used to separate the arguments), but multiple lists (one for each quantity) can be provided.
+            In the dict representation, the key can be a comma separated list of quantities with optional values e.g.,
+            'b_rate 0-5, d_rate'.
+            In the list representation, multiple quantities are not supported (as a comma is already used to separate
+            the arguments), but multiple lists (one for each quantity) can be provided.
+            #TODO could add examples
             """
             out = {}
 
