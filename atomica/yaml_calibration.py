@@ -230,7 +230,7 @@ class CalibrationNode(BaseNode):
     adj_defaults = {
         'lower_bound': 0.1,
         'upper_bound': 10.0,
-        'initial_value': None,
+        'starting_y_factor': None,
     }
 
     # Order for list of measurable parameters and default values
@@ -245,6 +245,13 @@ class CalibrationNode(BaseNode):
     def parse_list(l, defaults):
         # Routine to parse list of arguments into a dictionary of values
         d = {}
+        #convert number strings back to numerical values
+        for i, e in enumerate(l.copy()):
+            try:
+                l[i] = float(e)  
+            except ValueError:
+                pass
+
         for k, v in zip(list(defaults.keys())[:len(l)], l):
             d[k] = v
         return d
@@ -254,41 +261,121 @@ class CalibrationNode(BaseNode):
         Pre-parse calibration inputs
         """
 
-        def separate_keys(s):
+        def separate_keys(keys_str: str) -> list:
             """
-            Separate inputs that kave been defined together as one key in the YAML file
+            Separate inputs that kave been defined together as one key in the YAML file but actually represent multiple
+            parameters.
+            :param str keys_str: Unprocessed input key from the YAML file.
+            :return list : A list of strings, each of which represents a single key.
             """
-            s1 = re.findall(r'\(.*?\)', s)
-            s2 = s
-            for x in s1:
-                s2 = s2.replace(x, '')
-            all_strings = [x for x in s1 if x]
-            s2 = re.sub(r'(,\s)+', ', ', s2).strip(', ').split(',')
-            if s2 != ['']:
-                all_strings += s2
-            return all_strings
+            in_brackets = False
+            brackets_str = ''
+            nobrackets_str = ''
+            separated_keys = []
 
-        def process_key(s):
+            for ch in keys_str:
+                if ch == '(':
+                    in_brackets = True
+                    continue
+                elif ch == ')':
+                    in_brackets = False
+                    separated_keys.append(brackets_str)
+                    brackets_str = ''
+                    continue
+
+                if in_brackets:
+                    brackets_str += ch
+                else:
+                    if ch == ',':
+                        if nobrackets_str == ' ' or nobrackets_str == '':
+                            nobrackets_str = ''
+                            continue
+                        else:
+                            separated_keys.append(nobrackets_str)
+                            nobrackets_str = ''
+                    else:
+                        nobrackets_str += ch
+
+            if nobrackets_str != '' and nobrackets_str != ' ':
+                separated_keys.append(nobrackets_str)
+
+            return [x.strip() for x in separated_keys]
+
+        def process_key(key: str) -> tuple:
             """
-            Sanitize key name with optional commas or spaces separating pop name/s from par name
+            Sanitize the key name, separating the parameter codename from the optional population name/s.
+            :par str key: Key representing an adjustable or measurable parameter. It can also contain one or two
+            population names (two in the case of a transfer), separated from the parameter name by a comma.
+            :returns: A tuple of the parameter codename and population name/s. Population defaults to None
+            if not specified.
+
+            EXAMPLES:
+                INPUT: 'b_rate'
+                OUTPUT: (b_rate, None)
+
+                INPUT: 'b_rate, 0-4'
+                OUTPUT: (b_rate, 0-4)
+
+                INPUT: 'aging, 0-4, 5-14'
+                OUTPUT: (aging, 0-4, 5-14)
             """
-            if '(' and ')' in s:
-                return tuple([x.strip() for x in s.strip('() ').split(',') if x])
-            elif ' ' in s:
-                return tuple([x.strip() for x in s.split(' ') if x])
+            if ',' in key:
+                return tuple([x.strip() for x in key.strip('() ').split(',') if x])
             else:
-                return (s.strip(), None)
+                return (key.strip(), None)
 
-        def process_inputs(inputs, defaults):
+        def process_list(l: list) -> (tuple,list):
             """
-            Process adjustables and measurables, which can be specified in a list representation or nested dict representation
-            In list representation, the input is a list of lists, where the first item in each list is the quantity (with optional population) and
-            the remaining items are the supported arguments for the input type, in the order defined by the defaults dictionary.
-            In a dict representation, the key is the quantity with optional population, and then the value can either be a list (in the order defined by the dictionary)
-            or a dictionary explicitly naming the inputs.
+            Process list-format inputs and separate them into a key (par_name, pop_name tuple) and a value (list of
+            parameter settings).
+            @param l: List representing the settings for one parameter.
+            @return:    tuple key: Tuple of the parameter codename and the population (default None).
+                        list value: List of calibration settings for this parameter.
+
+            EXAMPLES:
+                INPUT: [b_rate, 0.1, 10]
+                OUTPUT: (b_rate, None) ; [0.1, 10]
+
+                INPUT: [(b_rate, 0-4), 0.1, 10, 1.5]
+                OUTPUT: (b_rate, 0-4) ; [0.1, 10, 1.5]
+            """
+            if len(l) == 1:
+                #if the list is already just one string, return that string as key with None pop and vals
+                return (l[0].strip('() '), None), None
+            elif '(' in str(l):
+                # separate out the parenthesis contents as the par/pop/s,
+                # then output the key (par, pop tuple) and value
+
+                # process keys
+                s = str(l).strip("[] ").replace("'", "")
+                s1 = re.findall(r'\(.*?\)', s)
+                key = process_key(s1[0].replace('(', '').replace(')', ''))
+
+                # process values/settings
+                value = s.replace(s1[0], '').strip(', ').split(',')
+                value = [x.strip(', ') for x in value if x]
+                return key, value
+            else:
+                key = process_key(l[0])
+                value = l[1:]
+                return key, value
+
+        def process_inputs(inputs, defaults: dict) -> dict:
+            """
+            Process adjustables and measurables, which can be specified as a string, list or nested dict representation.
+            * In string representation, only the parameter name is specified, and the default settings are used.
+            * In list representation, the input is a list of lists, where the first item in each list is the parameter
+            (with optional population) and the remaining items are the supported arguments for the input type, in the
+            order defined by the defaults dictionary.
+            *In dict representation, the key is the quantity with optional population, and the value can either be
+            a list (in the order defined by the dictionary) or a dictionary explicitly naming the inputs.
+
             This function returns a flat dictionary with {(quantity, pop_name):{argument:value}} e.g., {('b_rate','0-5'):{'lower_bound':0.5}}.
-            In the dict representation, the key can be a comma separated list of quantities with optional values e.g., 'b_rate 0-5, d_rate'. In the list representation,
-            multiple quantities are not supported (as a comma is already used to separate the arguments), but multiple lists (one for each quantity) can be provided.
+            In the dict representation, the key can be a comma separated list of quantities with optional values e.g.,
+            'b_rate 0-5, d_rate'.
+            In the list representation, multiple quantities are not supported (as a comma is already used to separate
+            the arguments), but multiple lists (one for each quantity) can be provided.
+            #TODO could add examples
             """
             out = {}
 
@@ -300,33 +387,48 @@ class CalibrationNode(BaseNode):
             if isinstance(inputs, (tuple, list)):
                 for l in inputs:
                     l = sc.promotetolist(l)
-                    #TODO enable and test transfers in full list format
-                    key, pop_name = process_key(l[0].strip())
-                    d = self.parse_list(l[1:], defaults)
-                    out[key, pop_name] = sc.mergedicts(out.get((key, pop_name), {}), d)
+                    keyspops, v = process_list(l)
+                    
+                    #process key
+                    if len(keyspops) == 2:
+                        key, pop_name = keyspops
+                    else:
+                        assert len(keyspops) == 3, f'Number of populations must be 0, 1 or 2.'
+                        key = f'{keyspops[0]}_from_{keyspops[1]}'
+                        pop_name = keyspops[2]
+
+                    #process value
+                    if v is None:
+                        value = defaults
+                    else:
+                        value = self.parse_list(v, defaults)
+
+                    out[key, pop_name] = sc.mergedicts(out.get((key, pop_name), {}), value)
 
             elif isinstance(inputs, dict):
                 for keys, v in inputs.items():
 
                     separated_keys = separate_keys(keys)
                     for key in separated_keys:
-                        #separate par name from pop name/s
+                        #separate par name from pop name
                         keyspops = process_key(key.strip())
                         if len(keyspops) == 2:
                             key, pop_name = keyspops
                         else:
-                            assert len(keyspops) == 3, f'Number of populations must be 1, 2 or None)'
+                            assert len(keyspops) == 3, f'Number of populations must be 0, 1 or 2.'
                             key = f'{keyspops[0]}_from_{keyspops[1]}'
                             pop_name = keyspops[2]
 
                         #process values
                         if isinstance(v, (tuple, list)):
-                            d = self.parse_list(v, defaults)
+                            value = self.parse_list(v, defaults)
+                        elif v is None:
+                            value = defaults
                         else:
-                            d = v.copy()
+                            value = v.copy()
 
                         #add keys and values to outputs dict
-                        out[key, pop_name] = sc.mergedicts(out.get((key, pop_name), {}), d)
+                        out[key, pop_name] = sc.mergedicts(out.get((key, pop_name), {}), value)
             return out
 
         self['adjustables'] = process_inputs(self['adjustables'], self.adj_defaults)
@@ -335,7 +437,7 @@ class CalibrationNode(BaseNode):
         def check_optional_number(key, v, defaults):
             if key in v and v[key] is not None:
                 if not sc.isnumber(v[key], isnan=False):
-                    raise TypeError(f"Adjustable argument '{key}' needs to be a number or None (defaults to {defaults[key]}). Provided value: {v[key]} ")
+                    raise TypeError(f"Adjustable argument {key} needs to be a number or None (defaults to {defaults[key]}). Provided value: {v[key]} ")
 
         # Validate adjustables
         assert len(self['adjustables']) > 0, f'Cannot calibrate with no adjustables for calibration section {self.name}'
@@ -345,7 +447,7 @@ class CalibrationNode(BaseNode):
             assert pop_name is None or isinstance(pop_name, str), f'Adjustable population {pop_name} needs to be a string or None (defaults to all populations for that parameter)'
             check_optional_number('lower_bound',v, self.adj_defaults)
             check_optional_number('upper_bound',v, self.adj_defaults)
-            check_optional_number('initial_value',v, self.adj_defaults)
+            check_optional_number('starting_y_factor',v, self.adj_defaults)
 
         # Validate measurables
         assert len(self['measurables']) > 0, f'Cannot calibrate with no measurables for calibration section {self.name}'
@@ -388,13 +490,13 @@ class CalibrationNode(BaseNode):
 
             for pop in pops:
                 d = sc.mergedicts(adj_defaults,  attributes['adjustables'].get((par_name, None), None),  attributes['adjustables'].get((par_name, pop), None))
-                adjustables[(par_name, pop)] = (d['lower_bound'], d['upper_bound'], d['initial_value'])
+                adjustables[(par_name, pop)] = (d['lower_bound'], d['upper_bound'], d['starting_y_factor'])
         adjustables = [(*k, *v) for k,v in adjustables.items()]
 
 
         # Expand measurables
         measurables = {}
-        par_names = {x[0] for x in attributes['measurables']}.intersection(x.name for x in parset.all_pars())  # TODO: This is probably OK for now but will need to support transfer parameters and validate that pars have databook entries in the future
+        par_names = {x[0] for x in attributes['measurables']}.intersection(x.name for x in parset.all_pars())  # TODO: This is probably OK for now but will need to validate that pars have databook entries in the future
         pop_names = {x[1] for x in attributes['measurables']}.intersection({*parset.pop_names} | {None})
 
         meas_defaults = {k: self.attributes[k] if k in self.attributes else self.meas_defaults[k] for k in self.meas_defaults}
@@ -514,9 +616,11 @@ class InitializationNode(BaseNode):
     def apply(self, project: at.Project, parset: at.ParameterSet, n: int, *args, **kwargs) -> ParameterSet:
         p2 = sc.dcp(parset)
         if 'constant_parset' in self:
-            if self['constant_parset'] == True:
+            if self['constant_parset'] == False:
+                pass
+            elif self['constant_parset'] == True:
                 p2 = parset.make_constant(year=project.settings.sim_start)
-            elif type(self['constant_parset']) == int: #constant parset year was provided
+            elif sc.isnumber(self['constant_parset']): #constant parset year was provided
                 p2 = parset.make_constant(year=self['constant_parset'])
         new_settings = sc.dcp(project.settings)
         new_settings.update_time_vector(end=self['init_year'])
