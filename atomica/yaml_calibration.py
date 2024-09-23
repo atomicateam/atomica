@@ -230,7 +230,7 @@ class CalibrationNode(BaseNode):
     adj_defaults = {
         'lower_bound': 0.1,
         'upper_bound': 10.0,
-        'initial_value': None,
+        'starting_y_factor': None,
     }
 
     # Order for list of measurable parameters and default values
@@ -412,7 +412,7 @@ class CalibrationNode(BaseNode):
             assert pop_name is None or isinstance(pop_name, str), f'Adjustable population {pop_name} needs to be a string or None (defaults to all populations for that parameter)'
             check_optional_number('lower_bound',v, self.adj_defaults)
             check_optional_number('upper_bound',v, self.adj_defaults)
-            check_optional_number('initial_value',v, self.adj_defaults)
+            check_optional_number('starting_y_factor',v, self.adj_defaults)
 
         # Validate measurables
         assert len(self['measurables']) > 0, f'Cannot calibrate with no measurables for calibration section {self.name}'
@@ -455,7 +455,7 @@ class CalibrationNode(BaseNode):
 
             for pop in pops:
                 d = sc.mergedicts(adj_defaults,  attributes['adjustables'].get((par_name, None), None),  attributes['adjustables'].get((par_name, pop), None))
-                adjustables[(par_name, pop)] = (d['lower_bound'], d['upper_bound'], d['initial_value'])
+                adjustables[(par_name, pop)] = (d['lower_bound'], d['upper_bound'], d['starting_y_factor'])
         adjustables = [(*k, *v) for k,v in adjustables.items()]
 
 
