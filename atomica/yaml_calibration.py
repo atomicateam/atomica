@@ -581,9 +581,11 @@ class InitializationNode(BaseNode):
     def apply(self, project: at.Project, parset: at.ParameterSet, n: int, *args, **kwargs) -> ParameterSet:
         p2 = sc.dcp(parset)
         if 'constant_parset' in self:
-            if self['constant_parset'] == True:
+            if self['constant_parset'] == False:
+                pass
+            elif self['constant_parset'] == True:
                 p2 = parset.make_constant(year=project.settings.sim_start)
-            elif type(self['constant_parset']) == int: #constant parset year was provided
+            elif sc.isnumber(self['constant_parset']): #constant parset year was provided
                 p2 = parset.make_constant(year=self['constant_parset'])
         new_settings = sc.dcp(project.settings)
         new_settings.update_time_vector(end=self['init_year'])
