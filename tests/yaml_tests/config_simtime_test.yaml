@@ -18,13 +18,13 @@ calibration:
         sim_end: 2040
         match population sizes 1:
           adjustables:
-            b_rate,mig_rate: [ 0.1,10 ]
-          measurables: [alive]
+            b_rate,inf_death: [ 0.1,10 ]
+          measurables: [all_people]
 
       round 2:
         match population sizes 2:
           sim_start: 2000 #is this meant to work?
           sim_end: 2040
           adjustables:
-            b_rate,mig_rate: [ 0.1,10 ]
-          measurables: [alive]
+            b_rate,inf_death: [ 0.1,10 ]
+          measurables: [all_people]

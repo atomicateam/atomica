@@ -15,10 +15,10 @@ calibration:
             b_rate:
               lower_bound: 0.1
               upper_bound: 10
-            mig_rate:
+            inf_death:
               starting_y_factor: 1.2
           measurables:
-            alive:
+            all_people:
               metric: fractional
 
         #combined format
@@ -26,22 +26,22 @@ calibration:
           version 1:
             adjustables:
               b_rate: [ 0.1,10 ]
-              mig_rate: [ 0.1,10 ]
+              inf_death: [ 0.1,10 ]
             measurables:
-              alive: [1.0]
+              all_people: [1.0]
 
           version 2:
             adjustables:
-              b_rate, mig_rate: [ 0.1,10 ]
+              b_rate, inf_death: [ 0.1,10 ]
             measurables:
-              alive: [1.0]
+              all_people: [1.0]
 
         #list format
         match population sizes 3:
-          adjustables: [[b_rate, 0.1, 10], [mig_rate, 0.1, 10]]
-          measurables: [alive]
+          adjustables: [[b_rate, 0.1, 10], [inf_death, 0.1, 10]]
+          measurables: [all_people]
 
          #string format
         match population sizes 4:
-          adjustables: [b_rate, mig_rate]
-          measurables: alive
+          adjustables: [b_rate, inf_death]
+          measurables: all_people
