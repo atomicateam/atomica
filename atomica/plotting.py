@@ -427,9 +427,12 @@ class PlotData:
                         pop_name = list(pop.keys())[0]
                         pop_labels = pop[pop_name]
 
-                        # Set population aggregation method depending on
+                        # Set population aggregation method depending on the quantity being aggregated
                         if pop_aggregation is None:
-                            if aggregated_units[output_name] in ["", FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_RATE]:
+                            if aggregated_denominators[pop_labels[0]][output_name] is not None:
+                                # Outputs with denominators use these for a weighted average by default
+                                pop_aggregation = "weighted"
+                            elif aggregated_units[output_name] in ["", FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_RATE]:
                                 pop_aggregation = "average"
                             else:
                                 pop_aggregation = "sum"
