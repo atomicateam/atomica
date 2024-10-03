@@ -98,7 +98,7 @@ class ProjectSettings:
         # running a model over the range [2000,2066) with dt=1/12, it calculates 791.9999999999982 time steps
         # rather than 792, in that case we can convert to a float32 to effectively round it to 792 before
         # taking the integer. This should generally be safe for the types of values that get used for simulation years
-        return np.linspace(self.sim_start, self.sim_end, int(np.float32(((self.sim_end - self.sim_start) / self.sim_dt))) + 1)
+        return np.linspace(self.sim_start, self.sim_end, int(np.float32(((self.sim_end - self.sim_start) / self.sim_dt))) + 1, dtype='float32')
 
     def update_time_vector(self, start: float = None, end: float = None, dt: float = None) -> None:
         """
