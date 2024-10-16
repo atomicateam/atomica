@@ -547,6 +547,16 @@ class PlotData:
             vals = np.full(lower.shape, fill_value=np.nan)
             for i, (l, u) in enumerate(zip(lower, upper)):
                 t2 = np.arange(round((u - l) / max_step) + 1) * max_step + l
+                # Numerical precision issues can cause the wrong bin to be used. This is particularly noticable for 'previous'
+                # e.g., if the interpolated finer bins have 2025.9999999 instead of 2026 causing the 2025 value to be
+                # used instead, this can cause a significant overestimation if the value is changing rapidly. Therefore
+                # we need to perform an extra step of using the exact bin values within some tolerance. The values are on
+                # the order of 0.002 (1 day, in years) so the default np.isclose() should be sufficient. However, we may want to apply this
+                # to linear interpolation as well because if the bin falls numerically *outside* the bounds, it will be extrapolated
+                # as NaN which we wouldn't want
+                nearest = np.searchsorted(s.tvec, t2, side='left')
+                isclose = np.isclose(s.tvec[nearest], t2)
+                t2[isclose] = s.tvec[nearest[isclose]]
                 if interpolation_method == "linear":
                     v2 = np.interp(t2, s.tvec, s.vals, left=np.nan, right=np.nan)  # Return NaN outside bounds - it should never be valid to use extrapolated output values in time aggregation
                     vals[i] = np.trapz(y=v2 / scale, x=t2)  # Note division by timescale here, which annualizes it
