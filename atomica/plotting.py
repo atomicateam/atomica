@@ -546,8 +546,7 @@ class PlotData:
             max_step = 0.5 * min(np.diff(s.tvec))  # Subdivide for trapezoidal integration with at least 2 divisions per timestep. Could be a lot of memory for integrating daily timesteps over a full simulation, but unlikely to be prohibitive
             vals = np.full(lower.shape, fill_value=np.nan)
             for i, (l, u) in enumerate(zip(lower, upper)):
-                n = np.ceil((u - l) / max_step) + 1  # Add 1 so that in most cases, we can use the actual timestep values
-                t2 = np.linspace(l, u, int(n))
+                t2 = np.arange(round((u - l) / max_step) + 1) * max_step + l
                 if interpolation_method == "linear":
                     v2 = np.interp(t2, s.tvec, s.vals, left=np.nan, right=np.nan)  # Return NaN outside bounds - it should never be valid to use extrapolated output values in time aggregation
                     vals[i] = np.trapz(y=v2 / scale, x=t2)  # Note division by timescale here, which annualizes it
