@@ -2,6 +2,18 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.29.0] - 2023-09-09
+
+- `ProjectSettings` now computes the simulation time vector in a more robust way to reduce edge cases where the reported `sim_dt` doesn't match the input.
+
+*Backwards-compatibility notes*
+
+- In some edge cases, the simulation time points in the output may be different. In those cases, the difference between simulation time points in the model output would not have matched the model input, although the correct time step would have been used to calculate parameter values. In these cases, there may be an extra time point in the model output. Re-running the model should produce results that are close to the original results.
+
+## [1.28.8] - 2023-09-05
+
+- `ParameterSet.load_calibration()` now clears any existing initialization if the calibration being loaded does not contain an initialization. Previously, the absence of an 'initialization' sheet in the calibration would be treated as not making any change to the initialization. This could cause calibrations to become mixed if a calibration without an initialization was loaded after a calibration with an initialization. Now, a missing initialization sheet is treated as meaning 'no initialization' and any existing initialization will be cleared when the calibration is loaded. 
+
 ## [1.28.7] - 2023-08-12
 
 - `Project.load_databook()` will no longer populate `Project.databook` when a `ProjectData` instance is supplied rather than a spreadsheet. The intention of `Project.databook` as opposed to `Project.data.to_spreadsheet()` is that the original databook may contain comments or other content that is not preserved when the databook is loaded into a `ProjectData` instance. Therefore, `Project.databook` serves as a record of the original inputs. However, in previous versions of Atomica, if a `ProjectData` instance was provided rather than a spreadsheet, `ProjectData.to_spreadsheet()` would be used to populate `Project.databook`. For large databooks, this can be computationally expensive and particularly affect the use case of passing in a preloaded databook to improve performance. Since the conversion of the `ProjectData` to a spreadsheet upon loading offers no functional difference to creating the spreadsheet from `Project.data` when required, Atomica no longer performs this conversion upfront.

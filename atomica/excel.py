@@ -403,7 +403,7 @@ class TimeDependentConnections:
         self.ts = ts if ts is not None else sc.odict()
 
         self.attributes = {}  #: Attributes associated with the table
-        self.ts_attributes = {}  #: Attributes associated with each TimeSeries row
+        self.ts_attributes = {}  #: Attributes associated with each TimeSeries row. This is a dict-of-dicts with `ts_attributes[attribute]={pop:value}` e.g., ts_attributes["Provenance"] = {'popA': 'value', 'popB': 'value'}
         self.ts_attributes["Provenance"] = {}  # Include provenance attribute by default
 
         self.assumption_heading = "Constant"  #: Heading to use for assumption column

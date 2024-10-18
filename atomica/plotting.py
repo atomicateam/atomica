@@ -203,6 +203,7 @@ class PlotData:
 
         assert output_aggregation in [None, "sum", "average", "weighted"]
         assert pop_aggregation in [None, "sum", "average", "weighted"]
+        assert time_aggregation in [None, "integrate", "average"]
 
         # First, get all of the pops and outputs requested by flattening the lists
         pops_required = _extract_labels(pops)
@@ -306,7 +307,7 @@ class PlotData:
                     displayed_annualization_warning = False
                     for dep_label in dep_labels:
                         vars = pop.get_variable(dep_label)
-                        if t_bins is not None and (isinstance(vars[0], Link) or isinstance(vars[0], Parameter)) and time_aggregation == "sum" and not displayed_annualization_warning:
+                        if t_bins is not None and (isinstance(vars[0], Link) or isinstance(vars[0], Parameter)) and time_aggregation == "integrate" and not displayed_annualization_warning:
                             raise Exception("Function includes Parameter/Link so annualized rates are being used. Aggregation should therefore use 'average' rather than 'sum'.")
                         deps[dep_label] = vars
                     par._fcn = fcn
@@ -545,8 +546,17 @@ class PlotData:
             max_step = 0.5 * min(np.diff(s.tvec))  # Subdivide for trapezoidal integration with at least 2 divisions per timestep. Could be a lot of memory for integrating daily timesteps over a full simulation, but unlikely to be prohibitive
             vals = np.full(lower.shape, fill_value=np.nan)
             for i, (l, u) in enumerate(zip(lower, upper)):
-                n = np.ceil((u - l) / max_step) + 1  # Add 1 so that in most cases, we can use the actual timestep values
-                t2 = np.linspace(l, u, int(n))
+                t2 = np.arange(round((u - l) / max_step) + 1) * max_step + l
+                # Numerical precision issues can cause the wrong bin to be used. This is particularly noticable for 'previous'
+                # e.g., if the interpolated finer bins have 2025.9999999 instead of 2026 causing the 2025 value to be
+                # used instead, this can cause a significant overestimation if the value is changing rapidly. Therefore
+                # we need to perform an extra step of using the exact bin values within some tolerance. The values are on
+                # the order of 0.002 (1 day, in years) so the default np.isclose() should be sufficient. However, we may want to apply this
+                # to linear interpolation as well because if the bin falls numerically *outside* the bounds, it will be extrapolated
+                # as NaN which we wouldn't want
+                nearest = np.searchsorted(s.tvec, t2, side='left')
+                isclose = np.isclose(s.tvec[nearest], t2)
+                t2[isclose] = s.tvec[nearest[isclose]]
                 if interpolation_method == "linear":
                     v2 = np.interp(t2, s.tvec, s.vals, left=np.nan, right=np.nan)  # Return NaN outside bounds - it should never be valid to use extrapolated output values in time aggregation
                     vals[i] = np.trapz(y=v2 / scale, x=t2)  # Note division by timescale here, which annualizes it
@@ -590,7 +600,7 @@ class PlotData:
             if sc.isstring(t_bins) and t_bins == "all":
                 s.t_labels = ["All"]
             else:
-                s.t_labels = ["%d-%d" % (low, high) for low, high in zip(lower, upper)]
+                s.t_labels = [f"{np.format_float_positional(low,trim='-')}-{np.format_float_positional(high,trim='-')}" for low, high in zip(lower, upper)]
 
         return self
 

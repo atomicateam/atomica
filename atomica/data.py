@@ -22,8 +22,6 @@ from collections import defaultdict
 import pandas as pd
 import itertools
 
-_DEFAULT_PROVENANCE = "Framework-supplied default"
-
 __all__ = ["InvalidDatabook", "ProjectData"]
 
 
@@ -303,7 +301,7 @@ class ProjectData(sc.prettyobj):
                         ts = TimeSeries(units=interpop.allowed_units[0])
                         ts.insert(None, spec["default value"])
                         interpop.ts[(from_pop, to_pop)] = ts
-                        interpop.ts_attributes["Provenance"][(from_pop, to_pop)] = _DEFAULT_PROVENANCE
+                        interpop.ts_attributes["Provenance"][(from_pop, to_pop)] = spec["provenance"] if "provenance" in spec else FS.DEFAULT_PROVENANCE
 
         # Finally, insert parameter and characteristic default values
         for df in [framework.comps, framework.characs, framework.pars]:
@@ -315,7 +313,7 @@ class ProjectData(sc.prettyobj):
                     tdve = data.tdve[spec.name]
                     for key, ts in tdve.ts.items():
                         ts.insert(None, spec["default value"])
-                        tdve.ts_attributes["Provenance"][key] = _DEFAULT_PROVENANCE
+                        tdve.ts_attributes["Provenance"][key] = spec["provenance"] if "provenance" in spec else FS.DEFAULT_PROVENANCE
 
         return data
 
@@ -413,7 +411,9 @@ class ProjectData(sc.prettyobj):
                                 ts.units = tdve.allowed_units[0]
 
                     if not spec["databook page"]:
-                        logger.warning('A TDVE table for "%s" (%s) was read in and will be used, but the Framework did not mark this quantity as appearing in the databook', tdve.name, code_name)
+                        # Note that if the parameter doesn't have a databook page and the framework is valid, then the parameter must have a function. Therefore,
+                        # if data is also read in, it will not change the simulation outputs and would only be used for calibration/validation
+                        logger.warning('A TDVE table for "%s" (%s) was read in and data will be available for calibration, but the Framework did not mark this quantity as appearing in the databook', tdve.name, code_name)
                     tdve.comment = spec["guidance"]
 
                     if code_name in self.tdve:
@@ -489,8 +489,10 @@ class ProjectData(sc.prettyobj):
                             for pop in self.pops.keys():
                                 self.tdve[spec_name].ts[pop] = TimeSeries(assumption=spec["default value"], units=units)
                             tdve_page = framework.sheets["databook pages"][0][framework.sheets["databook pages"][0]["datasheet code name"] == spec["databook page"]]["datasheet title"].values[0]
-                            if tdve_page in self.tdve_pages:
-                                self.tdve_pages[tdve_page].append(spec_name)
+                            for existing in self.tdve_pages.keys():
+                                if existing.lower() == tdve_page.lower():
+                                    self.tdve_pages[existing].append(spec_name)
+                                    break
                             else:
                                 self.tdve_pages[tdve_page] = [spec_name]
                     else:
