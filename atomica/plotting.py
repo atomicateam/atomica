@@ -353,24 +353,37 @@ class PlotData:
                         units = list(set([output_units[x] for x in labels]))
                         timescales = list(set([np.nan if isna(output_timescales[x]) else output_timescales[x] for x in labels]))  # Ensure that None and nan don't appear as different timescales
 
+                        # Define default aggregation methods
+                        default_aggregations = {
+                            FS.QUANTITY_TYPE_FRACTION: 'average',
+                            FS.QUANTITY_TYPE_PROPORTION: 'average',
+                            FS.QUANTITY_TYPE_PROBABILITY: 'average',
+                            FS.QUANTITY_TYPE_RATE: 'average',
+                            FS.QUANTITY_TYPE_NUMBER: 'sum',
+                            FS.QUANTITY_TYPE_DURATION: 'sum'
+                        }
 
                         # Set default aggregation method depending on the units of the quantity
                         if output_aggregation is None:
                             if labels[0] in denomsize:
+                                # If aggregating characteristics with denominators, then we want to use
                                 # We are aggregating characteristics with denominators, so we want to aggregate with summation
                                 # on the assumption that all of the characteristics being aggregated have the same denominator
                                 output_aggregation = "sum"
                             elif units[0] in ["", FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_RATE]:
                                 output_aggregation = "average"
-                            else:
+                            elif units[0] in [FS.QUANTITY_TYPE_NUMBER, FS.QUANTITY_TYPE_DURATION]:
                                 output_aggregation = "sum"
+                            else:
+                                logger.warning(f'Unit quantity "{units[0]}" was not recognized and an output aggregation method was not specified, using "sum" by default')
+
 
                         if len(units) > 1:
                             logger.warning("Aggregation for output '%s' is mixing units, this is almost certainly not desired.", output_name)
                             aggregated_units[output_name] = "unknown"
                         else:
-                            if units[0] in ["", FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_RATE] and output_aggregation == "sum" and len(labels) > 1 and not labels[0] in denomsize:  # Dimensionless, like prevalance
-                                logger.warning("Output '%s' is not in number units, so output aggregation probably should not be 'sum'.", output_name)
+                            if units[0] in AVG_UNITS and output_aggregation == "sum" and len(labels) > 1 and not labels[0] in denomsize:  # Dimensionless, like prevalance
+                                logger.warning(f"Output '{output_name}' is in '{units[0]}' units, so output aggregation probably should not be 'sum'.")
                             aggregated_units[output_name] = output_units[labels[0]]
 
                         if len(timescales) > 1:
