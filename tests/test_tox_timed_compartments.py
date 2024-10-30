@@ -16,7 +16,7 @@ import sys
 #
 #
 
-testdir = at.parent_dir()
+testdir = at.rootdir / "tests"
 tmpdir = testdir / "temp"
 
 

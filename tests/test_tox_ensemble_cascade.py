@@ -10,7 +10,7 @@ import sciris as sc
 
 def test_ensemble_cascade():
     # BASIC SETUP
-    testdir = at.parent_dir()
+    testdir = at.rootdir / "tests"
 
     P = at.Project(framework=testdir / "test_uncertainty_framework.xlsx", databook=testdir / "test_uncertainty_databook.xlsx")
 

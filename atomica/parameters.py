@@ -341,16 +341,16 @@ class Initialization:
         """
         # excelfile = spreadsheet.pandas()
 
-        metadata, value_df = atomica.excel.read_dataframes(excelfile.book['Initialization'])
+        metadata, value_df = atomica.excel.read_dataframes(excelfile.book["Initialization"])
 
         values = {}
-        for k,s in value_df.T.reset_index().T.set_index([0,1]).iterrows():
+        for k, s in value_df.T.reset_index().T.set_index([0, 1]).iterrows():
             v = s.dropna().values
             values[k] = v[0] if len(v) == 1 else v
 
         self = cls(values)
 
-        for k,v in metadata.T.reset_index().T.set_index(0)[1].to_dict().items():
+        for k, v in metadata.T.reset_index().T.set_index(0)[1].to_dict().items():
             setattr(self, k, v)
 
         return self
@@ -534,7 +534,7 @@ class ParameterSet(NamedItem):
         :param year: Year to use for interpolation
         :return: A copy of the ParameterSet with constant parameters
         """
-        ps = self.copy(f'{self.name} (constant)')
+        ps = self.copy(f"{self.name} (constant)")
         for par in ps.all_pars():
             for ts in par.ts.values():
                 ts.insert(None, ts.interpolate(year))

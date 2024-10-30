@@ -1,7 +1,7 @@
 import pytest
 import atomica as at
 
-testdir = at.parent_dir()
+testdir = at.rootdir / "tests"
 tmpdir = testdir / "temp"
 
 models = ["tb", "tb_simple", "hypertension_dyn"]

@@ -43,6 +43,28 @@ settings["marker_edge_width"] = 3.0
 settings["dpi"] = 150  # average quality
 settings["transparent"] = False
 
+# Define default aggregation methods for standard units
+DEFAULT_OUTPUT_AGGREGATIONS = {
+    FS.QUANTITY_TYPE_FRACTION: "average",
+    FS.QUANTITY_TYPE_PROPORTION: "average",
+    FS.QUANTITY_TYPE_PROBABILITY: "average",
+    FS.QUANTITY_TYPE_RATE: "average",
+    FS.QUANTITY_TYPE_DURATION: "sum",  # e.g., diagnosis time + treatment time should be summed within a population
+    FS.QUANTITY_TYPE_NUMBER: "sum",
+    "Number of people": "sum",  # This unit is used by compartments and characteristics without denominators
+}
+
+DEFAULT_POP_AGGREGATIONS = {
+    FS.QUANTITY_TYPE_FRACTION: "weighted",
+    FS.QUANTITY_TYPE_PROPORTION: "weighted",
+    FS.QUANTITY_TYPE_PROBABILITY: "weighted",
+    FS.QUANTITY_TYPE_RATE: "weighted",
+    FS.QUANTITY_TYPE_DURATION: "weighted",  # e.g., diagnosis time should be averaged across populations
+    FS.QUANTITY_TYPE_NUMBER: "sum",
+    "Number of people": "sum",  # This unit is used by compartments and characteristics without denominators
+    "": "weighted",  # This unit is used by characteristics with denominators
+}
+
 
 def save_figs(figs, path=".", prefix="", fnames=None, file_format="png") -> None:
     """
@@ -143,7 +165,8 @@ class PlotData:
                     all of the items being included in the sum must have the same denominator. This denominator
                     will then continue to be tracked for the sum.
           - 'average' - unweighted average of quantities. If averaging characteristics with a denominator, then
-                        the denominator will be dropped afterwards (so subsequent population aggregation
+                        the denominator will be dropped afterwards (so subsequent population aggregation will be
+                        performed based on total population size)
           - 'weighted' - weighted average where the weight is the
                             - Link source compartment size, or
                             - Characteristic denominator size, or
@@ -159,16 +182,20 @@ class PlotData:
              - 'average' will give ``((a/b)+(c/d))/2``. No denominator is tracked for weighted population aggregation, so such aggregation would use the total population size.
              - 'weighted' will give ``(a+c)/(b+d)``. The denominator ``b+d`` can be used for weighted population aggregation.
 
-        The default is 'average' for dimensionless units, probabilities, rates etc. and 'sum' for everything else, with the exception of characteristics
-        with denominators, where 'sum' is used by default.
+        The default is 'weighted' for dimensionless units, probabilities, rates, and fractions, and 'sum' for everything else, with the exception of characteristics
+        with denominators, where
+            - 'sum' is used if the characteristics all have the same denominator
+            - 'weighted' is used if the characteristics all have different denominators
+            - 'average' is used otherwise
 
-    :param pop_aggregation: Same options as output_aggregation, except that 'weighted'
-                            uses population sizes OR characteristic denominator size. Note that output aggregation
+    :param pop_aggregation: Same options as output_aggregation, except
+                            - 'weighted' uses population sizes OR characteristic denominator size. Note that output aggregation
                             is performed before population aggregation. This also means that population
                             aggregation can be used to combine already aggregated outputs (e.g.
                             can first sum 'sus'+'vac' within populations, and then take weighted
                             average across populations). This weighting is principally intended for aggregating
                             nondimensional quantities (fractions, proportions etc.).
+                            - By default, quantities in 'duration' units are averaged across populations rather than summed.
 
     :param project: Optionally provide a :class:`Project` object, which will be used to convert names to labels in the outputs for plotting.
 
@@ -237,11 +264,12 @@ class PlotData:
             aggregated_outputs = defaultdict(dict)  # Dict with aggregated_outputs[pop_label][aggregated_output_label]
             aggregated_units = dict()  # Dict with aggregated_units[aggregated_output_label]
             aggregated_timescales = dict()
-            aggregated_denominators = defaultdict(dict) # Store aggregated denominators where available at the same dimensionality as outputs
+            aggregated_denominators = defaultdict(dict)  # Store aggregated denominators where available at the same dimensionality as outputs
             output_units = dict()
             output_timescales = dict()
             compsize = dict()
-            denomsize = dict() # Characteristic denominator size
+            denoms = sc.odict()  # Record denominators associated with input characteristics
+
             popsize = dict()
             # Defaultdict won't throw key error when checking outputs.
             data_label = defaultdict(str)  # Label used to identify which data to plot, maps output label to data label.
@@ -299,7 +327,7 @@ class PlotData:
                         output_timescales[output_label] = None
                         data_label[output_label] = vars[0].name
                         if isinstance(vars[0], Characteristic) and vars[0].denominator is not None:
-                            denomsize[output_label] = vars[0].denominator.vals
+                            denoms[output_label] = vars[0].denominator  # Record the denominator for this quantity
                     else:
                         raise Exception("Unknown type")
 
@@ -322,10 +350,9 @@ class PlotData:
                     par = Parameter(pop=placeholder_pop, name=output_label)
                     fcn, dep_labels = parse_function(f_stack_str)
                     deps = {}
-                    displayed_annualization_warning = False
                     for dep_label in dep_labels:
                         vars = pop.get_variable(dep_label)
-                        if t_bins is not None and (isinstance(vars[0], Link) or isinstance(vars[0], Parameter)) and time_aggregation == "sum" and not displayed_annualization_warning:
+                        if t_bins is not None and (isinstance(vars[0], Link) or isinstance(vars[0], Parameter)) and time_aggregation == "sum":
                             raise Exception("Function includes Parameter/Link so annualized rates are being used. Aggregation should therefore use 'average' rather than 'sum'.")
                         deps[dep_label] = vars
                     par._fcn = fcn
@@ -339,7 +366,7 @@ class PlotData:
                 # Third pass, aggregate them according to any aggregations present
                 for output in outputs:  # For each final output
                     if isinstance(output, dict):
-                        output_name = list(output.keys())[0]
+                        output_name = list(output.keys())[0]  # nb. there should be only one item in the output dict at this point
                         labels = output[output_name]
 
                         # If this was a function, aggregation over outputs doesn't apply so just put it straight in.
@@ -347,42 +374,43 @@ class PlotData:
                             aggregated_outputs[pop_label][output_name] = data_dict[output_name]
                             aggregated_units[output_name] = "unknown"  # Also, we don't know what the units of a function are
                             aggregated_timescales[output_name] = None  # Timescale is lost
-                            aggregated_denominators[pop_label][output_name] = None # Denominators are not tracked
+                            aggregated_denominators[pop_label][output_name] = None  # Denominators are not tracked
                             continue
 
                         units = list(set([output_units[x] for x in labels]))
                         timescales = list(set([np.nan if isna(output_timescales[x]) else output_timescales[x] for x in labels]))  # Ensure that None and nan don't appear as different timescales
 
-                        # Define default aggregation methods
-                        default_aggregations = {
-                            FS.QUANTITY_TYPE_FRACTION: 'average',
-                            FS.QUANTITY_TYPE_PROPORTION: 'average',
-                            FS.QUANTITY_TYPE_PROBABILITY: 'average',
-                            FS.QUANTITY_TYPE_RATE: 'average',
-                            FS.QUANTITY_TYPE_NUMBER: 'sum',
-                            FS.QUANTITY_TYPE_DURATION: 'sum'
-                        }
+                        # Set default aggregation method depending on the units of the quantity. If the aggregation method has not been specified
+                        # then select a default aggregation method separately for each output
+                        if output_aggregation is not None:
+                            aggregation = output_aggregation
+                        elif denoms:
+                            try:
+                                denominators = set([denoms[x].name for x in labels])
+                            except KeyError as e:
+                                raise Exception("If an aggregation includes characteristics with denominators, then all of the included quantities must be characteristics with denominators") from e
 
-                        # Set default aggregation method depending on the units of the quantity
-                        if output_aggregation is None:
-                            if labels[0] in denomsize:
-                                # If aggregating characteristics with denominators, then we want to use
-                                # We are aggregating characteristics with denominators, so we want to aggregate with summation
-                                # on the assumption that all of the characteristics being aggregated have the same denominator
-                                output_aggregation = "sum"
-                            elif units[0] in ["", FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_RATE]:
-                                output_aggregation = "average"
-                            elif units[0] in [FS.QUANTITY_TYPE_NUMBER, FS.QUANTITY_TYPE_DURATION]:
-                                output_aggregation = "sum"
+                            if len(denominators) == 1:
+                                # If all characteristics share the same denominator e.g., SP and SN prevalence, then we want to add the characteristics together
+                                aggregation = "sum"
+                            elif len(denominators) == len(labels):
+                                # If all characteristics have different denominators e.g., proportion of SP/SN on treatment aggregated over SP and SN, then use weighted averaging
+                                aggregation = "weighted"
                             else:
-                                logger.warning(f'Unit quantity "{units[0]}" was not recognized and an output aggregation method was not specified, using "sum" by default')
-
+                                # Otherwise if mixing denominators, use a direct average. In general this should not happen because the result is not readily interpretable
+                                aggregation = "average"
+                        elif units[0] in DEFAULT_OUTPUT_AGGREGATIONS:
+                            aggregation = DEFAULT_OUTPUT_AGGREGATIONS[units[0]]
+                        else:
+                            logger.warning(f'Unit quantity "{units[0]}" was not recognized and an output aggregation method was not specified, using "sum" by default')
+                            aggregation = "sum"
 
                         if len(units) > 1:
                             logger.warning("Aggregation for output '%s' is mixing units, this is almost certainly not desired.", output_name)
                             aggregated_units[output_name] = "unknown"
                         else:
-                            if units[0] in AVG_UNITS and output_aggregation == "sum" and len(labels) > 1 and not labels[0] in denomsize:  # Dimensionless, like prevalance
+                            # If the user has requested a sum for a unit that doesn't use summation by default, there's a decent chance that this is a mistake
+                            if aggregation == "sum" and DEFAULT_OUTPUT_AGGREGATIONS.get(units[0], "sum") != "sum" and len(labels) > 1 and not labels[0] in denoms:  # Dimensionless, like prevalance
                                 logger.warning(f"Output '{output_name}' is in '{units[0]}' units, so output aggregation probably should not be 'sum'.")
                             aggregated_units[output_name] = output_units[labels[0]]
 
@@ -392,45 +420,56 @@ class PlotData:
                         else:
                             aggregated_timescales[output_name] = output_timescales[labels[0]]
 
-                        if output_aggregation == "sum":
+                        # Perform additional validation on the denominators
+                        if denoms:
+                            unique_denoms = set([denoms[x].name for x in labels])
+
+                            if len(unique_denoms) > 1 and len(unique_denoms) < len(labels):
+                                logger.warning("When aggregating characteristics with denominators, they should generally either all have the same denominator, or all have different denominators. Partially duplicate denominators is likely not desired.")
+
+                            if len(unique_denoms) > 1:
+                                # Check that the denominators are non-overlapping
+                                comps = [set(result.framework.get_charac_includes(x)) for x in labels]
+                                if sum(len(x) for x in comps) != len(set().union(*comps)):
+                                    logger.warning("When aggregating characteristics with different denominators, generally there should be no overlap in the denominators. However, some compartments are shared between the requested characteristic denominators. Unless this is intentional, this is likely a mistake that should be investigated.")
+
+                        if aggregation == "sum":
                             aggregated_outputs[pop_label][output_name] = sum(data_dict[x] for x in labels)  # Add together all the outputs
 
                             # If summing characteristics that have denominators, then all quantities should have denominators, and they should all be equal
                             # For example, summing SP-TB and SN-TB prevalance where they both have the 'alive' denominator
-                            has_denominator = [x in denomsize for x in labels]
-                            assert all(has_denominator) or not any(has_denominator)  # An output aggregation must either have no quantities with denominators, or only contain quantities with denominators
+                            has_denominator = [x in denoms for x in labels]
                             if all(has_denominator):
-                                for label in labels:
-                                    assert np.all(denomsize[label] == denomsize[labels[0]]), 'When aggregating characteristics with denominators, if summing them (default) then all quantities must have the same denominator. The "weighted" aggregation can be used to combine characteristics with different denominators, on the assumption that their denominators do not overlap.'
-                                aggregated_denominators[pop_label][output_name] = denomsize[labels[0]]
+                                assert len(set([denoms[x].name for x in labels])) == 1, 'When aggregating characteristics with denominators, if summing them then all quantities must have the same denominator. The "weighted" aggregation can be used to combine characteristics with different denominators, on the assumption that their denominators do not overlap.'
+                                aggregated_denominators[pop_label][output_name] = denoms[0].vals
                             elif not any(has_denominator):
                                 aggregated_denominators[pop_label][output_name] = None
                             else:
-                                raise Exception(f"When aggregating outputs, if any quantities being aggregated have denominators, then they must all have denominators. These quantities have denominators {[x for x in labels if x in denomsize]} while these do not {[x for x in labels if x not in denomsize]}")
+                                raise Exception(f"When aggregating outputs, if any quantities being aggregated have denominators, then they must all have denominators. These quantities have denominators {[x for x in labels if x in denoms]} while these do not {[x for x in labels if x not in denoms]}")
 
-                        elif output_aggregation == "average":
+                        elif aggregation == "average":
                             aggregated_outputs[pop_label][output_name] = sum(data_dict[x] for x in labels)
                             aggregated_outputs[pop_label][output_name] /= len(labels)
-                            aggregated_denominators[pop_label][output_name] = None # If taking a direct average then drop the denominator
-                        elif output_aggregation == "weighted":
-                            has_denominator = [x in denomsize for x in labels]
+                            aggregated_denominators[pop_label][output_name] = None  # If taking a direct average then drop the denominator
+                        elif aggregation == "weighted":
+                            has_denominator = [x in denoms for x in labels]
                             assert all(has_denominator) or not any(has_denominator)  # An output aggregation must either have no quantities with denominators, or only contain quantities with denominators
                             if all(has_denominator):
                                 # Take weighted average based on denominator size, and then store the combined denominator further population aggregation
-                                aggregated_outputs[pop_label][output_name] = sum(data_dict[x] * denomsize[x] for x in labels)
-                                aggregated_denominators[pop_label][output_name] = sum([denomsize[x] for x in labels])
+                                aggregated_outputs[pop_label][output_name] = sum(data_dict[x] * denoms[x].vals for x in labels)
+                                aggregated_denominators[pop_label][output_name] = sum([denoms[x].vals for x in labels])
                                 aggregated_outputs[pop_label][output_name] /= aggregated_denominators[pop_label][output_name]
                             elif not any(has_denominator):
                                 aggregated_outputs[pop_label][output_name] = sum(data_dict[x] * compsize[x] for x in labels)
                                 aggregated_outputs[pop_label][output_name] /= sum([compsize[x] for x in labels])
                                 aggregated_denominators[pop_label][output_name] = None  # If taking a direct average then drop the denominator
                             else:
-                                raise Exception(f"When aggregating outputs, if any quantities being aggregated have denominators, then they must all have denominators. These quantities have denominators {[x for x in labels if x in denomsize]} while these do not {[x for x in labels if x not in denomsize]}")
+                                raise Exception(f"When aggregating outputs, if any quantities being aggregated have denominators, then they must all have denominators. These quantities have denominators {[x for x in labels if x in denoms]} while these do not {[x for x in labels if x not in denoms]}")
                     else:
                         aggregated_outputs[pop_label][output] = data_dict[output]
                         aggregated_units[output] = output_units[output]
                         aggregated_timescales[output] = output_timescales[output]
-                        aggregated_denominators[pop_label][output] = denomsize.get(output)
+                        aggregated_denominators[pop_label][output] = denoms[output].vals if output in denoms else None
 
             # Now aggregate over populations
             # If we have requested a reduction over populations, this is done for every output present
@@ -441,32 +480,38 @@ class PlotData:
                         pop_labels = pop[pop_name]
 
                         # Set population aggregation method depending on the quantity being aggregated
-                        if pop_aggregation is None:
-                            if aggregated_denominators[pop_labels[0]][output_name] is not None:
-                                # Outputs with denominators use these for a weighted average by default
-                                pop_aggregation = "weighted"
-                            elif aggregated_units[output_name] in ["", FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_RATE]:
-                                pop_aggregation = "average"
-                            else:
-                                pop_aggregation = "sum"
+                        if pop_aggregation is not None:
+                            aggregation = pop_aggregation
+                        elif aggregated_denominators[pop_labels[0]][output_name] is not None:
+                            # Outputs with denominators use weighted by default
+                            aggregation = "weighted"
+                        elif aggregated_units[output_name] in DEFAULT_POP_AGGREGATIONS:
+                            aggregation = DEFAULT_POP_AGGREGATIONS[aggregated_units[output_name]]
+                        else:
+                            logger.warning(f'Unit quantity "{aggregated_units[output_name]}" was not recognized and an output aggregation method was not specified, using "sum" by default')
+                            aggregation = "sum"
 
-                        if pop_aggregation == "sum":
-                            if aggregated_units[output_name] in ["", FS.QUANTITY_TYPE_FRACTION, FS.QUANTITY_TYPE_PROPORTION, FS.QUANTITY_TYPE_PROBABILITY, FS.QUANTITY_TYPE_RATE] and len(pop_labels) > 1:
-                                logger.warning("Output '%s' is not in number units, so population aggregation probably should not be 'sum'", output_name)
+                        # Perform aggregation
+                        if aggregation == "sum":
+                            if aggregation == "sum" and DEFAULT_POP_AGGREGATIONS.get(aggregated_units[output_name], "sum") != "sum" and len(pop_labels) > 1:
+                                logger.warning(f"Output '{output_name}' is in '{aggregated_units[output_name]}' units, so output aggregation should probably be '{DEFAULT_POP_AGGREGATIONS.get(aggregated_units[output_name])}', not 'sum'.")
                             vals = sum(aggregated_outputs[x][output_name] for x in pop_labels)  # Add together all the outputs
-                        elif pop_aggregation == "average":
+                        elif aggregation == "average":
+                            if aggregated_denominators[pop_labels[0]][output_name] is not None:
+                                logger.warning(f"Output '{output_name}' has a denominator, so output aggregation should probably be 'weighted' rather than 'average'")
                             vals = sum(aggregated_outputs[x][output_name] for x in pop_labels)  # Add together all the outputs
                             vals /= len(pop_labels)
-                        elif pop_aggregation == "weighted":
+                        elif aggregation == "weighted":
                             if aggregated_denominators[pop_labels[0]][output_name] is not None:
-                                weights = {x:aggregated_denominators[x][output_name] for x in pop_labels}
+                                weights = {x: aggregated_denominators[x][output_name] for x in pop_labels}
                             else:
-                                weights = {x:popsize[x] for x in pop_labels}
+                                weights = {x: popsize[x] for x in pop_labels}
                             numerator = sum(aggregated_outputs[x][output_name] * weights[x] for x in pop_labels)  # Add together all the outputs
                             denominator = sum([weights[x] for x in pop_labels])
                             vals = np.divide(numerator, denominator, out=np.full(numerator.shape, np.nan, dtype=float), where=numerator != 0)
                         else:
-                            raise Exception("Unknown pop aggregation method")
+                            raise Exception(f'Unknown population aggregation method "{aggregation}"')
+
                         self.series.append(Series(tvecs[result_label], vals, result_label, pop_name, output_name, data_label[output_name], units=aggregated_units[output_name], timescale=aggregated_timescales[output_name], data_pop=pop_name))
                     else:
                         vals = aggregated_outputs[pop][output_name]
@@ -2064,7 +2109,7 @@ def _extract_labels(input_arrays) -> set:
     for x in input_arrays:
         if isinstance(x, dict):
             k = list(x.keys())
-            assert len(k) == 1, "Aggregation dict can only have one key"
+            assert len(k) == 1, "Aggregation dict can only have one key, for multiple aggregations, use a list of dicts"
             if sc.isstring(x[k[0]]):
                 continue
             else:

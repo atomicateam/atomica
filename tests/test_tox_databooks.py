@@ -6,7 +6,7 @@ import numpy as np
 from atomica import ProjectFramework, Project, ProjectData
 import sciris as sc
 
-testdir = at.parent_dir()
+testdir = at.rootdir / "tests"
 tmpdir = testdir / "temp"
 
 

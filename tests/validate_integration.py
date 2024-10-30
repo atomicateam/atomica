@@ -47,7 +47,7 @@ def validate(r1, r2):
 @pytest.mark.parametrize("model", models)
 def test_validate_model(model):
 
-    testdir = at.parent_dir()
+    testdir = at.rootdir / "tests"
     tmpdir = testdir / "temp"
 
     framework_file = at.LIBRARY_PATH / f"{model}_framework.xlsx"

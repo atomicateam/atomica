@@ -1848,7 +1848,6 @@ class Population:
 
         """
 
-
         if not self.comps:
             # If this population has no compartments, then nothing needs to be done
             return

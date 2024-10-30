@@ -4,7 +4,7 @@ import atomica as at
 
 
 def test_extra_data_pop():
-    testdir = at.parent_dir()
+    testdir = at.rootdir / "tests"
 
     F_path = testdir / "framework_sir_dynamic.xlsx"
     D_path = testdir / "databook_sir_dynamic_extra.xlsx"

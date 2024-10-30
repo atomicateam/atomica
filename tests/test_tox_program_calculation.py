@@ -2,7 +2,7 @@ import atomica as at
 import numpy as np
 import os
 
-testdir = at.parent_dir()  # Must be relative to current file to work with tox
+testdir = at.rootdir / "tests"  # Must be relative to current file to work with tox
 
 
 def test_program_coverage_calculation():

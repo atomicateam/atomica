@@ -2,7 +2,7 @@ import atomica as at
 from atomica import ProjectFramework, Project
 import os
 
-testdir = at.parent_dir()
+testdir = at.rootdir / "tests"
 tmpdir = testdir / "temp"
 
 F = ProjectFramework(testdir / "framework_sir_dynamic.xlsx")

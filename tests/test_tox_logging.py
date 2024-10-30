@@ -2,7 +2,7 @@
 
 import atomica as at
 
-testdir = at.parent_dir()
+testdir = at.rootdir / "tests"
 tmpdir = testdir / "temp"
 
 

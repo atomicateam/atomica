@@ -2,12 +2,13 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
-
-
 ## [1.28.7] - 2023-10-29
 
 - If aggregating characteristics with a denominator, weighted aggregations use the denominator of the quantity rather than the total population size to perform the weighting. This can be useful for quantities that are proportions of things other than the population size e.g., proportion of active infections that are diagnosed
 - If aggregating characteristics with a denominator, weighted aggregation will be used by default (rather than 'average')
+- Output aggregation of durations now uses 'sum' instead of 'average' by default
+- If no aggregation method is specified, the aggregation method will now be selected separately for each output
+- Population aggregation of non-number units now uses 'weighted' by default rather than 'average'
 
 *Backwards-compatibility notes*
 

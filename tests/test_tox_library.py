@@ -8,7 +8,7 @@ import pytest
 import numpy as np
 import sciris as sc
 
-testdir = at.parent_dir()
+testdir = at.rootdir / "tests"
 tmpdir = testdir / "temp"
 
 # List available models based on which framework files exist
@@ -239,6 +239,6 @@ def test_model(model):
 if __name__ == "__main__":
 
     np.seterr(all="raise")
-    models = ['combined']
+    models = ["combined"]
     for m in models:
         test_model(m)
