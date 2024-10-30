@@ -5,7 +5,7 @@ import numpy as np
 import atomica as at
 import os
 
-testdir = at.rootdir / "tests"  # Must be relative to current file to work with tox
+testdir = at.parent_dir()  # Must be relative to current file to work with tox
 
 
 def test_table_parsing():

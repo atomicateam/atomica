@@ -6,7 +6,7 @@ import numpy as np
 from numpy.testing import assert_allclose
 import pytest
 
-testdir = at.rootdir / "tests"
+testdir = at.parent_dir()
 tmpdir = testdir / "temp"
 
 

@@ -7,7 +7,7 @@ import atomica as at
 import sciris as sc
 import pytest
 
-testdir = at.rootdir / "tests"
+testdir = at.parent_dir()
 tmpdir = testdir / "temp"
 frameworks = list()
 for f in at.LIBRARY_PATH.iterdir():

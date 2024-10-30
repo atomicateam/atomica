@@ -12,6 +12,6 @@ to the `site-packages` directory instead of the repo. Therefore, inside the test
 In practice, it can be useful to simply define the following two variables at the start of a test script:
 
 ```python
-testdir = at.rootdir/'tests'
+testdir = at.parent_dir()
 tmpdir = testdir / "temp"
 ```

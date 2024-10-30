@@ -7,7 +7,7 @@ import os
 
 
 def test_seasonal():
-    testdir = at.rootdir / "tests"
+    testdir = at.parent_dir()
     tmpdir = testdir / "temp"
 
     F_path = testdir / "framework_seasonal_test.xlsx"

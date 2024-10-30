@@ -15,7 +15,7 @@ import itertools
 # # P.load_databook(at.LIBRARY_PATH+'tb_databook.xlsx')
 # P = at.demo('tb',do_run=True)
 
-testdir = at.rootdir / "tests"
+testdir = at.parent_dir()
 tmpdir = testdir / "temp"
 
 

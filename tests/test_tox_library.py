@@ -8,7 +8,7 @@ import pytest
 import numpy as np
 import sciris as sc
 
-testdir = at.rootdir / "tests"
+testdir = at.parent_dir()
 tmpdir = testdir / "temp"
 
 # List available models based on which framework files exist

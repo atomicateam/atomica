@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 import pandas as pd
 
-testdir = at.rootdir / "tests"
+testdir = at.parent_dir()
 tmpdir = testdir / "temp"
 
 frameworks = [

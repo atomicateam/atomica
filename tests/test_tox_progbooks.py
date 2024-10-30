@@ -3,7 +3,7 @@ import numpy as np
 import sciris as sc
 import pytest
 
-testdir = at.rootdir / "tests"
+testdir = at.parent_dir()
 tmpdir = testdir / "temp"
 
 

@@ -1,7 +1,7 @@
 import numpy as np
 import atomica as at
 
-testdir = at.rootdir / "tests"
+testdir = at.parent_dir()
 tmpdir = testdir / "temp"
 
 

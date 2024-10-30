@@ -11,7 +11,7 @@ plot_initial = True
 
 test = "sir"  # This test workflow only works with the SIR model
 
-testdir = at.rootdir / "tests"
+testdir = at.parent_dir()
 tmpdir = testdir / "temp"
 
 F = at.ProjectFramework(at.LIBRARY_PATH / test + "_framework.xlsx")

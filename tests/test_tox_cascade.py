@@ -5,7 +5,7 @@ from atomica import InvalidCascade
 import os
 import pytest
 
-testdir = at.rootdir / "tests"
+testdir = at.parent_dir()
 tmpdir = testdir / "temp"
 
 try:

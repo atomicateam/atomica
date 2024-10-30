@@ -4,7 +4,7 @@ import numpy as np
 import atomica as at
 import pytest
 
-testdir = at.rootdir / "tests"
+testdir = at.parent_dir()
 tmpdir = testdir / "temp"
 
 

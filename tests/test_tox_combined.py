@@ -2,7 +2,7 @@ import os
 import numpy as np
 import atomica as at
 
-testdir = at.rootdir / "tests"
+testdir = at.parent_dir()
 tmpdir = testdir / "temp"
 
 
@@ -91,7 +91,7 @@ def test_combined_plots():
 
 
 def test_combined_order():
-    testdir = at.rootdir / "tests"  # Must be relative to current file to work with tox
+    testdir = at.parent_dir()  # Must be relative to current file to work with tox
     P = at.Project(framework=testdir / "test_order_framework.xlsx", databook=testdir / "test_order_databook.xlsx")
     res = P.results[0]
 
