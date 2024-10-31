@@ -70,8 +70,8 @@ def _calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, p
         if not target.has_time_data:  # Only use this output quantity if the user entered time-specific data
             continue
 
-        if pop_name.lower() == 'total':
-            var = atomica.PlotData(result, outputs=var_label, pops = 'total', project=project)
+        if pop_name.lower() == "total":
+            var = atomica.PlotData(result, outputs=var_label, pops="total", project=project)
         else:
             var = result.model.get_pop(pop_name).get_variable(var_label)
 
@@ -88,7 +88,7 @@ def _calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, p
         # If there is data outside the range when the model was simulated, don't
         # extrapolate the model outputs
         y = data_v
-        if pop_name.lower() == 'total':
+        if pop_name.lower() == "total":
             y2 = np.interp(data_t, var.series[0].tvec, var.series[0].vals, left=np.nan, right=np.nan)
         else:
             y2 = np.interp(data_t, var[0].t, var[0].vals, left=np.nan, right=np.nan)
