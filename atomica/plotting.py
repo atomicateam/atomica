@@ -619,12 +619,16 @@ class PlotData:
             interpolation_method = "linear"
 
         if not hasattr(t_bins, "__len__"):
-            # If a scalar bin is provided, then it is
+            # If a scalar bin is provided, then it is assumed to correspond to the bin width, in which case we need
+            # to create uniformly spaced bins up to the last complete bin.
             if t_bins > (self.series[0].tvec[-1] - self.series[0].tvec[0]):
                 # If bin width is greater than the sim duration, treat it the same as aggregating over all times
                 t_bins = "all"
             else:
                 if not (self.series[0].tvec[-1] - self.series[0].tvec[0]) % t_bins:
+                    # If the simulation ends in a multiple of the t_bins, then we can have a final bin extending up to the last
+                    # simulation year. If we just use tvec[-1] in np.arange then that final bin will be excluded. So we add
+                    # t_bins on to that final bin to ensure it's included.
                     upper = self.series[0].tvec[-1] + t_bins
                 else:
                     upper = self.series[0].tvec[-1]
@@ -663,6 +667,12 @@ class PlotData:
             max_step = 0.5 * min(np.diff(s.tvec))  # Subdivide for trapezoidal integration with at least 2 divisions per timestep. Could be a lot of memory for integrating daily timesteps over a full simulation, but unlikely to be prohibitive
             vals = np.full(lower.shape, fill_value=np.nan)
             for i, (l, u) in enumerate(zip(lower, upper)):
+
+                # For bins that partially extend out of bounds, return NaN as the value immediately
+                if l < s.tvec[0] or u > s.tvec[-1]:
+                    vals[i] = np.nan
+                    continue
+
                 t2 = np.arange(round((u - l) / max_step) + 1) * max_step + l
                 # Numerical precision issues can cause the wrong bin to be used. This is particularly noticable for 'previous'
                 # e.g., if the interpolated finer bins have 2025.9999999 instead of 2026 causing the 2025 value to be
