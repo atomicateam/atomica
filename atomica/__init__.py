@@ -95,3 +95,7 @@ from .results import *
 from .scenarios import *
 from .system import *
 from .utils import *
+
+import pathlib
+
+rootdir = pathlib.Path(__file__).parent.parent
