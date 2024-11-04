@@ -661,34 +661,46 @@ class PlotData:
             else:
                 scale = 1.0
 
-            # We interpolate in time-aggregation because the time bins are independent of the step size. In contrast,
-            # accumulation preserves the same time bins, so we don't need the interpolation step and instead go straight
-            # to summation or trapezoidal integration
-            max_step = 0.5 * min(np.diff(s.tvec))  # Subdivide for trapezoidal integration with at least 2 divisions per timestep. Could be a lot of memory for integrating daily timesteps over a full simulation, but unlikely to be prohibitive
             vals = np.full(lower.shape, fill_value=np.nan)
-            for i, (l, u) in enumerate(zip(lower, upper)):
+            lower_idx = np.searchsorted(s.tvec, lower, side='left') # Time index for bin start
+            upper_idx = np.searchsorted(s.tvec, upper, side='right') # Time index for bin end
+
+            for i, (l, u, l_idx, u_idx) in enumerate(zip(lower, upper, lower_idx, upper_idx)):
 
                 # For bins that partially extend out of bounds, return NaN as the value immediately
                 if l < s.tvec[0] or u > s.tvec[-1]:
                     vals[i] = np.nan
                     continue
+                elif l == u:
+                    vals[i] = 0
+                    continue
 
-                t2 = np.arange(round((u - l) / max_step) + 1) * max_step + l
-                # Numerical precision issues can cause the wrong bin to be used. This is particularly noticable for 'previous'
-                # e.g., if the interpolated finer bins have 2025.9999999 instead of 2026 causing the 2025 value to be
-                # used instead, this can cause a significant overestimation if the value is changing rapidly. Therefore
-                # we need to perform an extra step of using the exact bin values within some tolerance. The values are on
-                # the order of 0.002 (1 day, in years) so the default np.isclose() should be sufficient. However, we may want to apply this
-                # to linear interpolation as well because if the bin falls numerically *outside* the bounds, it will be extrapolated
-                # as NaN which we wouldn't want
-                nearest = np.searchsorted(s.tvec, t2, side='left')
-                isclose = np.isclose(s.tvec[nearest], t2)
-                t2[isclose] = s.tvec[nearest[isclose]]
+                # The bins will consist of the actual simulation time points, plus
+                # partial bins that are interpolated before and after if the requested
+                # bins don't line up with the simulation timepoints
+                idx = np.arange(l_idx,u_idx)
+                t2 = s.tvec[idx]
+                interpolate = False
+                if t2[0] > l or t2[-1] < u:
+                    interpolate = True
+                    t2 = list(t2)
+                    if t2[0] > l:
+                        t2.insert(0,l)
+                    if t2[-1] < u:
+                        t2.append(u)
+                    t2 = np.array(t2, dtype=float)
+
                 if interpolation_method == "linear":
-                    v2 = np.interp(t2, s.tvec, s.vals, left=np.nan, right=np.nan)  # Return NaN outside bounds - it should never be valid to use extrapolated output values in time aggregation
+                    if interpolate:
+                        v2 = np.interp(t2, s.tvec, s.vals, left=np.nan, right=np.nan)  # Return NaN outside bounds - it should never be valid to use extrapolated output values in time aggregation
+                    else:
+                        v2 = s.vals[idx]
                     vals[i] = np.trapz(y=v2 / scale, x=t2)  # Note division by timescale here, which annualizes it
                 elif interpolation_method == "previous":
-                    v2 = scipy.interpolate.interp1d(s.tvec, s.vals, kind="previous", copy=False, assume_sorted=True, bounds_error=False, fill_value=(np.nan, np.nan))(t2)
+                    if interpolate:
+                        v2 = scipy.interpolate.interp1d(s.tvec, s.vals, kind="previous", copy=False, assume_sorted=True, bounds_error=False, fill_value=(np.nan, np.nan))(t2)
+                    else:
+                        v2 = s.vals[idx]
                     vals[i] = sum(v2[:-1] / scale * np.diff(t2))
 
             s.tvec = (lower + upper) / 2.0
