@@ -44,10 +44,24 @@ __all__ = ["ProjectSettings", "Project"]
 
 
 class ProjectSettings:
-    def __init__(self, sim_start=2000, sim_end=2035, sim_dt=0.25):
+    def __init__(self, sim_start:float=2000, sim_end:float=2035, sim_dt:float=0.25, multinomial:bool=False):
+        """
+        Project settings object
+
+        This contains various settings that are used by the Project when running simulations.
+        Most importantly, it contains the simulation start year, end year, and timestep, with
+        validation performed when setting these values.
+
+        :param sim_start: Simulation start year
+        :param sim_end: Simulation end year
+        :param sim_dt: Simulation time step
+        :param multinomial: Use multinomial mode with stochastic transitions
+        """
+
         self._sim_start = sim_start
         self._sim_dt = sim_dt
         self._sim_end = 0.0
+        self.multinomial = multinomial
         self.update_time_vector(end=sim_end)
 
     def __repr__(self):
@@ -475,7 +489,7 @@ class Project(NamedItem):
         """Modify the project settings, e.g. the simulation time vector."""
         self.settings.update_time_vector(start=sim_start, end=sim_end, dt=sim_dt)
 
-    def run_sim(self, parset=None, progset=None, progset_instructions=None, store_results=False, result_name: str = None):
+    def run_sim(self, parset=None, progset=None, progset_instructions=None, store_results=False, result_name: str = None, rng=None, acceptance_criteria=[]):
         """
         Run a single simulation
 
@@ -488,9 +502,14 @@ class Project(NamedItem):
         :param progset_instructions: A :class:`ProgramInstructions` instance. Programs will only be used if a instructions are provided
         :param store_results: If True, then the result will automatically be stored in ``self.results``
         :param result_name: Optionally assign a specific name to the result (otherwise, a unique default name will automatically be selected)
+        :param rng: Optionally a random number generator that may have been seeded to generate consistent results, or a random_seed used to generate a Generator
+        :param acceptance_criteria: Optional criteria to assert that outputs are within a given tolerance of a given value for given parameters over a given period of time
+        tolerance e.g.  = [{'parameter': 'incidence', 'population': 'adults', 'value': (0.02, 0.025), 't_range': (2018, 2018.99)}]
+
         :return: A :class:`Result` instance
 
         """
+        rng_sampler = rng if isinstance(rng, np.random._generator.Generator) else np.random.default_rng(rng)
 
         parset = self.parset(parset)
         if progset is not None:
@@ -509,14 +528,14 @@ class Project(NamedItem):
                 k += 1
 
         tm = sc.tic()
-        result = run_model(settings=self.settings, framework=self.framework, parset=parset, progset=progset, program_instructions=progset_instructions, name=result_name)
+        result = run_model(settings=self.settings, framework=self.framework, parset=parset, progset=progset, program_instructions=progset_instructions, name=result_name, rng_sampler=rng_sampler, acceptance_criteria=acceptance_criteria)
         logger.info('Elapsed time for running "%s": %ss', self.name, sc.sigfig(sc.toc(tm, output=True), 3))
         if store_results:
             self.results.append(result)
 
         return result
 
-    def run_sampled_sims(self, parset, progset=None, progset_instructions=None, result_names=None, n_samples: int = 1, parallel=False, max_attempts=None, num_workers=None) -> list:
+    def run_sampled_sims(self, parset, progset=None, progset_instructions=None, result_names=None, n_samples: int = 1, rand_seed: int = None, parallel=False, max_attempts=None, num_workers=None, acceptance_criteria=[]) -> list:
         """
         Run sampled simulations
 
@@ -540,6 +559,11 @@ class Project(NamedItem):
         :param parallel: If True, run simulations in parallel (on Windows, must have ``if __name__ == '__main__'`` gating the calling code)
         :param max_attempts: Number of retry attempts for bad initializations
         :param num_workers: If ``parallel`` is True, this determines the number of parallel workers to use (default is usually number of CPUs)
+        :param rng_sampler: Optional random number generator that may have been seeded to generate consistent results
+        :param acceptance_criteria: Optional criteria to assert that outputs are within a given tolerance of a given value for given parameters in given years
+            tolerance e.g.  = [{'parameter': 'incidence', 'population': 'adults', 'value': (0.02, 0.025), 't': 2018}]
+
+
         :return: A list of Results that can be passed to `Ensemble.update()`. If multiple instructions are provided, the return value of this
                  function will be a list of lists, where the inner list iterates over different instructions for the same parset/progset samples.
                  It is expected in that case that the Ensemble's mapping function would take in a list of results
@@ -563,17 +587,27 @@ class Project(NamedItem):
 
         show_progress = n_samples > 1 and logger.getEffectiveLevel() <= logging.INFO
 
+        if rand_seed is not None:
+            rng = np.random.default_rng(seed=rand_seed)
+            seed_samples = rng.integers(1e15, size=n_samples)
+        else:
+            seed_samples = [None] * n_samples
+
+        model_rngs = [np.random.default_rng(seed=seed) for seed in seed_samples]  # generate a RNG for each model
+
         if parallel:
-            fcn = functools.partial(_run_sampled_sim, proj=self, parset=parset, progset=progset, progset_instructions=progset_instructions, result_names=result_names, max_attempts=max_attempts)
-            results = parallel_progress(fcn, n_samples, show_progress=show_progress, num_workers=num_workers)
+            fcn = functools.partial(_run_sampled_sim, proj=self, parset=parset, progset=progset, progset_instructions=progset_instructions, result_names=result_names, max_attempts=max_attempts, acceptance_criteria=acceptance_criteria)
+            # as multiprocessing does not handle partial functions as compiled functions, need to send the rngs as kwargs in a dictionary, not as args to the partial function
+            model_rng_kwargs = [{"rng_sampler": rng} for rng in model_rngs]
+            results = parallel_progress(fcn, model_rng_kwargs, show_progress=show_progress, num_workers=num_workers)
         elif show_progress:
             # Print the progress bar if the logging level was INFO or lower
             # This means that the user can still set the logging level higher e.g. WARNING to suppress output from Atomica in general
             # (including any progress bars)
             with Quiet():
-                results = [_run_sampled_sim(self, parset, progset, progset_instructions, result_names, max_attempts=max_attempts) for _ in tqdm.trange(n_samples)]
+                results = [_run_sampled_sim(self, parset, progset, progset_instructions, result_names, max_attempts=max_attempts, rng_sampler=rng, acceptance_criteria=acceptance_criteria) for rng in tqdm.tqdm(model_rngs)]
         else:
-            results = [_run_sampled_sim(self, parset, progset, progset_instructions, result_names, max_attempts=max_attempts) for _ in range(n_samples)]
+            results = [_run_sampled_sim(self, parset, progset, progset_instructions, result_names, max_attempts=max_attempts, rng_sampler=rng, acceptance_criteria=acceptance_criteria) for rng in model_rngs]
 
         return results
 
@@ -715,7 +749,7 @@ class Project(NamedItem):
         self.__dict__ = P.__dict__
 
 
-def _run_sampled_sim(proj, parset, progset, progset_instructions: list, result_names: list, max_attempts: int = None):
+def _run_sampled_sim(proj, parset, progset, progset_instructions: list, result_names: list, max_attempts: int = None, rng_sampler=None, acceptance_criteria=[]):
     """
     Internal function to run simulation with sampling
 
@@ -736,6 +770,9 @@ def _run_sampled_sim(proj, parset, progset, progset_instructions: list, result_n
     :param progset_instructions: A list of instructions to run against a single sample
     :param result_names: A list of result names (strings)
     :param max_attempts: Maximum number of sampling attempts before raising an error
+    :param rng_sampler: Optional random number generator that may have been seeded to generate consistent results
+    :param acceptance_criteria: Optional criteria to assert that outputs are within a given tolerance of a given value for given parameters over a given period of time
+        tolerance e.g.  = [{'parameter': 'incidence', 'population': 'adults', 'value': (0.02, 0.025), 't_range': (2018, 2018.99)}]
     :return: A list of results that either contains 1 result, or the same number of results as instructions
 
     """
@@ -745,16 +782,23 @@ def _run_sampled_sim(proj, parset, progset, progset_instructions: list, result_n
     if max_attempts is None:
         max_attempts = 50
 
+    if rng_sampler is None:
+        rng_sampler = np.random.default_rng()
+
+    # Set up separate seeds for each attempt and seed a rng for each one (in case scenarios diverge in later timepoints, it's important to START from the same seeds)
+    rand_seeds = rng_sampler.integers(1e15, size=max_attempts)
+
     attempts = 0
     while attempts < max_attempts:
         try:
+            rng_attempt = np.random.default_rng(seed=rand_seeds[attempts])
+            sampled_parset = parset.sample(rng_sampler=rng_attempt)
             if progset:
-                sampled_parset = parset.sample()
-                sampled_progset = progset.sample()
-                results = [proj.run_sim(parset=sampled_parset, progset=sampled_progset, progset_instructions=x, result_name=y) for x, y in zip(progset_instructions, result_names)]
+                sampled_progset = progset.sample(rng_sampler=rng_attempt)
+                results = [proj.run_sim(parset=sampled_parset, progset=sampled_progset, progset_instructions=x, result_name=y, rng=rng_attempt, acceptance_criteria=acceptance_criteria) for x, y in zip(progset_instructions, result_names)]
             else:
-                sampled_parset = parset.sample()
-                results = [proj.run_sim(parset=sampled_parset, result_name=y) for y in result_names]
+                results = [proj.run_sim(parset=sampled_parset, result_name=y, rng=rng_attempt, acceptance_criteria=acceptance_criteria) for y in result_names]
+
             return results
         except BadInitialization:
             attempts += 1

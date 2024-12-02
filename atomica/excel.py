@@ -424,7 +424,8 @@ class TimeDependentConnections:
             raise Exception('Unknown TimeDependentConnections type - must be "transfer" or "interaction"')
 
     def __repr__(self):
-        return '<TDC %s "%s">' % (self.type.title(), self.code_name)
+        # return '<TDC %s "%s">' % (self.type.title(), self.code_name)
+        return sc.prepr(self)
 
     @classmethod
     def from_tables(cls, tables: list, interaction_type):
@@ -834,7 +835,7 @@ class TimeDependentConnections:
             from_idx = self.from_pops.index(from_pop)
             to_idx = self.to_pops.index(to_pop)
             if boolean_choice:
-                value = "Y" if value else "N"
+                value = "Y" if (value.vals or value.assumption) else "N"
             content[from_idx, to_idx] = value
 
         # Write the content

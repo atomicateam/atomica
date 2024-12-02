@@ -96,7 +96,7 @@ class Parameter(NamedItem):
 
         return self.ts[pop_name].interpolate(tvec, method=self._interpolation_method)
 
-    def sample(self, constant: bool) -> None:
+    def sample(self, constant: bool, rng_sampler=None) -> None:
         """
         Perturb parameter based on uncertainties
 
@@ -105,11 +105,11 @@ class Parameter(NamedItem):
 
         :param constant: If True, time series will be perturbed by a single constant offset. If False,
                          a different perturbation will be applied to each time specific value independently.
-
+        :param rng_sampler: Optional random number generator that may have been seeded to generate consistent results
         """
 
         for k, ts in self.ts.items():
-            self.ts[k] = ts.sample(constant)
+            self.ts[k] = ts.sample(constant, rng_sampler)
 
     def smooth(self, tvec, method="smoothinterp", pop_names=None, **kwargs):
         """
@@ -509,19 +509,20 @@ class ParameterSet(NamedItem):
         else:
             raise KeyError(f'Parameter "{name}" not found')
 
-    def sample(self, constant=True):
+    def sample(self, constant: bool = True, rng_sampler=None):
         """
         Return a sampled copy of the ParameterSet
 
         :param constant: If True, time series will be perturbed by a single constant offset. If False,
                          a different perturbation will be applied to each time specific value independently.
+        :param rng_sampler: Optional random number generator that may have been seeded to generate consistent results
         :return: A new :class:`ParameterSet` with perturbed values
 
         """
-
         new = sc.dcp(self)
-        for par in new.all_pars():
-            par.sample(constant)
+
+        for i, par in enumerate(new.all_pars()):
+            par.sample(constant=constant, rng_sampler=rng_sampler)
         return new
 
     def make_constant(self, year: float):
