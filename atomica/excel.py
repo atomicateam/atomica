@@ -884,7 +884,7 @@ class TimeDependentValuesEntry:
 
     """
 
-    def __init__(self, name, tvec: np.array = None, ts=None, allowed_units: list = None, comment: str = None, pop_type: str = None):
+    def __init__(self, name, tvec: np.array = None, ts=None, allowed_units: list = None, comment: str = None, pop_type: str = None, default_all: bool = False):
 
         if ts is None:
             ts = sc.odict()
@@ -906,6 +906,8 @@ class TimeDependentValuesEntry:
         self.write_units = None  #: Write a column for units (if None, units will be written if any of the TimeSeries have units)
         self.write_uncertainty = None  #: Write a column for uncertainty (if None, uncertainty will be written if any of the TimeSeries have uncertainty)
         self.write_assumption = None  #: Write a column for assumption/constant (if None, assumption will be written if any of the TimeSeries have an assumption)
+        
+        self.default_all = default_all #If the TDVE should by default only have the 'All' population in the databook e.g. the same value for all populations unless exceptions are manually entered
 
     def __repr__(self):
         output = sc.prepr(self)

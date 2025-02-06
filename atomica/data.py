@@ -261,13 +261,15 @@ class ProjectData(sc.prettyobj):
                     pop_type = spec.get("population type")
                     databook_order = spec.get("databook order")
                     full_name = spec["display name"]
+                    default_all = spec.get("databook default all")
+                    allowed_units = [framework.get_databook_units(full_name)]
 
                     if pd.isna(databook_order):
                         order = np.inf
                     else:
                         order = databook_order
                     pages[databook_page].append((spec.name, order))
-                    data.tdve[spec.name] = TimeDependentValuesEntry(full_name, data.tvec, allowed_units=[framework.get_databook_units(full_name)], comment=spec["guidance"], pop_type=pop_type)
+                    data.tdve[spec.name] = TimeDependentValuesEntry(full_name, data.tvec, allowed_units=allowed_units, comment=spec["guidance"], pop_type=pop_type, default_all=default_all)
                     data.tdve[spec.name].write_units = True
                     data.tdve[spec.name].write_uncertainty = True
                     if obj_type == "pars":
@@ -276,6 +278,8 @@ class ProjectData(sc.prettyobj):
                             data.tdve[spec.name].tvec = []  # If parameter is timed, don't show any years
                             data.tdve[spec.name].write_uncertainty = False  # Don't show uncertainty for timed parameters. In theory users could manually add the column and sample over it, but because the duration is rounded to the timestep, it's likely to have confusing stepped effects
                     data.tdve[spec.name].pop_type = pop_type
+                    if default_all:
+                        data.tdve[spec.name].ts['All'] = TimeSeries(units=allowed_units[0])
 
         # Now convert pages to full names and sort them into the correct order
         for _, spec in framework.sheets["databook pages"][0].iterrows():
@@ -654,7 +658,7 @@ class ProjectData(sc.prettyobj):
             # Since TDVEs in databooks must have the unit set in the framework, all ts objects must share the same units
             # And, there is only supposed to be one type of unit allowed for TDVE tables (if the unit is empty, it will be 'N.A.')
             # so can just pick the first of the allowed units
-            if tdve.pop_type == pop_type:
+            if tdve.pop_type == pop_type and not (hasattr(tdve, 'default_all') and tdve.default_all):
                 tdve.ts[code_name] = TimeSeries(units=tdve.allowed_units[0])
 
     def rename_pop(self, existing_code_name: str, new_code_name: str, new_full_name: str) -> None:
