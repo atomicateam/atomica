@@ -1,0 +1,18 @@
+calibration:
+    cal_start: 2005
+    cal_end: 2040
+
+    Population calibration:
+        repeats: 10
+        Match population sizes:
+            adjustables:
+              (b_rate, 0-4):
+                starting_y_factor: 1.2
+              mig_rate:
+                lower_bound: 0.1
+            measurables: alive
+
+        clear_initialization: True
+
+        set_initialization:
+            init_year: 2025
