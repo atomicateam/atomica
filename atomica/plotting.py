@@ -1237,40 +1237,68 @@ class Series:
         return np.interp(sc.promotetoarray(new_tvec), self.tvec, self.vals, left=np.nan, right=np.nan)
 
 
-def separatelegend(ax=None, handles=None, labels=None, reverse=False, legendsettings=None):
-    """Allows the legend of a figure to be rendered in a separate window instead"""
+# Temporary copy of function from Sciris to remove after Sciris update
+def _get_legend_handles(ax, handles, labels):
+    """
+    Construct handle and label list, from one of:
+
+         - A list of handles and a list of labels
+         - A list of handles, where each handle contains the label
+         - An axis object, containing the objects that should appear in the legend
+         - A figure object, from which the first axis will be used
+    """
+    if handles is None:
+        if ax is None:
+            ax = plt.gca()
+        elif isinstance(ax, plt.Figure): # Allows an argument of a figure instead of an axes # pragma: no cover
+            ax = ax.axes[-1]
+        handles, labels = ax.get_legend_handles_labels()
+    else: # pragma: no cover
+        if labels is None:
+            labels = [h.get_label() for h in handles]
+        else:
+            assert len(handles) == len(labels), f"Number of handles ({len(handles)}) and labels ({len(labels)}) must match"
+    return ax, handles, labels
+
+# Temporary copy of function from Sciris to remove after Sciris update
+def separatelegend(ax=None, handles=None, labels=None, reverse=False, figsettings=None, legendsettings=None):
+    """ Allows the legend of a figure to be rendered in a separate window instead """
 
     # Handle settings
-    if ax is None:
-        fig, ax = plt.subplots()
-    else:
-        fig = ax.figure
-    fig.set_size_inches(4.0, 4.8)
-
-    l_settings = sc.mergedicts({"loc": "center", "bbox_to_anchor": None, "frameon": False}, legendsettings)
+    f_settings = sc.mergedicts({'figsize':(4.0,4.8)}, figsettings) # (6.4,4.8) is the default, so make it a bit narrower
+    l_settings = sc.mergedicts({'loc': 'center', 'bbox_to_anchor': None, 'frameon': False}, legendsettings)
 
     # Get handles and labels
-    if handles is None and labels is None:
-        handles, labels = ax.get_legend_handles_labels()
-    elif handles is None:
-        handles, _ = ax.get_legend_handles_labels()
-    elif labels is None:
-        labels = [h.get_label() for h in handles]
-    assert len(handles) == len(labels), f"Number of handles ({len(handles)}) and labels ({len(labels)}) must match"
+    _, handles, labels = _get_legend_handles(ax, handles, labels)
 
     # Set up new plot
-    ax.set_position([-0.05, -0.05, 1.1, 1.1])
-    ax.set_axis_off()
+    fig = plt.figure(**f_settings)
+    ax = fig.add_subplot(111)
+    ax.set_position([-0.05,-0.05,1.1,1.1]) # This cuts off the axis labels, ha-ha
+    ax.set_axis_off()  # Hide axis lines
+
+    # A legend renders the line/patch based on the object handle. However, an object
+    # can only appear in one figure. Thus, if the legend is in a different figure, the
+    # object cannot be shown in both the original figure and in the legend. Thus we need
+    # to copy the handles, and use the copies to render the legend
+    handles2 = []
+    for h in handles:
+        h2 = sc.cp(h)
+        h2.axes = None
+        h2._parent_figure = None
+        h2.figure = None
+        handles2.append(h2)
 
     # Reverse order, e.g. for stacked plots
-    if reverse:  # pragma: no cover
-        handles = handles[::-1]
-        labels = labels[::-1]
+    if reverse: # pragma: no cover
+        handles2 = handles2[::-1]
+        labels   = labels[::-1]
 
     # Plot the new legend
-    ax.legend(handles=handles, labels=labels, **l_settings)
+    ax.legend(handles=handles2, labels=labels, **l_settings)
 
     return fig
+
 
 
 def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer=None, legend_mode=None, show_all_labels=False, orientation="vertical") -> list:
@@ -1796,12 +1824,14 @@ def plot_series(plotdata, plot_type="line", axis=None, data=None, legend_mode=No
 
     if legend_mode == "separate":
         reverse_legend = True if plot_type in ["stacked", "proportion"] else False
-        handles, labels = ax.get_legend_handles_labels()
 
         if not subplots:
-            separatelegend(axes[-1], handles=handles, labels=labels, reverse=reverse_legend)
+            # Replace the last figure with a legend figure
+            plt.close(figs[-1])  # TODO - update Sciris to allow passing in an existing figure
+            figs[-1] = separatelegend(ax, reverse=reverse_legend)
         else:
             legend_ax = axes[-1]
+            handles, labels = ax.get_legend_handles_labels()
             legend_ax.set_axis_off()  # Hide axis lines
             if reverse_legend:  # pragma: no cover
                 handles = handles[::-1]
