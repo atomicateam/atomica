@@ -1,0 +1,16 @@
+
+calibration:
+    Match population sizes:
+        adjustables:
+            b_rate:
+                lower_bound: 0.5
+                upper_bound: 20
+            mig_rate:
+                starting_y_factor: 1.2
+        measurables:
+            alive:
+                cal_start: 2000
+                cal_end: 2040
+
+
+

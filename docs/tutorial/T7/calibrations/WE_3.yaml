@@ -1,0 +1,9 @@
+calibration:
+    cal_start: 2005
+    cal_end: 2040
+
+    Population calibration:
+        repeats: 10
+        Match population sizes:
+            adjustables: b_rate, mig_rate
+            measurables: alive

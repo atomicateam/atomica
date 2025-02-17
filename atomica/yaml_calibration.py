@@ -13,7 +13,7 @@ import yaml
 import time
 import re
 
-__all__ = ['build', 'run']
+__all__ = ["build", "run"]
 
 from atomica import ParameterSet
 
@@ -24,7 +24,8 @@ def _get_named_nodes():
     """
     return {x._name: x for x in BaseNode.__subclasses__() if x._name is not None}
 
-def build(instructions=None, context=None, name='calibration'):
+
+def build(instructions=None, context=None, name="calibration"):
     """
     Construct nodes representing a calibration
 
@@ -38,17 +39,18 @@ def build(instructions=None, context=None, name='calibration'):
 
     if (sc.isstring(instructions) or isinstance(instructions, Path)) and Path(instructions).exists():
         with open(instructions) as file:
-            instructions =  yaml.load(file, Loader=yaml.FullLoader)
+            instructions = yaml.load(file, Loader=yaml.FullLoader)
 
     named_nodes = _get_named_nodes()
-    if isinstance(instructions, dict) and ('adjustables' in instructions or (context is not None and 'adjustables' in context)) and ('measurables' in instructions or (context is not None and 'measurables' in context)):
+    if isinstance(instructions, dict) and ("adjustables" in instructions or (context is not None and "adjustables" in context)) and ("measurables" in instructions or (context is not None and "measurables" in context)):
         return CalibrationNode(instructions, context, name)
     elif name in named_nodes:
         return named_nodes[name](instructions, context, name)
     else:
         return SectionNode(instructions, context, name)
 
-def run(node, project, parset, savedir=None, save_intermediate=False, log_output:bool=False,*args, **kwargs):
+
+def run(node, project, parset, savedir=None, save_intermediate=False, log_output: bool = False, *args, **kwargs):
     """
     Run YAML calibration
 
@@ -63,7 +65,7 @@ def run(node, project, parset, savedir=None, save_intermediate=False, log_output
     """
 
     if savedir is None:
-        savedir = Path('.')
+        savedir = Path(".")
     else:
         savedir = Path(savedir)
     savedir.mkdir(exist_ok=True, parents=True)
@@ -76,14 +78,14 @@ def run(node, project, parset, savedir=None, save_intermediate=False, log_output
 
     parset = sc.dcp(project.parset(parset))
 
-    nodes = list(node.walk()) # Make a flat list of all nodes to execute in order
+    nodes = list(node.walk())  # Make a flat list of all nodes to execute in order
     n_steps = len([x for x in nodes if not isinstance(x[1], SectionNode)])
     n = 1
 
     if log_output:
-        at.start_logging(savedir/'calibration_log.txt')
+        at.start_logging(savedir / "calibration_log.txt")
 
-    at.logger.info(f'\nStarting calibration ({n_steps} steps)')
+    at.logger.info(f"\nStarting calibration ({n_steps} steps)")
 
     for n_reps, node in nodes:
 
@@ -96,11 +98,11 @@ def run(node, project, parset, savedir=None, save_intermediate=False, log_output
 
             if save_intermediate and not isinstance(node, SaveCalibrationNode):
                 output = savedir / f'intermediate_calibration_{n:0{len(str(n_steps))}}_{node.name.replace(" ", "_")}'
-                at.logger.info(f'Saving intermediate calibration...')
+                at.logger.info(f"Saving intermediate calibration...")
                 parset.save_calibration(output)
 
     t = time.process_time()
-    at.logger.info(f'\nCalibration completed. Total time elapsed: {round(t, 2)} seconds ({round(t/60, 2)} minutes)')
+    at.logger.info(f"\nCalibration completed. Total time elapsed: {round(t, 2)} seconds ({round(t/60, 2)} minutes)")
 
     if log_output:
         at.stop_logging()
@@ -150,9 +152,9 @@ class BaseNode:
         :param indent: Recursively increase the indent for child nodes
         :return:
         """
-        s =  '\t' * indent + self.__repr__()
+        s = "\t" * indent + self.__repr__()
         for child in self.children:
-            s += '\n' + child.__str__(indent=indent + 1)
+            s += "\n" + child.__str__(indent=indent + 1)
         return s
 
     @property
@@ -178,8 +180,8 @@ class BaseNode:
     def repeats(self):
         # Although repeats may be part of the context, we only repeat a node if the instructions requested a repeat
         # i.e., repeats are not inherited
-        if isinstance(self.instructions, dict) and 'repeats' in self.instructions:
-            return self.instructions['repeats']
+        if isinstance(self.instructions, dict) and "repeats" in self.instructions:
+            return self.instructions["repeats"]
         else:
             return 1
 
@@ -197,10 +199,12 @@ class BaseNode:
         """
         return parset
 
+
 class SectionNode(BaseNode):
     """
     A section node is a special kind of node, that contains other nodes
     """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.children = self.make_children()
@@ -224,35 +228,36 @@ class SectionNode(BaseNode):
 
         return children
 
+
 class CalibrationNode(BaseNode):
 
     # Order for list of adjustable parameters and default values
     adj_defaults = {
-        'lower_bound': 0.1,
-        'upper_bound': 10.0,
-        'starting_y_factor': None,
+        "lower_bound": 0.1,
+        "upper_bound": 10.0,
+        "starting_y_factor": None,
     }
 
     # Order for list of measurable parameters and default values
     meas_defaults = {
-        'weight': 1.0,
-        'metric': 'fractional',
-        'cal_start': -np.inf,
-        'cal_end': np.inf,
+        "weight": 1.0,
+        "metric": "fractional",
+        "cal_start": -np.inf,
+        "cal_end": np.inf,
     }
 
     @staticmethod
     def parse_list(l, defaults):
         # Routine to parse list of arguments into a dictionary of values
         d = {}
-        #convert number strings back to numerical values
+        # convert number strings back to numerical values
         for i, e in enumerate(l.copy()):
             try:
-                l[i] = float(e)  
+                l[i] = float(e)
             except ValueError:
                 pass
 
-        for k, v in zip(list(defaults.keys())[:len(l)], l):
+        for k, v in zip(list(defaults.keys())[: len(l)], l):
             d[k] = v
         return d
 
@@ -269,34 +274,34 @@ class CalibrationNode(BaseNode):
             :return list : A list of strings, each of which represents a single key.
             """
             in_brackets = False
-            brackets_str = ''
-            nobrackets_str = ''
+            brackets_str = ""
+            nobrackets_str = ""
             separated_keys = []
 
             for ch in keys_str:
-                if ch == '(':
+                if ch == "(":
                     in_brackets = True
                     continue
-                elif ch == ')':
+                elif ch == ")":
                     in_brackets = False
                     separated_keys.append(brackets_str)
-                    brackets_str = ''
+                    brackets_str = ""
                     continue
 
                 if in_brackets:
                     brackets_str += ch
                 else:
-                    if ch == ',':
-                        if nobrackets_str == ' ' or nobrackets_str == '':
-                            nobrackets_str = ''
+                    if ch == ",":
+                        if nobrackets_str == " " or nobrackets_str == "":
+                            nobrackets_str = ""
                             continue
                         else:
                             separated_keys.append(nobrackets_str)
-                            nobrackets_str = ''
+                            nobrackets_str = ""
                     else:
                         nobrackets_str += ch
 
-            if nobrackets_str != '' and nobrackets_str != ' ':
+            if nobrackets_str != "" and nobrackets_str != " ":
                 separated_keys.append(nobrackets_str)
 
             return [x.strip() for x in separated_keys]
@@ -319,12 +324,12 @@ class CalibrationNode(BaseNode):
                 INPUT: 'aging, 0-4, 5-14'
                 OUTPUT: (aging, 0-4, 5-14)
             """
-            if ',' in key:
-                return tuple([x.strip() for x in key.strip('() ').split(',') if x])
+            if "," in key:
+                return tuple([x.strip() for x in key.strip("() ").split(",") if x])
             else:
                 return (key.strip(), None)
 
-        def process_list(l: list) -> (tuple,list):
+        def process_list(l: list) -> (tuple, list):
             """
             Process list-format inputs and separate them into a key (par_name, pop_name tuple) and a value (list of
             parameter settings).
@@ -340,20 +345,20 @@ class CalibrationNode(BaseNode):
                 OUTPUT: (b_rate, 0-4) ; [0.1, 10, 1.5]
             """
             if len(l) == 1:
-                #if the list is already just one string, return that string as key with None pop and vals
-                return (l[0].strip('() '), None), None
-            elif '(' in str(l):
+                # if the list is already just one string, return that string as key with None pop and vals
+                return (l[0].strip("() "), None), None
+            elif "(" in str(l):
                 # separate out the parenthesis contents as the par/pop/s,
                 # then output the key (par, pop tuple) and value
 
                 # process keys
                 s = str(l).strip("[] ").replace("'", "")
-                s1 = re.findall(r'\(.*?\)', s)
-                key = process_key(s1[0].replace('(', '').replace(')', ''))
+                s1 = re.findall(r"\(.*?\)", s)
+                key = process_key(s1[0].replace("(", "").replace(")", ""))
 
                 # process values/settings
-                value = s.replace(s1[0], '').strip(', ').split(',')
-                value = [x.strip(', ') for x in value if x]
+                value = s.replace(s1[0], "").strip(", ").split(",")
+                value = [x.strip(", ") for x in value if x]
                 return key, value
             else:
                 key = process_key(l[0])
@@ -382,22 +387,22 @@ class CalibrationNode(BaseNode):
             if sc.isstring(inputs):
                 # Support a comma separated string with "quantity pop" specifications of adjustables and measurables
                 # In this case, default values should be used for all other items. Proceed by splitting into a list
-                inputs = inputs.split(',')
+                inputs = inputs.split(",")
 
             if isinstance(inputs, (tuple, list)):
                 for l in inputs:
                     l = sc.promotetolist(l)
                     keyspops, v = process_list(l)
-                    
-                    #process key
+
+                    # process key
                     if len(keyspops) == 2:
                         key, pop_name = keyspops
                     else:
-                        assert len(keyspops) == 3, f'Number of populations must be 0, 1 or 2.'
-                        key = f'{keyspops[0]}_from_{keyspops[1]}'
+                        assert len(keyspops) == 3, f"Number of populations must be 0, 1 or 2."
+                        key = f"{keyspops[0]}_from_{keyspops[1]}"
                         pop_name = keyspops[2]
 
-                    #process value
+                    # process value
                     if v is None:
                         value = defaults
                     else:
@@ -410,16 +415,16 @@ class CalibrationNode(BaseNode):
 
                     separated_keys = separate_keys(keys)
                     for key in separated_keys:
-                        #separate par name from pop name
+                        # separate par name from pop name
                         keyspops = process_key(key.strip())
                         if len(keyspops) == 2:
                             key, pop_name = keyspops
                         else:
-                            assert len(keyspops) == 3, f'Number of populations must be 0, 1 or 2.'
-                            key = f'{keyspops[0]}_from_{keyspops[1]}'
+                            assert len(keyspops) == 3, f"Number of populations must be 0, 1 or 2."
+                            key = f"{keyspops[0]}_from_{keyspops[1]}"
                             pop_name = keyspops[2]
 
-                        #process values
+                        # process values
                         if isinstance(v, (tuple, list)):
                             value = self.parse_list(v, defaults)
                         elif v is None:
@@ -427,12 +432,12 @@ class CalibrationNode(BaseNode):
                         else:
                             value = v.copy()
 
-                        #add keys and values to outputs dict
+                        # add keys and values to outputs dict
                         out[key, pop_name] = sc.mergedicts(out.get((key, pop_name), {}), value)
             return out
 
-        self['adjustables'] = process_inputs(self['adjustables'], self.adj_defaults)
-        self['measurables'] = process_inputs(self['measurables'], self.meas_defaults)
+        self["adjustables"] = process_inputs(self["adjustables"], self.adj_defaults)
+        self["measurables"] = process_inputs(self["measurables"], self.meas_defaults)
 
         def check_optional_number(key, v, defaults):
             if key in v and v[key] is not None:
@@ -440,25 +445,25 @@ class CalibrationNode(BaseNode):
                     raise TypeError(f"Adjustable argument {key} needs to be a number or None (defaults to {defaults[key]}). Provided value: {v[key]} ")
 
         # Validate adjustables
-        assert len(self['adjustables']) > 0, f'Cannot calibrate with no adjustables for calibration section {self.name}'
-        for (quantity, pop_name), v in self['adjustables'].items():
-            assert 'pop_name' not in v, f'Setting the population name through "pop_name: {v["pop_name"]}" is not supported. Instead, the name of the adjustable quantity should include the population name ("{quantity} {v["pop_name"]}")'
-            assert isinstance(quantity, str), f'Adjustable codename {quantity} needs to be a string'
-            assert pop_name is None or isinstance(pop_name, str), f'Adjustable population {pop_name} needs to be a string or None (defaults to all populations for that parameter)'
-            check_optional_number('lower_bound',v, self.adj_defaults)
-            check_optional_number('upper_bound',v, self.adj_defaults)
-            check_optional_number('starting_y_factor',v, self.adj_defaults)
+        assert len(self["adjustables"]) > 0, f"Cannot calibrate with no adjustables for calibration section {self.name}"
+        for (quantity, pop_name), v in self["adjustables"].items():
+            assert "pop_name" not in v, f'Setting the population name through "pop_name: {v["pop_name"]}" is not supported. Instead, the name of the adjustable quantity should include the population name ("{quantity} {v["pop_name"]}")'
+            assert isinstance(quantity, str), f"Adjustable codename {quantity} needs to be a string"
+            assert pop_name is None or isinstance(pop_name, str), f"Adjustable population {pop_name} needs to be a string or None (defaults to all populations for that parameter)"
+            check_optional_number("lower_bound", v, self.adj_defaults)
+            check_optional_number("upper_bound", v, self.adj_defaults)
+            check_optional_number("starting_y_factor", v, self.adj_defaults)
 
         # Validate measurables
-        assert len(self['measurables']) > 0, f'Cannot calibrate with no measurables for calibration section {self.name}'
-        for (quantity, pop_name), v in self['measurables'].items():
-            assert isinstance(quantity, str), f'Measurable codename {quantity} needs to be a string'
-            assert pop_name is None or isinstance(pop_name, str), f'Adjustable population {pop_name} needs to be a string or None (defaults to all populations for that parameter)'
-            assert 'metric' not in v or v['metric'] is None or isinstance(v["metric"], str), f"Measurable metric {v['metric']} needs to be a number or None (defaults to 'fractional')"
+        assert len(self["measurables"]) > 0, f"Cannot calibrate with no measurables for calibration section {self.name}"
+        for (quantity, pop_name), v in self["measurables"].items():
+            assert isinstance(quantity, str), f"Measurable codename {quantity} needs to be a string"
+            assert pop_name is None or isinstance(pop_name, str), f"Adjustable population {pop_name} needs to be a string or None (defaults to all populations for that parameter)"
+            assert "metric" not in v or v["metric"] is None or isinstance(v["metric"], str), f"Measurable metric {v['metric']} needs to be a number or None (defaults to 'fractional')"
 
-            check_optional_number('weight',v, self.meas_defaults)
-            check_optional_number('cal_start',v, self.meas_defaults)
-            check_optional_number('cal_end',v, self.meas_defaults)
+            check_optional_number("weight", v, self.meas_defaults)
+            check_optional_number("cal_start", v, self.meas_defaults)
+            check_optional_number("cal_end", v, self.meas_defaults)
 
     def apply(self, project: at.Project, parset: at.ParameterSet, n: int, *args, quiet=False, compare_results=False, **kwargs) -> ParameterSet:
 
@@ -469,12 +474,12 @@ class CalibrationNode(BaseNode):
 
         # Expand adjustables
         adjustables = {}
-        par_names = {x[0] for x in attributes['adjustables']}.intersection(x.name for x in parset.all_pars())
-        pop_names = {x[1] for x in attributes['adjustables']}.intersection({*parset.pop_names} | {'all', None})
+        par_names = {x[0] for x in attributes["adjustables"]}.intersection(x.name for x in parset.all_pars())
+        pop_names = {x[1] for x in attributes["adjustables"]}.intersection({*parset.pop_names} | {"all", None})
 
-        adj_defaults = {k:self.attributes[k] if k in self.attributes else self.adj_defaults[k] for k in self.adj_defaults}
+        adj_defaults = {k: self.attributes[k] if k in self.attributes else self.adj_defaults[k] for k in self.adj_defaults}
 
-        for par_name, pop_name in attributes['adjustables']:
+        for par_name, pop_name in attributes["adjustables"]:
 
             if par_name not in par_names:
                 at.logger.warning(f"Extra YAML adjustable parameter '{par_name}' does not exist in this project's framework/parset and will be ignored")
@@ -489,25 +494,24 @@ class CalibrationNode(BaseNode):
                 pops = sc.promotetolist(pop_name)
 
             for pop in pops:
-                d = sc.mergedicts(adj_defaults,  attributes['adjustables'].get((par_name, None), None),  attributes['adjustables'].get((par_name, pop), None))
-                adjustables[(par_name, pop)] = (d['lower_bound'], d['upper_bound'], d['starting_y_factor'])
-        adjustables = [(*k, *v) for k,v in adjustables.items()]
-
+                d = sc.mergedicts(adj_defaults, attributes["adjustables"].get((par_name, None), None), attributes["adjustables"].get((par_name, pop), None))
+                adjustables[(par_name, pop)] = (d["lower_bound"], d["upper_bound"], d["starting_y_factor"])
+        adjustables = [(*k, *v) for k, v in adjustables.items()]
 
         # Expand measurables
         measurables = {}
-        par_names = {x[0] for x in attributes['measurables']}.intersection(x.name for x in parset.all_pars())  # TODO: This is probably OK for now but will need to validate that pars have databook entries in the future
-        pop_names = {x[1] for x in attributes['measurables']}.intersection({*parset.pop_names} | {None})
+        par_names = {x[0] for x in attributes["measurables"]}.intersection(x.name for x in parset.all_pars())  # TODO: This is probably OK for now but will need to validate that pars have databook entries in the future
+        pop_names = {x[1] for x in attributes["measurables"]}.intersection({*parset.pop_names} | {None})
 
         meas_defaults = {k: self.attributes[k] if k in self.attributes else self.meas_defaults[k] for k in self.meas_defaults}
 
-        for par_name, pop_name in attributes['measurables']:
+        for par_name, pop_name in attributes["measurables"]:
 
             if par_name not in par_names:
                 at.logger.warning(f"Extra YAML measurable variable '{par_name}' does not exist in this project's framework and will be ignored")
                 continue
             elif pop_name not in pop_names:
-                if not (pop_name.lower() == 'total' and pop_name.lower() in {x.lower() for x in project.data.tdve[par_name].ts.keys()}):
+                if not (pop_name.lower() == "total" and pop_name.lower() in {x.lower() for x in project.data.tdve[par_name].ts.keys()}):
                     at.logger.warning(f"Extra YAML measurable population '{pop_name}' does not exist in this project's databook and will be ignored")
                     continue
 
@@ -517,20 +521,20 @@ class CalibrationNode(BaseNode):
                 pops = sc.promotetolist(pop_name)
 
             for pop in pops:
-                d = sc.mergedicts(meas_defaults,  attributes['measurables'].get((par_name, None), None), attributes['measurables'].get((par_name, pop), None))
-                measurables[(par_name, pop)] = (d['weight'], d['metric'], d['cal_start'], d['cal_end'])
-        measurables = [(*k, *v) for k,v in measurables.items()]
+                d = sc.mergedicts(meas_defaults, attributes["measurables"].get((par_name, None), None), attributes["measurables"].get((par_name, pop), None))
+                measurables[(par_name, pop)] = (d["weight"], d["metric"], d["cal_start"], d["cal_end"])
+        measurables = [(*k, *v) for k, v in measurables.items()]
 
         # Calibration
         if len(adjustables):
             # note: attributes = instructions + context
             kwargs = sc.mergedicts(self.attributes, kwargs)
 
-            del kwargs['adjustables'] # supplied via the adjustables variable
-            del kwargs['measurables'] # supplied via the measurables variable
+            del kwargs["adjustables"]  # supplied via the adjustables variable
+            del kwargs["measurables"]  # supplied via the measurables variable
 
-            if 'repeats' in kwargs:
-                del kwargs['repeats']
+            if "repeats" in kwargs:
+                del kwargs["repeats"]
 
             if quiet:
                 with at.Quiet(show_warnings=False):
@@ -553,13 +557,13 @@ class CalibrationNode(BaseNode):
                 new = new_cal_parset.get_par(par).y_factor[pop]
 
             if new != old:
-                at.logger.info(f'...adjusted the y-factor for {par} in {pop} from {old} to {new}')
+                at.logger.info(f"...adjusted the y-factor for {par} in {pop} from {old} to {new}")
                 made_changes = True
             else:
-                at.logger.debug(f'...did NOT adjust the y-factor for {par} in {pop} from {old} to {new}')
+                at.logger.debug(f"...did NOT adjust the y-factor for {par} in {pop} from {old} to {new}")
 
         if not made_changes:
-            at.logger.info(f'...made no changes!')
+            at.logger.info(f"...made no changes!")
 
         if compare_results:
             base_res = project.run_sim(parset=parset)
@@ -579,58 +583,58 @@ class CalibrationNode(BaseNode):
                         cal_rms_error += (data_time_val - cal_time_val) ** 2
 
                         sf = at.get_sigfigs_necessary(base_time_val, cal_time_val)
-                        at.logger.info(f'...for parameter {par_name} and population {pop} at time {time_value} the data value was {sc.sigfig(data_time_val, sf)}, the baseline value was {sc.sigfig(base_time_val, sf)}, and the calibrated value was {sc.sigfig(cal_time_val, sf)}.')
+                        at.logger.info(f"...for parameter {par_name} and population {pop} at time {time_value} the data value was {sc.sigfig(data_time_val, sf)}, the baseline value was {sc.sigfig(base_time_val, sf)}, and the calibrated value was {sc.sigfig(cal_time_val, sf)}.")
 
-                base_rms_error = base_rms_error ** 0.5
-                cal_rms_error = cal_rms_error ** 0.5
+                base_rms_error = base_rms_error**0.5
+                cal_rms_error = cal_rms_error**0.5
                 sf = at.get_sigfigs_necessary(base_rms_error, cal_rms_error)
-                at.logger.info(f'...RMS error for parameter {par_name} has changed from baseline {sc.sigfig(base_rms_error, sf)} to calibrated {sc.sigfig(cal_rms_error, sf)}')
+                at.logger.info(f"...RMS error for parameter {par_name} has changed from baseline {sc.sigfig(base_rms_error, sf)} to calibrated {sc.sigfig(cal_rms_error, sf)}")
 
         return new_cal_parset
 
 
 class InitializationNode(BaseNode):
-    _name = 'set_initialization'
+    _name = "set_initialization"
 
-    def __init__(self, instructions, context, name ):
+    def __init__(self, instructions, context, name):
         new_instructions = {}
 
         if isinstance(instructions, dict):
             new_instructions.update(instructions)
         elif type(instructions) is int:
-            new_instructions.update({'init_year': instructions})
+            new_instructions.update({"init_year": instructions})
         elif isinstance(instructions, (tuple, list)):
             sc.promotetolist(instructions)
-            new_instructions.update({'init_year': instructions[0]})
+            new_instructions.update({"init_year": instructions[0]})
             if len(instructions) > 1:
-                new_instructions.update({'constant_parset': instructions[1]})
+                new_instructions.update({"constant_parset": instructions[1]})
 
         super().__init__(new_instructions, context, name)
 
     def validate(self):
-        assert 'init_year' in self, f'Initialization year must be specified'
-        assert sc.isnumber(self['init_year']), f'Initialization year {self["init_year"]} must be numeric.'
-        if 'constant_parset' in self:
-            assert isinstance(self['constant_parset'], int), f'Constant parset (optional) {self["constant_parset"]} must be numeric (boolean, or int to specify constant parset year).'
+        assert "init_year" in self, f"Initialization year must be specified"
+        assert sc.isnumber(self["init_year"]), f'Initialization year {self["init_year"]} must be numeric.'
+        if "constant_parset" in self:
+            assert isinstance(self["constant_parset"], int), f'Constant parset (optional) {self["constant_parset"]} must be numeric (boolean, or int to specify constant parset year).'
 
     def apply(self, project: at.Project, parset: at.ParameterSet, n: int, *args, **kwargs) -> ParameterSet:
         p2 = sc.dcp(parset)
-        if 'constant_parset' in self:
-            if self['constant_parset'] == False:
+        if "constant_parset" in self:
+            if self["constant_parset"] == False:
                 pass
-            elif self['constant_parset'] == True:
+            elif self["constant_parset"] == True:
                 p2 = parset.make_constant(year=project.settings.sim_start)
-            elif sc.isnumber(self['constant_parset']): #constant parset year was provided
-                p2 = parset.make_constant(year=self['constant_parset'])
+            elif sc.isnumber(self["constant_parset"]):  # constant parset year was provided
+                p2 = parset.make_constant(year=self["constant_parset"])
         new_settings = sc.dcp(project.settings)
-        new_settings.update_time_vector(end=self['init_year'])
+        new_settings.update_time_vector(end=self["init_year"])
         res = at.run_model(settings=new_settings, framework=project.framework, parset=p2)
-        parset.set_initialization(res, self['init_year'])
+        parset.set_initialization(res, self["init_year"])
         return parset
 
 
 class ClearInitializationNode(BaseNode):
-    _name = 'clear_initialization'
+    _name = "clear_initialization"
 
     def __init__(self, instructions, context, name):
         super().__init__(instructions=None, context=context, name=name)
@@ -645,16 +649,16 @@ class SaveCalibrationNode(BaseNode):
     Block in YAML file with "save calibration: <file name>"
     """
 
-    _name = 'save_calibration'
+    _name = "save_calibration"
 
     def __init__(self, instructions, context, name):
         if not isinstance(instructions, dict):
-            instructions = {'fname': instructions}
+            instructions = {"fname": instructions}
         super().__init__(instructions, context, name)
 
     def validate(self):
-        assert self['fname'] is not None, 'A "save calibration" node must have a file name explicitly specified'
+        assert self["fname"] is not None, 'A "save calibration" node must have a file name explicitly specified'
 
     def apply(self, project: at.Project, parset: at.ParameterSet, savedir=None, *args, **kwargs) -> ParameterSet:
-        parset.save_calibration(savedir / self['fname'])
+        parset.save_calibration(savedir / self["fname"])
         return parset

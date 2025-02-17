@@ -18,7 +18,7 @@ def test_time_vector():
     dt = 1 / 12
     settings = at.ProjectSettings(sim_start=analysis_years[0], sim_end=analysis_years[1] + 1 - dt, sim_dt=dt)  #: Atomica project settings
     tvec = settings.tvec  #: Simulation/result time points
-    assert set(np.unique(tvec.astype(int), return_counts=True)[1]) == {1/dt}  # or pd.Series(tvec).astype(int).value_counts()
+    assert set(np.unique(tvec.astype(int), return_counts=True)[1]) == {1 / dt}  # or pd.Series(tvec).astype(int).value_counts()
 
 
 if __name__ == "__main__":

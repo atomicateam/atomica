@@ -662,8 +662,8 @@ class PlotData:
                 scale = 1.0
 
             vals = np.full(lower.shape, fill_value=np.nan)
-            lower_idx = np.searchsorted(s.tvec, lower, side='left') # Time index for bin start
-            upper_idx = np.searchsorted(s.tvec, upper, side='right') # Time index for bin end
+            lower_idx = np.searchsorted(s.tvec, lower, side="left")  # Time index for bin start
+            upper_idx = np.searchsorted(s.tvec, upper, side="right")  # Time index for bin end
 
             for i, (l, u, l_idx, u_idx) in enumerate(zip(lower, upper, lower_idx, upper_idx)):
 
@@ -678,14 +678,14 @@ class PlotData:
                 # The bins will consist of the actual simulation time points, plus
                 # partial bins that are interpolated before and after if the requested
                 # bins don't line up with the simulation timepoints
-                idx = np.arange(l_idx,u_idx)
+                idx = np.arange(l_idx, u_idx)
                 t2 = s.tvec[idx]
                 interpolate = False
                 if t2[0] > l or t2[-1] < u:
                     interpolate = True
                     t2 = list(t2)
                     if t2[0] > l:
-                        t2.insert(0,l)
+                        t2.insert(0, l)
                     if t2[-1] < u:
                         t2.append(u)
                     t2 = np.array(t2, dtype=float)
@@ -1237,6 +1237,70 @@ class Series:
         return np.interp(sc.promotetoarray(new_tvec), self.tvec, self.vals, left=np.nan, right=np.nan)
 
 
+# Temporary copy of function from Sciris to remove after Sciris update
+def _get_legend_handles(ax, handles, labels):
+    """
+    Construct handle and label list, from one of:
+
+         - A list of handles and a list of labels
+         - A list of handles, where each handle contains the label
+         - An axis object, containing the objects that should appear in the legend
+         - A figure object, from which the first axis will be used
+    """
+    if handles is None:
+        if ax is None:
+            ax = plt.gca()
+        elif isinstance(ax, plt.Figure): # Allows an argument of a figure instead of an axes # pragma: no cover
+            ax = ax.axes[-1]
+        handles, labels = ax.get_legend_handles_labels()
+    else: # pragma: no cover
+        if labels is None:
+            labels = [h.get_label() for h in handles]
+        else:
+            assert len(handles) == len(labels), f"Number of handles ({len(handles)}) and labels ({len(labels)}) must match"
+    return ax, handles, labels
+
+# Temporary copy of function from Sciris to remove after Sciris update
+def separatelegend(ax=None, handles=None, labels=None, reverse=False, figsettings=None, legendsettings=None):
+    """ Allows the legend of a figure to be rendered in a separate window instead """
+
+    # Handle settings
+    f_settings = sc.mergedicts({'figsize':(4.0,4.8)}, figsettings) # (6.4,4.8) is the default, so make it a bit narrower
+    l_settings = sc.mergedicts({'loc': 'center', 'bbox_to_anchor': None, 'frameon': False}, legendsettings)
+
+    # Get handles and labels
+    _, handles, labels = _get_legend_handles(ax, handles, labels)
+
+    # Set up new plot
+    fig = plt.figure(**f_settings)
+    ax = fig.add_subplot(111)
+    ax.set_position([-0.05,-0.05,1.1,1.1]) # This cuts off the axis labels, ha-ha
+    ax.set_axis_off()  # Hide axis lines
+
+    # A legend renders the line/patch based on the object handle. However, an object
+    # can only appear in one figure. Thus, if the legend is in a different figure, the
+    # object cannot be shown in both the original figure and in the legend. Thus we need
+    # to copy the handles, and use the copies to render the legend
+    handles2 = []
+    for h in handles:
+        h2 = sc.cp(h)
+        h2.axes = None
+        h2._parent_figure = None
+        h2.figure = None
+        handles2.append(h2)
+
+    # Reverse order, e.g. for stacked plots
+    if reverse: # pragma: no cover
+        handles2 = handles2[::-1]
+        labels   = labels[::-1]
+
+    # Plot the new legend
+    ax.legend(handles=handles2, labels=labels, **l_settings)
+
+    return fig
+
+
+
 def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer=None, legend_mode=None, show_all_labels=False, orientation="vertical") -> list:
     """
     Produce a bar plot
@@ -1583,7 +1647,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer=None, legend_
     if legend_mode == "together":
         _render_legend(ax, plot_type="bar", handles=legend_patches)
     elif legend_mode == "separate":
-        figs.append(sc.separatelegend(handles=legend_patches, reverse=True))
+        figs.append(separatelegend(handles=legend_patches, reverse=True))
 
     return figs
 
@@ -1764,7 +1828,7 @@ def plot_series(plotdata, plot_type="line", axis=None, data=None, legend_mode=No
         if not subplots:
             # Replace the last figure with a legend figure
             plt.close(figs[-1])  # TODO - update Sciris to allow passing in an existing figure
-            figs[-1] = sc.separatelegend(ax, reverse=reverse_legend)
+            figs[-1] = separatelegend(ax, reverse=reverse_legend)
         else:
             legend_ax = axes[-1]
             handles, labels = ax.get_legend_handles_labels()
@@ -1884,7 +1948,7 @@ def plot_legend(entries: dict, plot_type=None, fig=None, legendsettings: dict = 
             raise Exception(f'Unknown plot type "{p_type}"')
 
     if fig is None:  # Draw in a new figure
-        fig = sc.separatelegend(handles=h, legendsettings=legendsettings)
+        fig = separatelegend(handles=h, legendsettings=legendsettings)
     else:
         existing_legend = fig.findobj(Legend)
         if existing_legend and existing_legend[0].parent is fig:  # If existing legend and this is a separate legend fig

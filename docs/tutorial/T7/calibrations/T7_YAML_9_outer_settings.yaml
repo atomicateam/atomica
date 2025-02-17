@@ -1,0 +1,15 @@
+
+
+calibration:
+    Population calibration:
+        upper_bound: 2
+        lower_bound: 0.5
+
+        Match population sizes:
+            adjustables: b_rate, mig_rate
+            measurables: alive
+
+        Match deaths:
+                adjustables: d_rate
+                measurables: deaths
+
