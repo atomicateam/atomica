@@ -24,7 +24,7 @@ sys.path.insert(0, os.path.abspath("../"))  # Source code dir relative to this f
 # -- Project information -----------------------------------------------------
 
 project = "Atomica"
-copyright = "2023, Atomica Team"
+copyright = "2025, Atomica Team"
 author = "Atomica Team"
 
 import atomica

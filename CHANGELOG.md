@@ -2,7 +2,12 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
-## [1.XX.0] - 2024
+## [1.30.0] - 2025-02-17
+
+- Automatic calibration can now selectively weight parts of the time series to select or prioritise a subset of time points.
+- Added YAML-based calibration support to Atomica, covered in Tutorial 7 in the online documentation.
+
+## [1.29.0] - 2024-10-30
 
 - `ProjectSettings` now computes the simulation time vector in a more robust way to reduce edge cases where the reported `sim_dt` doesn't match the input.
 - `ParameterSet.load_calibration()` now clears any existing initialization if the calibration being loaded does not contain an initialization. Previously, the absence of an 'initialization' sheet in the calibration would be treated as not making any change to the initialization. This could cause calibrations to become mixed if a calibration without an initialization was loaded after a calibration with an initialization. Now, a missing initialization sheet is treated as meaning 'no initialization' and any existing initialization will be cleared when the calibration is loaded. 
