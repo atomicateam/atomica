@@ -13,7 +13,7 @@ can be run with more recent versions of Atomica. This module defines
 
 import sys
 import io
-from distutils.version import LooseVersion
+from packaging.version import Version
 from .system import logger
 from .version import version, gitinfo
 import sciris as sc
@@ -198,7 +198,7 @@ def migrate(obj, registry=migrations, version=version, gitinfo=gitinfo):
         print("Skipping migration")
         return obj  # If migration is disabled then don't make any changes EXCEPT to add in version and gitinfo which may otherwise be hard to catch
 
-    migrations_to_run = sorted(registry[type(obj).__name__], key=lambda m: LooseVersion(m.original_version))
+    migrations_to_run = sorted(registry[type(obj).__name__], key=lambda m: Version(m.original_version))
     if sc.compareversions(obj.version, version) >= 0:
         return obj
     else:
@@ -808,7 +808,7 @@ def _convert_framework_columns(framework):
     return framework
 
 
-@migration("ParameterSet", "1.28.3", "1.28.4", "Add initialization atttribute")
+@migration("ParameterSet", "1.28.3", "1.28.4", "Add initialization attribute")
 def _parset_add_initialization(parset):
     parset.initialization = None
     return parset

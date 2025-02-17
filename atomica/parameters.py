@@ -299,7 +299,20 @@ class Initialization:
                 if (comp.name, pop.name) not in self.values:
                     comp._vals[:, 0] = 0
                 else:
-                    comp._vals[:, 0] = self.values[(comp.name, pop.name)]
+                    vals = sc.promotetoarray(self.values[(comp.name, pop.name)])
+                    if comp._vals.shape[0] != vals.shape[0]:
+                        if np.all(self.values[(comp.name, pop.name)] == 0):
+                            # If there is a mismatch between the saved initialization duration and the
+                            # duration for the current simulation AND if the values were all zero it is probably
+                            # safe to assume the values can remain zero - this considerably increases flexibility in usage
+                            comp._vals[:, 0] = 0
+                        else:
+                            # Otherwise, although we could try and guess how to assign the values, there is a risk that the time points
+                            # are different because the step size was changed rather than the duration being changed. Therefore,
+                            # if the sizes don't match and any values are nonzero, simply raise an error
+                            raise Exception(f'The saved initialization for "{comp.name}" ({pop.name}) has {len(self.values[(comp.name, pop.name)])} time points, but the current parameters lead to a timed compartment duration with {comp._vals.shape[0]} time points. As nonzero values are present, the initialization cannot be applied.')
+                    else:
+                        comp._vals[:, 0] = self.values[(comp.name, pop.name)]
             else:
                 if (comp.name, pop.name) not in self.values:
                     comp.vals[0] = 0
@@ -490,7 +503,10 @@ class ParameterSet(NamedItem):
         The parameter values for interactions and transfers are stored keyed by
         the source/from population. Thus, if the quantity name is an interaction
         or transfer, it is also necessary to specify the source population in order
-        to return a :class:`Parameter` instance.
+        to return a :class:`Parameter` instance. However, transfer parameters can
+        also be identified by a parameter name "<transfer_name>_from_<pop>" such
+        that ``ParameterSet.get_par('age','5-14')`` is equivalent to
+        ``ParameterSet.get_par('age_from_5-14')``.
 
         :param name: The code name of a parameter, interaction, or transfer
         :param pop:
@@ -507,7 +523,12 @@ class ParameterSet(NamedItem):
             assert not pd.isna(pop), f'"{name}" is an interaction, so the ``pop`` must be specified'
             return self.interactions[name][pop]
         else:
-            raise KeyError(f'Parameter "{name}" not found')
+            for transfer in self.transfers.values():
+                for par in transfer.values():
+                    if par.name == name:
+                        return par
+
+        raise KeyError(f'Parameter "{name}" not found')
 
     def sample(self, constant=True):
         """
@@ -677,5 +698,7 @@ class ParameterSet(NamedItem):
 
         if "Initialization" in excelfile.sheet_names:
             self.initialization = Initialization.from_excel(excelfile)
+        else:
+            self.initialization = None
 
         logger.debug("Loaded calibration from file")

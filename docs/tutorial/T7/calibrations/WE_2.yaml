@@ -1,0 +1,9 @@
+calibration:
+    Population calibration:
+        repeats: 10
+        Match population sizes:
+            adjustables:
+                b_rate, mig_rate:
+                    lower_bound: 0.1
+                    upper_bound: 10
+            measurables: alive

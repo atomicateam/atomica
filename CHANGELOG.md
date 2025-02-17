@@ -2,7 +2,25 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
-## [1.28.7] - 2023-10-29
+## [1.30.0] - 2025-02-17
+
+- Automatic calibration can now selectively weight parts of the time series to select or prioritise a subset of time points.
+- Added YAML-based calibration support to Atomica, covered in Tutorial 7 in the online documentation.
+
+## [1.29.0] - 2024-10-30
+
+- `ProjectSettings` now computes the simulation time vector in a more robust way to reduce edge cases where the reported `sim_dt` doesn't match the input.
+- `ParameterSet.load_calibration()` now clears any existing initialization if the calibration being loaded does not contain an initialization. Previously, the absence of an 'initialization' sheet in the calibration would be treated as not making any change to the initialization. This could cause calibrations to become mixed if a calibration without an initialization was loaded after a calibration with an initialization. Now, a missing initialization sheet is treated as meaning 'no initialization' and any existing initialization will be cleared when the calibration is loaded. 
+- `Project.load_databook()` will no longer populate `Project.databook` when a `ProjectData` instance is supplied rather than a spreadsheet. The intention of `Project.databook` as opposed to `Project.data.to_spreadsheet()` is that the original databook may contain comments or other content that is not preserved when the databook is loaded into a `ProjectData` instance. Therefore, `Project.databook` serves as a record of the original inputs. However, in previous versions of Atomica, if a `ProjectData` instance was provided rather than a spreadsheet, `ProjectData.to_spreadsheet()` would be used to populate `Project.databook`. For large databooks, this can be computationally expensive and particularly affect the use case of passing in a preloaded databook to improve performance. Since the conversion of the `ProjectData` to a spreadsheet upon loading offers no functional difference to creating the spreadsheet from `Project.data` when required, Atomica no longer performs this conversion upfront.
+- `PlotData.time_aggregate()` now only interpolates if necessary, using simulated time points as much as possible.
+
+*Backwards-compatibility notes*
+
+- In some edge cases, the simulation time points in the output may be different. In those cases, the difference between simulation time points in the model output would not have matched the model input, although the correct time step would have been used to calculate parameter values. In these cases, there may be an extra time point in the model output. Re-running the model should produce results that are close to the original results.
+- If accessing `Project.databook`, in some cases this may now be `None` rather than an `sc.Spreadsheet()`. If that occurs, `Project.data.to_spreadsheet()` should be used to produce an equivalent spreadsheet. 
+- Time aggregation of `PlotData` may produce slightly different results due to the more accurate selection of time points in this version.
+- 
+## [1.28.7] - 2024-10-29
 
 - If aggregating characteristics with a denominator, weighted aggregations use the denominator of the quantity rather than the total population size to perform the weighting. This can be useful for quantities that are proportions of things other than the population size e.g., proportion of active infections that are diagnosed
 - If aggregating characteristics with a denominator, weighted aggregation will be used by default (rather than 'average')
@@ -15,36 +33,28 @@ This file records changes to the codebase grouped by version release. Unreleased
 - Results obtained when aggregating characteristics with a denominator using the 'weighted' method will change. To reproduce the previous results, it is necessary to perform the population size weighting manually by removing the aggregation, then extracting the population sizes, and using those to aggregate the outputs. This is considered to be a rare use case because the updated result is a more useful weighting compared to the previous result.
 - Results obtained when aggregating characteristics with a denominator _without_ explicitly specifying a method will change, because 'weighted' aggregation is now used by default. 
 
-## [1.28.7] - 2023-08-12
-
-- `Project.load_databook()` will no longer populate `Project.databook` when a `ProjectData` instance is supplied rather than a spreadsheet. The intention of `Project.databook` as opposed to `Project.data.to_spreadsheet()` is that the original databook may contain comments or other content that is not preserved when the databook is loaded into a `ProjectData` instance. Therefore, `Project.databook` serves as a record of the original inputs. However, in previous versions of Atomica, if a `ProjectData` instance was provided rather than a spreadsheet, `ProjectData.to_spreadsheet()` would be used to populate `Project.databook`. For large databooks, this can be computationally expensive and particularly affect the use case of passing in a preloaded databook to improve performance. Since the conversion of the `ProjectData` to a spreadsheet upon loading offers no functional difference to creating the spreadsheet from `Project.data` when required, Atomica no longer performs this conversion upfront.
-
-*Backwards-compatibility notes*
-
-- If accessing `Project.databook`, in some cases this may now be `None` rather than an `sc.Spreadsheet()`. If that occurs, `Project.data.to_spreadsheet()` should be used to produce an equivalent spreadsheet. 
-
-## [1.28.6] - 2023-07-12
+## [1.28.6] - 2024-07-12
 
 - Support entering `'total'` as the population name in auto-calibration measurables to calibrate aggregated values across populations in the model to aggregate values entered in the databook under a 'Total' population
 
-## [1.28.5] - 2023-06-28
+## [1.28.5] - 2024-06-28
 
 - Enable automated calibration of transfers and updated documentation to cover this feature
 
-## [1.28.4] - 2023-05-27
+## [1.28.4] - 2024-05-27
 
 - Added an option to save initial compartment sizes inside a `ParameterSet`. Importantly, this saved representation allows setting the initial _subcompartment_ sizes for a `TimedCompartment`. It therefore offers the possibility of initializing the model in a steady state computed from a previous simulation run, that would not be possible to initialize conventionally because standard initialization uniformly distributes people into the subcompartments of a timed compartment.  
 - Added `ParameterSet.make_constant` to facilitate constructing copies of `ParameterSet` instances that are constant over time.
 
-## [1.28.3] - 2023-05-16
+## [1.28.3] - 2024-05-16
 
 - Updated `at.Project()` to explicitly take in the settings arguments for `sim_start`, `sim_end`, and `sim_dt`. These are now applied after databooks are loaded, fixing a bug where these arguments would get overwritten when loading the databook.
 
-## [1.28.2] - 2023-04-05
+## [1.28.2] - 2024-04-05
 
 - `at.calibrate` now supports passing any additional arguments into the optimization function e.g., `sc.asd` allowing additional options for customizing the optimization. 
 
-## [1.28.1] - 2023-02-05
+## [1.28.1] - 2024-02-05
 
 - Updated various Pandas operations to improve compatibility with Pandas 2.2.0
 - Replaced 'probability' units with 'rate' units in many of the library example frameworks

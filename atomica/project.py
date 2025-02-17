@@ -88,14 +88,13 @@ class ProjectSettings:
         """
         Return simulation time vector
 
-        This method uses `linspace` rather than `arange` to avoid accumulating numerical errors that prevent
-        integer years aligning exactly.
+        This method uses `arange` with a step size of 1, then multiplies with the correct step size and add sim start time.
 
         :return: Array of simulation times
 
         """
 
-        return np.linspace(self.sim_start, self.sim_end, int((self.sim_end - self.sim_start) / self.sim_dt) + 1)
+        return np.arange(round((self.sim_end - self.sim_start) / self.sim_dt) + 1) * self.sim_dt + self.sim_start
 
     def update_time_vector(self, start: float = None, end: float = None, dt: float = None) -> None:
         """
@@ -577,7 +576,7 @@ class Project(NamedItem):
 
         return results
 
-    def calibrate(self, parset=None, adjustables=None, measurables=None, max_time=60, save_to_project=False, new_name=None, default_min_scale=0.0, default_max_scale=2.0, default_weight=1.0, default_metric="fractional", **kwargs) -> ParameterSet:
+    def calibrate(self, parset=None, adjustables=None, measurables=None, save_to_project=False, new_name=None, default_min_scale=0.0, default_max_scale=2.0, default_weight=1.0, default_metric="fractional", yaml=None, **kwargs) -> ParameterSet:
         """
         Method to perform automatic calibration.
 
@@ -603,6 +602,23 @@ class Project(NamedItem):
         To calibrate a project-attached parameter set in place, provide its key as the new name argument to this method.
         Current fitting metrics are: "fractional", "meansquare", "wape"
         Note that scaling limits are absolute, not relative.
+
+        Additional keyword arguments will be passed to `at.calibrate` so additional arguments such as `max_time`
+        or `methods` can be provided to this function.
+
+        :param parset:
+        :param adjustables:
+        :param measurables:
+        :param save_to_project:
+        :param new_name:
+        :param default_min_scale:
+        :param default_max_scale:
+        :param default_weight:
+        :param default_metric:
+        :param yaml: Optionally specify a YAML file or YAML calibration dictionary to use for calibration
+        :param kwargs:
+        :return:
+
         """
 
         if parset is None:
@@ -610,23 +626,37 @@ class Project(NamedItem):
         elif not isinstance(parset, ParameterSet):
             parset = self.parsets[parset]
 
+        if yaml is not None:
+            import atomica.yaml_calibration  # Avoid circular import
+
+            assert adjustables is None, "If a YAML file is specified, adjustables should not be set"
+            assert measurables is None, "If a YAML file is specified, measurables should not be set"
+            assert "time_period" not in kwargs, "If a YAML file is specified, time_period should not be set - instead, set cal_start and cal_end in the YAML file"
+            new_parset = atomica.yaml_calibration.run(yaml, self, parset, **kwargs)
+        else:
+            if adjustables is None:
+                adjustables = list(self.framework.pars.index[~self.framework.pars["calibrate"].isnull()])
+                adjustables += list(self.framework.comps.index[~self.framework.comps["calibrate"].isnull()])
+                adjustables += list(self.framework.characs.index[~self.framework.characs["calibrate"].isnull()])
+
+            if measurables is None:
+                measurables = list(self.framework.comps.index)
+                measurables += list(self.framework.characs.index)
+
+            for index, adjustable in enumerate(adjustables):
+                if sc.isstring(adjustable):  # Assume that a parameter name was passed in if not a tuple.
+                    adjustables[index] = (adjustable, None, default_min_scale, default_max_scale)
+
+            for index, measurable in enumerate(measurables):
+                if sc.isstring(measurable):  # Assume that a parameter name was passed in if not a tuple.
+                    measurables[index] = (measurable, None, default_weight, default_metric)
+
+            new_parset = calibrate(project=self, parset=parset, pars_to_adjust=adjustables, output_quantities=measurables, **kwargs)
+
         if new_name is None:
             new_name = parset.name + " (auto-calibrated)"
-        if adjustables is None:
-            adjustables = list(self.framework.pars.index[~self.framework.pars["calibrate"].isnull()])
-            adjustables += list(self.framework.comps.index[~self.framework.comps["calibrate"].isnull()])
-            adjustables += list(self.framework.characs.index[~self.framework.characs["calibrate"].isnull()])
-        if measurables is None:
-            measurables = list(self.framework.comps.index)
-            measurables += list(self.framework.characs.index)
-        for index, adjustable in enumerate(adjustables):
-            if sc.isstring(adjustable):  # Assume that a parameter name was passed in if not a tuple.
-                adjustables[index] = (adjustable, None, default_min_scale, default_max_scale)
-        for index, measurable in enumerate(measurables):
-            if sc.isstring(measurable):  # Assume that a parameter name was passed in if not a tuple.
-                measurables[index] = (measurable, None, default_weight, default_metric)
-        new_parset = calibrate(project=self, parset=parset, pars_to_adjust=adjustables, output_quantities=measurables, max_time=max_time, **kwargs)
         new_parset.name = new_name  # The new parset is a calibrated copy of the old, so change id.
+
         if save_to_project:
             self.parsets.append(new_parset)
 
