@@ -576,18 +576,7 @@ class Project(NamedItem):
 
         return results
 
-    def calibrate(self,
-                  parset=None,
-                  adjustables=None,
-                  measurables=None,
-                  save_to_project=False,
-                  new_name=None,
-                  default_min_scale=0.0,
-                  default_max_scale=2.0,
-                  default_weight=1.0,
-                  default_metric="fractional",
-                  yaml=None,
-                  **kwargs) -> ParameterSet:
+    def calibrate(self, parset=None, adjustables=None, measurables=None, save_to_project=False, new_name=None, default_min_scale=0.0, default_max_scale=2.0, default_weight=1.0, default_metric="fractional", yaml=None, **kwargs) -> ParameterSet:
         """
         Method to perform automatic calibration.
 
@@ -638,10 +627,11 @@ class Project(NamedItem):
             parset = self.parsets[parset]
 
         if yaml is not None:
-            import atomica.yaml_calibration # Avoid circular import
+            import atomica.yaml_calibration  # Avoid circular import
+
             assert adjustables is None, "If a YAML file is specified, adjustables should not be set"
             assert measurables is None, "If a YAML file is specified, measurables should not be set"
-            assert 'time_period' not in kwargs, "If a YAML file is specified, time_period should not be set - instead, set cal_start and cal_end in the YAML file"
+            assert "time_period" not in kwargs, "If a YAML file is specified, time_period should not be set - instead, set cal_start and cal_end in the YAML file"
             new_parset = atomica.yaml_calibration.run(yaml, self, parset, **kwargs)
         else:
             if adjustables is None:
@@ -662,7 +652,6 @@ class Project(NamedItem):
                     measurables[index] = (measurable, None, default_weight, default_metric)
 
             new_parset = calibrate(project=self, parset=parset, pars_to_adjust=adjustables, output_quantities=measurables, **kwargs)
-
 
         if new_name is None:
             new_name = parset.name + " (auto-calibrated)"

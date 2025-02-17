@@ -662,8 +662,8 @@ class PlotData:
                 scale = 1.0
 
             vals = np.full(lower.shape, fill_value=np.nan)
-            lower_idx = np.searchsorted(s.tvec, lower, side='left') # Time index for bin start
-            upper_idx = np.searchsorted(s.tvec, upper, side='right') # Time index for bin end
+            lower_idx = np.searchsorted(s.tvec, lower, side="left")  # Time index for bin start
+            upper_idx = np.searchsorted(s.tvec, upper, side="right")  # Time index for bin end
 
             for i, (l, u, l_idx, u_idx) in enumerate(zip(lower, upper, lower_idx, upper_idx)):
 
@@ -678,14 +678,14 @@ class PlotData:
                 # The bins will consist of the actual simulation time points, plus
                 # partial bins that are interpolated before and after if the requested
                 # bins don't line up with the simulation timepoints
-                idx = np.arange(l_idx,u_idx)
+                idx = np.arange(l_idx, u_idx)
                 t2 = s.tvec[idx]
                 interpolate = False
                 if t2[0] > l or t2[-1] < u:
                     interpolate = True
                     t2 = list(t2)
                     if t2[0] > l:
-                        t2.insert(0,l)
+                        t2.insert(0, l)
                     if t2[-1] < u:
                         t2.append(u)
                     t2 = np.array(t2, dtype=float)
@@ -1237,18 +1237,17 @@ class Series:
         return np.interp(sc.promotetoarray(new_tvec), self.tvec, self.vals, left=np.nan, right=np.nan)
 
 
-
 def separatelegend(ax=None, handles=None, labels=None, reverse=False, legendsettings=None):
-    ''' Allows the legend of a figure to be rendered in a separate window instead '''
+    """Allows the legend of a figure to be rendered in a separate window instead"""
 
     # Handle settings
     if ax is None:
         fig, ax = plt.subplots()
     else:
         fig = ax.figure
-    fig.set_size_inches(4.0,4.8)
+    fig.set_size_inches(4.0, 4.8)
 
-    l_settings = sc.mergedicts({'loc': 'center', 'bbox_to_anchor': None, 'frameon': False}, legendsettings)
+    l_settings = sc.mergedicts({"loc": "center", "bbox_to_anchor": None, "frameon": False}, legendsettings)
 
     # Get handles and labels
     if handles is None and labels is None:
@@ -1260,19 +1259,18 @@ def separatelegend(ax=None, handles=None, labels=None, reverse=False, legendsett
     assert len(handles) == len(labels), f"Number of handles ({len(handles)}) and labels ({len(labels)}) must match"
 
     # Set up new plot
-    ax.set_position([-0.05,-0.05,1.1,1.1])
+    ax.set_position([-0.05, -0.05, 1.1, 1.1])
     ax.set_axis_off()
 
     # Reverse order, e.g. for stacked plots
-    if reverse: # pragma: no cover
+    if reverse:  # pragma: no cover
         handles = handles[::-1]
-        labels   = labels[::-1]
+        labels = labels[::-1]
 
     # Plot the new legend
     ax.legend(handles=handles, labels=labels, **l_settings)
 
     return fig
-
 
 
 def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer=None, legend_mode=None, show_all_labels=False, orientation="vertical") -> list:

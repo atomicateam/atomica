@@ -39,6 +39,7 @@ def _update_parset(parset, y_factors, pars_to_adjust) -> None:
         else:
             par.y_factor[pop_name] = y_factors[i]
 
+
 def _calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, project, *args, **kwargs) -> float:
     """
     Run the model for a given set of y-factors and return the objective/goodness-of-fit
@@ -79,7 +80,7 @@ def _calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, p
         inds = (data_t >= start_year) & (data_t <= end_year)
         if np.count_nonzero(inds) == 0:
             # If no time points remain after filtering down to the time points the user requested
-            logger.info(f'No data points remaining after filtering down to requested time period. Skipping...')
+            logger.info(f"No data points remaining after filtering down to requested time period. Skipping...")
             continue
         data_t = data_t[inds]
         data_v = data_v[inds]
@@ -164,7 +165,6 @@ def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, 
 
     """
 
-
     # Expand out pop=None in pars_to_adjust
     p2 = []
     for par_tuple in pars_to_adjust:
@@ -215,20 +215,20 @@ def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, 
 
         par = parset.get_par(par_name)
 
-        #if initial_value has not been explicitly set in the tuple: use y_factor in parset
+        # if initial_value has not been explicitly set in the tuple: use y_factor in parset
         if initial_value is None:
             if pop_name == "all":
                 initial_value = par.meta_y_factor
             else:
                 initial_value = par.y_factor[pop_name]
-            #if this value is outside the min and max bounds, make it equal to min or max (whichever is closest)
-            #if min == max, this should make the initial value equal to min and max
+            # if this value is outside the min and max bounds, make it equal to min or max (whichever is closest)
+            # if min == max, this should make the initial value equal to min and max
             initial_value = np.clip(initial_value, scale_min, scale_max)
         else:
-            assert (initial_value >= scale_min) and (initial_value <= scale_max), 'Initial value is not consistent with the lower/upper bounds'
+            assert (initial_value >= scale_min) and (initial_value <= scale_max), "Initial value is not consistent with the lower/upper bounds"
 
-        #update y_factors in parset
-        if pop_name == 'all':
+        # update y_factors in parset
+        if pop_name == "all":
             par.meta_y_factor = initial_value
         else:
             par.y_factor[pop_name] = initial_value
@@ -240,8 +240,6 @@ def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, 
             x0.append(initial_value)
             xmin.append(scale_min)
             xmax.append(scale_max)
-
-
 
     args = {
         "project": project,
@@ -270,7 +268,7 @@ def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, 
                 }
                 optim_args.update(kwargs)
 
-                if 'verbose' not in optim_args:
+                if "verbose" not in optim_args:
                     log_level = logger.getEffectiveLevel()
                     if log_level < logging.WARNING:
                         optim_args["verbose"] = 2
@@ -297,7 +295,7 @@ def calibrate(project, parset: ParameterSet, pars_to_adjust, output_quantities, 
 
         _update_parset(args["parset"], x1, args["pars_to_adjust"])
     else:
-        logger.info('No parameters to adjust provided to the optimisation function. Skipping optimisation...')
+        logger.info("No parameters to adjust provided to the optimisation function. Skipping optimisation...")
 
     # Log out the commands required for equivalent manual calibration if desired
     for i, x in enumerate(pars_to_adjust):

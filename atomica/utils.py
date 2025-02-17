@@ -994,7 +994,7 @@ def get_sigfigs_necessary(x, y, min_sigfigs: int = 2) -> int:
     :return: Number of significant figures required
     """
     msf = min_sigfigs
-    assert sc.isnumber(x) and sc.isnumber(y), f'Cannot compare sigfigs as {x} and {y} are not both numbers'
+    assert sc.isnumber(x) and sc.isnumber(y), f"Cannot compare sigfigs as {x} and {y} are not both numbers"
     if x == y or np.isnan(x) or np.isnan(y):
         return msf
     else:
