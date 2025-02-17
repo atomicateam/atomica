@@ -627,7 +627,17 @@ class ProjectFramework:
             self.sheets["compartments"] = [pd.DataFrame(columns=["code name", "display name"])]
 
         required_columns = ["display name"]
-        defaults = {"is sink": "n", "is source": "n", "is junction": "n", "databook page": None, "default value": None, "databook order": None, "guidance": None, "population type": None}  # Default is for it to be randomly ordered if the databook page is not None
+        defaults = {
+            "is sink": "n",
+            "is source": "n",
+            "is junction": "n",
+            "databook page": None,
+            "default value": None,
+            "population type": None,
+            "databook order": None,  # Default is for it to be randomly ordered if the databook page is not None
+            "guidance": None,
+            "provenance": FS.DEFAULT_PROVENANCE,
+        }
         valid_content = {
             "display name": None,  # Valid content being `None` means that it just cannot be empty
             "is sink": {"y", "n"},
@@ -707,7 +717,16 @@ class ProjectFramework:
             self.sheets["characteristics"] = [pd.DataFrame(columns=["code name", "display name"])]
 
         required_columns = ["display name"]
-        defaults = {"components": None, "denominator": None, "default value": None, "databook page": None, "databook order": None, "guidance": None, "population type": None}
+        defaults = {
+            "components": None,
+            "denominator": None,
+            "default value": None,
+            "databook page": None,
+            "databook order": None,
+            "guidance": None,
+            "population type": None,
+            "provenance": FS.DEFAULT_PROVENANCE,
+        }
         valid_content = {
             "display name": None,
             "components": None,
@@ -801,7 +820,12 @@ class ProjectFramework:
             self.sheets["interactions"] = [pd.DataFrame(columns=["code name", "display name", "to population type", "from population type"])]
 
         required_columns = ["display name"]
-        defaults = {"default value": None, "from population type": None, "to population type": None}
+        defaults = {
+            "default value": None,
+            "from population type": None,
+            "to population type": None,
+            "provenance": FS.DEFAULT_PROVENANCE,
+        }
         valid_content = {
             "display name": None,
         }
@@ -843,6 +867,7 @@ class ProjectFramework:
             "population type": None,
             "is derivative": "n",
             "timed": "n",
+            "provenance": FS.DEFAULT_PROVENANCE,
         }
         valid_content = {
             "display name": None,

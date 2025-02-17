@@ -89,3 +89,5 @@ class FrameworkSettings:
     RESERVED_KEYWORDS += supported_functions.keys()
 
     RESERVED_SYMBOLS = set(":,;/+-*'\" @")  # A code_name in the framework (for characs, comps, pars) cannot contain any of these characters
+
+    DEFAULT_PROVENANCE = "Framework-supplied default"
