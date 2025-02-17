@@ -1237,6 +1237,44 @@ class Series:
         return np.interp(sc.promotetoarray(new_tvec), self.tvec, self.vals, left=np.nan, right=np.nan)
 
 
+
+def separatelegend(ax=None, handles=None, labels=None, reverse=False, legendsettings=None):
+    ''' Allows the legend of a figure to be rendered in a separate window instead '''
+
+    # Handle settings
+    if ax is None:
+        fig, ax = plt.subplots()
+    else:
+        fig = ax.figure
+    fig.set_size_inches(4.0,4.8)
+
+    l_settings = sc.mergedicts({'loc': 'center', 'bbox_to_anchor': None, 'frameon': False}, legendsettings)
+
+    # Get handles and labels
+    if handles is None and labels is None:
+        handles, labels = ax.get_legend_handles_labels()
+    elif handles is None:
+        handles, _ = ax.get_legend_handles_labels()
+    elif labels is None:
+        labels = [h.get_label() for h in handles]
+    assert len(handles) == len(labels), f"Number of handles ({len(handles)}) and labels ({len(labels)}) must match"
+
+    # Set up new plot
+    ax.set_position([-0.05,-0.05,1.1,1.1])
+    ax.set_axis_off()
+
+    # Reverse order, e.g. for stacked plots
+    if reverse: # pragma: no cover
+        handles = handles[::-1]
+        labels   = labels[::-1]
+
+    # Plot the new legend
+    ax.legend(handles=handles, labels=labels, **l_settings)
+
+    return fig
+
+
+
 def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer=None, legend_mode=None, show_all_labels=False, orientation="vertical") -> list:
     """
     Produce a bar plot
@@ -1583,7 +1621,7 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer=None, legend_
     if legend_mode == "together":
         _render_legend(ax, plot_type="bar", handles=legend_patches)
     elif legend_mode == "separate":
-        figs.append(sc.separatelegend(handles=legend_patches, reverse=True))
+        figs.append(separatelegend(handles=legend_patches, reverse=True))
 
     return figs
 
@@ -1760,14 +1798,12 @@ def plot_series(plotdata, plot_type="line", axis=None, data=None, legend_mode=No
 
     if legend_mode == "separate":
         reverse_legend = True if plot_type in ["stacked", "proportion"] else False
+        handles, labels = ax.get_legend_handles_labels()
 
         if not subplots:
-            # Replace the last figure with a legend figure
-            plt.close(figs[-1])  # TODO - update Sciris to allow passing in an existing figure
-            figs[-1] = sc.separatelegend(ax, reverse=reverse_legend)
+            separatelegend(axes[-1], handles=handles, labels=labels, reverse=reverse_legend)
         else:
             legend_ax = axes[-1]
-            handles, labels = ax.get_legend_handles_labels()
             legend_ax.set_axis_off()  # Hide axis lines
             if reverse_legend:  # pragma: no cover
                 handles = handles[::-1]
@@ -1884,7 +1920,7 @@ def plot_legend(entries: dict, plot_type=None, fig=None, legendsettings: dict = 
             raise Exception(f'Unknown plot type "{p_type}"')
 
     if fig is None:  # Draw in a new figure
-        fig = sc.separatelegend(handles=h, legendsettings=legendsettings)
+        fig = separatelegend(handles=h, legendsettings=legendsettings)
     else:
         existing_legend = fig.findobj(Legend)
         if existing_legend and existing_legend[0].parent is fig:  # If existing legend and this is a separate legend fig
