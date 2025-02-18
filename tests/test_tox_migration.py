@@ -33,6 +33,11 @@ def test_migration():
     P.databook.save(tmpdir / "migration_test_databook_save")  # Save original databook
     P.data.save(tmpdir / "migration_test_data_save")  # Re-convert data to spreadsheet and save
 
+    # Test databook operations
+    P.data.add_pop('test_pop','test_pop') # Requires migration
+    P.data.add_transfer('test_transfer','test_transfer')
+    P.data.add_interaction('test_interaction','test_interaction')
+
 
 if __name__ == "__main__":
     test_migration()

@@ -58,10 +58,19 @@ class ProjectData(sc.prettyobj):
         self.tdve_pages = sc.odict()  #: This is an odict mapping worksheet name to an (ordered) list of TDVE code names appearing on that sheet
 
         # Internal storage used with methods while writing
-        self._pop_types = list(framework.pop_types.keys())  # : Store set of valid population types from framework
+        self._pop_types = list(framework.pop_types.keys())  #: Store set of valid population types from framework
         self._formats = None  #: Temporary storage for the Excel formatting while writing a databook
         self._book = None  #: Temporary storage for the workbook while writing a databook
         self._references = None  #: Temporary storage for cell references while writing a databook
+
+
+    def __setstate__(self, d):
+        from .migration import migrate
+
+        self.__dict__ = d
+        projectdata = migrate(self)
+        self.__dict__ = projectdata.__dict__
+
 
     def tables(self):
         """
