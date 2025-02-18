@@ -180,21 +180,23 @@ def test_databook_all():
     d = at.PlotData(res, outputs=["sus", "ch_prev", "ch_all"], project=P)
     at.plot_series(d, axis="pops", data=P.data)
 
+
 def test_databook_default_all():
-    F = at.ProjectFramework(testdir/'sir_framework_default_all.xlsx')
-    D = at.ProjectData.new(F, np.arange(2000,2005), pops=4, transfers=1)
+    F = at.ProjectFramework(testdir / "sir_framework_default_all.xlsx")
+    D = at.ProjectData.new(F, np.arange(2000, 2005), pops=4, transfers=1)
     D.save(tmpdir / "databook_default_all_test.xlsx")  # Test saving it back
 
-    D.add_pop('new','new')
-    assert list(D.tdve['sus'].ts.keys()) == ['pop_0','pop_1','pop_2','pop_3','new']
-    assert list(D.tdve['ch_prev'].ts.keys()) == ['All']
+    D.add_pop("new", "new")
+    assert list(D.tdve["sus"].ts.keys()) == ["pop_0", "pop_1", "pop_2", "pop_3", "new"]
+    assert list(D.tdve["ch_prev"].ts.keys()) == ["All"]
 
-    D.tdve['contacts'].ts['pop_0'] = D.tdve['contacts'].ts['All']
-    del D.tdve['contacts'].ts['All']
-    D.add_pop('new2','new2')
-    assert list(D.tdve['ch_prev'].ts.keys()) == ['All']
-    assert list(D.tdve['contacts'].ts.keys()) == ['pop_0','new2']
+    D.tdve["contacts"].ts["pop_0"] = D.tdve["contacts"].ts["All"]
+    del D.tdve["contacts"].ts["All"]
+    D.add_pop("new2", "new2")
+    assert list(D.tdve["ch_prev"].ts.keys()) == ["All"]
+    assert list(D.tdve["contacts"].ts.keys()) == ["pop_0", "new2"]
     D.save(tmpdir / "databook_default_all_test_2.xlsx")  # Test saving it back
+
 
 if __name__ == "__main__":
     # test_mixed_years_2()

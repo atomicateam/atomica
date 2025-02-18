@@ -817,26 +817,26 @@ def _parset_add_initialization(parset):
 @migration("ProjectData", "1.30.0", "1.31.0", "Add pop types attribute and default_all")
 def _projectdata_add_types_default(D):
 
-    if not hasattr(D,'_pop_types'):
+    if not hasattr(D, "_pop_types"):
         # We have to check for existence because
         # Are any population types present?
-        pop_types = list(x['type'] for x in D.pops.values() if 'type' in x)
+        pop_types = list(x["type"] for x in D.pops.values() if "type" in x)
         if not pop_types:
             pop_types = [FS.DEFAULT_POP_TYPE]
 
         for pop, spec in D.pops.items():
-            if 'type' not in spec:
-                spec['type'] = pop_types[0]
-        D._pop_types = list({x['type']:None for x in D.pops.values()}.keys()) # Using a dictionary here allows for order-preserving unique
+            if "type" not in spec:
+                spec["type"] = pop_types[0]
+        D._pop_types = list({x["type"]: None for x in D.pops.values()}.keys())  # Using a dictionary here allows for order-preserving unique
 
     for tdve in D.tdve.values():
 
         # Fix the '_add_pop_type' migration which added tdve.type instead of tdve.pop_type
-        if hasattr(tdve, 'type'):
+        if hasattr(tdve, "type"):
             tdve.pop_type = tdve.type
-            delattr(tdve, 'type')
-        elif not hasattr(tdve, 'pop_type'):
-            tdve.pop_type = D._pop_types[0] # The majority of the time, if the pop_type is missing, the default needs to be added
+            delattr(tdve, "type")
+        elif not hasattr(tdve, "pop_type"):
+            tdve.pop_type = D._pop_types[0]  # The majority of the time, if the pop_type is missing, the default needs to be added
 
         # Also add the default_all attribute
         tdve.default_all = False
@@ -849,7 +849,7 @@ def _projectdata_add_types_default(D):
         # A TDVE should always have some allowed units, if the allowed units have not been populated, then draw
         # them from the ts entries. There are some older saved files that may have no allowed units even though the ts
         # entries themselves have units.
-        if not hasattr(tdve, 'allowed_units') or not tdve.allowed_units:
-            tdve.allowed_units = list({x.units:None for x in tdve.ts.values()}.keys())
+        if not hasattr(tdve, "allowed_units") or not tdve.allowed_units:
+            tdve.allowed_units = list({x.units: None for x in tdve.ts.values()}.keys())
 
     return D
