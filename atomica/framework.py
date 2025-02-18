@@ -632,6 +632,7 @@ class ProjectFramework:
             "is source": "n",
             "is junction": "n",
             "databook page": None,
+            "databook default all": "n",
             "default value": None,
             "population type": None,
             "databook order": None,  # Default is for it to be randomly ordered if the databook page is not None
@@ -643,6 +644,7 @@ class ProjectFramework:
             "is sink": {"y", "n"},
             "is source": {"y", "n"},
             "is junction": {"y", "n"},
+            "databook default all": {"y", "n"},
         }
         numeric_columns = ["databook order", "default value"]
 
@@ -723,6 +725,7 @@ class ProjectFramework:
             "default value": None,
             "databook page": None,
             "databook order": None,
+            "databook default all": "n",
             "guidance": None,
             "population type": None,
             "provenance": FS.DEFAULT_PROVENANCE,
@@ -730,6 +733,7 @@ class ProjectFramework:
         valid_content = {
             "display name": None,
             "components": None,
+            "databook default all": {"y", "n"},
         }
         numeric_columns = ["databook order", "default value"]
 
@@ -861,6 +865,7 @@ class ProjectFramework:
             "function": None,
             "databook page": None,
             "databook order": None,
+            "databook default all": "n",
             "targetable": "n",
             "guidance": None,
             "timescale": None,
@@ -874,6 +879,7 @@ class ProjectFramework:
             "targetable": {"y", "n"},
             "is derivative": {"y", "n"},
             "timed": {"y", "n"},
+            "databook default all": {"y", "n"},
         }
         numeric_columns = ["databook order", "default value", "minimum value", "maximum value", "timescale"]
 
