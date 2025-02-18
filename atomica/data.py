@@ -21,6 +21,7 @@ from .system import FrameworkSettings as FS
 from collections import defaultdict
 import pandas as pd
 import itertools
+from .version import version, gitinfo
 
 __all__ = ["InvalidDatabook", "ProjectData"]
 
@@ -62,6 +63,9 @@ class ProjectData(sc.prettyobj):
         self._formats = None  #: Temporary storage for the Excel formatting while writing a databook
         self._book = None  #: Temporary storage for the workbook while writing a databook
         self._references = None  #: Temporary storage for cell references while writing a databook
+
+        self.version = version  #: Current Atomica version
+        self.gitinfo = sc.dcp(gitinfo)  #: Atomica Git version information, if being run in a Git repository
 
     def __setstate__(self, d):
         from .migration import migrate
