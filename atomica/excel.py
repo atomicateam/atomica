@@ -906,8 +906,8 @@ class TimeDependentValuesEntry:
         self.write_units = None  #: Write a column for units (if None, units will be written if any of the TimeSeries have units)
         self.write_uncertainty = None  #: Write a column for uncertainty (if None, uncertainty will be written if any of the TimeSeries have uncertainty)
         self.write_assumption = None  #: Write a column for assumption/constant (if None, assumption will be written if any of the TimeSeries have an assumption)
-        
-        self.default_all = default_all #If the TDVE should by default only have the 'All' population in the databook e.g. the same value for all populations unless exceptions are manually entered
+
+        self.default_all = default_all  #: Record whether the framework specifies that this TDVE should default to having an 'All' row instead of population-specific rows (the user can manually modify further)
 
     def __repr__(self):
         output = sc.prepr(self)
