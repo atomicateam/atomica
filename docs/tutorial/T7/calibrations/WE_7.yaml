@@ -4,6 +4,7 @@ calibration:
 
     Population calibration:
         repeats: 10
+
         Match population sizes:
             adjustables:
               (b_rate, 0-4):
@@ -11,6 +12,10 @@ calibration:
               mig_rate:
                 lower_bound: 0.1
             measurables: alive
+
+        Match deaths:
+          adjustables: d_rate
+          measurables: deaths
 
         clear_initialization: True
 

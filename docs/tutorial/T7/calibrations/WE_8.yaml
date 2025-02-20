@@ -19,7 +19,6 @@ calibration:
             adjustables: d_rate
             measurables: deaths
 
-
         clear_initialization: True
 
         set_initialization:
