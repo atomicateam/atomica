@@ -1441,7 +1441,8 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer=None, legend_
     return figs
 
 
-def plot_series(plotdata, plot_type="line", axis=None, data=None, legend_mode=None, lw=None, n_cols: int = None) -> list:
+def plot_series(plotdata, plot_type="line", axis=None, data=None, legend_mode=None, lw=None, n_cols: int = None,
+                colors=None) -> list:
     """
     Produce a time series plot
 
@@ -1454,6 +1455,7 @@ def plot_series(plotdata, plot_type="line", axis=None, data=None, legend_mode=No
     :param lw: override the default line width
     :param n_cols: If None (default), separate figures will be created for each axis. If provided, axes will be tiled as subplots in a single figure
                    window with the requested number of columns
+    :param colors: Colors to be passed to plotdata.set_colors
     :return: A list of newly created Figures
 
     """
@@ -1507,7 +1509,7 @@ def plot_series(plotdata, plot_type="line", axis=None, data=None, legend_mode=No
         logger.warning("At least one Series has only one timepoint. Series must have at least 2 time points to be rendered as a line - `plot_bars` may be more suitable for such data")
 
     if axis == "results":
-        plotdata.set_colors(results=plotdata.results.keys())
+        plotdata.set_colors(colors=colors, results=plotdata.results.keys())
 
         figs, axes = _prepare_figures(plotdata.pops, plotdata.outputs, n_cols)
 
@@ -1542,7 +1544,7 @@ def plot_series(plotdata, plot_type="line", axis=None, data=None, legend_mode=No
                 _render_legend(ax, plot_type)
 
     elif axis == "pops":
-        plotdata.set_colors(pops=plotdata.pops.keys())
+        plotdata.set_colors(colors=colors, pops=plotdata.pops.keys())
 
         figs, axes = _prepare_figures(plotdata.results, plotdata.outputs, n_cols)
 
@@ -1575,7 +1577,7 @@ def plot_series(plotdata, plot_type="line", axis=None, data=None, legend_mode=No
                 _render_legend(ax, plot_type)
 
     elif axis == "outputs":
-        plotdata.set_colors(outputs=plotdata.outputs.keys())
+        plotdata.set_colors(colors=colors, outputs=plotdata.outputs.keys())
 
         figs, axes = _prepare_figures(plotdata.results, plotdata.pops, n_cols)
 
