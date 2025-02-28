@@ -977,7 +977,9 @@ class PlotData:
         elif isinstance(colors, list):
             assert len(colors) == len(targets), "Number of colors must either be a string, or a list with as many elements as colors to set"
             colors = colors
-        elif colors.startswith("#") or colors not in [m for m in plt.cm.datad if not m.endswith("_r")]:
+        elif isinstance(colors, tuple) and colors[0].startswith("#"): # tuple with (color, opacity)
+            colors = [colors for _ in range(len(targets))]  # Apply color to all requested outputs
+        elif isinstance(colors, str) and (colors.startswith("#") or colors not in [m for m in plt.cm.datad if not m.endswith("_r")]):
             colors = [colors for _ in range(len(targets))]  # Apply color to all requested outputs
         else:
             color_norm = matplotlib_colors.Normalize(vmin=-1, vmax=len(targets))
