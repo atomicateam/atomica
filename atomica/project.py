@@ -108,8 +108,8 @@ class ProjectSettings:
         :return: Array of simulation times
 
         """
-
-        return np.linspace(self.sim_start, self.sim_end, int((self.sim_end - self.sim_start) / self.sim_dt) + 1)
+        return np.arange(round((self.sim_end - self.sim_start) / self.sim_dt) + 1) * self.sim_dt + self.sim_start
+        # return np.linspace(self.sim_start, self.sim_end, int((self.sim_end - self.sim_start) / self.sim_dt) + 1)
 
     def update_time_vector(self, start: float = None, end: float = None, dt: float = None) -> None:
         """
