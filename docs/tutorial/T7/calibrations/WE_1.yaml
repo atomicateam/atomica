@@ -1,7 +1,6 @@
-
-
 calibration:
     Population calibration:
+
         Match population sizes:
             adjustables: b_rate, mig_rate
             measurables: alive
