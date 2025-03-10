@@ -2,6 +2,10 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.31.0] - 2025-02-18
+
+- Framework definitions of compartments, characteristics, and parameters support a new column 'databook default all'. If set to 'y', then when a databook is produced, the data entry table will only contain a record for 'All' instead of having population-specific rows. Further manual editing of the tables is supported as normal. 
+
 ## [1.30.0] - 2025-02-17
 
 - Automatic calibration can now selectively weight parts of the time series to select or prioritise a subset of time points.

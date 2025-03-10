@@ -1250,23 +1250,24 @@ def _get_legend_handles(ax, handles, labels):
     if handles is None:
         if ax is None:
             ax = plt.gca()
-        elif isinstance(ax, plt.Figure): # Allows an argument of a figure instead of an axes # pragma: no cover
+        elif isinstance(ax, plt.Figure):  # Allows an argument of a figure instead of an axes # pragma: no cover
             ax = ax.axes[-1]
         handles, labels = ax.get_legend_handles_labels()
-    else: # pragma: no cover
+    else:  # pragma: no cover
         if labels is None:
             labels = [h.get_label() for h in handles]
         else:
             assert len(handles) == len(labels), f"Number of handles ({len(handles)}) and labels ({len(labels)}) must match"
     return ax, handles, labels
 
+
 # Temporary copy of function from Sciris to remove after Sciris update
 def separatelegend(ax=None, handles=None, labels=None, reverse=False, figsettings=None, legendsettings=None):
-    """ Allows the legend of a figure to be rendered in a separate window instead """
+    """Allows the legend of a figure to be rendered in a separate window instead"""
 
     # Handle settings
-    f_settings = sc.mergedicts({'figsize':(4.0,4.8)}, figsettings) # (6.4,4.8) is the default, so make it a bit narrower
-    l_settings = sc.mergedicts({'loc': 'center', 'bbox_to_anchor': None, 'frameon': False}, legendsettings)
+    f_settings = sc.mergedicts({"figsize": (4.0, 4.8)}, figsettings)  # (6.4,4.8) is the default, so make it a bit narrower
+    l_settings = sc.mergedicts({"loc": "center", "bbox_to_anchor": None, "frameon": False}, legendsettings)
 
     # Get handles and labels
     _, handles, labels = _get_legend_handles(ax, handles, labels)
@@ -1274,7 +1275,7 @@ def separatelegend(ax=None, handles=None, labels=None, reverse=False, figsetting
     # Set up new plot
     fig = plt.figure(**f_settings)
     ax = fig.add_subplot(111)
-    ax.set_position([-0.05,-0.05,1.1,1.1]) # This cuts off the axis labels, ha-ha
+    ax.set_position([-0.05, -0.05, 1.1, 1.1])  # This cuts off the axis labels, ha-ha
     ax.set_axis_off()  # Hide axis lines
 
     # A legend renders the line/patch based on the object handle. However, an object
@@ -1290,15 +1291,14 @@ def separatelegend(ax=None, handles=None, labels=None, reverse=False, figsetting
         handles2.append(h2)
 
     # Reverse order, e.g. for stacked plots
-    if reverse: # pragma: no cover
+    if reverse:  # pragma: no cover
         handles2 = handles2[::-1]
-        labels   = labels[::-1]
+        labels = labels[::-1]
 
     # Plot the new legend
     ax.legend(handles=handles2, labels=labels, **l_settings)
 
     return fig
-
 
 
 def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer=None, legend_mode=None, show_all_labels=False, orientation="vertical") -> list:

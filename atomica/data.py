@@ -21,6 +21,7 @@ from .system import FrameworkSettings as FS
 from collections import defaultdict
 import pandas as pd
 import itertools
+from .version import version, gitinfo
 
 __all__ = ["InvalidDatabook", "ProjectData"]
 
@@ -58,10 +59,20 @@ class ProjectData(sc.prettyobj):
         self.tdve_pages = sc.odict()  #: This is an odict mapping worksheet name to an (ordered) list of TDVE code names appearing on that sheet
 
         # Internal storage used with methods while writing
-        self._pop_types = list(framework.pop_types.keys())  # : Store set of valid population types from framework
+        self._pop_types = list(framework.pop_types.keys())  #: Store set of valid population types from framework
         self._formats = None  #: Temporary storage for the Excel formatting while writing a databook
         self._book = None  #: Temporary storage for the workbook while writing a databook
         self._references = None  #: Temporary storage for cell references while writing a databook
+
+        self.version = version  #: Current Atomica version
+        self.gitinfo = sc.dcp(gitinfo)  #: Atomica Git version information, if being run in a Git repository
+
+    def __setstate__(self, d):
+        from .migration import migrate
+
+        self.__dict__ = d
+        projectdata = migrate(self)
+        self.__dict__ = projectdata.__dict__
 
     def tables(self):
         """
@@ -261,13 +272,15 @@ class ProjectData(sc.prettyobj):
                     pop_type = spec.get("population type")
                     databook_order = spec.get("databook order")
                     full_name = spec["display name"]
+                    default_all = spec["databook default all"] == "y"
+                    allowed_units = [framework.get_databook_units(full_name)]
 
                     if pd.isna(databook_order):
                         order = np.inf
                     else:
                         order = databook_order
                     pages[databook_page].append((spec.name, order))
-                    data.tdve[spec.name] = TimeDependentValuesEntry(full_name, data.tvec, allowed_units=[framework.get_databook_units(full_name)], comment=spec["guidance"], pop_type=pop_type)
+                    data.tdve[spec.name] = TimeDependentValuesEntry(full_name, data.tvec, allowed_units=allowed_units, comment=spec["guidance"], pop_type=pop_type, default_all=default_all)
                     data.tdve[spec.name].write_units = True
                     data.tdve[spec.name].write_uncertainty = True
                     if obj_type == "pars":
@@ -276,6 +289,10 @@ class ProjectData(sc.prettyobj):
                             data.tdve[spec.name].tvec = []  # If parameter is timed, don't show any years
                             data.tdve[spec.name].write_uncertainty = False  # Don't show uncertainty for timed parameters. In theory users could manually add the column and sample over it, but because the duration is rounded to the timestep, it's likely to have confusing stepped effects
                     data.tdve[spec.name].pop_type = pop_type
+
+                    if default_all:
+                        # add_pop normally adds TDVE rows, but it won't operate on any TDVEs that default to 'All' so we need to add the 'All' rows here
+                        data.tdve[spec.name].ts["All"] = TimeSeries(units=allowed_units[0])
 
         # Now convert pages to full names and sort them into the correct order
         for _, spec in framework.sheets["databook pages"][0].iterrows():
@@ -627,7 +644,7 @@ class ProjectData(sc.prettyobj):
 
         :param code_name: The code name for the new population
         :param full_name: The full name/label for the new population
-        :param pop_type: String with the population type code name
+        :param pop_type: String with the population type code name (optional) - default is the type of the first population
 
         """
 
@@ -653,8 +670,11 @@ class ProjectData(sc.prettyobj):
         for tdve in self.tdve.values():
             # Since TDVEs in databooks must have the unit set in the framework, all ts objects must share the same units
             # And, there is only supposed to be one type of unit allowed for TDVE tables (if the unit is empty, it will be 'N.A.')
-            # so can just pick the first of the allowed units
-            if tdve.pop_type == pop_type:
+            # so can just pick the first of the allowed units. We will add the population row if the pop type matches and if
+            # the TDVE is either not a 'default_all' or if the user has removed the 'All' row from the TDVE despite it being default_all
+            if tdve.pop_type != pop_type or (tdve.default_all and ("All" in tdve.ts or "all" in tdve.ts)):
+                continue
+            else:
                 tdve.ts[code_name] = TimeSeries(units=tdve.allowed_units[0])
 
     def rename_pop(self, existing_code_name: str, new_code_name: str, new_full_name: str) -> None:
