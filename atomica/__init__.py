@@ -61,6 +61,7 @@ if not logger.handlers:
 from .version import version as __version__, versiondate as __versiondate__
 import sciris as sc
 __gitinfo__ = sc.gitinfo(__file__)
+version.gitinfo = __gitinfo__ # Add back (so version.py does not require imports)
 
 
 # Check scipy version

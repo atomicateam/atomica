@@ -13,7 +13,7 @@ To install via PyPI:
 
     pip install atomica
 
-You can run a plot an Atomica demo with:
+You can run and plot an Atomica demo with:
 
 .. code-block:: python
 
