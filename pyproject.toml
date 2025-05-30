@@ -53,4 +53,4 @@ include-package-data = true
 where = ["."]
 
 [tool.setuptools.dynamic]
-version = {attr = "atomica.version.__version__"}
+version = {attr = "atomica.version.version"}
