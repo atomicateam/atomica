@@ -32,7 +32,7 @@ requires-python = ">=3.7"
 
 dependencies = [
     "matplotlib",
-    "numpy>=1.10.1,<2",
+    "numpy>=1.10.1",
     "scipy>=1.6",
     "pandas",
     "xlsxwriter",
