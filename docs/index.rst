@@ -5,7 +5,7 @@
     :align: center
 
 
-[Atomica](https://https://github.com/atomicateam/atomica) is a simulation engine for compartmental models. It can be used to simulate disease epidemics, health care cascades, and many other things.
+`Atomica <https://github.com/atomicateam/atomica>`_ is a simulation engine for compartmental models. It can be used to simulate disease epidemics, health care cascades, and many other things.
 
 To install via PyPI:
 
