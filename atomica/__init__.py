@@ -56,12 +56,16 @@ if not logger.handlers:
     logger.addHandler(warning_handler)
     logger.setLevel("INFO")  # Set the overall log level
 
-from .version import version as __version__, versiondate as __versiondate__, gitinfo as __gitinfo__
+
+# Get version information
+from .version import version as __version__, versiondate as __versiondate__
+import sciris as sc
+__gitinfo__ = sc.gitinfo(__file__)
+version.gitinfo = __gitinfo__ # Add back (so version.py does not require imports)
+
 
 # Check scipy version
 import scipy
-import sciris as sc
-
 if sc.compareversions(scipy.__version__, "1.2.1") < 0:
     raise Exception(f"Atomica requires Scipy 1.2.1 or later - installed version is {scipy.__version__}")
 

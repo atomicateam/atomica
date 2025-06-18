@@ -1552,7 +1552,7 @@ class Covout:
         # RANDOM CALCULATION
         elif self.cov_interaction == "random":
             # Outcome += c1(1-c2)* delta_out1 + c2(1-c1)*delta_out2 + c1c2* max(delta_out1,delta_out2)
-            combination_coverage = np.product(self.combinations * cov + (self.combinations ^ 1) * (1 - cov), axis=1)
+            combination_coverage = np.prod(self.combinations * cov + (self.combinations ^ 1) * (1 - cov), axis=1)
             outcome += np.sum(combination_coverage.ravel() * self._combination_outcomes.ravel())
         else:
             raise Exception('Unknown reachability type "%s"', self.cov_interaction)
