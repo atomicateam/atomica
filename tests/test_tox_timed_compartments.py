@@ -55,6 +55,7 @@ def test_zero_duration():
     P = get_project()
     ps = P.parsets[0].copy()
     ps.pars["nat_rec"].ts[0].insert(None, 0)  # Sub-timestep size
+    P.settings.sim_dt = 1/24  # One of the tests had a numerical precision issue on just one platform, hard to reproduce but seeing if this avoids it
     res2 = P.run_sim(ps)
     d = at.PlotData(res2, [":inf", "inf:", "inf"])
     at.plot_series(d)
