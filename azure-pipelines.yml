@@ -93,12 +93,9 @@ jobs:
       inputs:
         versionSpec: '3.12'
     - script: |
-        python -m pip install setuptools
-        python -m pip install wheel
+        python -m pip install build
         python -m pip install twine
-        python setup.py build
-        python setup.py sdist
-        python setup.py bdist_wheel
+        python -m build
       displayName: 'Build Atomica'
     - task: TwineAuthenticate@1
       displayName: 'Twine Authenticate'
@@ -107,3 +104,4 @@ jobs:
     - script: |
         python -m twine upload -r "pypi_atomica" --config-file $(PYPIRC_PATH) dist/*
       displayName: 'Upload to PyPI'
+
