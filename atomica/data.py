@@ -56,7 +56,7 @@ class ProjectData(sc.prettyobj):
         self.interpops = list()  #: This stores a list of :class:`TimeDependentConnections` instances for interactions
         self.tvec = None  #: This is the data's tvec used when instantiating new tables. Not _guaranteed_ to be the same for every TDVE/TDC table
         self.tdve = sc.odict()  #: This is an odict storing :class:`TimeDependentValuesEntry` instances keyed by the code name of the TDVE
-        self.tdve_pages = sc.odict()  #: This is an odict mapping worksheet name to an (ordered) list of TDVE code names appearing on that sheet
+        self.tdve_pages = sc.odict(defaultdict=list)  #: This is an odict mapping worksheet name to an (ordered) list of TDVE code names appearing on that sheet
 
         # Internal storage used with methods while writing
         self._pop_types = list(framework.pop_types.keys())  #: Store set of valid population types from framework
@@ -264,7 +264,7 @@ class ProjectData(sc.prettyobj):
         data = ProjectData(framework=framework)
         data.tvec = sc.promotetoarray(tvec)
         pages = defaultdict(list)  # This will store {sheet_name:(code_name,databook_order)} which will then get sorted further
-
+        page_names = framework.sheets["databook pages"][0].set_index('datasheet code name')['datasheet title'].to_dict()
         for obj_type, df in zip(["comps", "characs", "pars"], [framework.comps, framework.characs, framework.pars]):
             for _, spec in df.iterrows():
                 databook_page = spec.get("databook page")
@@ -279,7 +279,7 @@ class ProjectData(sc.prettyobj):
                         order = np.inf
                     else:
                         order = databook_order
-                    pages[databook_page].append((spec.name, order))
+                    pages[page_names[databook_page]].append((spec.name, order))
                     data.tdve[spec.name] = TimeDependentValuesEntry(full_name, data.tvec, allowed_units=allowed_units, comment=spec["guidance"], pop_type=pop_type, default_all=default_all)
                     data.tdve[spec.name].write_units = True
                     data.tdve[spec.name].write_uncertainty = True
@@ -294,14 +294,10 @@ class ProjectData(sc.prettyobj):
                         # add_pop normally adds TDVE rows, but it won't operate on any TDVEs that default to 'All' so we need to add the 'All' rows here
                         data.tdve[spec.name].ts["All"] = TimeSeries(units=allowed_units[0])
 
-        # Now convert pages to full names and sort them into the correct order
-        for _, spec in framework.sheets["databook pages"][0].iterrows():
-
-            if spec["datasheet code name"] in pages:
-                pages[spec["datasheet code name"]].sort(key=lambda x: x[1])
-                data.tdve_pages[spec["datasheet title"]] = [x[0] for x in pages[spec["datasheet code name"]]]
-            else:
-                data.tdve_pages[spec["datasheet title"]] = list()
+        # Now sort them into the correct order
+        for page, tables in pages.items():
+            tables.sort(key=lambda x: x[1])
+            data.tdve_pages[page] = [x[0] for x in tables]
 
         # Now, proceed to add pops, transfers, and interactions
         for code_name, spec in new_pops.items():
