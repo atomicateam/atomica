@@ -2,6 +2,10 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.31.2] - 2025-06-26
+
+- Fix bug in creating databook if framework 'Databook pages' sheet contains multiple code names mapping to the same full name.
+
 ## [1.31.1] - 2025-05-30
 
 - Switched from `setup.py` to `pyproject.toml`-based installation.
