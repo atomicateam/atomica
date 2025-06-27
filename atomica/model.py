@@ -1880,6 +1880,7 @@ class Population:
             par = parset.pars[charac]
             b_vals[charac] = par.interpolate(t_init, pop_name=self.name)[0] * par.y_factor[self.name] * par.meta_y_factor
             if b_vals[charac] == 0:
+                logger.debug(f'Characteristic {charac} has a zero value, adding extra zero compartments')
                 for comp in obj.get_included_comps():
                     if comp.name in b_vals and b_vals[comp.name] != 0:
                         raise BadInitialization(f'Compartment {comp.name} was explicitly specified as having a non-zero value, but characteristic {charac} has a zero value - input data not consistent')
@@ -1923,7 +1924,7 @@ class Population:
         for i, obj in enumerate(b_objs.values()):
             if abs(proposed[i] - b[i]) > model_settings["tolerance"]:
                 characteristic_tolerence_failed = True
-                error_msg += "Characteristic '{0}' '{1}' - Requested {2}, Calculated {3}\n".format(self.name, obj.name, b[i], proposed[i])
+                error_msg += f"{obj.__class__.__name__} '{obj.name}' ({self.name})- Requested {b[i]}, Calculated {proposed[i]}\n"
 
         # Print expanded diagnostic for negative compartments showing parent characteristics
         def report_characteristic(charac, n_indent=0):
