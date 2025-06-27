@@ -1920,10 +1920,10 @@ class Population:
         characteristic_tolerence_failed = False
 
         # Print warning for characteristics that are not well matched by the compartment size solution
-        for i in range(0, len(b_objs)):
+        for i, obj in enumerate(b_objs.values()):
             if abs(proposed[i] - b[i]) > model_settings["tolerance"]:
                 characteristic_tolerence_failed = True
-                error_msg += "Characteristic '{0}' '{1}' - Requested {2}, Calculated {3}\n".format(self.name, b_objs[i].name, b[i], proposed[i])
+                error_msg += "Characteristic '{0}' '{1}' - Requested {2}, Calculated {3}\n".format(self.name, obj.name, b[i], proposed[i])
 
         # Print expanded diagnostic for negative compartments showing parent characteristics
         def report_characteristic(charac, n_indent=0):
