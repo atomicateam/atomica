@@ -1861,27 +1861,48 @@ class Population:
         # values for the compartments by solving the set of characteristics simultaneously
 
         # Build up the comps and characs containing the setup values in the databook - the `b` in `x=A*b`
-        characs_to_use = framework.characs.index[(framework.characs["setup weight"] > 0) & (framework.characs["population type"] == self.type)]
-        comps_to_use = framework.comps.index[(framework.comps["setup weight"] > 0) & (framework.comps["population type"] == self.type)]
-        b_objs = [self.charac_lookup[x] for x in characs_to_use] + [self.comp_lookup[x] for x in comps_to_use]
+        characs_to_use = set(framework.characs.index[(framework.characs["setup weight"] > 0) & (framework.characs["population type"] == self.type)])
+        comps_to_use = set(framework.comps.index[(framework.comps["setup weight"] > 0) & (framework.comps["population type"] == self.type)])
+
+        b_vals = {}
+        b_objs = {}
+
+        # First add all of the compartments that will be used from the databook
+        for comp in comps_to_use:
+            b_objs[comp] = self.comp_lookup[comp]
+            par = parset.pars[comp]
+            b_vals[comp] = par.interpolate(t_init, pop_name=self.name)[0] * par.y_factor[self.name] * par.meta_y_factor
+
+        # Then add all of the characteristics, and additional zero compartments
+        for charac in characs_to_use:
+            obj = self.charac_lookup[charac]
+            b_objs[charac] = obj
+            par = parset.pars[charac]
+            b_vals[charac] = par.interpolate(t_init, pop_name=self.name)[0] * par.y_factor[self.name] * par.meta_y_factor
+            if b_vals[charac] == 0:
+                for comp in obj.get_included_comps():
+                    if comp.name in b_vals and b_vals[comp.name] != 0:
+                        raise BadInitialization(f'Compartment {comp.name} was explicitly specified as having a non-zero value, but characteristic {charac} has a zero value - input data not consistent')
+                    else:
+                        b_vals[comp.name] = 0
+                        b_objs[comp.name] = comp
+            else:
+                if obj.denominator is not None:
+                    denom_par = parset.pars[obj.denominator.name]
+                    b_vals[charac] *= denom_par.interpolate(t_init, pop_name=self.name)[0] * denom_par.y_factor[self.name] * denom_par.meta_y_factor
+
 
         # Build up the comps corresponding to the `x` values in `x=A*b` i.e. the compartments being solved for
         comps = [c for c in self.comps if not (isinstance(c, SourceCompartment) or isinstance(c, SinkCompartment))]
-        charac_indices = {c.name: i for i, c in enumerate(b_objs)}  # Make lookup dict for characteristic indices
+        b_indices = {c.name: i for i, c in enumerate(b_objs.values())}  # Make lookup dict for characteristic indices
         comp_indices = {c.name: i for i, c in enumerate(comps)}  # Make lookup dict for compartment indices
 
-        b = np.zeros((len(b_objs), 1))
+        b = np.fromiter(b_vals.values(),dtype=float).reshape(-1,1)
         A = np.zeros((len(b_objs), len(comps)))
 
-        # Construct the characteristic value vector (b) and the includes matrix (A)
-        for i, obj in enumerate(b_objs):
-            # Look up the characteristic value
-            par = parset.pars[obj.name]
-            b[i] = par.interpolate(t_init, pop_name=self.name)[0] * par.y_factor[self.name] * par.meta_y_factor
+        # Fill out the includes matrix (A)
+        for i, obj in enumerate(b_objs.values()):
             if isinstance(obj, Characteristic):
-                if obj.denominator is not None:
-                    denom_par = parset.pars[obj.denominator.name]
-                    b[i] *= denom_par.interpolate(t_init, pop_name=self.name)[0] * denom_par.y_factor[self.name] * denom_par.meta_y_factor
                 for inc in obj.get_included_comps():
                     A[i, comp_indices[inc.name]] = 1.0
             else:
@@ -1889,6 +1910,7 @@ class Population:
 
         # Solve the linear system (nb. lstsq returns the minimum norm solution
         x = np.linalg.lstsq(A, b.ravel(), rcond=None)[0].reshape(-1, 1)
+
         proposed = np.matmul(A, x)
         residual = np.sum((proposed.ravel() - b.ravel()) ** 2)
 
@@ -1922,8 +1944,8 @@ class Population:
             """
 
             msg = ""
-            if charac.name in charac_indices:
-                msg += n_indent * "\t" + "Characteristic '{0}': Target value = {1}\n".format(charac.name, b[charac_indices[charac.name]])
+            if charac.name in b_indices:
+                msg += n_indent * "\t" + "Characteristic '{0}': Target value = {1}\n".format(charac.name, b[b_indices[charac.name]])
             else:
                 msg += n_indent * "\t" + "Characteristic '{0}' not in databook: Target value = N/A (0.0)\n".format(charac.name)
 
