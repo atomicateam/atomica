@@ -170,7 +170,12 @@ class ProjectData(sc.prettyobj):
         is therefore encountered on the :class:`Result` and plotting side.
 
         If retrieving values for a comp/charac/par and the databook contains an entry for 'all' rather
-        than specific populations, then the 'all' time series will be returned regardless of the key
+        than specific populations, then the 'all' time series will be returned if the key does not match
+        any population names.
+
+        Note that the TDVE can contain time series for population names that don't correspond to actual populations.
+        For example, users could add an extra row for 'Total', or anything else. `get_ts()` will retrieve these
+        rows without an error, so population names are not validated against the populations in the databook.
         """
 
         # Exit immediately if the name is not specified
