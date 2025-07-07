@@ -602,7 +602,7 @@ class ResidualJunctionCompartment(JunctionCompartment):
             if self.duration_group:
                 link._vals[:, ti] = flow
             else:
-                link.vals[ti] = flow
+                link.vals[ti] = flow[0]
 
     def initial_flush(self) -> None:
         """
@@ -1986,7 +1986,7 @@ class Population:
 
         # Otherwise, insert the values
         for i, c in enumerate(comps):
-            c[0] = max(0.0, x[i])
+            c[0] = max(0.0, x[i,0])
 
 
 class Model:
@@ -2662,7 +2662,7 @@ class Model:
 
                 for par, val in zip(pars, par_vals):
                     if par.skip_function is None or (self.t[ti] < par.skip_function[0]) or (self.t[ti] > par.skip_function[1]):  # Careful - note how the < here matches >= in Parameter.update()
-                        par[ti] = par.scale_factor * val
+                        par[ti] = par.scale_factor * val[0]
 
             # Restrict the parameter's value if a limiting range was defined
             for par in pars:
