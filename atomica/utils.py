@@ -624,6 +624,22 @@ class TimeSeries:
 
         return new
 
+    def clear(self) -> None:
+        """
+        Clear the TimeSeries
+
+        This method resets TimeSeries but keeps the units present, so it is useful when
+        wanting to replace the values associated with a particular TimeSeries instance.
+
+        :return: None
+        """
+
+        self.t = []
+        self.vals = []
+        self.assumption = None
+        self.sigma = None
+        self._sampled = False
+        return None
 
 def evaluate_plot_string(plot_string: str):
     """
