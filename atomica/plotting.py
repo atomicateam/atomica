@@ -288,7 +288,10 @@ class PlotData:
                         vars = pop.get_variable(output_label)
                     except NotFoundError as e:
                         in_pops = [x.name for x in result.model.pops if output_label in x]
-                        message = f'Variable "{output_label}" was requested in population "{pop.name}" but it is only defined in these populations: {in_pops}'
+                        if not in_pops:
+                            message = f'Variable "{output_label}" was requested in population "{pop.name}" but it is not defined in any populations'
+                        else:
+                            message = f'Variable "{output_label}" was requested in population "{pop.name}" but it is only defined in these populations: {in_pops}'
                         raise NotFoundError(message) from e
 
                     if vars[0].vals is None:
