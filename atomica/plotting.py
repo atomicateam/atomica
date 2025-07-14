@@ -698,7 +698,7 @@ class PlotData:
                         v2 = np.interp(t2, s.tvec, s.vals, left=np.nan, right=np.nan)  # Return NaN outside bounds - it should never be valid to use extrapolated output values in time aggregation
                     else:
                         v2 = s.vals[idx]
-                    vals[i] = np.trapz(y=v2 / scale, x=t2)  # Note division by timescale here, which annualizes it
+                    vals[i] = np.trapezoid(y=v2 / scale, x=t2)  # Note division by timescale here, which annualizes it
                 elif interpolation_method == "previous":
                     if interpolate:
                         v2 = scipy.interpolate.interp1d(s.tvec, s.vals, kind="previous", copy=False, assume_sorted=True, bounds_error=False, fill_value=(np.nan, np.nan))(t2)
