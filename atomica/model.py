@@ -26,6 +26,7 @@ import pandas as pd
 
 model_settings = dict()
 model_settings["tolerance"] = 1e-6
+model_settings["initialization_tolerance"] = 1e-3
 
 __all__ = [
     "BadInitialization",
@@ -1922,7 +1923,7 @@ class Population:
 
         # Print warning for characteristics that are not well matched by the compartment size solution
         for i, obj in enumerate(b_objs.values()):
-            if abs(proposed[i] - b[i]) > model_settings["tolerance"]:
+            if abs(proposed[i] - b[i]) > model_settings["initialization_tolerance"]:
                 characteristic_tolerence_failed = True
                 error_msg += f"{obj.__class__.__name__} '{obj.name}' ({self.name})- Requested {b[i]}, Calculated {proposed[i]}\n"
 
@@ -1960,7 +1961,7 @@ class Population:
             return msg
 
         for i in range(0, len(comps)):
-            if x[i] < -model_settings["tolerance"]:
+            if x[i] < -model_settings["initialization_tolerance"]:
                 error_msg += "Compartment %s %s - Calculated %f\n" % (self.name, comps[i].name, x[i])
                 for charac in b_objs:
                     try:
@@ -1970,10 +1971,10 @@ class Population:
                         if comps[i] == charac:
                             error_msg += report_characteristic(charac)
 
-        if residual > model_settings["tolerance"]:
+        if residual > model_settings["initialization_tolerance"]:
             # Halt for an unsatisfactory overall solution
-            raise BadInitialization("Global residual was %g which is unacceptably large (should be < %g)\n%s" % (residual, model_settings["tolerance"], error_msg))
-        elif np.any(np.less(x, -model_settings["tolerance"])):
+            raise BadInitialization("Global residual was %g which is unacceptably large (should be < %g)\n%s" % (residual, model_settings["initialization_tolerance"], error_msg))
+        elif np.any(np.less(x, -model_settings["initialization_tolerance"])):
             # Halt for any negative popsizes
             raise BadInitialization(f"Negative initial popsizes:\n{error_msg}")
         elif characteristic_tolerence_failed:
