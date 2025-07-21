@@ -1003,7 +1003,7 @@ def stop_logging() -> None:
 
 def get_sigfigs_necessary(x, y, min_sigfigs: int = 2) -> int:
     """
-    Get how many significant figures are necessary to tell the difference berween two numbers
+    Get how many significant figures are necessary to tell the difference between two numbers
 
     :param x, y: numbers to compare
     :param min_sigfigs: minimum number of sigfigs to use if no difference
