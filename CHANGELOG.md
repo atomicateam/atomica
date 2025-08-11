@@ -2,9 +2,9 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
-## [1.31.3] - 2025-XX-XX
+## [1.31.3] - 2025-08-11
 
-- Changed initialization method to increase prioritization for characteristics with zero value. If a characteristic has a zero value, this will now automatically add extra constraints that all constitutent compartments should also be zero. In practice, this means that it is less likely that frameworks will cause negative initial popsizes, so some frameworks that previously did not work will now initialize correctly.
+- Changed initialization method to increase prioritization for characteristics with zero value. If a characteristic has a zero value, this will now automatically force included compartments to have a zero value. In practice, this means that it is less likely that frameworks will cause negative initial popsizes, so some frameworks that previously did not work will now initialize correctly.
 - Added `at.TimeSeries.clear()` to reset a time series while preserving the units. This function can be useful when updating the value of databook quantities programatically. 
 - Added a separate numerical tolerance used for initialization (`at.model.model_settings['initialization_tolerance']`) which permits more approximate initializations while still maintaining the same numerical tolerance for the rest of the integration.
 - Added another logging level (`at.VERBOSE`) which enables more targeted additional output

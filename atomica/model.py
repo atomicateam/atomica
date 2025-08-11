@@ -1869,33 +1869,41 @@ class Population:
         b_objs = {}
 
         # First add all of the compartments that will be used from the databook
+        zero_compartments = set() # Keep track of compartments that will be initialized as zero
         for comp in comps_to_use:
-            b_objs[comp] = self.comp_lookup[comp]
             par = parset.pars[comp]
-            b_vals[comp] = par.interpolate(t_init, pop_name=self.name)[0] * par.y_factor[self.name] * par.meta_y_factor
+            val = par.interpolate(t_init, pop_name=self.name)[0] * par.y_factor[self.name] * par.meta_y_factor
+            obj = self.comp_lookup[comp]
+            if val == 0:
+                zero_compartments.add(obj)
+            else:
+                b_objs[comp] = obj
+                b_vals[comp] = val
 
-        # Then add all of the characteristics, and additional zero compartments
+        # Then add all of the characteristics
         for charac in characs_to_use:
-            obj = self.charac_lookup[charac]
-            b_objs[charac] = obj
             par = parset.pars[charac]
-            b_vals[charac] = par.interpolate(t_init, pop_name=self.name)[0] * par.y_factor[self.name] * par.meta_y_factor
-            if b_vals[charac] == 0:
-                logger.debug(f'Characteristic {charac} has a zero value, adding extra zero compartments')
+            val = par.interpolate(t_init, pop_name=self.name)[0] * par.y_factor[self.name] * par.meta_y_factor
+            obj = self.charac_lookup[charac]
+            if val == 0:
+                # If the characteristic is zero, then all of the compartments included in it must also be zero
                 for comp in obj.get_included_comps():
-                    if comp.name in b_vals and b_vals[comp.name] != 0:
+                    if comp.name in b_vals:
+                        # If a separate databook entry just for this compartment says the compartment should be non-zero, then we have two essentially equally
+                        # direct specifications for the compartment. In that case, we should raise an error as the user has explicitly specified contradictory values
                         raise BadInitialization(f'Compartment {comp.name} was explicitly specified as having a non-zero value, but characteristic {charac} has a zero value - input data not consistent')
                     else:
-                        b_vals[comp.name] = 0
-                        b_objs[comp.name] = comp
+                        zero_compartments.add(comp)
             else:
+                b_objs[charac] = obj
+                b_vals[charac] = val
                 if obj.denominator is not None:
                     denom_par = parset.pars[obj.denominator.name]
                     b_vals[charac] *= denom_par.interpolate(t_init, pop_name=self.name)[0] * denom_par.y_factor[self.name] * denom_par.meta_y_factor
 
 
         # Build up the comps corresponding to the `x` values in `x=A*b` i.e. the compartments being solved for
-        comps = [c for c in self.comps if not (isinstance(c, SourceCompartment) or isinstance(c, SinkCompartment))]
+        comps = [c for c in self.comps if not (isinstance(c, SourceCompartment) or isinstance(c, SinkCompartment) or c in zero_compartments)]
         b_indices = {c.name: i for i, c in enumerate(b_objs.values())}  # Make lookup dict for characteristic indices
         comp_indices = {c.name: i for i, c in enumerate(comps)}  # Make lookup dict for compartment indices
 
@@ -1906,7 +1914,8 @@ class Population:
         for i, obj in enumerate(b_objs.values()):
             if isinstance(obj, Characteristic):
                 for inc in obj.get_included_comps():
-                    A[i, comp_indices[inc.name]] = 1.0
+                    if inc not in zero_compartments:
+                        A[i, comp_indices[inc.name]] = 1.0
             else:
                 A[i, comp_indices[obj.name]] = 1.0
 
@@ -1956,6 +1965,8 @@ class Population:
                 for inc in charac.includes:
                     if isinstance(inc, Characteristic):
                         msg += report_characteristic(inc, n_indent)
+                    elif inc in zero_compartments:
+                        msg += n_indent * "\t" + "Compartment %s: Preassigned value = 0.0\n" % (inc.name)
                     else:
                         msg += n_indent * "\t" + "Compartment %s: Computed value = %f\n" % (inc.name, x[comp_indices[inc.name]])
             return msg
@@ -1985,7 +1996,11 @@ class Population:
             # (but it exists as a fallback to ensure that any inconsistencies result in the error being raised)
             raise BadInitialization(f"Initialization error\n{error_msg}")
 
-        # Otherwise, insert the values
+        # Initialize any compartments that were specified as zero
+        for c in zero_compartments:
+            c[0] = 0.0
+
+        # Insert the calculated initial values
         for i, c in enumerate(comps):
             c[0] = max(0.0, x[i,0])
 
