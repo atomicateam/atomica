@@ -26,6 +26,7 @@ import pandas as pd
 
 model_settings = dict()
 model_settings["tolerance"] = 1e-6
+model_settings["initialization_tolerance"] = 1e-3
 
 __all__ = [
     "BadInitialization",
@@ -602,7 +603,7 @@ class ResidualJunctionCompartment(JunctionCompartment):
             if self.duration_group:
                 link._vals[:, ti] = flow
             else:
-                link.vals[ti] = flow
+                link.vals[ti] = flow[0]
 
     def initial_flush(self) -> None:
         """
@@ -1861,34 +1862,66 @@ class Population:
         # values for the compartments by solving the set of characteristics simultaneously
 
         # Build up the comps and characs containing the setup values in the databook - the `b` in `x=A*b`
-        characs_to_use = framework.characs.index[(framework.characs["setup weight"] > 0) & (framework.characs["population type"] == self.type)]
-        comps_to_use = framework.comps.index[(framework.comps["setup weight"] > 0) & (framework.comps["population type"] == self.type)]
-        b_objs = [self.charac_lookup[x] for x in characs_to_use] + [self.comp_lookup[x] for x in comps_to_use]
+        characs_to_use = set(framework.characs.index[(framework.characs["setup weight"] > 0) & (framework.characs["population type"] == self.type)])
+        comps_to_use = set(framework.comps.index[(framework.comps["setup weight"] > 0) & (framework.comps["population type"] == self.type)])
 
-        # Build up the comps corresponding to the `x` values in `x=A*b` i.e. the compartments being solved for
-        comps = [c for c in self.comps if not (isinstance(c, SourceCompartment) or isinstance(c, SinkCompartment))]
-        charac_indices = {c.name: i for i, c in enumerate(b_objs)}  # Make lookup dict for characteristic indices
-        comp_indices = {c.name: i for i, c in enumerate(comps)}  # Make lookup dict for compartment indices
+        b_vals = {}
+        b_objs = {}
 
-        b = np.zeros((len(b_objs), 1))
-        A = np.zeros((len(b_objs), len(comps)))
+        # First add all of the compartments that will be used from the databook
+        zero_compartments = set() # Keep track of compartments that will be initialized as zero
+        for comp in comps_to_use:
+            par = parset.pars[comp]
+            val = par.interpolate(t_init, pop_name=self.name)[0] * par.y_factor[self.name] * par.meta_y_factor
+            obj = self.comp_lookup[comp]
+            if val == 0:
+                zero_compartments.add(obj)
+            else:
+                b_objs[comp] = obj
+                b_vals[comp] = val
 
-        # Construct the characteristic value vector (b) and the includes matrix (A)
-        for i, obj in enumerate(b_objs):
-            # Look up the characteristic value
-            par = parset.pars[obj.name]
-            b[i] = par.interpolate(t_init, pop_name=self.name)[0] * par.y_factor[self.name] * par.meta_y_factor
-            if isinstance(obj, Characteristic):
+        # Then add all of the characteristics
+        for charac in characs_to_use:
+            par = parset.pars[charac]
+            val = par.interpolate(t_init, pop_name=self.name)[0] * par.y_factor[self.name] * par.meta_y_factor
+            obj = self.charac_lookup[charac]
+            if val == 0:
+                # If the characteristic is zero, then all of the compartments included in it must also be zero
+                for comp in obj.get_included_comps():
+                    if comp.name in b_vals:
+                        # If a separate databook entry just for this compartment says the compartment should be non-zero, then we have two essentially equally
+                        # direct specifications for the compartment. In that case, we should raise an error as the user has explicitly specified contradictory values
+                        raise BadInitialization(f'Compartment {comp.name} was explicitly specified as having a non-zero value, but characteristic {charac} has a zero value - input data not consistent')
+                    else:
+                        zero_compartments.add(comp)
+            else:
+                b_objs[charac] = obj
+                b_vals[charac] = val
                 if obj.denominator is not None:
                     denom_par = parset.pars[obj.denominator.name]
-                    b[i] *= denom_par.interpolate(t_init, pop_name=self.name)[0] * denom_par.y_factor[self.name] * denom_par.meta_y_factor
+                    b_vals[charac] *= denom_par.interpolate(t_init, pop_name=self.name)[0] * denom_par.y_factor[self.name] * denom_par.meta_y_factor
+
+
+        # Build up the comps corresponding to the `x` values in `x=A*b` i.e. the compartments being solved for
+        comps = [c for c in self.comps if not (isinstance(c, SourceCompartment) or isinstance(c, SinkCompartment) or c in zero_compartments)]
+        b_indices = {c.name: i for i, c in enumerate(b_objs.values())}  # Make lookup dict for characteristic indices
+        comp_indices = {c.name: i for i, c in enumerate(comps)}  # Make lookup dict for compartment indices
+
+        b = np.fromiter(b_vals.values(),dtype=float).reshape(-1,1)
+        A = np.zeros((len(b_objs), len(comps)))
+
+        # Fill out the includes matrix (A)
+        for i, obj in enumerate(b_objs.values()):
+            if isinstance(obj, Characteristic):
                 for inc in obj.get_included_comps():
-                    A[i, comp_indices[inc.name]] = 1.0
+                    if inc not in zero_compartments:
+                        A[i, comp_indices[inc.name]] = 1.0
             else:
                 A[i, comp_indices[obj.name]] = 1.0
 
         # Solve the linear system (nb. lstsq returns the minimum norm solution
         x = np.linalg.lstsq(A, b.ravel(), rcond=None)[0].reshape(-1, 1)
+
         proposed = np.matmul(A, x)
         residual = np.sum((proposed.ravel() - b.ravel()) ** 2)
 
@@ -1898,10 +1931,10 @@ class Population:
         characteristic_tolerence_failed = False
 
         # Print warning for characteristics that are not well matched by the compartment size solution
-        for i in range(0, len(b_objs)):
-            if abs(proposed[i] - b[i]) > model_settings["tolerance"]:
+        for i, obj in enumerate(b_objs.values()):
+            if abs(proposed[i] - b[i]) > model_settings["initialization_tolerance"]:
                 characteristic_tolerence_failed = True
-                error_msg += "Characteristic '{0}' '{1}' - Requested {2}, Calculated {3}\n".format(self.name, b_objs[i].name, b[i], proposed[i])
+                error_msg += f"{obj.__class__.__name__} '{obj.name}' ({self.name})- Requested {b[i]}, Calculated {proposed[i]}\n"
 
         # Print expanded diagnostic for negative compartments showing parent characteristics
         def report_characteristic(charac, n_indent=0):
@@ -1922,8 +1955,8 @@ class Population:
             """
 
             msg = ""
-            if charac.name in charac_indices:
-                msg += n_indent * "\t" + "Characteristic '{0}': Target value = {1}\n".format(charac.name, b[charac_indices[charac.name]])
+            if charac.name in b_indices:
+                msg += n_indent * "\t" + "Characteristic '{0}': Target value = {1}\n".format(charac.name, b[b_indices[charac.name]])
             else:
                 msg += n_indent * "\t" + "Characteristic '{0}' not in databook: Target value = N/A (0.0)\n".format(charac.name)
 
@@ -1932,12 +1965,14 @@ class Population:
                 for inc in charac.includes:
                     if isinstance(inc, Characteristic):
                         msg += report_characteristic(inc, n_indent)
+                    elif inc in zero_compartments:
+                        msg += n_indent * "\t" + "Compartment %s: Preassigned value = 0.0\n" % (inc.name)
                     else:
                         msg += n_indent * "\t" + "Compartment %s: Computed value = %f\n" % (inc.name, x[comp_indices[inc.name]])
             return msg
 
         for i in range(0, len(comps)):
-            if x[i] < -model_settings["tolerance"]:
+            if x[i] < -model_settings["initialization_tolerance"]:
                 error_msg += "Compartment %s %s - Calculated %f\n" % (self.name, comps[i].name, x[i])
                 for charac in b_objs:
                     try:
@@ -1947,10 +1982,10 @@ class Population:
                         if comps[i] == charac:
                             error_msg += report_characteristic(charac)
 
-        if residual > model_settings["tolerance"]:
+        if residual > model_settings["initialization_tolerance"]:
             # Halt for an unsatisfactory overall solution
-            raise BadInitialization("Global residual was %g which is unacceptably large (should be < %g)\n%s" % (residual, model_settings["tolerance"], error_msg))
-        elif np.any(np.less(x, -model_settings["tolerance"])):
+            raise BadInitialization("Global residual was %g which is unacceptably large (should be < %g)\n%s" % (residual, model_settings["initialization_tolerance"], error_msg))
+        elif np.any(np.less(x, -model_settings["initialization_tolerance"])):
             # Halt for any negative popsizes
             raise BadInitialization(f"Negative initial popsizes:\n{error_msg}")
         elif characteristic_tolerence_failed:
@@ -1961,9 +1996,13 @@ class Population:
             # (but it exists as a fallback to ensure that any inconsistencies result in the error being raised)
             raise BadInitialization(f"Initialization error\n{error_msg}")
 
-        # Otherwise, insert the values
+        # Initialize any compartments that were specified as zero
+        for c in zero_compartments:
+            c[0] = 0.0
+
+        # Insert the calculated initial values
         for i, c in enumerate(comps):
-            c[0] = max(0.0, x[i])
+            c[0] = max(0.0, x[i,0])
 
 
 class Model:
@@ -2639,7 +2678,7 @@ class Model:
 
                 for par, val in zip(pars, par_vals):
                     if par.skip_function is None or (self.t[ti] < par.skip_function[0]) or (self.t[ti] > par.skip_function[1]):  # Careful - note how the < here matches >= in Parameter.update()
-                        par[ti] = par.scale_factor * val
+                        par[ti] = par.scale_factor * val[0]
 
             # Restrict the parameter's value if a limiting range was defined
             for par in pars:
