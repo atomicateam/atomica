@@ -3,7 +3,7 @@ schedules:
   displayName: Nightly build
   branches:
     include:
-    - master
+    - main
     - develop
 
 jobs:
@@ -84,7 +84,7 @@ jobs:
 
 - job: 'deploy'
   dependsOn: 'tox'
-  condition: and(ne(variables['Build.Reason'], 'Schedule'),and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master')))
+  condition: and(ne(variables['Build.Reason'], 'Schedule'),and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main')))
   pool:
     vmImage: 'ubuntu-latest'
   steps:

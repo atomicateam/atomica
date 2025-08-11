@@ -2,19 +2,8 @@ import atomica as at
 import sciris as sc
 import os
 import pytest
-import sys
+import numpy as np
 
-# # P = at.Project(framework='dummy_framework.xlsx',databook='dummy_databook.xlsx')
-# # # P.run_sim()
-# # P = at.demo('tb',do_run=True)
-# # P.results[0].plot()
-# # P = at.Project.load('asdf2.prj')
-#
-# # P = at.Project(framework=at.LIBRARY_PATH+'tb_framework.xlsx')
-# # P.load_databook(at.LIBRARY_PATH+'tb_databook.xlsx')
-# P = at.demo('tb',do_run=True)
-#
-#
 
 testdir = at.parent_dir()
 tmpdir = testdir / "temp"
@@ -61,9 +50,9 @@ def test_zero_duration():
     at.plot_series(d)
 
     pop = res2.model.pops[0]
-    assert pop.get_variable("foi")[0].vals[0] == 24  # Flow into the compartment
-    assert pop.get_variable("inf")[0].vals[1] == 24 * res2.dt  # Compartment contents should now equal the inflow
-    assert pop.get_variable("inf")[0].vals[2] == 24 * res2.dt  # Same again, contents equals the inflow because it was flushed entirely
+    assert np.isclose(pop.get_variable("foi")[0].vals[0], 24)  # Flow into the compartment
+    assert np.isclose(pop.get_variable("inf")[0].vals[1], 24 * res2.dt)  # Compartment contents should now equal the inflow
+    assert np.isclose(pop.get_variable("inf")[0].vals[2], 24 * res2.dt)  # Same again, contents equals the inflow because it was flushed entirely
 
     # Check formally that total inflows equal total outflows
     assert pop.get_variable("inf")[0].vals[0] == sum(link.vals[0] for link in pop.get_variable("inf")[0].outlinks)
