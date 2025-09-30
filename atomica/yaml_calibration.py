@@ -536,6 +536,13 @@ class CalibrationNode(BaseNode):
             if "repeats" in kwargs:
                 del kwargs["repeats"]
 
+            if "cal_start" in kwargs:
+                del kwargs["cal_start"]
+
+            if "cal_end" in kwargs:
+                del kwargs["cal_end"]
+
+
             if quiet:
                 with at.Quiet(show_warnings=False):
                     new_cal_parset = at.calibrate(project, parset, adjustables, measurables, **kwargs)

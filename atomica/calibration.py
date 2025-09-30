@@ -57,7 +57,7 @@ def _calculate_objective(y_factors, pars_to_adjust, output_quantities, parset, p
     _update_parset(parset, y_factors, pars_to_adjust)
 
     try:
-        result = project.run_sim(parset=parset, store_results=False)
+        result = project.run_sim(parset=parset, store_results=False, **kwargs)
     except BadInitialization:  # If the proposed parameters lead to invalid initial compartment sizes
         return np.inf
 
