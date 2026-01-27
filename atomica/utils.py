@@ -377,8 +377,15 @@ class TimeSeries:
         :param v: Value to insert. If ``None``, this function will return immediately without doing anything
 
         """
+        # TODO - could potentially incorporate iterability check above for greater efficiency
+        # TODO - add handling series inputs here too?
 
-        # Check if inputs are iterable
+        # Convert 1-element lists/arrays to scalars
+        if hasattr(t, "__len__") and len(t) == 1:
+            t = t[0]
+        if hasattr(v, "__len__") and len(v) == 1:
+            v = v[0]
+
         iterable_input = True
         try:
             assert len(t) == len(v), "Cannot insert non-matching lengths or types of time and values %s and %s" % (t, v)

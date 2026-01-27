@@ -667,9 +667,9 @@ class ProjectFramework:
             self.comps["setup weight"] = ((~self.comps["databook page"].isna() | ~self.comps["default value"].isna()) & (self.comps["is source"] == "n") & (self.comps["is sink"] == "n")).astype(float)
         else:
             fill_ones = self.comps["setup weight"].isna() & (~self.comps["databook page"].isna() | ~self.comps["default value"].isna()) & (self.comps["is source"] == "n") & (self.comps["is sink"] == "n")
+            self.comps["setup weight"] = self.comps["setup weight"].astype(float)
             self.comps.loc[fill_ones, "setup weight"] = 1
             self.comps.loc[self.comps["setup weight"].isna(), "setup weight"] = 0
-            self.comps["setup weight"] = self.comps["setup weight"].astype(float)
 
         if "calibrate" not in self.comps:
             # If calibration column is not present, then it calibrate if in the databook
@@ -750,9 +750,9 @@ class ProjectFramework:
             self.characs["setup weight"] = (~self.characs["databook page"].isna() | ~self.characs["default value"].isna()).astype(float)
         else:
             fill_ones = self.characs["setup weight"].isna() & (~self.characs["databook page"].isna() | ~self.characs["default value"].isna())
+            self.characs["setup weight"] = self.characs["setup weight"].astype(float)
             self.characs.loc[fill_ones, "setup weight"] = 1
             self.characs.loc[self.characs["setup weight"].isna(), "setup weight"] = 0
-            self.characs["setup weight"] = self.characs["setup weight"].astype(float)
 
         if "calibrate" not in self.characs:
             # If calibration column is not present, then it calibrate if in the databook
@@ -903,7 +903,7 @@ class ProjectFramework:
         # If framework has units that case-insensitively match the standard units, then correct the case
         if not self.pars.empty:
             lower_idx = self.pars["format"].str.lower().isin(FS.STANDARD_UNITS)
-            self.pars["format"][lower_idx] = self.pars["format"][lower_idx].str.lower()
+            self.pars.loc[lower_idx, "format"] = self.pars.loc[lower_idx, "format"].str.lower()
 
     def _process_transitions(self) -> None:
         """
