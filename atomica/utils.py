@@ -680,7 +680,7 @@ def evaluate_plot_string(plot_string: str):
         fcn_ast = ast.parse(plot_string, mode="eval")
         for node in ast.walk(fcn_ast):
             if not (node is fcn_ast):
-                assert isinstance(node, ast.Dict) or isinstance(node, ast.Str) or isinstance(node, ast.List) or isinstance(node, ast.Load), "Only allowed to initialize lists and dicts of strings here"
+                assert isinstance(node, ast.Dict) or isinstance(node, ast.List) or isinstance(node, ast.Load) or isinstance(node, ast.Constant), "Only allowed to initialize lists and dicts of strings here"
         compiled_code = compile(fcn_ast, filename="<ast>", mode="eval")
         return eval(compiled_code)
     else:
