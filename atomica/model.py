@@ -1973,7 +1973,7 @@ class Population:
 
         for i in range(0, len(comps)):
             if x[i] < -model_settings["initialization_tolerance"]:
-                error_msg += "Compartment %s %s - Calculated %f\n" % (self.name, comps[i].name, x[i])
+                error_msg += "Compartment %s %s - Calculated %f\n" % (self.name, comps[i].name, x[i,0])
                 for charac in b_objs:
                     try:
                         if comps[i] in charac.get_included_comps():

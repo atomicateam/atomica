@@ -2,6 +2,10 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.31.4] - 2026-01-28
+
+- Updated internal functions for Python 3.14 and Pandas 3.0.0
+
 ## [1.31.3] - 2025-08-11
 
 - Changed initialization method to increase prioritization for characteristics with zero value. If a characteristic has a zero value, this will now automatically force included compartments to have a zero value. In practice, this means that it is less likely that frameworks will cause negative initial popsizes, so some frameworks that previously did not work will now initialize correctly.
