@@ -998,7 +998,7 @@ class TotalSpendConstraint(Constraint):
 
             # Lastly, apply the budget factor
             if len(self.budget_factor) == 1:
-                hard_constraints["initial_total_spend"][t] = total_spend * self.budget_factor
+                hard_constraints["initial_total_spend"][t] = total_spend * self.budget_factor.item()
             else:
                 hard_constraints["initial_total_spend"][t] = total_spend * self.budget_factor[idx]
 

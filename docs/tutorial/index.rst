@@ -12,3 +12,4 @@ These tutorials walk through getting starting with building models in Atomica
     T4-Characteristics
     T5-Junctions
     T6-Programs
+    T7/T7_YAML_autocalibration  

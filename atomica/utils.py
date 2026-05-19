@@ -36,6 +36,7 @@ __all__ = [
     "parallel_progress",
     "start_logging",
     "stop_logging",
+    "get_sigfigs_necessary",
 ]
 
 
@@ -376,8 +377,15 @@ class TimeSeries:
         :param v: Value to insert. If ``None``, this function will return immediately without doing anything
 
         """
+        # TODO - could potentially incorporate iterability check above for greater efficiency
+        # TODO - add handling series inputs here too?
 
-        # Check if inputs are iterable
+        # Convert 1-element lists/arrays to scalars
+        if hasattr(t, "__len__") and len(t) == 1:
+            t = t[0]
+        if hasattr(v, "__len__") and len(v) == 1:
+            v = v[0]
+
         iterable_input = True
         try:
             assert len(t) == len(v), "Cannot insert non-matching lengths or types of time and values %s and %s" % (t, v)
@@ -489,7 +497,7 @@ class TimeSeries:
         """
         Remove times from start
 
-        :param tval: Remove times up to but not including this time
+        :param tval: Remove times after but not including this time
 
         """
 
@@ -628,6 +636,22 @@ class TimeSeries:
 
         return new
 
+    def clear(self) -> None:
+        """
+        Clear the TimeSeries
+
+        This method resets TimeSeries but keeps the units present, so it is useful when
+        wanting to replace the values associated with a particular TimeSeries instance.
+
+        :return: None
+        """
+
+        self.t = []
+        self.vals = []
+        self.assumption = None
+        self.sigma = None
+        self._sampled = False
+        return None
 
 def evaluate_plot_string(plot_string: str):
     """
@@ -661,7 +685,7 @@ def evaluate_plot_string(plot_string: str):
         fcn_ast = ast.parse(plot_string, mode="eval")
         for node in ast.walk(fcn_ast):
             if not (node is fcn_ast):
-                assert isinstance(node, ast.Dict) or isinstance(node, ast.Str) or isinstance(node, ast.List) or isinstance(node, ast.Load), "Only allowed to initialize lists and dicts of strings here"
+                assert isinstance(node, ast.Dict) or isinstance(node, ast.List) or isinstance(node, ast.Load) or isinstance(node, ast.Constant), "Only allowed to initialize lists and dicts of strings here"
         compiled_code = compile(fcn_ast, filename="<ast>", mode="eval")
         return eval(compiled_code)
     else:
@@ -1004,3 +1028,21 @@ def stochastic_rounding(x, rng_sampler=None):
     if remainder:
         x = floor + int(sample < remainder)
     return x
+
+
+def get_sigfigs_necessary(x, y, min_sigfigs: int = 2) -> int:
+    """
+    Get how many significant figures are necessary to tell the difference between two numbers
+
+    :param x, y: numbers to compare
+    :param min_sigfigs: minimum number of sigfigs to use if no difference
+    :return: Number of significant figures required
+    """
+    msf = min_sigfigs
+    assert sc.isnumber(x) and sc.isnumber(y), f"Cannot compare sigfigs as {x} and {y} are not both numbers"
+    if x == y or np.isnan(x) or np.isnan(y):
+        return msf
+    else:
+        while sc.sigfig(x=x, sigfigs=msf) == sc.sigfig(x=y, sigfigs=msf):
+            msf += 1
+        return msf

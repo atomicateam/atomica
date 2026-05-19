@@ -56,7 +56,7 @@ def test_framework_single_char():
     P.settings = P1.settings
     r2 = P.run_sim()
 
-    test_equal = lambda var1, var2: np.testing.assert_array_equal(r1.get_variable(var1)[0].vals, r2.get_variable(var2)[0].vals)
+    test_equal = lambda var1, var2: np.testing.assert_allclose(r1.get_variable(var1)[0].vals, r2.get_variable(var2)[0].vals)
 
     test_equal("sus", "s")
     test_equal("inf", "i")

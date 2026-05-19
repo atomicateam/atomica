@@ -1,0 +1,55 @@
+---
+#Timestep for the model
+#sim_dt: 0.019
+
+#Ordered instructions for how to calibrate the model
+  #adj order: (adjustable var_label, populations to adjust for (default all), minimum value (default 0.1), maximum value (default 10), initial y_factor value (optional, default is parset value))
+  #meas order: #(measurable var_label, populations to measure for (default all), weight (default 1.0), metric (default "fractional"), start_year (optional), end_year (optional))
+calibration:
+    repeats: 3
+    max_time: 120
+
+    Population calibration:              #--------------------------------------------------
+      repeats: 5
+
+      match population sizes:
+        adjustables:
+          (b_rate, 0-4), mig_rate: [ 0.1, 10 ]
+          (b_rate, 0-4):
+            initial_value: 1.2
+        measurables: alive
+
+      match all-cause deaths:
+        adjustables:  d_rate
+        measurables:  deaths
+
+      pop initialization:
+        clear_initialization: True
+        set_initialization:
+          init_year: 2010
+          constant_parset: True
+
+
+    Epidemiology calibration:       # -----------------------------------------------------
+      repeats: 10
+
+      Typhoid calibration:
+
+        match typhoid incidence:
+          adjustables:
+            typ_susceptibility: [0.01, 100 ]
+          measurables: [ typ_incidence ]
+
+        match typhoid prevalence:
+          adjustables: [ [ typ_gen_dur, 0.5, 2 ], [ typ_infx, 0.01, 100 ] ]
+          measurables: [ typ_prev ]
+
+        match typhoid deaths:
+          adjustables: [ typ_d_rate ]
+          measurables: [ typ_num_deaths ]
+
+        reinitialization typhoid:
+          clear_initialization: True
+          set_initialization:
+            init_year: 2010
+            constant_parset: True

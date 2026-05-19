@@ -1,0 +1,11 @@
+
+calibration:
+    repeats: 2
+    Population calibration:
+        Match population sizes:
+            repeats: 5
+            adjustables: b_rate, mig_rate
+            measurables: alive
+        Match deaths:
+            adjustables: d_rate
+            measurables: deaths

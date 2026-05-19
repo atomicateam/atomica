@@ -5,7 +5,25 @@
     :align: center
 
 
-Atomica is a simulation engine for compartmental models. It can be used to simulate disease epidemics, health care cascades, and many other things.
+`Atomica <https://github.com/atomicateam/atomica>`_ is a simulation engine for compartmental models. It can be used to simulate disease epidemics, health care cascades, and many other things.
+
+To install via PyPI:
+
+.. code-block:: python
+
+    pip install atomica
+
+You can run and plot an Atomica demo with:
+
+.. code-block:: python
+
+    import atomica as at
+    import matplotlib.pyplot as plt
+
+    P = at.demo("sir")
+    d = at.PlotData(P.results[0], project=P)
+    figs = at.plot_series(d)
+    plt.show()
 
 .. toctree::
     :maxdepth: 1
