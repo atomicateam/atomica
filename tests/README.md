@@ -15,3 +15,28 @@ In practice, it can be useful to simply define the following two variables at th
 testdir = at.parent_dir()
 tmpdir = testdir / "temp"
 ```
+
+## Performance benchmarks
+
+The opt-in performance suite lives in `tests/pytest_performance.py`.
+
+Use it like this:
+
+```bash
+uv run pytest -n 0 tests/pytest_performance.py --run-perf
+```
+
+Useful options:
+
+- `--perf-samples N` to control how many timed samples are collected per benchmark
+- `--perf-warmups N` to control warmup iterations before each timed sample
+- `--perf-output path.json` to write the collected measurements and model-dimension metadata to JSON
+
+The benchmarks are intentionally skipped unless `--run-perf` is provided, and they should be run with `-n 0` so xdist does not distort timings.
+
+Coverage currently includes:
+
+- Representative real-model runs across small, medium, and heavy demos
+- Scenario execution and sampled multi-run paths
+- Save/load performance for projects with stored results
+- Synthetic generated sweeps for population count and junction-heavy frameworks
