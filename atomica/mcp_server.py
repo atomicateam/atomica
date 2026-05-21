@@ -5,30 +5,44 @@ from atomica import ProjectFramework, generate_framework_doc as _generate_framew
 mcp = FastMCP(
     "atomica",
     instructions=(
-        "Use the generate_framework_doc tool whenever the user asks questions about "
-        "model structure, compartments, characteristics, parameters, or any quantity "
-        "defined in a framework file. Call it with the path to the framework .xlsx file "
-        "before answering, so your response is grounded in the actual framework contents."
+        "These tools work with Atomica framework .xlsx files. "
+        "Use list_parameters to discover what parameters exist in a framework — "
+        "it returns a mapping of code names to human-readable display names. "
+        "Use detail_parameters to get the full metadata for a single parameter "
+        "(format, default value, min/max, function, databook page, etc.) — "
+        "it requires the parameter's code name, so call list_parameters first if "
+        "the code name is unknown."
     ),
 )
 
-
 @mcp.tool()
-def generate_framework_doc(framework_path: str, databook_only: bool = False) -> str:
+def list_parameters(framework_path: str) -> dict:
     """
-    Return a plain-text Markdown description of an Atomica framework file.
+    Return all parameters in a framework as a mapping of code name to display name.
 
-    Use this whenever the user asks questions about model structure, compartments,
-    parameters, characteristics, or any quantity defined in the framework.
+    Use this to discover what parameters exist, or to resolve a human-readable
+    name to the code name required by detail_parameters.
 
     :param framework_path: Path to the framework .xlsx file
-    :param databook_only: If True, only include quantities that appear in the databook
-    :return: Markdown string describing the framework
+    :return: Dict mapping parameter code names to their display names
     """
-    framework = ProjectFramework(framework_path)
-    buf = io.StringIO()
-    _generate_framework_doc(framework, buf, databook_only=databook_only)
-    return buf.getvalue()
+    return ProjectFramework(framework_path).pars['display name'].to_dict()
+
+@mcp.tool()
+def detail_parameters(framework_path: str, par_name: str) -> dict:
+    """
+    Return the full metadata row for a single parameter.
+
+    Use this when the user asks for specifics about a parameter: its format,
+    default value, min/max bounds, function definition, databook page,
+    whether it is targetable, timescale, etc. Requires the parameter's code
+    name — call list_parameters first if only a display name is known.
+
+    :param framework_path: Path to the framework .xlsx file
+    :param par_name: Code name of the parameter (from list_parameters)
+    :return: Dict of column name to value for the parameter's row
+    """
+    return ProjectFramework(framework_path).pars.loc[par_name].to_dict()
 
 
 if __name__ == "__main__":

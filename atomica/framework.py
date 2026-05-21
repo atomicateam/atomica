@@ -1556,7 +1556,7 @@ def _sanitize_dataframe(df: pd.DataFrame, required_columns: list, defaults: dict
     return df
 
 
-def generate_framework_doc(framework, fname, databook_only=False):
+def generate_framework_doc(framework, fname=None, databook_only=False):
     """
     Generate a framework documentation template file
 
@@ -1569,12 +1569,13 @@ def generate_framework_doc(framework, fname, databook_only=False):
     :return: None
     """
 
-    if hasattr(fname, "write"):
-        _generate_framework_doc_impl(fname, framework, databook_only)
-        return
-
-    with open(fname, "w") as f:
-        _generate_framework_doc_impl(f, framework, databook_only)
+    if fname is None:
+        buf = io.StringIO()
+        _generate_framework_doc_impl(buf, framework, databook_only=databook_only)
+        return buf.getvalue()
+    else:
+        with open(fname, "w") as f:
+            _generate_framework_doc_impl(f, framework, databook_only)
 
 
 def _generate_framework_doc_impl(f, framework, databook_only):
