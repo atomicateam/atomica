@@ -1569,7 +1569,15 @@ def generate_framework_doc(framework, fname, databook_only=False):
     :return: None
     """
 
+    if hasattr(fname, "write"):
+        _generate_framework_doc_impl(fname, framework, databook_only)
+        return
+
     with open(fname, "w") as f:
+        _generate_framework_doc_impl(f, framework, databook_only)
+
+
+def _generate_framework_doc_impl(f, framework, databook_only):
 
         # Write the heading
         f.write("# Framework overview\n\n")
