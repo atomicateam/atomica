@@ -41,6 +41,7 @@ dependencies = [
     "hyperopt",
     "sciris",
     "tqdm",
+    "mcp",
 ]
 
 [project.urls]

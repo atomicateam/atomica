@@ -84,6 +84,16 @@ tox -e py37
 
 to test Python 3.7 only. 
 
+## Claude Code integration (downstream repositories)
+
+Atomica includes a small set of skills and capabilities that can be used by Claude Code to assist in writing frameworks and running the model. If you are using `uv` to manage your downstream project, you can enable this functionality by running:
+
+```
+claude mcp add atomica uv run python -m atomica.mcp_server
+```
+
+from within the project directory. 
+
 ## Troubleshooting
 
 ### Installation fails due to missing `numpy`
