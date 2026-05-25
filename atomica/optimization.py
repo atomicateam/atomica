@@ -1452,7 +1452,7 @@ def optimize(project, optimization, parset: ParameterSet, progset: ProgramSet, i
             errormsg = "PSO optimization requires finite upper and lower bounds to specify the search domain (i.e. every Adjustable needs to have finite bounds)"
             raise Exception(errormsg)
 
-        x_opt, _ = pyswarm.pso(_objective_fcn, kwargs=args, **optim_args)
+        x_opt = pyswarm.pso(_objective_fcn, kwargs=args, **optim_args)
 
     elif optimization.method == "hyperopt":
 
