@@ -1452,7 +1452,7 @@ def optimize(project, optimization, parset: ParameterSet, progset: ProgramSet, i
             errormsg = "PSO optimization requires finite upper and lower bounds to specify the search domain (i.e. every Adjustable needs to have finite bounds)"
             raise Exception(errormsg)
 
-        if sc.compareversions(pyswarm, ">1.0.0"):
+        if sc.compareversions(pyswarm, ">=1.0.0"):
             x_opt = pyswarm.pso(_objective_fcn, kwargs=args, **optim_args).x
         else:
             # On Mac OS, Pyswarm 1.0.0 is not installing yet. This can be revisited and hopefully
