@@ -2,6 +2,11 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.31.5] - 2026-05-26
+
+- Update optimization function for compatibility with latest `pyswarm` release
+- Update minimum Python version to 3.10 as previous versions are deprecated
+
 ## [1.31.4] - 2026-01-28
 
 - Updated internal functions for Python 3.14 and Pandas 3.0.0
