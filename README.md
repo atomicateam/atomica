@@ -10,21 +10,10 @@ For detailed documentation, visit [https://atomica.tools/docs](https://atomica.t
 
 ## Installation
 
-Atomica is available for Python 3 only. Because we develop using Python 3.7, it is possible that dictionary order is relevant (although we endeavour to use ordered dictionaries via `Sciris` in places where order matters). Therefore, we only _officially_ support Python 3.7, as this is the first Python release that guarantees ordering of all dictionaries.
-
-Atomica is distributed via PyPI, and the PyPI version corresponds to `master` branch of this repository. To install via PyPI, it is only necessary to run
+Atomica requires Python 3.10 or later and is distributed via PyPI. To install, run
 
 ```
 pip install atomica
-```
-
-Installation of `numpy`, `scipy` and `matplotlib` will automatically take place via `pip` because they are dependencies of Atomica. However, in practice these packages may require system-level setup so it is usually easiest to install them separately beforehand. We recommend using Anaconda, which facilitates getting the binaries and dependencies like QT installed in a platform-agnostic manner. We also recommend working within an Anaconda environment.
-
-You may also wish to install `mkl` first, before installing `numpy` etc. to improve performance. So for example:
-
-```
-conda install mkl
-conda install numpy scipy matplotlib
 ```
 
 ## Git installation
@@ -76,23 +65,33 @@ To run the tests in an isolated virtual environment, from the root directory, ru
 tox
 ```
 
-If you don't have `tox`, install it using `pip install tox`. The default configuration expects Python 3.6 and Python 3.7 to be on your system - to test only against a specific version, pass the python version as an argument to `tox` e.g.
+If you don't have `tox`, install it using `pip install tox`. To test against a specific Python version, pass it as an argument, e.g.
 
 ```
-tox -e py37
+tox -e py312
 ```
 
-to test Python 3.7 only. 
+## Claude Code integration
 
-## Claude Code integration (downstream repositories)
+Atomica ships an MCP server (`atomica.mcp`) that exposes tools for querying framework files and a set of built-in workflow skills (MCP prompts). The tools let Claude read compartments, parameters, transitions, and variable metadata directly from `.xlsx` framework files. The skills guide Claude through multi-step workflows such as producing a structured summary of a framework.
 
-Atomica includes a small set of skills and capabilities that can be used by Claude Code to assist in writing frameworks and running the model. If you are using `uv` to manage your downstream project, you can enable this functionality by running:
+To register the server with Claude Code, run the following from within your project directory:
 
 ```
-claude mcp add atomica uv run python -m atomica.mcp_server
+claude mcp add atomica -- uv run python -m atomica.mcp
 ```
 
-from within the project directory. 
+Once added, the tools and skills are available automatically in any Claude Code session for that project. If you use Atomica across multiple projects and want the MCP server available in all of them without repeating the `claude mcp add` step, register it at the user level instead:
+
+```
+claude mcp add -s user atomica -- uv run python -m atomica.mcp
+```
+
+The Atomica MCP will then be used whenever you are working within a project that has `atomica` as a dependency.
+
+### Adding custom skills
+
+Skills are plain Markdown files in `atomica/mcp/skills/`. To add a new workflow, drop a `.md` file into that directory — it is registered as an MCP prompt automatically when the server starts, with no code changes required. The first `# Heading` line becomes the prompt description shown in the MCP client.
 
 ## Troubleshooting
 

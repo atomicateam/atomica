@@ -5,6 +5,7 @@ from pydantic import Field
 from mcp.server.fastmcp import FastMCP
 from atomica import ProjectFramework, generate_framework_doc as _generate_framework_doc
 from atomica.function_parser import parse_function
+from atomica.mcp.skills import register_skills
 
 mcp = FastMCP(
     "atomica",
@@ -21,6 +22,7 @@ mcp = FastMCP(
         "use detail_variable for compartments, characteristics, and interactions."
     ),
 )
+
 
 @mcp.tool()
 def list_variables(
@@ -56,6 +58,7 @@ def list_variables(
             result[code_name] = {"display name": display_name, "type": vtype}
     return result
 
+
 @mcp.tool()
 def detail_variable(
     framework_path: Annotated[str, Field(description="Absolute path to the .xlsx framework file")],
@@ -70,6 +73,7 @@ def detail_variable(
     result = series.to_dict()
     result['type'] = var_type
     return result
+
 
 @mcp.tool()
 def detail_parameter(
@@ -109,5 +113,23 @@ def detail_parameter(
     return result
 
 
-if __name__ == "__main__":
-    mcp.run()
+@mcp.tool()
+def map_transitions(
+    framework_path: Annotated[str, Field(description="Absolute path to the .xlsx framework file")],
+    code_name: Annotated[str, Field(description="Code name of a source compartment")],
+) -> list:
+    """
+    Return all transitions out of a given source compartment
+    :return: A list of tuples containing (destination compartment, parameter driving transition). A parameter '>'
+             corresponds to the residual outflow from a junction.
+    """
+    fw = ProjectFramework(framework_path)
+    out = []
+    for par, pairs in fw.transitions.items():
+        for src, dst in pairs:
+            if code_name == src:
+                out.append([dst, par])
+    return out
+
+
+register_skills(mcp)
