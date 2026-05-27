@@ -853,3 +853,11 @@ def _projectdata_add_types_default(D):
             tdve.allowed_units = list({x.units: None for x in tdve.ts.values()}.keys())
 
     return D
+
+
+@migration("ProjectData", "1.31.5", "1.31.6", "Add TDVE code name")
+def _projectdata_add_tdve_codename(D):
+    for tdve in D.tdve.values():
+        if not hasattr(tdve, "code_name"):
+            tdve.code_name = None
+    return D
