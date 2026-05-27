@@ -285,7 +285,7 @@ class ProjectData(sc.prettyobj):
                     else:
                         order = databook_order
                     pages[page_names[databook_page]].append((spec.name, order))
-                    data.tdve[spec.name] = TimeDependentValuesEntry(full_name, data.tvec, allowed_units=allowed_units, comment=spec["guidance"], pop_type=pop_type, default_all=default_all)
+                    data.tdve[spec.name] = TimeDependentValuesEntry(full_name, data.tvec, allowed_units=allowed_units, comment=spec["guidance"], pop_type=pop_type, default_all=default_all, code_name=spec.name)
                     data.tdve[spec.name].write_units = True
                     data.tdve[spec.name].write_uncertainty = True
                     if obj_type == "pars":
@@ -503,7 +503,7 @@ class ProjectData(sc.prettyobj):
                         else:
                             logger.warning('TDVE table "%s" (code name "%s") is missing from the databook. Using default values from the framework' % (spec["display name"], spec_name))
                             units = framework.get_databook_units(spec_name)
-                            self.tdve[spec_name] = TimeDependentValuesEntry(spec["display name"], self.tvec.copy(), allowed_units=[units], comment=spec["guidance"], pop_type=spec["population type"])
+                            self.tdve[spec_name] = TimeDependentValuesEntry(spec["display name"], self.tvec.copy(), allowed_units=[units], comment=spec["guidance"], pop_type=spec["population type"], code_name=spec_name)
                             for pop in self.pops.keys():
                                 self.tdve[spec_name].ts[pop] = TimeSeries(assumption=spec["default value"], units=units)
                             tdve_page = framework.sheets["databook pages"][0][framework.sheets["databook pages"][0]["datasheet code name"] == spec["databook page"]]["datasheet title"].values[0]
@@ -1023,7 +1023,7 @@ class ProjectData(sc.prettyobj):
             has_editable_content = False
             for code_name in code_names:
                 has_editable_content = has_editable_content or (not self.tdve[code_name].has_data)  # there is editable content if any TDVE is missing data, so blue cells are present
-                next_row = self.tdve[code_name].write(sheet, next_row, self._formats, references=self._references, widths=widths)
+                next_row = self.tdve[code_name].write(sheet, next_row, self._formats, references=self._references, widths=widths, workbook=self._book)
 
             if has_editable_content:
                 sheet.set_tab_color("#92D050")

@@ -2,6 +2,10 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.31.6] - 2026-05-27
+
+- Update `ProjectData` so that variable codenames are written to the databook as named cells for each table in the databook
+
 ## [1.31.5] - 2026-05-26
 
 - Update optimization function for compatibility with latest `pyswarm` release
