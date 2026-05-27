@@ -875,25 +875,29 @@ class TimeDependentValuesEntry:
 
     Note that the units are stored within the TimeSeries objects, which means that they can
     are able to differ across rows.
-
-    :param name: The name/title for this table
-    :param tvec: Specify the time values for this table. All TimeSeries in the ts dict should have corresponding time values
-    :param ts: Optionally specify an odict() of TimeSeries objects populating the rows. Could be populated after
-    :param allowed_units: Optionally specify a list of allowed units that will appear as a dropdown
-    :param comment: Optionally specify descriptive text that will be added as a comment to the name cell
-
     """
 
-    def __init__(self, name, tvec: np.array = None, ts=None, allowed_units: list = None, comment: str = None, pop_type: str = None, default_all: bool = False):
+    def __init__(self, name, tvec: np.array = None, ts: dict=None, allowed_units: list = None, comment: str = None, pop_type: str = None, default_all: bool = False, code_name: str = None):
+        """
+        :param name: The name for the quantity printed in Excel (usually a display name rather than a code name)
+        :param tvec: Time axis (e.g. np.arange(2000,2019)) - all TimeSeries time values must exactly match one of the values here
+        :param ts: Optionally specify a dict of TimeSeries objects populating the rows. Could be populated after.
+        :param allowed_units: A list/iterable containing allowed units for this quantity to populate the dropdown choices. Leave as None for no restriction
+        :param comment: Optionally specify descriptive text that will be added as a comment to the name cell
+        :param pop_type: A population type to associate with this table
+        :param default_all: Record whether the framework specifies that this TDVE should default to having an 'All' row instead of population-specific rows (the user can manually modify further)
+        :param code_name: Optionally specify a code name for the quantity, which will be used to name the cell containing the (display) name
+        """
 
         if ts is None:
             ts = sc.odict()
 
-        self.name = name  #: Name for th quantity printed in Excel
-        self.comment = comment  #: A comment that will be added in Excel
-        self.tvec = [] if tvec is None else tvec  #: time axis (e.g. np.arange(2000,2019)) - all TimeSeries time values must exactly match one of the values here
-        self.ts = ts  # : dict of :class:`TimeSeries` objects
-        self.allowed_units = [x.title() if x in FS.STANDARD_UNITS else x for x in allowed_units] if allowed_units is not None else None  # Otherwise, can be an odict with keys corresponding to ts - leave as None for no restriction
+        self.name = name
+        self.code_name = code_name
+        self.comment = comment
+        self.tvec = [] if tvec is None else tvec
+        self.ts = ts
+        self.allowed_units = [x.title() if x in FS.STANDARD_UNITS else x for x in allowed_units] if allowed_units is not None else None
         self.pop_type = pop_type
 
         self.ts_attributes = {}  #: Dictionary containing extra attributes to write along with each TimeSeries object.
@@ -907,7 +911,7 @@ class TimeDependentValuesEntry:
         self.write_uncertainty = None  #: Write a column for uncertainty (if None, uncertainty will be written if any of the TimeSeries have uncertainty)
         self.write_assumption = None  #: Write a column for assumption/constant (if None, assumption will be written if any of the TimeSeries have an assumption)
 
-        self.default_all = default_all  #: Record whether the framework specifies that this TDVE should default to having an 'All' row instead of population-specific rows (the user can manually modify further)
+        self.default_all = default_all
 
     def __repr__(self):
         output = sc.prepr(self)
@@ -1012,7 +1016,7 @@ class TimeDependentValuesEntry:
         tdve.ts = ts_entries
         return tdve
 
-    def write(self, worksheet, start_row, formats, references: dict = None, widths: dict = None) -> int:
+    def write(self, worksheet, start_row, formats, references: dict = None, widths: dict = None, workbook:xlsxwriter.Workbook=None) -> int:
         """
         Write to cells in a worksheet
 
@@ -1024,6 +1028,7 @@ class TimeDependentValuesEntry:
         :param formats: Format dict for the opened workbook - typically the return value of :func:`standard_formats` when the workbook was opened
         :param references: References dict containing cell references for strings in the current workbook
         :param widths: ``dict`` storing column widths
+        :param workbook: Optionally provide the workbook containing the worksheet (needed to write named cells)
         :return: The row index for the next available row for writing in the spreadsheet
 
         """
@@ -1071,6 +1076,9 @@ class TimeDependentValuesEntry:
         for i, entry in enumerate(headings):
             worksheet.write(current_row, i, entry, formats["center_bold"])
             update_widths(widths, i, entry)
+
+        if self.code_name is not None and workbook is not None:
+            workbook.define_name(self.code_name, "='%s'!%s" % (worksheet.name, xlrc(current_row, 0, True, True)))
 
         if not pd.isna(self.comment):
             worksheet.write_comment(xlrc(current_row, 0), self.comment)
