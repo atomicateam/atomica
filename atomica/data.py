@@ -93,7 +93,7 @@ class ProjectData(sc.prettyobj):
         have different time values). This quantity should be used when changing the simulation
         start year, if using all of the data in the databook is desired.
 
-        :return: The earliest year in the databook
+        :return: The earliest year in the databook, or ``None`` if no time points are present
 
         """
 
@@ -101,7 +101,11 @@ class ProjectData(sc.prettyobj):
         for table in self.tables():
             if len(table.tvec) and np.amin(table.tvec) < start_year:
                 start_year = np.amin(table.tvec)
-        return start_year
+
+        if np.isfinite(start_year):
+            return start_year
+        else:
+            return None
 
     @property
     def end_year(self) -> float:
@@ -121,7 +125,11 @@ class ProjectData(sc.prettyobj):
         for table in self.tables():
             if len(table.tvec) and np.amax(table.tvec) > end_year:
                 end_year = np.amax(table.tvec)
-        return end_year
+
+        if np.isfinite(end_year):
+            return end_year
+        else:
+            return None
 
     def change_tvec(self, tvec: np.array) -> None:
         """

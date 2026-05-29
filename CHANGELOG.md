@@ -2,6 +2,20 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.31.7] - 2026-05-29
+
+- Prevent running the model without a coverage overwrite for `ProgramSet` instances that require them. Previously a warning was intended to have been displayed, but a separate bug prevented this warning from being displayed
+- If a program targets source/sink compartments, the coverage will now be computed based on flows
+- When loading data into a project, only change the simulation start year if the databook contains time points
+
+*Backwards-compatibility notes*
+
+- Models that previously targeted junctions and were being run without a coverage overwrite will now raise a `ModelError` upon execution, whereas previously they would run but produce invalid results
+
+## [1.31.6] - 2026-05-27
+
+- Update `ProjectData` so that variable codenames are written to the databook as named cells for each table in the databook
+
 ## [1.31.6] - 2026-05-27
 
 - Update `ProjectData` so that variable codenames are written to the databook as named cells for each table in the databook
@@ -22,7 +36,7 @@ This file records changes to the codebase grouped by version release. Unreleased
 - Added a separate numerical tolerance used for initialization (`at.model.model_settings['initialization_tolerance']`) which permits more approximate initializations while still maintaining the same numerical tolerance for the rest of the integration.
 - Added another logging level (`at.VERBOSE`) which enables more targeted additional output
 
-- *Backwards-compatibility notes*
+*Backwards-compatibility notes*
 
 - Some initializations might show numerical (e.g., `1e-10`) differences in their values due to the new algorithm. In a small number of cases (depending on the framework), it is possible that the updated initialization method could result in a slightly different initialization.  
 - The default initialization tolerance is now `1e-3` instead of `1e-6`, some models that previously raised a `BadInitialization` error will now run without error. Users should note that if it's necessary to guarantee an exact initialization, this tolerance should be reduced. 

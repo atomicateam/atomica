@@ -2117,10 +2117,12 @@ class Model:
             # Check that any programs with no coverage denominator have been given coverage overwrites
             # Otherwise, the coverage denominator will be treated as 0 and will result in 100% coverage
             # but that would just be a side effect of not targeting anyone (division by 0 is treated as 100%)
+            non_targetable = {comp for comp, spec in self.progset.comps.items() if spec['non_targetable']}
             for prog in self.progset.programs.values():
                 if not self._program_cache["comps"][prog.name] and prog.name not in self._program_cache["prop_coverage"]:
                     raise ModelError(f'Program "{prog.name}" does not target any compartments, but the program instructions did not specify coverage for this program. Programs without target compartments require their coverage to be explicitly specified in the instructions')
-
+                if non_targetable and not non_targetable.isdisjoint(prog.target_comps) and prog.name not in self._program_cache["prop_coverage"]:
+                    raise ModelError(f'Program "{prog.name}" targets special compartments {non_targetable.intersection(prog.target_comps)}, but the program instructions did not specify coverage for this program. Programs that target special compartments (junctions/sources/sinks) require their coverage to be explicitly specified in the instructions')
         else:
             self.programs_active = False
 

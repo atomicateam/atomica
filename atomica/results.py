@@ -240,7 +240,7 @@ class Result(NamedItem):
 
         """
 
-        from .model import JunctionCompartment
+        from .model import JunctionCompartment, SourceCompartment, SinkCompartment
 
         if self.model.progset is None:
             return None
@@ -259,8 +259,10 @@ class Result(NamedItem):
                     for comp_name in prog.target_comps:
                         comp = self.get_variable(comp_name, pop_name)[0]
 
-                        if isinstance(comp, JunctionCompartment):
+                        if isinstance(comp, JunctionCompartment) or isinstance(comp, SourceCompartment):
                             vals = comp.outflow
+                        elif isinstance(comp, SinkCompartment):
+                            vals = comp.inflow
                         else:
                             vals = comp.vals
 
