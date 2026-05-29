@@ -9,7 +9,7 @@ an executable Python representation.
 
 import ast
 import numpy as np
-from functools import reduce
+from functools import reduce, cache
 
 __all__ = ["parse_function"]
 
@@ -104,7 +104,7 @@ class _DivTransformer(ast.NodeTransformer):
         kwargs = []
         return ast.Call(name, args, kwargs)
 
-
+@cache
 def parse_function(fcn_str: str) -> tuple:
     """
     Parses a string into a Python function

@@ -2,6 +2,11 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.32.0] - 2026-XX-XX
+
+- Improve performance by caching previously parsed functions
+- Add an MCP server to enable enhanced AI functionality
+
 ## [1.31.7] - 2026-05-29
 
 - Prevent running the model without a coverage overwrite for `ProgramSet` instances that require them. Previously a warning was intended to have been displayed, but a separate bug prevented this warning from being displayed
