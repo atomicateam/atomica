@@ -326,7 +326,7 @@ class ProgramSet(NamedItem):
 
         del self.pops[code_name]
 
-    def add_comp(self, code_name: str, full_name: str, pop_type: str = None) -> None:
+    def add_comp(self, code_name: str, full_name: str, pop_type: str = None, non_targetable: bool = False) -> None:
         """
         Add a compartment
 
@@ -335,12 +335,11 @@ class ProgramSet(NamedItem):
 
         :param code_name: Code name of the compartment to add
         :param full_name: Full name of the compartment to add
-
+        :param non_targetable: Flag whether the compartment is targetable, or a special non-targetable compartment like a junction
         """
         if pop_type is None:
             pop_type = self._pop_types[0]
-
-        self.comps[code_name] = {"label": full_name, "type": pop_type}
+        self.comps[code_name] = {"label": full_name, "type": pop_type, "non_targetable": non_targetable}
 
     def remove_comp(self, name: str) -> None:
         """
@@ -557,8 +556,7 @@ class ProgramSet(NamedItem):
         ss.save(fname)
 
     def _read_targeting(self, sheet, framework) -> None:
-        # This function reads a targeting sheet and instantiates all of the programs with appropriate targets, putting them
-        # into `self.programs`
+        # This function reads a targeting sheet and instantiates all of the programs with appropriate targets, putting them into `self.programs`
         tables, start_rows = read_tables(sheet)  # NB. only the first table will be read, so there can be other tables for comments on the first page
         self.programs = sc.odict()
         sup_header = [x.value.lower().strip() if sc.isstring(x.value) else x.value for x in tables[0][0]]
@@ -596,24 +594,15 @@ class ProgramSet(NamedItem):
                         message = "There was a mismatch between the populations in the databook and the populations in the program book"
                         message += '\nThe program book contains population "%s", while the databook contains: %s' % (pop_idx[i], [str(x) for x in pop_codenames.keys()])
                         raise Exception(message)
-
                     target_pops.append(pop_codenames[pop_idx[i]])  # Append the pop's codename
 
             for i in range(comp_start_idx, len(headers)):
                 if row[i].value and sc.isstring(row[i].value) and row[i].value.lower().strip() == "y":
                     if comp_idx[i] not in comp_codenames:
-                        if comp_idx[i] in set(framework.comps["display name"].str.lower().str.strip()):
-                            # It's a valid compartment of some sort (not actually targetable - for use with coverage scenarios only)
-                            logger.warning(f'Compartment "{comp_idx[i]}" is a non-standard compartment that cannot be targeted. The ProgramSet can be used with coverage scenarios only')
-                            spec = framework.comps.loc[framework.comps["display name"].str.lower().str.strip() == comp_idx[i]]
-                            self.add_comp(code_name=spec.index[0], full_name=spec["display name"][0], pop_type=spec["population type"][0])
-                            target_comps.append(spec.index[0])  # Append the pop's codename
-                        else:
-                            message = "There was a mismatch between the compartments in the databook and the compartments in the Framework file"
-                            message += '\nThe program book contains compartment "%s", while the Framework contains: %s' % (comp_idx[i], [str(x) for x in comp_codenames.keys()])
-                            raise Exception(message)
-                    else:
-                        target_comps.append(comp_codenames[comp_idx[i]])  # Append the pop's codename
+                        message = "There was a mismatch between the compartments in the databook and the compartments in the Framework file"
+                        message += '\nThe program book contains compartment "%s", while the Framework contains: %s' % (comp_idx[i], [str(x) for x in comp_codenames.keys()])
+                        raise Exception(message)
+                    target_comps.append(comp_codenames[comp_idx[i]])  # Append the pop's codename
 
             short_name = row[0].value.strip()
             if short_name.lower() == "all":

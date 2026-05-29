@@ -4,8 +4,18 @@ This file records changes to the codebase grouped by version release. Unreleased
 
 ## [1.31.7] - 2026-05-29
 
+- Prevent running the model without a coverage overwrite for `ProgramSet` instances that require them. Previously a warning was intended to have been displayed, but a separate bug prevented this warning from being displayed
 - If a program targets source/sink compartments, the coverage will now be computed based on flows
 - When loading data into a project, only change the simulation start year if the databook contains time points
+
+*Backwards-compatibility notes*
+
+- Models that previously targeted junctions and were being run without a coverage overwrite will now raise a `ModelError` upon execution, whereas previously they would run but produce invalid results
+
+## [1.31.6] - 2026-05-27
+
+- Update `ProjectData` so that variable codenames are written to the databook as named cells for each table in the databook
+
 ## [1.31.6] - 2026-05-27
 
 - Update `ProjectData` so that variable codenames are written to the databook as named cells for each table in the databook
