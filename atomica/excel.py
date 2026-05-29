@@ -8,6 +8,7 @@ For example, Excel formatting, and time-varying data entry tables, are implement
 
 """
 
+import re
 from xlsxwriter.utility import xl_rowcol_to_cell as xlrc
 import sciris as sc
 import io
@@ -1077,7 +1078,9 @@ class TimeDependentValuesEntry:
             worksheet.write(current_row, i, entry, formats["center_bold"])
             update_widths(widths, i, entry)
 
-        if self.code_name is not None and workbook is not None:
+        if self.code_name is not None and workbook is not None and not re.match(r"^[a-zA-Z][a-zA-Z]?[a-dA-D]?\d+$", self.code_name):
+            # Define an Excel named cell with the code name of the quantity in the table. However, this is only allowed in Excel if the code_name is
+            # not a valid cell reference e.g., 'A1' so we need to check for this first.
             workbook.define_name(self.code_name, "='%s'!%s" % (worksheet.name, xlrc(current_row, 0, True, True)))
 
         if not pd.isna(self.comment):
