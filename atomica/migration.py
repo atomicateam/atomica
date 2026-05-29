@@ -861,3 +861,11 @@ def _projectdata_add_tdve_codename(D):
         if not hasattr(tdve, "code_name"):
             tdve.code_name = None
     return D
+
+
+@migration("ProgramSet", "1.31.6", "1.31.7", "Ensure non-targetable flag is present")
+def _progset_nontargetable_flag(progset):
+    for d in progset.comps.values():
+        if 'non_targetable' not in d:
+            d['non_targetable'] = False
+    return progset

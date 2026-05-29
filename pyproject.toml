@@ -52,3 +52,15 @@ where = ["."]
 
 [tool.setuptools.dynamic]
 version = {attr = "atomica.version.version"}
+
+[dependency-groups]
+local = [
+    "ipython",
+    "pandas-stubs",
+    "scipy-stubs",
+    "pytest-xdist",
+    "pytest-cov",
+]
+
+[tool.uv]
+default-groups = ["local"]
