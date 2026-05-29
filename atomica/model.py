@@ -1527,13 +1527,42 @@ class TimedLink(Link):
         return self._vals[:, ti].sum(axis=0)
 
 
+def _get_framework_build_cache(framework) -> dict:
+    """
+    Convert framework dataframes to simplified dictionaries
+
+    When building the framework, accessing entries from the framework via df.at is expensive due to
+    the large number of calls. This function extracts only the necessary quantities and stores them
+    as a dictionary with tuples for faster unpacking.
+
+    Note that since the tuples are then extracted via unpacking later on, any changes to the order or
+    items extracted will require that the unpacking code also handles the extra items. However, the
+    performance benefit from this approach is large enough to justify this additional complexity.
+
+    :param framework: A ``ProjectFramework`` instance
+    :return: A dictionary containing comps/characs/pars with fields pre-extracted
+    """
+
+    comps = framework.comps
+    characs = framework.characs
+    pars = framework.pars
+    comp_cols = ["population type", "duration group", "is junction", "is source", "is sink"]
+    charac_cols = ["population type", "components", "denominator"]
+    par_cols = ["population type", "format", "timescale", "is derivative", "minimum value", "maximum value", "function", "timed"]
+    return {
+        "comps": {k: v for k, v in zip(comps.index, comps[comp_cols].itertuples(index=False, name=None))},
+        "characs": {k: v for k, v in zip(characs.index, characs[charac_cols].itertuples(index=False, name=None))},
+        "pars": {k: v for k, v in zip(pars.index, pars[par_cols].itertuples(index=False, name=None))},
+    }
+
+
 class Population:
     """
     A class to wrap up data for one population within model.
     Each model population must contain a set of compartments with equivalent names.
     """
 
-    def __init__(self, framework, name: str, label: str, progset: ProgramSet, pop_type: str):
+    def __init__(self, framework, name: str, label: str, progset: ProgramSet, pop_type: str, build_cache: dict | None = None):
         """
         Construct a Population
 
@@ -1563,7 +1592,7 @@ class Population:
         self.par_lookup = dict()  #: Maps name of a parameter to a Parameter
         self.link_lookup = dict()  #: Maps name of link to a list of Links with that name
 
-        self.build(framework=framework, progset=progset)  # Convert compartmental cascade into lists of compartment and link objects.
+        self.build(framework=framework, progset=progset, build_cache=build_cache)  # Convert compartmental cascade into lists of compartment and link objects.
 
         self.popsize_cache_time = None
         self.popsize_cache_val = None
@@ -1728,7 +1757,7 @@ class Population:
         except KeyError:
             raise NotFoundError(f"Parameter {par_name} not found")
 
-    def build(self, framework, progset):
+    def build(self, framework, progset, build_cache: dict | None = None):
         """
         Generate a compartmental cascade as defined in a settings object.
         Fill out the compartment, transition and dependency lists within the model population object.
@@ -1741,6 +1770,11 @@ class Population:
         comps = framework.comps
         characs = framework.characs
         pars = framework.pars
+        if build_cache is None:
+            build_cache = _get_framework_build_cache(framework)
+        comp_rows = build_cache["comps"]
+        charac_rows = build_cache["characs"]
+        par_rows = build_cache["pars"]
 
         # Parameters first pass
         # Instantiate all parameters first. That way, we know which compartments need to be TimedCompartments
@@ -1749,27 +1783,29 @@ class Population:
         # to instantiate the parameters first, and also because `framework.transitions` is keyed by parameter
         # rather than compartment so it's straightforward to include here
         for par_name in list(pars.index):
-            if pars.at[par_name, "population type"] == self.type:
+            population_type, par_format, par_timescale, par_is_derivative, _, _, _, _ = par_rows[par_name]
+            if population_type == self.type:
                 par = Parameter(pop=self, name=par_name)
-                par.units = pars.at[par_name, "format"]
-                par.timescale = pars.at[par_name, "timescale"]
-                par.derivative = pars.at[par_name, "is derivative"] == "y"
+                par.units = par_format
+                par.timescale = par_timescale
+                par.derivative = par_is_derivative == "y"
                 self.pars.append(par)
         self.par_lookup = {par.name: par for par in self.pars}
 
         # Instantiate compartments
         residual_junctions = {x[0] for x in framework.transitions.get(">", [])}
         for comp_name in list(comps.index):
-            if comps.at[comp_name, "population type"] == self.type:
+            population_type, duration_group, is_junction, is_source, is_sink = comp_rows[comp_name]
+            if population_type == self.type:
                 if comp_name in residual_junctions:
-                    self.comps.append(ResidualJunctionCompartment(pop=self, name=comp_name, duration_group=comps.at[comp_name, "duration group"]))
-                elif comps.at[comp_name, "is junction"] == "y":
-                    self.comps.append(JunctionCompartment(pop=self, name=comp_name, duration_group=comps.at[comp_name, "duration group"]))
-                elif comps.at[comp_name, "duration group"]:
-                    self.comps.append(TimedCompartment(pop=self, name=comp_name, parameter=self.par_lookup[comps.at[comp_name, "duration group"]]))
-                elif comps.at[comp_name, "is source"] == "y":
+                    self.comps.append(ResidualJunctionCompartment(pop=self, name=comp_name, duration_group=duration_group))
+                elif is_junction == "y":
+                    self.comps.append(JunctionCompartment(pop=self, name=comp_name, duration_group=duration_group))
+                elif duration_group:
+                    self.comps.append(TimedCompartment(pop=self, name=comp_name, parameter=self.par_lookup[duration_group]))
+                elif is_source == "y":
                     self.comps.append(SourceCompartment(pop=self, name=comp_name))
-                elif comps.at[comp_name, "is sink"] == "y":
+                elif is_sink == "y":
                     self.comps.append(SinkCompartment(pop=self, name=comp_name))
                 else:
                     self.comps.append(Compartment(pop=self, name=comp_name))
@@ -1778,17 +1814,18 @@ class Population:
 
         # Characteristics first pass, instantiate objects
         for charac_name in list(characs.index):
-            if characs.at[charac_name, "population type"] == self.type:
+            population_type, _, _ = charac_rows[charac_name]
+            if population_type == self.type:
                 self.characs.append(Characteristic(pop=self, name=charac_name))
         self.charac_lookup = {charac.name: charac for charac in self.characs}
 
         # Characteristics second pass, add includes and denominator
         # This is a separate pass because characteristics can depend on each other
         for charac in self.characs:
-            includes = [x.strip() for x in characs.at[charac.name, "components"].split(",")]
+            _, components, denominator = charac_rows[charac.name]
+            includes = [x.strip() for x in components.split(",")]
             for inc_name in includes:
                 charac.add_include(self.get_variable(inc_name)[0])  # nb. We expect to only get one match for the name, so use index 0
-            denominator = characs.at[charac.name, "denominator"]
             if not pd.isna(denominator):
                 charac.add_denom(self.get_variable(denominator)[0])  # nb. framework import strips whitespace from the overall field
 
@@ -1813,13 +1850,11 @@ class Population:
         # Parameters third pass, process f_stacks, deps, and limits
         # This is a separate pass because output parameters can depend on Links
         for par in self.pars:
-            min_value = pars.at[par.name, "minimum value"]
-            max_value = pars.at[par.name, "maximum value"]
+            _, _, _, _, min_value, max_value, fcn_str, _ = par_rows[par.name]
 
             if np.isfinite(min_value) or np.isfinite(max_value):
                 par.limits = [max(-np.inf, min_value), min(np.inf, max_value)]
 
-            fcn_str = pars.at[par.name, "function"]
             if not pd.isna(fcn_str):
                 par.set_fcn(fcn_str)
 
@@ -1830,7 +1865,8 @@ class Population:
         # A timed parameter doesn't _directly_ have links associated with it (because it does not supply values
         # for the links) but it does need to be precomputed
         for par in self.pars:
-            if par.fcn_str and (par.links or par.derivative or framework.pars.at[par.name, "timed"] == "y" or (progset is not None and (par.name, self.name) in progset.covouts)):
+            _, _, _, _, _, _, _, timed = par_rows[par.name]
+            if par.fcn_str and (par.links or par.derivative or timed == "y" or (progset is not None and (par.name, self.name) in progset.covouts)):
                 par.set_dynamic(progset)
 
     def initialize_compartments(self, parset: ParameterSet, framework, t_init: float) -> None:
@@ -2173,8 +2209,9 @@ class Model:
         """Build the full model."""
 
         # First construct populations
+        build_cache = _get_framework_build_cache(self.framework)
         for k, (pop_name, pop_label, pop_type) in enumerate(zip(parset.pop_names, parset.pop_labels, parset.pop_types)):
-            self.pops.append(Population(framework=self.framework, name=pop_name, label=pop_label, progset=self.progset, pop_type=pop_type))
+            self.pops.append(Population(framework=self.framework, name=pop_name, label=pop_label, progset=self.progset, pop_type=pop_type, build_cache=build_cache))
             self._pop_ids[pop_name] = k
 
         # Expand interactions into matrix form

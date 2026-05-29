@@ -5,6 +5,7 @@ This file records changes to the codebase grouped by version release. Unreleased
 ## [1.32.0] - 2026-XX-XX
 
 - Improve performance by caching previously parsed functions
+- Improve performance by caching dataframe access during model building
 - Add an MCP server to enable enhanced AI functionality
 
 ## [1.31.7] - 2026-05-29
