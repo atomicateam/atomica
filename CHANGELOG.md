@@ -4,6 +4,7 @@ This file records changes to the codebase grouped by version release. Unreleased
 
 ## [1.31.7] - 2026-05-29
 
+- If a program targets source/sink compartments, the coverage will now be computed based on flows
 - When loading data into a project, only change the simulation start year if the databook contains time points
 ## [1.31.6] - 2026-05-27
 
