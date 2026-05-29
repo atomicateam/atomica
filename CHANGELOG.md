@@ -2,6 +2,9 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.31.7] - 2026-05-29
+
+- When loading data into a project, only change the simulation start year if the databook contains time points
 ## [1.31.6] - 2026-05-27
 
 - Update `ProjectData` so that variable codenames are written to the databook as named cells for each table in the databook
