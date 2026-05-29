@@ -60,6 +60,8 @@ local = [
     "ipython",
     "pandas-stubs",
     "scipy-stubs",
+    "pytest-xdist",
+    "pytest-cov",
 ]
 
 [tool.uv]
