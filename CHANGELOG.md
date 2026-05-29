@@ -26,7 +26,7 @@ This file records changes to the codebase grouped by version release. Unreleased
 - Added a separate numerical tolerance used for initialization (`at.model.model_settings['initialization_tolerance']`) which permits more approximate initializations while still maintaining the same numerical tolerance for the rest of the integration.
 - Added another logging level (`at.VERBOSE`) which enables more targeted additional output
 
-- *Backwards-compatibility notes*
+*Backwards-compatibility notes*
 
 - Some initializations might show numerical (e.g., `1e-10`) differences in their values due to the new algorithm. In a small number of cases (depending on the framework), it is possible that the updated initialization method could result in a slightly different initialization.  
 - The default initialization tolerance is now `1e-3` instead of `1e-6`, some models that previously raised a `BadInitialization` error will now run without error. Users should note that if it's necessary to guarantee an exact initialization, this tolerance should be reduced. 
