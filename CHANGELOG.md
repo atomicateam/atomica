@@ -6,6 +6,7 @@ This file records changes to the codebase grouped by version release. Unreleased
 
 - Improve performance by caching previously parsed functions
 - Improve performance by caching dataframe access during model building
+- Improve performance of junction balancing by adding a scalar fast-path for non-duration-group residual junctions (significant for junction-heavy models)
 - Add an MCP server to enable enhanced AI functionality
 
 ## [1.31.7] - 2026-05-29

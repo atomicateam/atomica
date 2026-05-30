@@ -570,14 +570,36 @@ class ResidualJunctionCompartment(JunctionCompartment):
 
         """
 
-        # First, work out the total inflow that needs to pass through the junction
+        # Implement two execution paths - the calculation is much faster for scalars if we avoid
+        # constructing numpy arrays with single elements. But the general vector calculation relies
+        # on numpy methods in several places. JunctionCompartment.balance() is written to be compatible
+        # with both scalar and vector types, and the type promotion happens automatically. But we can't
+        # use that approach here as the vector calculation relies on numpy optimizations in the middle
+        # of the calculation. Therefore, we implement two complete branches. This additional complexitity
+        # is justified by the common design pattern for cohort models where there are many junctions and no durations
+        if not self.duration_group:
+            net_inflow = 0.0
+            for link in self.inlinks:
+                net_inflow += link.vals[ti]
+
+            outflow_fractions = [link.parameter.vals[ti] if link.parameter is not None else 0.0 for link in self.outlinks]
+            total_outflow = sum(outflow_fractions)
+            if total_outflow > 1:
+                outflow_fractions = [frac / total_outflow for frac in outflow_fractions]
+
+            outflows = [net_inflow * frac for frac in outflow_fractions]
+            residual = net_inflow - sum(outflows)  # Subtract summed outflows to conserve quantities, matching the array path
+
+            for outflow, link in zip(outflows, self.outlinks):
+                if link.parameter is None and total_outflow < 1:
+                    link.vals[ti] = residual
+                else:
+                    link.vals[ti] = outflow
+            return
+
         net_inflow = np.array([0], dtype=float)
-        if self.duration_group:
-            for link in self.inlinks:
-                net_inflow = net_inflow + link._vals[:, ti]  # If part of a duration group, get the flow from TimedLink._vals. nb. using += doesn't work with some array size combinations
-        else:
-            for link in self.inlinks:
-                net_inflow += link.vals[ti]  # If not part of a duration group, get scalar flow from Link.vals
+        for link in self.inlinks:
+            net_inflow = net_inflow + link._vals[:, ti]  # Get the flow from TimedLink._vals. nb. using += doesn't work with some array size combinations
 
         outflow_fractions = np.zeros(len(self.outlinks))
         for i, link in enumerate(self.outlinks):
@@ -600,10 +622,7 @@ class ResidualJunctionCompartment(JunctionCompartment):
             else:
                 flow = net_inflow * frac
 
-            if self.duration_group:
-                link._vals[:, ti] = flow
-            else:
-                link.vals[ti] = flow[0]
+            link._vals[:, ti] = flow
 
     def initial_flush(self) -> None:
         """
