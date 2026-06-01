@@ -2085,7 +2085,7 @@ class Model:
         self.dt = settings.sim_dt  #: Simulation time step
 
         self._t_index = 0  # Keeps track of array index for current timepoint data within all compartments.
-        self._vars_by_pop = None  # Cache to look up lists of variables by name across populations
+        self._vars_by_pop = None  # Cache to look up lists of variables by name across populations: {var_name:[var instances]}
         self._pop_ids = sc.odict()  # Maps name of a population to its position index within populations list.
         self._program_cache = None  #: Cache program capacities and coverage for coverage scenarios
         self._exec_order = None  #: Cache the dependency order of various quantities

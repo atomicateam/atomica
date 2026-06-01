@@ -55,6 +55,28 @@ The 3-source / 2-target tests use:
                                  2·100·0.9+4·200·0.5+6·300·0.3]
                               = [840, 1120]
   SRC_POP_AVG (W32+charac):  [840/2200, 1120/2800] = [21/55, 2/5]
+
+The 1-source / 2-target tests use:
+* ``Q1``  -- single source quantity value (reused)
+* ``C1``  -- single source characteristic size (reused)
+* ``W12`` -- weight matrix of shape ``(1, 2, 1)``:
+    ``[[2, 3]]``  at ``ti = 0``
+
+  After the SRC_POP transpose to shape ``(2, 1)``:
+    row 0 (target 0): weights ``[2]``, sum = 2
+    row 1 (target 1): weights ``[3]``, sum = 3
+
+  With only 1 source population each transposed row has exactly one element,
+  so for SRC_POP_AVG the weight always cancels in normalisation — the result is
+  always the (optionally charac-weighted then renormalised) source value,
+  independent of the interaction weights.
+
+  SRC_POP_SUM (no charac):   [2·0.9, 3·0.9]   = [1.8, 2.7]
+  SRC_POP_AVG (no charac):   [0.9, 0.9]        (weight cancels)
+  SRC_POP_SUM (unit+charac): [1·100·0.9, same] = [90, 90]
+  SRC_POP_AVG (unit+charac): [0.9, 0.9]        (weight·charac cancels)
+  SRC_POP_SUM (W12+charac):  [2·100·0.9, 3·100·0.9] = [180, 270]
+  SRC_POP_AVG (W12+charac):  [0.9, 0.9]        (weight·charac cancels)
 """
 
 import sys
@@ -75,6 +97,10 @@ W1 = np.array([5.0]).reshape((1, 1, 1))                 # non-unit interaction w
 # Non-square (3 source, 2 target) interaction weights — shape (n_src, n_tgt, ntime)
 # At ti=0: [[1,2],[3,4],[5,6]]; after SRC_POP transpose (2,3): row0=[1,3,5] row1=[2,4,6]
 W32 = np.array([[[1.0], [2.0]], [[3.0], [4.0]], [[5.0], [6.0]]])  # shape (3, 2, 1)
+
+# Non-square (1 source, 2 target) interaction weights — shape (1, 2, ntime)
+# At ti=0: [[2, 3]]; after SRC_POP transpose (2,1): each row has one element so AVG weight cancels
+W12 = np.array([[[2.0], [3.0]]])  # shape (1, 2, 1)
 
 AGG_FCNS = ["SRC_POP_AVG", "SRC_POP_SUM", "TGT_POP_AVG", "TGT_POP_SUM"]
 SRC_AGG_FCNS = ["SRC_POP_AVG", "SRC_POP_SUM"]  # only valid for cross-population-type aggregations
@@ -401,6 +427,63 @@ def test_3src2tgt_nonunit_weights_charac():
     _run_matrix_src_only(3, 2, Q3, W32, C3, expected, "3src2tgt nonunit weights + charac")
 
 
+# =======================================================================================
+# Non-square (cross-population-type) tests: 1 source population, 2 target populations
+# =======================================================================================
+# shape (1, 2, ntime) misses both fast paths (1x1 requires shape[1]==1 too) and hits the
+# general matmul.  With a single source the transposed weight matrix has shape (2, 1), so
+# each target row contains exactly one weight — for SRC_POP_AVG that weight is also the row
+# norm, so it cancels and the result is always just Q1 regardless of the interaction weights.
+# TGT_POP_* would attempt (1, 2) @ (1, 1) and raise a ValueError (shape mismatch).
+
+
+def test_1src2tgt_no_weights():
+    # Fast path: each of the 2 target pops gets mean/sum of the single source value
+    expected = {
+        "SRC_POP_AVG": np.full(2, Q1[0]),
+        "SRC_POP_SUM": np.full(2, Q1[0]),
+    }
+    _run_matrix_src_only(1, 2, Q1, None, None, expected, "1src2tgt no weights")
+
+
+def test_1src2tgt_unit_weights_no_charac():
+    # All-ones (1, 2) weights: same result as no-weights
+    expected = {
+        "SRC_POP_AVG": np.full(2, Q1[0]),
+        "SRC_POP_SUM": np.full(2, Q1[0]),
+    }
+    _run_matrix_src_only(1, 2, Q1, np.ones((1, 2, 1)), None, expected, "1src2tgt unit weights, no charac")
+
+
+def test_1src2tgt_nonunit_weights_no_charac():
+    # W12 transposed to (2, 1): row0=[2], row1=[3]; AVG weight cancels; SUM = weight * Q1
+    expected = {
+        "SRC_POP_AVG": np.full(2, Q1[0]),       # weight cancels in single-element rows
+        "SRC_POP_SUM": [W12[0, 0, 0] * Q1[0], W12[0, 1, 0] * Q1[0]],  # [1.8, 2.7]
+    }
+    _run_matrix_src_only(1, 2, Q1, W12, None, expected, "1src2tgt nonunit weights, no charac")
+
+
+def test_1src2tgt_unit_weights_charac():
+    # Unit (1, 2) weights * C1: each target row = [100]; AVG: 100*Q1/100 = Q1; SUM: 100*Q1
+    expected = {
+        "SRC_POP_AVG": np.full(2, Q1[0]),        # weight·charac cancels
+        "SRC_POP_SUM": np.full(2, C1[0] * Q1[0]),  # [90, 90]
+    }
+    _run_matrix_src_only(1, 2, Q1, np.ones((1, 2, 1)), C1, expected, "1src2tgt unit weights + charac")
+
+
+def test_1src2tgt_nonunit_weights_charac():
+    # W12 transposed (2, 1) then multiplied by C1: row0=[200], row1=[300]
+    # AVG: each row-norm equals the single element, so weight·charac cancels → Q1
+    # SUM: [2·100·0.9, 3·100·0.9] = [180, 270]
+    expected = {
+        "SRC_POP_AVG": np.full(2, Q1[0]),
+        "SRC_POP_SUM": [W12[0, 0, 0] * C1[0] * Q1[0], W12[0, 1, 0] * C1[0] * Q1[0]],  # [180, 270]
+    }
+    _run_matrix_src_only(1, 2, Q1, W12, C1, expected, "1src2tgt nonunit weights + charac")
+
+
 if __name__ == "__main__":
     test_3pop_no_weights_no_charac()
     test_3pop_unit_weights_no_charac()
@@ -417,3 +500,8 @@ if __name__ == "__main__":
     test_3src2tgt_nonunit_weights_no_charac()
     test_3src2tgt_unit_weights_charac()
     test_3src2tgt_nonunit_weights_charac()
+    test_1src2tgt_no_weights()
+    test_1src2tgt_unit_weights_no_charac()
+    test_1src2tgt_nonunit_weights_no_charac()
+    test_1src2tgt_unit_weights_charac()
+    test_1src2tgt_nonunit_weights_charac()
