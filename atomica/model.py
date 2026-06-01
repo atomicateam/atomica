@@ -2677,7 +2677,7 @@ class Model:
         for par_name in self._exec_order["dynamic_pars"]:
             # All of the parameters with this name, across populations.
             # There should be one for each population (these are Parameters, not Links).
-            pars = self._vars_by_pop[par_name]
+            pars = self._vars_by_pop[par_name] # The parameter instances being updated
 
             # First - update parameters that are dependencies, evaluating f_stack if required
             for par in pars:
@@ -2704,68 +2704,63 @@ class Model:
             # Handle parameters that aggregate over populations and use interactions in these functions.
             if pars[0].pop_aggregation:
                 # NB. `par.pop_aggregation` is (agg_fcn,par_name,interaction_name,charac_name) where the last two items are optional
-                agg_fcn = pars[0].pop_aggregation[0]
+                agg_fcn = pars[0].pop_aggregation[0] # The aggregation function e.g., "SRC_POP_AVG"
+                agg_vars = self._vars_by_pop[pars[0].pop_aggregation[1]] # The variable instances being aggregated
+                interactions = self.interactions[pars[0].pop_aggregation[2]] if len(pars[0].pop_aggregation) > 2 else None
+                weighting_vars = self._vars_by_pop[pars[0].pop_aggregation[3]] if len(pars[0].pop_aggregation) > 3 else None
 
-                if len(pars[0].pop_aggregation) < 3:
-                    # Fast path - no interaction term and no weighting variable. With unit weights, every
-                    # target population receives the same aggregate: the sum (for *_SUM) or the mean (for
-                    # *_AVG) of the source values across populations. This avoids constructing the
-                    # (npop x npop) weight matrix and performing the transpose/normalisation/matmul in the
-                    # general path below, which dominate runtime for aggregation-heavy models (e.g. MNCH).
-                    # The SRC/TGT distinction only affects the (here symmetric) unit-weight transpose, so the
-                    # two cases coincide.
-                    source_vals = [x[ti] for x in self._vars_by_pop[pars[0].pop_aggregation[1]]]  # Value of variable being averaged
-                    total = sum(source_vals)
-                    if agg_fcn in {"SRC_POP_AVG", "TGT_POP_AVG"}:
-                        val = total / len(source_vals) if source_vals else 0.0
-                    elif agg_fcn in {"SRC_POP_SUM", "TGT_POP_SUM"}:
-                        val = total
-                    else:
-                        raise ModelError("Unknown aggregation function '{0}'".format(agg_fcn))  # This should never happen, an error should be raised earlier
+                if interactions is None:
+                    # No interaction term and no weighting variable - no matrix multiplication required
+                    # Every output parameter gets the same value (sum or average of the agg_vars)
+                    val = sum(x[ti] for x in agg_vars)
+
+                    if agg_fcn in {"SRC_POP_AVG", "TGT_POP_AVG"} and agg_vars:
+                        val /= len(agg_vars)
 
                     for par in pars:
                         if par.skip_function is None or (self.t[ti] < par.skip_function[0]) or (self.t[ti] > par.skip_function[1]):  # Careful - note how the < here matches >= in Parameter.update()
                             par[ti] = par.scale_factor * val
-                elif self.interactions[pars[0].pop_aggregation[2]].shape[0] == 1 and self.interactions[pars[0].pop_aggregation[2]].shape[1] == 1:
+
+                elif interactions.shape[0] == 1 and interactions.shape[1] == 1:
                     # Scalar fast path for 1x1 interactions - a single source population mapped to a single
                     # target population. This is exactly what auto-generated cross-population parameter
                     # references produce, and covers every aggregation parameter in cross-pop-heavy models
                     # such as MNCH. The 1x1 transpose is a no-op; for *_AVG the single weight cancels in the
                     # normalisation, so the result is just the (optionally charac-weighted) source value.
                     # This avoids the per-timestep array slice/copy, transpose, np.sum and matmul below.
-                    source_val = self._vars_by_pop[pars[0].pop_aggregation[1]][0][ti]
-                    weight = self.interactions[pars[0].pop_aggregation[2]][0, 0, ti]
-                    if len(pars[0].pop_aggregation) == 4:
-                        weight = weight * self._vars_by_pop[pars[0].pop_aggregation[3]][0][ti]  # Multiply by the weighting variable
+                    val = agg_vars[0][ti]
 
-                    if agg_fcn in {"SRC_POP_AVG", "TGT_POP_AVG"}:
-                        val = source_val if weight != 0 else 0.0  # Single-source average: the weight cancels in normalisation (matching norm[norm==0]=1 in the general path)
+                    weight = interactions[0, 0, ti] # On this branch, we know that the interaction must exist
+                    if weighting_vars:
+                        weight = weight * weighting_vars[0][ti]  # Multiply by the weighting variable
+
+                    # Since there is only one term, the _AVG functions will have the weight cancel out, unless it is zero
+                    # Therefore they do not need to be explicitly handled here
+                    if weight == 0:
+                        val = 0
                     elif agg_fcn in {"SRC_POP_SUM", "TGT_POP_SUM"}:
-                        val = weight * source_val
-                    else:
-                        raise ModelError("Unknown aggregation function '{0}'".format(agg_fcn))  # This should never happen, an error should be raised earlier
+                        val *= weight
 
                     for par in pars:
                         if par.skip_function is None or (self.t[ti] < par.skip_function[0]) or (self.t[ti] > par.skip_function[1]):  # Careful - note how the < here matches >= in Parameter.update()
                             par[ti] = par.scale_factor * val
                 else:
-                    par_vals = [x[ti] for x in self._vars_by_pop[pars[0].pop_aggregation[1]]]  # Value of variable being averaged
+                    par_vals = [x[ti] for x in agg_vars]  # Value of variable being averaged
                     par_vals = np.array(par_vals).reshape(-1, 1)
 
                     # NOTE - When doing cross-population interactions, 'pars' is from the 'to' pop
-                    # and 'par_vals' is from the 'from pop
-                    weights = self.interactions[pars[0].pop_aggregation[2]][:, :, ti].copy()
+                    # and 'par_vals' is from the from pop
+                    if interactions is None:
+                        weights = np.ones((len(par_vals), len(pars)))
+                    else:
+                        weights = interactions[:, :, ti].copy()
 
                     if agg_fcn in {"SRC_POP_AVG", "SRC_POP_SUM"}:
                         weights = weights.T
-                    elif agg_fcn in {"TGT_POP_AVG", "TGT_POP_SUM"}:
-                        pass
-                    else:
-                        raise ModelError("Unknown aggregation function '{0}'").format(agg_fcn)  # This should never happen, an error should be raised earlier
 
                     # If we are weighting by a variable, multiply the weights matrix accordingly
-                    if len(pars[0].pop_aggregation) == 4:
-                        vals = [par[ti] for par in self._vars_by_pop[pars[0].pop_aggregation[3]]]  # Value of weighting variable
+                    if weighting_vars:
+                        vals = [par[ti] for par in weighting_vars]  # Value of weighting variable
                         vals = np.array(vals).reshape(-1, 1)
                         weights *= vals.T
 
@@ -2773,6 +2768,7 @@ class Model:
                         norm = np.sum(weights, axis=1, keepdims=1)
                         norm[norm == 0] = 1
                         weights /= norm
+
                     par_vals = np.matmul(weights, par_vals)
 
                     for par, val in zip(pars, par_vals):
