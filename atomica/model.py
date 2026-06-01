@@ -1099,6 +1099,8 @@ class Parameter(Variable):
         self._source_popsize_cache_val = None  # : Internal cache for the last previously computed source popsize
         self.fcn_str = None  #: String representation of parameter function
         self.deps = dict()  #: Dict of dependencies containing lists of integration objects
+        self._dep_accessors = None  #: Cache - flat list of (dep_name, type_code, obj) to avoid isinstance() during .update, or None when it needs (re)building
+        self._dep_vals_template = None  #: Cache - zero-initialised {dep_name: 0.0} dict, copied each update() call instead of rebuilt
         self._fcn = None  #: Internal cache for parsed parameter function (this will be dropped when pickled)
         self._precompute = False  #: If True, the parameter function will be computed in a vector operation prior to integration
         self._is_dynamic = False  #: If True, this parameter has values that need to be updated or assigned during integration. Note that `precompute` and `dynamic` are mutually exclusive
@@ -1148,6 +1150,39 @@ class Parameter(Variable):
             for dep_name in dep_list:
                 if not (dep_name in ["t", "dt"]):  # There are no integration variables associated with the interactions, as they are treated as a special matrix
                     self.deps[dep_name] = self.pop.get_variable(dep_name)  # nb. this lookup will fail if the user has a function that depends on a quantity outside this population
+
+    def _build_dep_accessors(self) -> None:
+        """
+        Precompute dependency access metadata used by :meth:`Parameter.update`
+
+        When extracting dependency values, the method for extracting the values from the variable
+        depends on the variable type. This function introduces a temporary integer mapping
+        to avoid calling isinstance() on every update. The format is a flat list containing
+        ``(dep_name, type_code, obj)`` tuples and a zero-initialised ``{dep_name: 0.0}`` template dict,
+         both derived from ``self.deps``. ``update()`` then copies.
+
+        The type codes are
+
+        - 0 = Parameter/Characteristic (read with ``obj.vals[ti]``),
+        - 1 = Compartment (read with ``obj[ti]``)
+        - 2 = Link (read with ``obj[ti] / obj.dt``)
+
+        This function needs to be called at the last minue because transfer links are added after
+        parameter initialization (so it gets called in `update()` the first time it is used). The
+        cache variables are also discarded upon unlinking, so the format can be changed later on.
+        """
+        self._dep_vals_template = dict.fromkeys(self.deps, 0.0)
+        self._dep_accessors = []
+        for dep_name, deps in self.deps.items():
+            for dep in deps:
+                if isinstance(dep, (Parameter, Characteristic)):
+                    self._dep_accessors.append((dep_name, 0, dep))
+                elif isinstance(dep, Compartment):
+                    self._dep_accessors.append((dep_name, 1, dep))
+                elif isinstance(dep, Link):
+                    self._dep_accessors.append((dep_name, 2, dep))
+                else:
+                    raise ModelError("Unhandled dependency type")
 
     def set_dynamic(self, progset=None) -> None:
         """
@@ -1209,18 +1244,29 @@ class Parameter(Variable):
         if self.deps is not None:
             for dep_name in self.deps:
                 self.deps[dep_name] = [x.id for x in self.deps[dep_name]]
-        if self._fcn is not None:
-            self._fcn = None
+
+        # Clear caches that get rebuilt upon relinking
+        self._fcn = None
+        self._dep_accessors = None
+        self._dep_vals_template = None
 
     def relink(self, objs):
         # Given a dictionary of objects, restore the internal references
         Variable.relink(self, objs)
         self.links = [objs[x] for x in self.links]
+
         if self.deps is not None:
             for dep_name in self.deps:
                 self.deps[dep_name] = [objs[x] for x in self.deps[dep_name]]
+
         if self.fcn_str:
             self._fcn = parse_function(self.fcn_str)[0]
+
+        # Set these to `None` upon re-linking to avoid needing a migration. The None
+        # values will trigger a rebuild the next time `.update()` is called. This also
+        # means that we can remove these cache variables later if needed.
+        self._dep_accessors = None
+        self._dep_vals_template = None
 
     def constrain(self, ti=None) -> None:
         """
@@ -1277,17 +1323,21 @@ class Parameter(Variable):
                 if (self.t[ti] >= self.skip_function[0]) and (self.t[ti] <= self.skip_function[1]):
                     return
 
-        dep_vals = dict.fromkeys(self.deps, 0.0)
-        for dep_name, deps in self.deps.items():
-            for dep in deps:
-                if isinstance(dep, Parameter) or isinstance(dep, Characteristic):
-                    dep_vals[dep_name] += dep.vals[ti]
-                elif isinstance(dep, Compartment):
-                    dep_vals[dep_name] += dep[ti]
-                elif isinstance(dep, Link):
-                    dep_vals[dep_name] += dep[ti] / dep.dt
-                else:
-                    raise ModelError("Unhandled case")
+        if self._dep_accessors is None:
+            # If needed, the dep_accessors are built here. This is because transfer links are added after the
+            # first round of initialization, so we don't finalize the dependency objects until this point
+            self._build_dep_accessors()
+
+        dep_vals = self._dep_vals_template.copy() # Faster than creating a new dict
+        # This loop uses the dep_accessor type codes rather than running isinstance(). These codes can be
+        # freely modified later on because _dep_accessors is never persisted
+        for dep_name, type_code, obj in self._dep_accessors:
+            if type_code == 0:
+                dep_vals[dep_name] += obj.vals[ti]
+            elif type_code == 1:
+                dep_vals[dep_name] += obj[ti]
+            else:
+                dep_vals[dep_name] += obj[ti] / obj.dt
 
         dep_vals["t"] = self.t[ti]
         dep_vals["dt"] = self.dt
@@ -2200,7 +2250,7 @@ class Model:
 
     def __getstate__(self):
         self.unlink()
-        d = sc.dcp(self.__dict__)  # Pickling to string results in a copy
+        d = sc.dcp(self.__dict__)
         self.relink()  # Relink, otherwise the original object gets unlinked
         return d
 
