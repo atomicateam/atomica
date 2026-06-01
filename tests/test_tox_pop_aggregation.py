@@ -28,6 +28,33 @@ Case matrix (run for 1 population and 3 populations, and for all four aggregatio
 
 The ``expected`` result for each case is to be filled in by hand (an array with one entry per
 population). Until specified, the corresponding assertion is skipped.
+
+Non-square (cross-population-type) tests
+-----------------------------------------
+When source and target populations belong to different population types, the interaction matrix is
+not square: shape ``(n_src, n_tgt, ntime)``.  ``TGT_POP_*`` functions are invalid for cross-type
+interactions (see the Population-Types documentation), so only ``SRC_POP_AVG`` and ``SRC_POP_SUM``
+are exercised in the rectangular-matrix tests.
+
+The 3-source / 2-target tests use:
+* ``Q3``  -- source quantity values (reused from the square tests)
+* ``C3``  -- source characteristic sizes (reused)
+* ``W32`` -- weight matrix of shape ``(3, 2, 1)``:
+    ``[[1, 2], [3, 4], [5, 6]]``  at ``ti = 0``
+
+  After the SRC_POP transpose to shape ``(2, 3)``:
+    row 0 (target 0): weights ``[1, 3, 5]``, sum = 9
+    row 1 (target 1): weights ``[2, 4, 6]``, sum = 12
+
+  SRC_POP_SUM (no charac):   [1·0.9+3·0.5+5·0.3, 2·0.9+4·0.5+6·0.3] = [3.9, 5.6]
+  SRC_POP_AVG (no charac):   [3.9/9, 5.6/12]                         = [13/30, 7/15]
+  SRC_POP_SUM (unit+charac): [Σ(C·Q), Σ(C·Q)] = [280, 280]
+  SRC_POP_AVG (unit+charac): [Σ(C·Q)/Σ(C), ...] = [7/15, 7/15]
+  SRC_POP_SUM (W32+charac):  [Σ(W_col0·C·Q), Σ(W_col1·C·Q)]
+                              = [1·100·0.9+3·200·0.5+5·300·0.3,
+                                 2·100·0.9+4·200·0.5+6·300·0.3]
+                              = [840, 1120]
+  SRC_POP_AVG (W32+charac):  [840/2200, 1120/2800] = [21/55, 2/5]
 """
 
 import sys
@@ -45,7 +72,12 @@ Q1 = np.array([0.9])                                    # quantity being aggrega
 C1 = np.array([100.0])                                  # characteristic size (1 pop)
 W1 = np.array([5.0]).reshape((1, 1, 1))                 # non-unit interaction weight (1 x 1 x ntime)
 
+# Non-square (3 source, 2 target) interaction weights — shape (n_src, n_tgt, ntime)
+# At ti=0: [[1,2],[3,4],[5,6]]; after SRC_POP transpose (2,3): row0=[1,3,5] row1=[2,4,6]
+W32 = np.array([[[1.0], [2.0]], [[3.0], [4.0]], [[5.0], [6.0]]])  # shape (3, 2, 1)
+
 AGG_FCNS = ["SRC_POP_AVG", "SRC_POP_SUM", "TGT_POP_AVG", "TGT_POP_SUM"]
+SRC_AGG_FCNS = ["SRC_POP_AVG", "SRC_POP_SUM"]  # only valid for cross-population-type aggregations
 
 
 # --- Minimal fakes that satisfy the attributes Model.update_pars touches ----------------
@@ -258,6 +290,117 @@ def test_1pop_nonunit_weights_charac():
     _run_matrix(1, Q1, W1, C1, expected, "1pop nonunit weights + charac")
 
 
+# =======================================================================================
+# Non-square (cross-population-type) tests: 3 source populations, 2 target populations
+# =======================================================================================
+# Per the Population-Types documentation, TGT_POP_* are invalid when source and target
+# populations belong to different types.  The interaction matrix has shape (n_src, n_tgt, ntime)
+# = (3, 2, 1), which is non-square, so TGT_POP_* would produce a shape mismatch in matmul.
+# Only SRC_POP_AVG and SRC_POP_SUM are exercised here.
+
+
+def run_aggregation_rect(n_src, n_tgt, agg_fcn, quantity, weights=None, charac=None):
+    """Run the real Model.update_pars aggregation with n_src source pops and n_tgt target pops.
+
+    :param n_src: number of source (from) populations
+    :param n_tgt: number of target (to) populations
+    :param agg_fcn: one of SRC_AGG_FCNS
+    :param quantity: length-n_src array, source values at ti=0
+    :param weights: None or (n_src, n_tgt, ntime) interaction array
+    :param charac: None or length-n_src characteristic array (belongs to the source type)
+    :return: length-n_tgt array of aggregated parameter values at ti=0
+    """
+    ti = 0
+    m = FakeModel(ntime=1)
+    m._t_index = ti
+
+    m._vars_by_pop["src"] = [FakeVar(f"src{p}", [quantity[p]]) for p in range(n_src)]
+
+    if weights is None:
+        pop_aggregation = (agg_fcn, "src")
+    else:
+        m.interactions["inter"] = np.asarray(weights, dtype=float)
+        if charac is None:
+            pop_aggregation = (agg_fcn, "src", "inter")
+        else:
+            m._vars_by_pop["charac"] = [FakeVar(f"charac{p}", [charac[p]]) for p in range(n_src)]
+            pop_aggregation = (agg_fcn, "src", "inter", "charac")
+
+    m._vars_by_pop["agg"] = [FakeVar(f"agg{p}", [np.nan], pop_aggregation=pop_aggregation) for p in range(n_tgt)]
+
+    Model.update_pars(m)
+    return np.array([p[ti] for p in m._vars_by_pop["agg"]])
+
+
+def _run_matrix_src_only(n_src, n_tgt, quantity, weights, charac, expected, prefix):
+    checked = 0
+    for fcn in SRC_AGG_FCNS:
+        result = run_aggregation_rect(n_src=n_src, n_tgt=n_tgt, agg_fcn=fcn, quantity=quantity, weights=weights, charac=charac)
+        print(fcn, result)
+        if expected[fcn] is None:
+            continue
+        exp = np.asarray(expected[fcn], dtype=float)
+        label = f"{prefix} [{fcn}]"
+        assert result.shape == exp.shape, f"{label}: result shape {result.shape} != expected shape {exp.shape}"
+        assert np.allclose(result, exp, rtol=1e-12, atol=1e-12), f"{label}: result {result} != expected {exp}"
+        checked += 1
+    if checked == 0:
+        pytest.skip(f"{prefix}: no expected results specified yet")
+
+
+def test_3src2tgt_no_weights():
+    # Fast path (no interaction matrix): each of the 2 target pops gets mean/sum of all 3 source vals
+    expected = {
+        "SRC_POP_AVG": np.full(2, Q3.mean()),
+        "SRC_POP_SUM": np.full(2, Q3.sum()),
+    }
+    _run_matrix_src_only(3, 2, Q3, None, None, expected, "3src2tgt no weights")
+
+
+def test_3src2tgt_unit_weights_no_charac():
+    # All-ones (3,2) interaction: same result as the no-weights fast path
+    expected = {
+        "SRC_POP_AVG": np.full(2, Q3.mean()),
+        "SRC_POP_SUM": np.full(2, Q3.sum()),
+    }
+    _run_matrix_src_only(3, 2, Q3, np.ones((3, 2, 1)), None, expected, "3src2tgt unit weights, no charac")
+
+
+def test_3src2tgt_nonunit_weights_no_charac():
+    # W32 transposed to (2,3): row0=[1,3,5] sum=9, row1=[2,4,6] sum=12
+    # SRC_POP_SUM: dot([1,3,5], Q3)=3.9  dot([2,4,6], Q3)=5.6
+    # SRC_POP_AVG: 3.9/9=13/30           5.6/12=7/15
+    expected = {
+        "SRC_POP_AVG": [13 / 30, 7 / 15],
+        "SRC_POP_SUM": [3.9, 5.6],
+    }
+    _run_matrix_src_only(3, 2, Q3, W32, None, expected, "3src2tgt nonunit weights, no charac")
+
+
+def test_3src2tgt_unit_weights_charac():
+    # Unit (3,2) weights * C3 -> each target row = [100, 200, 300], sum=600
+    # SRC_POP_AVG: Σ(C3·Q3)/Σ(C3) = 280/600 = 7/15 for both targets
+    # SRC_POP_SUM: Σ(C3·Q3) = 280 for both targets
+    expected = {
+        "SRC_POP_AVG": np.full(2, (Q3 * C3).sum() / C3.sum()),
+        "SRC_POP_SUM": np.full(2, (Q3 * C3).sum()),
+    }
+    _run_matrix_src_only(3, 2, Q3, np.ones((3, 2, 1)), C3, expected, "3src2tgt unit weights + charac")
+
+
+def test_3src2tgt_nonunit_weights_charac():
+    # W32 transposed to (2,3), then multiplied by C3:
+    #   target 0: [1*100, 3*200, 5*300] = [100, 600, 1500], sum=2200
+    #   target 1: [2*100, 4*200, 6*300] = [200, 800, 1800], sum=2800
+    # SRC_POP_SUM: [100·0.9+600·0.5+1500·0.3, 200·0.9+800·0.5+1800·0.3] = [840, 1120]
+    # SRC_POP_AVG: [840/2200, 1120/2800] = [21/55, 2/5]
+    expected = {
+        "SRC_POP_AVG": [21 / 55, 2 / 5],
+        "SRC_POP_SUM": [840.0, 1120.0],
+    }
+    _run_matrix_src_only(3, 2, Q3, W32, C3, expected, "3src2tgt nonunit weights + charac")
+
+
 if __name__ == "__main__":
     test_3pop_no_weights_no_charac()
     test_3pop_unit_weights_no_charac()
@@ -269,3 +412,8 @@ if __name__ == "__main__":
     test_1pop_nonunit_weights_no_charac()
     test_1pop_unit_weights_charac()
     test_1pop_nonunit_weights_charac()
+    test_3src2tgt_no_weights()
+    test_3src2tgt_unit_weights_no_charac()
+    test_3src2tgt_nonunit_weights_no_charac()
+    test_3src2tgt_unit_weights_charac()
+    test_3src2tgt_nonunit_weights_charac()
