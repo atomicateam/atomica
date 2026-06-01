@@ -26,8 +26,20 @@ def sdiv(numerator, denominator):
     """
 
     if np.isscalar(numerator):
-        return np.divide(numerator, denominator, out=np.zeros_like(denominator, dtype=float), where=numerator != 0)
+        if np.isscalar(denominator):
+            # If both arguments are scalars, avoid creating any numpy arrays
+            if numerator == 0:
+                return 0.0
+            elif denominator == 0:
+                # If the denominator is 0, going via np.divide will return np.inf *and* display the expected RuntimeWarning
+                return np.divide(numerator, denominator)
+            else:
+                return numerator / denominator
+        else:
+            # Return the output using np.divide, sized by the denominator
+            return np.divide(numerator, denominator, out=np.zeros_like(denominator, dtype=float), where=numerator != 0)
     else:
+        # Return the output using np.divide, sized by the numerator
         return np.divide(numerator, denominator, out=np.zeros_like(numerator, dtype=float), where=numerator != 0)
 
 
