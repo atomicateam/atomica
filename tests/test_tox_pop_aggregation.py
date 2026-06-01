@@ -1,11 +1,11 @@
 """
 Unit tests for the population-aggregation calculation in ``Model.update_pars``.
 
-This is intentionally NOT part of the committed test suite. Run it directly:
+Run via the test suite, or directly:
 
-    uv run python test_pop_aggregation.py
+    uv run pytest tests/test_tox_pop_aggregation.py -v
     # or
-    uv run pytest test_pop_aggregation.py -v
+    uv run python tests/test_tox_pop_aggregation.py
 
 It exercises the *real* (current) ``Model.update_pars`` aggregation block by driving it with a
 lightweight fake ``self`` that provides only the attributes the aggregation block touches (no
@@ -166,9 +166,9 @@ def test_3pop_unit_weights_no_charac():
 def test_3pop_nonunit_weights_no_charac():
     # Case 3: weight matrix above, no characteristic weighting (hits the general n x n path)
     expected = {
-        "SRC_POP_AVG": np.array([25,26.8,28])/60,
+        "SRC_POP_AVG": [0.41666666666666663, 0.44666666666666666, 0.4666666666666667],
         "SRC_POP_SUM": [5,6.7,8.4],
-        "TGT_POP_AVG": np.array([28,31.6,32.5])/60,
+        "TGT_POP_AVG": [0.4666666666666667, 0.5266666666666667, 0.5416666666666667],
         "TGT_POP_SUM": [2.8,7.9,13],
     }
 
@@ -189,10 +189,10 @@ def test_3pop_unit_weights_charac():
 def test_3pop_nonunit_weights_charac():
     # Case 5: weight matrix above, with characteristic weighting (hits the general n x n path)
     expected = {
-        "SRC_POP_AVG": None,  # TODO
-        "SRC_POP_SUM": None,  # TODO
-        "TGT_POP_AVG": None,  # TODO
-        "TGT_POP_SUM": None,  # TODO
+        "SRC_POP_AVG": [0.37333333333333335, 0.38888888888888884, 0.4],
+        "SRC_POP_SUM": [1120.0, 1400.0, 1680.0],
+        "TGT_POP_AVG": [0.4, 0.4375, 0.448],
+        "TGT_POP_SUM": [560.0, 1400.0, 2240.0],
     }
     _run_matrix(3, Q3, W3, C3, expected, "3pop nonunit weights + charac")
 
@@ -224,33 +224,36 @@ def test_1pop_unit_weights_no_charac():
 
 def test_1pop_nonunit_weights_no_charac():
     # Case 3: non-unit 1x1 interaction ([[5]]), no characteristic weighting (hits the 1x1 fast path)
+    # AVG: the single weight cancels in normalisation -> Q1; SUM: weight * Q1.
     expected = {
-        "SRC_POP_AVG": None,  # TODO
-        "SRC_POP_SUM": None,  # TODO
-        "TGT_POP_AVG": None,  # TODO
-        "TGT_POP_SUM": None,  # TODO
+        "SRC_POP_AVG": Q1,
+        "SRC_POP_SUM": Q1 * W1[0, 0, 0],
+        "TGT_POP_AVG": Q1,
+        "TGT_POP_SUM": Q1 * W1[0, 0, 0],
     }
     _run_matrix(1, Q1, W1, None, expected, "1pop nonunit weights, no charac")
 
 
 def test_1pop_unit_weights_charac():
     # Case 4: all-ones 1x1 interaction, with characteristic weighting (hits the 1x1 fast path)
+    # AVG: charac cancels in normalisation -> Q1; SUM: charac * Q1 (weight is 1).
     expected = {
-        "SRC_POP_AVG": None,  # TODO
-        "SRC_POP_SUM": None,  # TODO
-        "TGT_POP_AVG": None,  # TODO
-        "TGT_POP_SUM": None,  # TODO
+        "SRC_POP_AVG": Q1,
+        "SRC_POP_SUM": Q1 * C1,
+        "TGT_POP_AVG": Q1,
+        "TGT_POP_SUM": Q1 * C1,
     }
     _run_matrix(1, Q1, np.ones((1, 1, 1)), C1, expected, "1pop unit weights + charac")
 
 
 def test_1pop_nonunit_weights_charac():
     # Case 5: non-unit 1x1 interaction ([[5]]), with characteristic weighting (hits the 1x1 fast path)
+    # AVG: weight & charac cancel in normalisation -> Q1; SUM: weight * charac * Q1.
     expected = {
-        "SRC_POP_AVG": None,  # TODO
-        "SRC_POP_SUM": None,  # TODO
-        "TGT_POP_AVG": None,  # TODO
-        "TGT_POP_SUM": None,  # TODO
+        "SRC_POP_AVG": Q1,
+        "SRC_POP_SUM": Q1 * W1[0, 0, 0] * C1,
+        "TGT_POP_AVG": Q1,
+        "TGT_POP_SUM": Q1 * W1[0, 0, 0] * C1,
     }
     _run_matrix(1, Q1, W1, C1, expected, "1pop nonunit weights + charac")
 
