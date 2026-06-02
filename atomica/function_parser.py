@@ -116,6 +116,44 @@ class _DivTransformer(ast.NodeTransformer):
         kwargs = []
         return ast.Call(name, args, kwargs)
 
+
+class _FunctionVisitor(ast.NodeVisitor):
+    """
+    Collects deduplicated dependency names and rejects unsupported calls
+    """
+
+    def __init__(self, fcn_str):
+        self.fcn_str = fcn_str
+        self.dep_list = []
+        self.seen = set()
+
+    def visit_Name(self, node):
+        if node.id not in supported_functions and node.id not in self.seen:
+            self.seen.add(node.id)
+            self.dep_list.append(node.id)
+
+    def visit_Call(self, node):
+        assert isinstance(node.func, ast.Name) and node.func.id in supported_functions, f"Only calls to supported functions are allowed ({ast.unparse(node.func)} in {self.fcn_str} is not supported)"
+        self.generic_visit(node)
+
+
+def _build_positional_function(dep_list, body):
+    """
+    Wrap an expression AST in ``def _fcn(<deps>): return <body>``
+    """
+
+    args = ast.arguments(
+        posonlyargs=[],
+        args=[ast.arg(arg=name) for name in dep_list],
+        vararg=None,
+        kwonlyargs=[],
+        kw_defaults=[],
+        kwarg=None,
+        defaults=[],
+    )
+    return ast.FunctionDef(name="_fcn", args=args, body=[ast.Return(value=body)], decorator_list=[])
+
+
 @cache
 def parse_function(fcn_str: str) -> tuple:
     """
@@ -157,38 +195,11 @@ def parse_function(fcn_str: str) -> tuple:
     fcn_ast = _DivTransformer().visit(fcn_ast)
     fcn_ast = ast.fix_missing_locations(fcn_ast)
 
-    class _FunctionVisitor(ast.NodeVisitor):
-        def __init__(self):
-            self.dep_list = []
-            self.seen = set()
-
-        def visit_Name(self, node):
-            if node.id not in supported_functions and node.id not in self.seen:
-                self.seen.add(node.id)
-                self.dep_list.append(node.id)
-
-        def visit_Call(self, node):
-            assert isinstance(node.func, ast.Name) and node.func.id in supported_functions, f"Only calls to supported functions are allowed ({ast.unparse(node.func)} in {fcn_str} is not supported)"
-            self.generic_visit(node)
-
-    visitor = _FunctionVisitor()
+    visitor = _FunctionVisitor(fcn_str)
     visitor.visit(fcn_ast)
     dep_list = tuple(visitor.dep_list)
 
-    func_def = ast.FunctionDef(
-        name="_fcn",
-        args=ast.arguments(
-            posonlyargs=[],
-            args=[ast.arg(arg=name) for name in dep_list],
-            vararg=None,
-            kwonlyargs=[],
-            kw_defaults=[],
-            kwarg=None,
-            defaults=[],
-        ),
-        body=[ast.Return(value=fcn_ast.body)],
-        decorator_list=[],
-    )
+    func_def = _build_positional_function(dep_list, fcn_ast.body)
     module = ast.fix_missing_locations(ast.Module(body=[func_def], type_ignores=[]))
     compiled_code = compile(module, filename="<ast>", mode="exec")
     namespace = {"__builtins__": {}, **supported_functions}
