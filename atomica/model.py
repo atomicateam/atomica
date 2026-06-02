@@ -1099,9 +1099,9 @@ class Parameter(Variable):
         self._source_popsize_cache_val = None  # : Internal cache for the last previously computed source popsize
         self.fcn_str = None  #: String representation of parameter function
         self.deps = dict()  #: Dict of dependencies containing lists of integration objects
-        self._dep_accessors = None  #: Cache - flat list of (dep_name, type_code, obj) to avoid isinstance() during .update, or None when it needs (re)building
-        self._dep_vals_template = None  #: Cache - zero-initialised {dep_name: 0.0} dict, copied each update() call instead of rebuilt
         self._fcn = None  #: Internal cache for parsed parameter function (this will be dropped when pickled)
+        self._fcn_args = None  #: Cache - deduplicated tuple of dependency names returned by parse_function; set with _fcn, dropped when pickled
+        self._arg_plan = None  #: Cache - per-position argvec assembly plan for update(), or None when it needs (re)building
         self._precompute = False  #: If True, the parameter function will be computed in a vector operation prior to integration
         self._is_dynamic = False  #: If True, this parameter has values that need to be updated or assigned during integration. Note that `precompute` and `dynamic` are mutually exclusive
         self.derivative = False  #: If True, the parameter function will be treated as a derivative and the value added on to the end
@@ -1136,7 +1136,7 @@ class Parameter(Variable):
 
         assert sc.isstring(fcn_str), "Parameter function must be supplied as a string"
         self.fcn_str = fcn_str
-        self._fcn, dep_list = parse_function(self.fcn_str)
+        self._fcn, self._fcn_args = parse_function(self.fcn_str)
         if fcn_str.startswith("SRC_POP_AVG") or fcn_str.startswith("TGT_POP_AVG") or fcn_str.startswith("SRC_POP_SUM") or fcn_str.startswith("TGT_POP_SUM"):
             # The function is like 'SRC_POP_AVG(par_name,interaction_name,charac_name)'
             # self.pop_aggregation will be ['SRC_POP_AVG',par_name,interaction_name,charac_object]
@@ -1147,42 +1147,51 @@ class Parameter(Variable):
             # Aggregation dependencies are set externally because they may cross populations - see `Model.build()`
             # Note that aggregations are computed externally rather than via `Parameter.update`
         else:
-            for dep_name in dep_list:
+            for dep_name in self._fcn_args:
                 if not (dep_name in ["t", "dt"]):  # There are no integration variables associated with the interactions, as they are treated as a special matrix
                     self.deps[dep_name] = self.pop.get_variable(dep_name)  # nb. this lookup will fail if the user has a function that depends on a quantity outside this population
 
-    def _build_dep_accessors(self) -> None:
+    def _build_arg_plan(self) -> None:
         """
-        Precompute dependency access metadata used by :meth:`Parameter.update`
+        Precompute the positional argvec assembly plan used by :meth:`Parameter.update`
 
-        When extracting dependency values, the method for extracting the values from the variable
-        depends on the variable type. This function introduces a temporary integer mapping
-        to avoid calling isinstance() on every update. The format is a flat list containing
-        ``(dep_name, type_code, obj)`` tuples and a zero-initialised ``{dep_name: 0.0}`` template dict,
-         both derived from ``self.deps``. ``update()`` then copies.
+        Produces ``self._arg_plan``: one entry per name in ``self._fcn_args``, describing how to
+        obtain that argument's value each timestep. Entry type codes:
 
-        The type codes are
+        - ``(0, obj)`` -> a Parameter/Characteristic dependency, read with ``obj.vals[ti]``
+        - ``(1, obj)`` -> a Compartment dependency, read with ``obj[ti]``
+        - ``(2, obj)`` -> a Link dependency, read with ``obj[ti] / self.dt``
+        - ``(3, None)`` -> the ``t`` slot, value ``self.t[ti]``
+        - ``(4, None)`` -> the ``dt`` slot, value ``self.dt``
+        - ``(5, [link, ...])`` -> multiple Link dependencies, values summed and divided by ``self.dt``
 
-        - 0 = Parameter/Characteristic (read with ``obj.vals[ti]``),
-        - 1 = Compartment (read with ``obj[ti]``)
-        - 2 = Link (read with ``obj[ti] / obj.dt``)
-
-        This function needs to be called at the last minue because transfer links are added after
-        parameter initialization (so it gets called in `update()` the first time it is used). The
-        cache variables are also discarded upon unlinking, so the format can be changed later on.
+        This function needs to be called at the last minute because transfer links are added after
+        parameter initialization. The cache variable is also discarded upon unlinking, so the format
+        can be changed later on.
         """
-        self._dep_vals_template = dict.fromkeys(self.deps, 0.0)
-        self._dep_accessors = []
-        for dep_name, deps in self.deps.items():
-            for dep in deps:
-                if isinstance(dep, (Parameter, Characteristic)):
-                    self._dep_accessors.append((dep_name, 0, dep))
-                elif isinstance(dep, Compartment):
-                    self._dep_accessors.append((dep_name, 1, dep))
-                elif isinstance(dep, Link):
-                    self._dep_accessors.append((dep_name, 2, dep))
+        plan = []
+        for dep_name in self._fcn_args:
+            if dep_name == "t":
+                plan.append((3, None))
+            elif dep_name == "dt":
+                plan.append((4, None))
+            else:
+                accessors = []
+                for dep in self.deps[dep_name]:
+                    if isinstance(dep, (Parameter, Characteristic)):
+                        accessors.append((0, dep))
+                    elif isinstance(dep, Compartment):
+                        accessors.append((1, dep))
+                    elif isinstance(dep, Link):
+                        accessors.append((2, dep))
+                    else:
+                        raise ModelError("Unhandled dependency type")
+                if len(accessors) == 1:
+                    plan.append(accessors[0])
                 else:
-                    raise ModelError("Unhandled dependency type")
+                    assert all(type_code == 2 for type_code, _ in accessors), "Multiple dependencies are only expected for links"
+                    plan.append((5, [obj for _, obj in accessors]))
+        self._arg_plan = plan
 
     def set_dynamic(self, progset=None) -> None:
         """
@@ -1247,8 +1256,8 @@ class Parameter(Variable):
 
         # Clear caches that get rebuilt upon relinking
         self._fcn = None
-        self._dep_accessors = None
-        self._dep_vals_template = None
+        self._fcn_args = None
+        self._arg_plan = None
 
     def relink(self, objs):
         # Given a dictionary of objects, restore the internal references
@@ -1259,14 +1268,14 @@ class Parameter(Variable):
             for dep_name in self.deps:
                 self.deps[dep_name] = [objs[x] for x in self.deps[dep_name]]
 
+        self._fcn_args = None
         if self.fcn_str:
-            self._fcn = parse_function(self.fcn_str)[0]
+            self._fcn, self._fcn_args = parse_function(self.fcn_str)
 
         # Set these to `None` upon re-linking to avoid needing a migration. The None
         # values will trigger a rebuild the next time `.update()` is called. This also
         # means that we can remove these cache variables later if needed.
-        self._dep_accessors = None
-        self._dep_vals_template = None
+        self._arg_plan = None
 
     def constrain(self, ti=None) -> None:
         """
@@ -1323,26 +1332,32 @@ class Parameter(Variable):
                 if (self.t[ti] >= self.skip_function[0]) and (self.t[ti] <= self.skip_function[1]):
                     return
 
-        if self._dep_accessors is None:
-            # If needed, the dep_accessors are built here. This is because transfer links are added after the
+        if self._arg_plan is None:
+            # If needed, the arg plan is built here. This is because transfer links are added after the
             # first round of initialization, so we don't finalize the dependency objects until this point
-            self._build_dep_accessors()
+            self._build_arg_plan()
 
-        dep_vals = self._dep_vals_template.copy() # Faster than creating a new dict
-        # This loop uses the dep_accessor type codes rather than running isinstance(). These codes can be
-        # freely modified later on because _dep_accessors is never persisted
-        for dep_name, type_code, obj in self._dep_accessors:
+        argvec = []
+        dt = self.dt
+        for type_code, payload in self._arg_plan:
             if type_code == 0:
-                dep_vals[dep_name] += obj.vals[ti]
+                argvec.append(payload.vals[ti])
             elif type_code == 1:
-                dep_vals[dep_name] += obj[ti]
+                argvec.append(payload[ti])
+            elif type_code == 2:
+                argvec.append(payload[ti] / dt)
+            elif type_code == 3:
+                argvec.append(self.t[ti])
+            elif type_code == 4:
+                argvec.append(dt)
             else:
-                dep_vals[dep_name] += obj[ti] / obj.dt
+                total = 0.0
+                for link in payload:
+                    total += link[ti]
+                argvec.append(total / dt)
 
-        dep_vals["t"] = self.t[ti]
-        dep_vals["dt"] = self.dt
         try:
-            v = self.scale_factor * self._fcn(**dep_vals)
+            v = self.scale_factor * self._fcn(*argvec)
         except Exception as e:
             raise ModelError(f"Error when calculating the value for parameter: {self}") from e
 
