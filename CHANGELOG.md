@@ -10,6 +10,7 @@ This file records changes to the codebase grouped by version release. Unreleased
 - Improve performance by implementing fast-path population aggregations for special cases of no weights, and 1x1 interactions
 - Improve performance by implementing a scalar fast-path for `sdiv` in the function parser
 - Improve performance by pre-processing function dependencies in `Parameter` instances
+- Improve performance by having `parse_function` return a function that can be called with positional arguments, and use this in `model.py`
 - Add an MCP server to enable enhanced AI functionality
 
 ## [1.31.7] - 2026-05-29
