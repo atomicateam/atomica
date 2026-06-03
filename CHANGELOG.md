@@ -2,7 +2,7 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
-## [1.32.0] - 2026-XX-XX
+## [1.32.0] - 2026-06-03
 
 - Improve performance by caching previously parsed functions
 - Improve performance by caching dataframe access during model building
@@ -12,6 +12,10 @@ This file records changes to the codebase grouped by version release. Unreleased
 - Improve performance by pre-processing function dependencies in `Parameter` instances
 - Improve performance by having `parse_function` return a function that can be called with positional arguments, and use this in `model.py`
 - Add an MCP server to enable enhanced AI functionality
+
+*Backwards-compatibility notes*
+
+- Results may differ numerically, but should match to around `1e-6` and no genuine change in results is expected
 
 ## [1.31.7] - 2026-05-29
 
