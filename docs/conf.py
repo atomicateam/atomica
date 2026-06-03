@@ -77,7 +77,7 @@ html_show_sourcelink = False  # Remove 'view source code' from top of page (for 
 
 # Configure nbsphinx
 nbsphinx_kernel_name = "python"
-nbsphinx_timeout = -1  # Disable timeout for slow cells
+nbsphinx_timeout = 600
 nbsphinx_execute_arguments = [
     "--InlineBackend.figure_formats={'svg', 'pdf'}",
     "--InlineBackend.rc=figure.dpi=96",
