@@ -75,6 +75,9 @@ html_show_sourcelink = False  # Remove 'view source code' from top of page (for 
 #     'ignore-module-all': False,
 # }
 
+# Configure autosectionlabel
+autosectionlabel_prefix_document = True
+
 # Configure nbsphinx
 nbsphinx_kernel_name = "python"
 nbsphinx_timeout = 600
