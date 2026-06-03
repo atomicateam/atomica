@@ -24,7 +24,7 @@ sys.path.insert(0, os.path.abspath("../"))  # Source code dir relative to this f
 # -- Project information -----------------------------------------------------
 
 project = "Atomica"
-copyright = "2025, Atomica Team"
+copyright = "2026, Atomica Team"
 author = "Atomica Team"
 
 import atomica
@@ -66,6 +66,7 @@ intersphinx_mapping = {
 
 # Configure autosummary
 autosummary_generate = True  # Turn on sphinx.ext.autosummary
+autosummary_imported_members = False
 autoclass_content = "both"  # Add __init__ doc (ie. params) to class summaries
 html_show_sourcelink = False  # Remove 'view source code' from top of page (for html, not python)
 # autodoc_default_options = {

@@ -181,11 +181,10 @@ def parse_function(fcn_str: str) -> tuple:
     4
 
     The generated function uses ordinary Python positional-or-keyword parameters, so keyword calls
-    still work, but Atomica's model hot path calls it positionally.
+    still work, but note that positional argument are faster (and this is what ``model.py`` uses).
 
     :param fcn_str: A string containing a single Python expression
     :return: A tuple containing a function, and a deduplicated tuple of dependencies required by the function
-
     """
 
     assert "__" not in fcn_str, "Cannot use double underscores in functions"
