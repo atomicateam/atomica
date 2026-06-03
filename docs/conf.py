@@ -79,7 +79,7 @@ html_show_sourcelink = False  # Remove 'view source code' from top of page (for 
 nbsphinx_kernel_name = "python"
 nbsphinx_timeout = 600
 nbsphinx_execute_arguments = [
-    "--InlineBackend.figure_formats={'svg', 'pdf'}",
+    "--InlineBackend.figure_formats={'svg'}",
     "--InlineBackend.rc=figure.dpi=96",
 ]
 
