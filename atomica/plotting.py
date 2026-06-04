@@ -352,14 +352,17 @@ class PlotData:
 
                     placeholder_pop.name = "None"
                     par = Parameter(pop=placeholder_pop, name=output_label)
-                    fcn, dep_labels = parse_function(f_stack_str)
+                    fcn, dep_list = parse_function(f_stack_str)
                     deps = {}
-                    for dep_label in dep_labels:
+                    for dep_label in dep_list:
+                        if dep_label in ["t", "dt"]:
+                            continue
                         vars = pop.get_variable(dep_label)
                         if t_bins is not None and (isinstance(vars[0], Link) or isinstance(vars[0], Parameter)) and time_aggregation == "integrate":
                             raise Exception("Function includes Parameter/Link so annualized rates are being used. Aggregation should therefore use 'average' rather than 'sum'.")
                         deps[dep_label] = vars
                     par._fcn = fcn
+                    par._fcn_args = dep_list
                     par.deps = deps
                     par.preallocate(tvecs[result_label], dt)
                     par.update()

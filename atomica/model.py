@@ -570,14 +570,36 @@ class ResidualJunctionCompartment(JunctionCompartment):
 
         """
 
-        # First, work out the total inflow that needs to pass through the junction
+        # Implement two execution paths - the calculation is much faster for scalars if we avoid
+        # constructing numpy arrays with single elements. But the general vector calculation relies
+        # on numpy methods in several places. JunctionCompartment.balance() is written to be compatible
+        # with both scalar and vector types, and the type promotion happens automatically. But we can't
+        # use that approach here as the vector calculation relies on numpy optimizations in the middle
+        # of the calculation. Therefore, we implement two complete branches. This additional complexitity
+        # is justified by the common design pattern for cohort models where there are many junctions and no durations
+        if not self.duration_group:
+            net_inflow = 0.0
+            for link in self.inlinks:
+                net_inflow += link.vals[ti]
+
+            outflow_fractions = [link.parameter.vals[ti] if link.parameter is not None else 0.0 for link in self.outlinks]
+            total_outflow = sum(outflow_fractions)
+            if total_outflow > 1:
+                outflow_fractions = [frac / total_outflow for frac in outflow_fractions]
+
+            outflows = [net_inflow * frac for frac in outflow_fractions]
+            residual = net_inflow - sum(outflows)  # Subtract summed outflows to conserve quantities, matching the array path
+
+            for outflow, link in zip(outflows, self.outlinks):
+                if link.parameter is None and total_outflow < 1:
+                    link.vals[ti] = residual
+                else:
+                    link.vals[ti] = outflow
+            return
+
         net_inflow = np.array([0], dtype=float)
-        if self.duration_group:
-            for link in self.inlinks:
-                net_inflow = net_inflow + link._vals[:, ti]  # If part of a duration group, get the flow from TimedLink._vals. nb. using += doesn't work with some array size combinations
-        else:
-            for link in self.inlinks:
-                net_inflow += link.vals[ti]  # If not part of a duration group, get scalar flow from Link.vals
+        for link in self.inlinks:
+            net_inflow = net_inflow + link._vals[:, ti]  # Get the flow from TimedLink._vals. nb. using += doesn't work with some array size combinations
 
         outflow_fractions = np.zeros(len(self.outlinks))
         for i, link in enumerate(self.outlinks):
@@ -600,10 +622,7 @@ class ResidualJunctionCompartment(JunctionCompartment):
             else:
                 flow = net_inflow * frac
 
-            if self.duration_group:
-                link._vals[:, ti] = flow
-            else:
-                link.vals[ti] = flow[0]
+            link._vals[:, ti] = flow
 
     def initial_flush(self) -> None:
         """
@@ -1081,6 +1100,8 @@ class Parameter(Variable):
         self.fcn_str = None  #: String representation of parameter function
         self.deps = dict()  #: Dict of dependencies containing lists of integration objects
         self._fcn = None  #: Internal cache for parsed parameter function (this will be dropped when pickled)
+        self._fcn_args = None  #: Cache - deduplicated tuple of dependency names returned by parse_function; set with _fcn, dropped when pickled
+        self._arg_plan = None  #: Cache - per-position argvec assembly plan for update(), or None when it needs (re)building
         self._precompute = False  #: If True, the parameter function will be computed in a vector operation prior to integration
         self._is_dynamic = False  #: If True, this parameter has values that need to be updated or assigned during integration. Note that `precompute` and `dynamic` are mutually exclusive
         self.derivative = False  #: If True, the parameter function will be treated as a derivative and the value added on to the end
@@ -1115,7 +1136,7 @@ class Parameter(Variable):
 
         assert sc.isstring(fcn_str), "Parameter function must be supplied as a string"
         self.fcn_str = fcn_str
-        self._fcn, dep_list = parse_function(self.fcn_str)
+        self._fcn, self._fcn_args = parse_function(self.fcn_str)
         if fcn_str.startswith("SRC_POP_AVG") or fcn_str.startswith("TGT_POP_AVG") or fcn_str.startswith("SRC_POP_SUM") or fcn_str.startswith("TGT_POP_SUM"):
             # The function is like 'SRC_POP_AVG(par_name,interaction_name,charac_name)'
             # self.pop_aggregation will be ['SRC_POP_AVG',par_name,interaction_name,charac_object]
@@ -1126,9 +1147,51 @@ class Parameter(Variable):
             # Aggregation dependencies are set externally because they may cross populations - see `Model.build()`
             # Note that aggregations are computed externally rather than via `Parameter.update`
         else:
-            for dep_name in dep_list:
+            for dep_name in self._fcn_args:
                 if not (dep_name in ["t", "dt"]):  # There are no integration variables associated with the interactions, as they are treated as a special matrix
                     self.deps[dep_name] = self.pop.get_variable(dep_name)  # nb. this lookup will fail if the user has a function that depends on a quantity outside this population
+
+    def _build_arg_plan(self) -> None:
+        """
+        Precompute the positional argvec assembly plan used by :meth:`Parameter.update`
+
+        Produces ``self._arg_plan``: one entry per name in ``self._fcn_args``, describing how to
+        obtain that argument's value each timestep. Entry type codes:
+
+        - ``(0, obj)`` -> a Parameter/Characteristic dependency, read with ``obj.vals[ti]``
+        - ``(1, obj)`` -> a Compartment dependency, read with ``obj[ti]``
+        - ``(2, obj)`` -> a Link dependency, read with ``obj[ti] / self.dt``
+        - ``(3, None)`` -> the ``t`` slot, value ``self.t[ti]``
+        - ``(4, None)`` -> the ``dt`` slot, value ``self.dt``
+        - ``(5, [link, ...])`` -> multiple Link dependencies, values summed and divided by ``self.dt``
+
+        This function needs to be called at the last minute because transfer links are added after
+        parameter initialization. The cache variable is also discarded upon unlinking, so the format
+        can be changed later on.
+        """
+        plan = []
+        for dep_name in self._fcn_args:
+            if dep_name == "t":
+                plan.append((3, None))
+            elif dep_name == "dt":
+                plan.append((4, None))
+            else:
+                accessors = []
+                for dep in self.deps[dep_name]:
+                    if isinstance(dep, (Parameter, Characteristic)):
+                        accessors.append((0, dep))
+                    elif isinstance(dep, Compartment):
+                        accessors.append((1, dep))
+                    elif isinstance(dep, Link):
+                        accessors.append((2, dep))
+                    else:
+                        raise ModelError("Unhandled dependency type")
+                if len(accessors) == 1:
+                    plan.append(accessors[0])
+                else:
+                    assert all(type_code == 2 for type_code, _ in accessors), "Multiple dependencies are only expected for links"
+                    plan.append((5, [obj for _, obj in accessors]))
+        self._arg_plan = plan
 
     def set_dynamic(self, progset=None) -> None:
         """
@@ -1190,18 +1253,29 @@ class Parameter(Variable):
         if self.deps is not None:
             for dep_name in self.deps:
                 self.deps[dep_name] = [x.id for x in self.deps[dep_name]]
-        if self._fcn is not None:
-            self._fcn = None
+
+        # Clear caches that get rebuilt upon relinking
+        self._fcn = None
+        self._fcn_args = None
+        self._arg_plan = None
 
     def relink(self, objs):
         # Given a dictionary of objects, restore the internal references
         Variable.relink(self, objs)
         self.links = [objs[x] for x in self.links]
+
         if self.deps is not None:
             for dep_name in self.deps:
                 self.deps[dep_name] = [objs[x] for x in self.deps[dep_name]]
+
+        self._fcn_args = None
         if self.fcn_str:
-            self._fcn = parse_function(self.fcn_str)[0]
+            self._fcn, self._fcn_args = parse_function(self.fcn_str)
+
+        # Set these to `None` upon re-linking to avoid needing a migration. The None
+        # values will trigger a rebuild the next time `.update()` is called. This also
+        # means that we can remove these cache variables later if needed.
+        self._arg_plan = None
 
     def constrain(self, ti=None) -> None:
         """
@@ -1258,22 +1332,32 @@ class Parameter(Variable):
                 if (self.t[ti] >= self.skip_function[0]) and (self.t[ti] <= self.skip_function[1]):
                     return
 
-        dep_vals = dict.fromkeys(self.deps, 0.0)
-        for dep_name, deps in self.deps.items():
-            for dep in deps:
-                if isinstance(dep, Parameter) or isinstance(dep, Characteristic):
-                    dep_vals[dep_name] += dep.vals[ti]
-                elif isinstance(dep, Compartment):
-                    dep_vals[dep_name] += dep[ti]
-                elif isinstance(dep, Link):
-                    dep_vals[dep_name] += dep[ti] / dep.dt
-                else:
-                    raise ModelError("Unhandled case")
+        if self._arg_plan is None:
+            # If needed, the arg plan is built here. This is because transfer links are added after the
+            # first round of initialization, so we don't finalize the dependency objects until this point
+            self._build_arg_plan()
 
-        dep_vals["t"] = self.t[ti]
-        dep_vals["dt"] = self.dt
+        argvec = []
+        dt = self.dt
+        for type_code, payload in self._arg_plan:
+            if type_code == 0:
+                argvec.append(payload.vals[ti])
+            elif type_code == 1:
+                argvec.append(payload[ti])
+            elif type_code == 2:
+                argvec.append(payload[ti] / dt)
+            elif type_code == 3:
+                argvec.append(self.t[ti])
+            elif type_code == 4:
+                argvec.append(dt)
+            else:
+                total = 0.0
+                for link in payload:
+                    total += link[ti]
+                argvec.append(total / dt)
+
         try:
-            v = self.scale_factor * self._fcn(**dep_vals)
+            v = self.scale_factor * self._fcn(*argvec)
         except Exception as e:
             raise ModelError(f"Error when calculating the value for parameter: {self}") from e
 
@@ -1527,13 +1611,42 @@ class TimedLink(Link):
         return self._vals[:, ti].sum(axis=0)
 
 
+def _get_framework_build_cache(framework) -> dict:
+    """
+    Convert framework dataframes to simplified dictionaries
+
+    When building the framework, accessing entries from the framework via df.at is expensive due to
+    the large number of calls. This function extracts only the necessary quantities and stores them
+    as a dictionary with tuples for faster unpacking.
+
+    Note that since the tuples are then extracted via unpacking later on, any changes to the order or
+    items extracted will require that the unpacking code also handles the extra items. However, the
+    performance benefit from this approach is large enough to justify this additional complexity.
+
+    :param framework: A ``ProjectFramework`` instance
+    :return: A dictionary containing comps/characs/pars with fields pre-extracted
+    """
+
+    comps = framework.comps
+    characs = framework.characs
+    pars = framework.pars
+    comp_cols = ["population type", "duration group", "is junction", "is source", "is sink"]
+    charac_cols = ["population type", "components", "denominator"]
+    par_cols = ["population type", "format", "timescale", "is derivative", "minimum value", "maximum value", "function", "timed"]
+    return {
+        "comps": {k: v for k, v in zip(comps.index, comps[comp_cols].itertuples(index=False, name=None))},
+        "characs": {k: v for k, v in zip(characs.index, characs[charac_cols].itertuples(index=False, name=None))},
+        "pars": {k: v for k, v in zip(pars.index, pars[par_cols].itertuples(index=False, name=None))},
+    }
+
+
 class Population:
     """
     A class to wrap up data for one population within model.
     Each model population must contain a set of compartments with equivalent names.
     """
 
-    def __init__(self, framework, name: str, label: str, progset: ProgramSet, pop_type: str):
+    def __init__(self, framework, name: str, label: str, progset: ProgramSet, pop_type: str, build_cache: dict | None = None):
         """
         Construct a Population
 
@@ -1563,7 +1676,7 @@ class Population:
         self.par_lookup = dict()  #: Maps name of a parameter to a Parameter
         self.link_lookup = dict()  #: Maps name of link to a list of Links with that name
 
-        self.build(framework=framework, progset=progset)  # Convert compartmental cascade into lists of compartment and link objects.
+        self.build(framework=framework, progset=progset, build_cache=build_cache)  # Convert compartmental cascade into lists of compartment and link objects.
 
         self.popsize_cache_time = None
         self.popsize_cache_val = None
@@ -1728,7 +1841,7 @@ class Population:
         except KeyError:
             raise NotFoundError(f"Parameter {par_name} not found")
 
-    def build(self, framework, progset):
+    def build(self, framework, progset, build_cache: dict | None = None):
         """
         Generate a compartmental cascade as defined in a settings object.
         Fill out the compartment, transition and dependency lists within the model population object.
@@ -1741,6 +1854,11 @@ class Population:
         comps = framework.comps
         characs = framework.characs
         pars = framework.pars
+        if build_cache is None:
+            build_cache = _get_framework_build_cache(framework)
+        comp_rows = build_cache["comps"]
+        charac_rows = build_cache["characs"]
+        par_rows = build_cache["pars"]
 
         # Parameters first pass
         # Instantiate all parameters first. That way, we know which compartments need to be TimedCompartments
@@ -1749,27 +1867,29 @@ class Population:
         # to instantiate the parameters first, and also because `framework.transitions` is keyed by parameter
         # rather than compartment so it's straightforward to include here
         for par_name in list(pars.index):
-            if pars.at[par_name, "population type"] == self.type:
+            population_type, par_format, par_timescale, par_is_derivative, _, _, _, _ = par_rows[par_name]
+            if population_type == self.type:
                 par = Parameter(pop=self, name=par_name)
-                par.units = pars.at[par_name, "format"]
-                par.timescale = pars.at[par_name, "timescale"]
-                par.derivative = pars.at[par_name, "is derivative"] == "y"
+                par.units = par_format
+                par.timescale = par_timescale
+                par.derivative = par_is_derivative == "y"
                 self.pars.append(par)
         self.par_lookup = {par.name: par for par in self.pars}
 
         # Instantiate compartments
         residual_junctions = {x[0] for x in framework.transitions.get(">", [])}
         for comp_name in list(comps.index):
-            if comps.at[comp_name, "population type"] == self.type:
+            population_type, duration_group, is_junction, is_source, is_sink = comp_rows[comp_name]
+            if population_type == self.type:
                 if comp_name in residual_junctions:
-                    self.comps.append(ResidualJunctionCompartment(pop=self, name=comp_name, duration_group=comps.at[comp_name, "duration group"]))
-                elif comps.at[comp_name, "is junction"] == "y":
-                    self.comps.append(JunctionCompartment(pop=self, name=comp_name, duration_group=comps.at[comp_name, "duration group"]))
-                elif comps.at[comp_name, "duration group"]:
-                    self.comps.append(TimedCompartment(pop=self, name=comp_name, parameter=self.par_lookup[comps.at[comp_name, "duration group"]]))
-                elif comps.at[comp_name, "is source"] == "y":
+                    self.comps.append(ResidualJunctionCompartment(pop=self, name=comp_name, duration_group=duration_group))
+                elif is_junction == "y":
+                    self.comps.append(JunctionCompartment(pop=self, name=comp_name, duration_group=duration_group))
+                elif duration_group:
+                    self.comps.append(TimedCompartment(pop=self, name=comp_name, parameter=self.par_lookup[duration_group]))
+                elif is_source == "y":
                     self.comps.append(SourceCompartment(pop=self, name=comp_name))
-                elif comps.at[comp_name, "is sink"] == "y":
+                elif is_sink == "y":
                     self.comps.append(SinkCompartment(pop=self, name=comp_name))
                 else:
                     self.comps.append(Compartment(pop=self, name=comp_name))
@@ -1778,17 +1898,18 @@ class Population:
 
         # Characteristics first pass, instantiate objects
         for charac_name in list(characs.index):
-            if characs.at[charac_name, "population type"] == self.type:
+            population_type, _, _ = charac_rows[charac_name]
+            if population_type == self.type:
                 self.characs.append(Characteristic(pop=self, name=charac_name))
         self.charac_lookup = {charac.name: charac for charac in self.characs}
 
         # Characteristics second pass, add includes and denominator
         # This is a separate pass because characteristics can depend on each other
         for charac in self.characs:
-            includes = [x.strip() for x in characs.at[charac.name, "components"].split(",")]
+            _, components, denominator = charac_rows[charac.name]
+            includes = [x.strip() for x in components.split(",")]
             for inc_name in includes:
                 charac.add_include(self.get_variable(inc_name)[0])  # nb. We expect to only get one match for the name, so use index 0
-            denominator = characs.at[charac.name, "denominator"]
             if not pd.isna(denominator):
                 charac.add_denom(self.get_variable(denominator)[0])  # nb. framework import strips whitespace from the overall field
 
@@ -1813,13 +1934,11 @@ class Population:
         # Parameters third pass, process f_stacks, deps, and limits
         # This is a separate pass because output parameters can depend on Links
         for par in self.pars:
-            min_value = pars.at[par.name, "minimum value"]
-            max_value = pars.at[par.name, "maximum value"]
+            _, _, _, _, min_value, max_value, fcn_str, _ = par_rows[par.name]
 
             if np.isfinite(min_value) or np.isfinite(max_value):
                 par.limits = [max(-np.inf, min_value), min(np.inf, max_value)]
 
-            fcn_str = pars.at[par.name, "function"]
             if not pd.isna(fcn_str):
                 par.set_fcn(fcn_str)
 
@@ -1830,7 +1949,8 @@ class Population:
         # A timed parameter doesn't _directly_ have links associated with it (because it does not supply values
         # for the links) but it does need to be precomputed
         for par in self.pars:
-            if par.fcn_str and (par.links or par.derivative or framework.pars.at[par.name, "timed"] == "y" or (progset is not None and (par.name, self.name) in progset.covouts)):
+            _, _, _, _, _, _, _, timed = par_rows[par.name]
+            if par.fcn_str and (par.links or par.derivative or timed == "y" or (progset is not None and (par.name, self.name) in progset.covouts)):
                 par.set_dynamic(progset)
 
     def initialize_compartments(self, parset: ParameterSet, framework, t_init: float) -> None:
@@ -2030,7 +2150,7 @@ class Model:
         self.dt = settings.sim_dt  #: Simulation time step
 
         self._t_index = 0  # Keeps track of array index for current timepoint data within all compartments.
-        self._vars_by_pop = None  # Cache to look up lists of variables by name across populations
+        self._vars_by_pop = None  # Cache to look up lists of variables by name across populations: {var_name:[var instances]}
         self._pop_ids = sc.odict()  # Maps name of a population to its position index within populations list.
         self._program_cache = None  #: Cache program capacities and coverage for coverage scenarios
         self._exec_order = None  #: Cache the dependency order of various quantities
@@ -2145,7 +2265,7 @@ class Model:
 
     def __getstate__(self):
         self.unlink()
-        d = sc.dcp(self.__dict__)  # Pickling to string results in a copy
+        d = sc.dcp(self.__dict__)
         self.relink()  # Relink, otherwise the original object gets unlinked
         return d
 
@@ -2173,8 +2293,9 @@ class Model:
         """Build the full model."""
 
         # First construct populations
+        build_cache = _get_framework_build_cache(self.framework)
         for k, (pop_name, pop_label, pop_type) in enumerate(zip(parset.pop_names, parset.pop_labels, parset.pop_types)):
-            self.pops.append(Population(framework=self.framework, name=pop_name, label=pop_label, progset=self.progset, pop_type=pop_type))
+            self.pops.append(Population(framework=self.framework, name=pop_name, label=pop_label, progset=self.progset, pop_type=pop_type, build_cache=build_cache))
             self._pop_ids[pop_name] = k
 
         # Expand interactions into matrix form
@@ -2621,7 +2742,7 @@ class Model:
         for par_name in self._exec_order["dynamic_pars"]:
             # All of the parameters with this name, across populations.
             # There should be one for each population (these are Parameters, not Links).
-            pars = self._vars_by_pop[par_name]
+            pars = self._vars_by_pop[par_name] # The parameter instances being updated
 
             # First - update parameters that are dependencies, evaluating f_stack if required
             for par in pars:
@@ -2647,40 +2768,77 @@ class Model:
 
             # Handle parameters that aggregate over populations and use interactions in these functions.
             if pars[0].pop_aggregation:
-                # NB. `par.pop_aggregation` is (agg_fcn,par_name,interaction_name,charac_name) where the last item is optional
+                # NB. `par.pop_aggregation` is (agg_fcn,par_name,interaction_name,charac_name) where the last two items are optional
+                agg_fcn = pars[0].pop_aggregation[0] # The aggregation function e.g., "SRC_POP_AVG"
+                agg_vars = self._vars_by_pop[pars[0].pop_aggregation[1]] # The variable instances being aggregated
+                interactions = self.interactions[pars[0].pop_aggregation[2]] if len(pars[0].pop_aggregation) > 2 else None
+                weighting_vars = self._vars_by_pop[pars[0].pop_aggregation[3]] if len(pars[0].pop_aggregation) > 3 else None
 
-                par_vals = [x[ti] for x in self._vars_by_pop[pars[0].pop_aggregation[1]]]  # Value of variable being averaged
-                par_vals = np.array(par_vals).reshape(-1, 1)
+                if interactions is None:
+                    # No interaction term and no weighting variable - no matrix multiplication required
+                    # Every output parameter gets the same value (sum or average of the agg_vars)
+                    val = sum(x[ti] for x in agg_vars)
 
-                # NOTE - When doing cross-population interactions, 'pars' is from the 'to' pop
-                # and 'par_vals' is from the 'from pop
-                if len(pars[0].pop_aggregation) < 3:
-                    weights = np.ones((len(par_vals), len(pars)))
+                    if agg_fcn in {"SRC_POP_AVG", "TGT_POP_AVG"} and agg_vars:
+                        val /= len(agg_vars)
+
+                    for par in pars:
+                        if par.skip_function is None or (self.t[ti] < par.skip_function[0]) or (self.t[ti] > par.skip_function[1]):  # Careful - note how the < here matches >= in Parameter.update()
+                            par[ti] = par.scale_factor * val
+
+                elif interactions.shape[0] == 1 and interactions.shape[1] == 1:
+                    # Scalar fast path for 1x1 interactions - a single source population mapped to a single
+                    # target population. This is exactly what auto-generated cross-population parameter
+                    # references produce, and covers every aggregation parameter in cross-pop-heavy models
+                    # such as MNCH. The 1x1 transpose is a no-op; for *_AVG the single weight cancels in the
+                    # normalisation, so the result is just the (optionally charac-weighted) source value.
+                    # This avoids the per-timestep array slice/copy, transpose, np.sum and matmul below.
+                    val = agg_vars[0][ti]
+
+                    weight = interactions[0, 0, ti] # On this branch, we know that the interaction must exist
+                    if weighting_vars:
+                        weight = weight * weighting_vars[0][ti]  # Multiply by the weighting variable
+
+                    # Since there is only one term, the _AVG functions will have the weight cancel out, unless it is zero
+                    # Therefore they do not need to be explicitly handled here
+                    if weight == 0:
+                        val = 0
+                    elif agg_fcn in {"SRC_POP_SUM", "TGT_POP_SUM"}:
+                        val *= weight
+
+                    for par in pars:
+                        if par.skip_function is None or (self.t[ti] < par.skip_function[0]) or (self.t[ti] > par.skip_function[1]):  # Careful - note how the < here matches >= in Parameter.update()
+                            par[ti] = par.scale_factor * val
                 else:
-                    weights = self.interactions[pars[0].pop_aggregation[2]][:, :, ti].copy()
+                    par_vals = [x[ti] for x in agg_vars]  # Value of variable being averaged
+                    par_vals = np.array(par_vals).reshape(-1, 1)
 
-                if pars[0].pop_aggregation[0] in {"SRC_POP_AVG", "SRC_POP_SUM"}:
-                    weights = weights.T
-                elif pars[0].pop_aggregation[0] in {"TGT_POP_AVG", "TGT_POP_SUM"}:
-                    pass
-                else:
-                    raise ModelError("Unknown aggregation function '{0}'").format(pars[0].pop_aggregation[0])  # This should never happen, an error should be raised earlier
+                    # NOTE - When doing cross-population interactions, 'pars' is from the 'to' pop
+                    # and 'par_vals' is from the from pop
+                    if interactions is None:
+                        weights = np.ones((len(par_vals), len(pars)))
+                    else:
+                        weights = interactions[:, :, ti].copy()
 
-                # If we are weighting by a variable, multiply the weights matrix accordingly
-                if len(pars[0].pop_aggregation) == 4:
-                    vals = [par[ti] for par in self._vars_by_pop[pars[0].pop_aggregation[3]]]  # Value of weighting variable
-                    vals = np.array(vals).reshape(-1, 1)
-                    weights *= vals.T
+                    if agg_fcn in {"SRC_POP_AVG", "SRC_POP_SUM"}:
+                        weights = weights.T
 
-                if pars[0].pop_aggregation[0] in {"SRC_POP_AVG", "TGT_POP_AVG"}:
-                    norm = np.sum(weights, axis=1, keepdims=1)
-                    norm[norm == 0] = 1
-                    weights /= norm
-                par_vals = np.matmul(weights, par_vals)
+                    # If we are weighting by a variable, multiply the weights matrix accordingly
+                    if weighting_vars:
+                        vals = [par[ti] for par in weighting_vars]  # Value of weighting variable
+                        vals = np.array(vals).reshape(-1, 1)
+                        weights *= vals.T
 
-                for par, val in zip(pars, par_vals):
-                    if par.skip_function is None or (self.t[ti] < par.skip_function[0]) or (self.t[ti] > par.skip_function[1]):  # Careful - note how the < here matches >= in Parameter.update()
-                        par[ti] = par.scale_factor * val[0]
+                    if agg_fcn in {"SRC_POP_AVG", "TGT_POP_AVG"}:
+                        norm = np.sum(weights, axis=1, keepdims=1)
+                        norm[norm == 0] = 1
+                        weights /= norm
+
+                    par_vals = np.matmul(weights, par_vals)
+
+                    for par, val in zip(pars, par_vals):
+                        if par.skip_function is None or (self.t[ti] < par.skip_function[0]) or (self.t[ti] > par.skip_function[1]):  # Careful - note how the < here matches >= in Parameter.update()
+                            par[ti] = par.scale_factor * val[0]
 
             # Restrict the parameter's value if a limiting range was defined
             for par in pars:
