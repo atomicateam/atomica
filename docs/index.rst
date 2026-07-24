@@ -33,10 +33,8 @@ You can run and plot an Atomica demo with:
     tutorial/index
     library/index
 
-.. autosummary::
-   :toctree: _autosummary
+.. toctree::
+   :maxdepth: 1
    :caption: API Reference
-   :template: custom-module-template.rst
-   :recursive:
 
-   atomica
+   api

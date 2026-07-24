@@ -20,9 +20,6 @@ classifiers = [
     "Programming Language :: Python",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Development Status :: 5 - Production/Stable",
-    "Programming Language :: Python :: 3.7",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -41,6 +38,7 @@ dependencies = [
     "hyperopt",
     "sciris",
     "tqdm",
+    "mcp",
 ]
 
 [project.urls]
@@ -54,3 +52,15 @@ where = ["."]
 
 [tool.setuptools.dynamic]
 version = {attr = "atomica.version.version"}
+
+[dependency-groups]
+local = [
+    "ipython",
+    "pandas-stubs",
+    "scipy-stubs",
+    "pytest-xdist",
+    "pytest-cov",
+]
+
+[tool.uv]
+default-groups = ["local"]

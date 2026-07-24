@@ -11,8 +11,14 @@ def test_sdiv():
         # Both scalar
         assert sdiv(1, 2) == 0.5
         assert sdiv(1, 0) == np.inf
+        assert sdiv(-1, 0) == -np.inf
         assert sdiv(0, 1) == 0
         assert sdiv(0, 0) == 0
+
+        # Both scalar: numpy scalar types take the same fast path
+        assert sdiv(np.float64(1), np.float64(2)) == 0.5
+        assert sdiv(np.float64(1), np.float64(0)) == np.inf
+        assert sdiv(np.float64(0), np.float64(0)) == 0
 
         # Numerator vector
         assert np.allclose(sdiv(np.array(np.array([0, 1])), 0), np.array([0, np.inf]), equal_nan=True)
