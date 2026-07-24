@@ -27,7 +27,7 @@ jobs:
       inputs:
         versionSpec: '$(python.version)'
 
-    - script: python -m pip install --upgrade pip && python -m pip install tox
+    - script: python -m pip install --upgrade pip && python -m pip install tox tox-uv
       displayName: 'Install Tox'
 
     - script: tox -e $(TOXENV)
@@ -58,10 +58,8 @@ jobs:
         sudo apt install pandoc -y
       displayName: 'Install pandoc'
     - script: |
-        python -m pip install wheel
-        python -m pip install -e .
-        python -m pip install -r requirements.txt
-        python -m pip install --upgrade sphinx-rtd-theme
+        python -m pip install uv
+        uv pip install --system -e ".[docs]"
       displayName: 'Install Python dependencies'
     - script: |
         mkdir doc_build

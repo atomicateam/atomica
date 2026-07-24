@@ -50,7 +50,7 @@ python tests/testworkflow.py
 To run the automated suite, install the test dependencies using
 
 ```
-pip install -r requirements.txt
+pip install -e ".[test]"
 ```
 
 which will install the additional development dependencies. Then, to run the automated suite, from the root directory (the one containing `README.md`) run:
