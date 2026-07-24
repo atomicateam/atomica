@@ -26,7 +26,10 @@ using Atomica.
 import sys
 import logging
 
+VERBOSE = 15
+logging.addLevelName(VERBOSE, "VERBOSE")
 logger = logging.getLogger("atomica")
+logging.Logger.verbose = lambda self, msg, *args, **kwargs: self.log(VERBOSE, msg, *args, **kwargs)
 
 if not logger.handlers:
     # Only add handlers if they don't already exist in the module-level logger
@@ -34,16 +37,16 @@ if not logger.handlers:
     # prior to importing Atomica, and the user's custom logger won't be overwritten as long as it has
     # at least one handler already added. The use case was originally to suppress messages on import, but since
     # importing is silent now, it doesn't matter so much.
-    debug_handler = logging.StreamHandler(sys.stdout)  # info_handler will handle all messages below WARNING sending them to STDOUT
-    info_handler = logging.StreamHandler(sys.stdout)  # info_handler will handle all messages below WARNING sending them to STDOUT
+    debug_handler = logging.StreamHandler(sys.stdout)  # handle all messages below WARNING sending them to STDOUT
+    info_handler = logging.StreamHandler(sys.stdout)  # handle all messages below WARNING sending them to STDOUT
     warning_handler = logging.StreamHandler(sys.stderr)  # warning_handler will send all messages at or above WARNING to STDERR
 
-    debug_handler.setLevel(0)  # Handle all lower levels - the output should be filtered further by setting the logger level, not the handler level
-    info_handler.setLevel(logging.INFO)  # Handle all lower levels - the output should be filtered further by setting the logger level, not the handler level
+    debug_handler.setLevel(0)  # Handle all levels - the output is then filtered further by setting the logger level, not the handler level
+    info_handler.setLevel(logging.INFO)  # Handle levels INFO or higher
     warning_handler.setLevel(logging.WARNING)
 
-    debug_handler.addFilter(type("ThresholdFilter", (object,), {"filter": lambda x, logRecord: logRecord.levelno < logging.INFO})())  # Display anything INFO or higher
-    info_handler.addFilter(type("ThresholdFilter", (object,), {"filter": lambda x, logRecord: logRecord.levelno < logging.WARNING})())  # Don't display WARNING or higher
+    debug_handler.addFilter(type("ThresholdFilter", (object,), {"filter": lambda x, logRecord: logRecord.levelno < logging.INFO})())  # Display only messages below the INFO level
+    info_handler.addFilter(type("ThresholdFilter", (object,), {"filter": lambda x, logRecord: logRecord.levelno < logging.WARNING})())  # Display only messages below WARNING (the info_handler level already rejects anything below INFO)
 
     warning_formatter = logging.Formatter("%(levelname)s {%(filename)s:%(lineno)d} - %(message)s")
     warning_handler.setFormatter(warning_formatter)
@@ -56,12 +59,16 @@ if not logger.handlers:
     logger.addHandler(warning_handler)
     logger.setLevel("INFO")  # Set the overall log level
 
-from .version import version as __version__, versiondate as __versiondate__, gitinfo as __gitinfo__
+
+# Get version information
+from .version import version as __version__, versiondate as __versiondate__
+import sciris as sc
+__gitinfo__ = sc.gitinfo(__file__)
+version.gitinfo = __gitinfo__ # Add back (so version.py does not require imports)
+
 
 # Check scipy version
 import scipy
-import sciris as sc
-
 if sc.compareversions(scipy.__version__, "1.2.1") < 0:
     raise Exception(f"Atomica requires Scipy 1.2.1 or later - installed version is {scipy.__version__}")
 
@@ -95,3 +102,7 @@ from .results import *
 from .scenarios import *
 from .system import *
 from .utils import *
+
+import pathlib
+
+rootdir = pathlib.Path(__file__).parent.parent

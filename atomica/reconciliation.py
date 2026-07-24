@@ -161,7 +161,7 @@ def _objective(x, mapping, progset, eval_years, target_vals, num_eligible, dt):
     return obj
 
 
-def _convert_to_single_year(progset, reconciliation_year):
+def _convert_to_single_year(progset, reconciliation_year: float):
     # Take in a progset
     # Return a progset with values only in the reconciliation year
     # This is then what actually gets reconciled
@@ -242,11 +242,15 @@ def reconcile(project, parset, progset, reconciliation_year: float, max_time=10,
 
     logger.warning("Reconcilation when parameter is in number units not fully tested")
 
-    reconciliation_year = sc.promotetoarray(reconciliation_year)
-    assert len(reconciliation_year) == 1, "Reconciliation year must be a scalar"
+    # Convert reconciliation year to a scalar
+    if hasattr(reconciliation_year, "__len__"):
+        if len(reconciliation_year) == 1:
+            reconciliation_year = reconciliation_year[0]
+        else:
+            raise ValueError("Reconciliation year must be a scalar")
 
     if eval_range is None:
-        eval_range = [reconciliation_year[0], reconciliation_year[0] + project.settings.sim_dt]
+        eval_range = [reconciliation_year, reconciliation_year + project.settings.sim_dt]
 
     # Do a prerun to get the baseline values and coverage denominator
     parset_results = project.run_sim(parset=parset, progset=progset, store_results=False)
@@ -255,7 +259,7 @@ def reconcile(project, parset, progset, reconciliation_year: float, max_time=10,
     target_vals, num_eligible = _extract_targets(parset_results, progset, ti, eval_pars)
 
     # Prepare ASD inputs
-    new_progset = _convert_to_single_year(progset, reconciliation_year[0])
+    new_progset = _convert_to_single_year(progset, reconciliation_year)
     bounds = _prepare_bounds(new_progset, unit_cost_bounds, baseline_bounds, capacity_bounds, outcome_bounds)  # Convert reconcile() inputs into full detailed bounds
     x0, xmin, xmax, mapping = _prepare_asd_inputs(new_progset, bounds)  # Assemble ASD variables
 

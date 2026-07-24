@@ -627,12 +627,24 @@ class ProjectFramework:
             self.sheets["compartments"] = [pd.DataFrame(columns=["code name", "display name"])]
 
         required_columns = ["display name"]
-        defaults = {"is sink": "n", "is source": "n", "is junction": "n", "databook page": None, "default value": None, "databook order": None, "guidance": None, "population type": None}  # Default is for it to be randomly ordered if the databook page is not None
+        defaults = {
+            "is sink": "n",
+            "is source": "n",
+            "is junction": "n",
+            "databook page": None,
+            "databook default all": "n",
+            "default value": None,
+            "population type": None,
+            "databook order": None,  # Default is for it to be randomly ordered if the databook page is not None
+            "guidance": None,
+            "provenance": FS.DEFAULT_PROVENANCE,
+        }
         valid_content = {
             "display name": None,  # Valid content being `None` means that it just cannot be empty
             "is sink": {"y", "n"},
             "is source": {"y", "n"},
             "is junction": {"y", "n"},
+            "databook default all": {"y", "n"},
         }
         numeric_columns = ["databook order", "default value"]
 
@@ -655,9 +667,9 @@ class ProjectFramework:
             self.comps["setup weight"] = ((~self.comps["databook page"].isna() | ~self.comps["default value"].isna()) & (self.comps["is source"] == "n") & (self.comps["is sink"] == "n")).astype(float)
         else:
             fill_ones = self.comps["setup weight"].isna() & (~self.comps["databook page"].isna() | ~self.comps["default value"].isna()) & (self.comps["is source"] == "n") & (self.comps["is sink"] == "n")
+            self.comps["setup weight"] = self.comps["setup weight"].astype(float)
             self.comps.loc[fill_ones, "setup weight"] = 1
             self.comps.loc[self.comps["setup weight"].isna(), "setup weight"] = 0
-            self.comps["setup weight"] = self.comps["setup weight"].astype(float)
 
         if "calibrate" not in self.comps:
             # If calibration column is not present, then it calibrate if in the databook
@@ -707,10 +719,21 @@ class ProjectFramework:
             self.sheets["characteristics"] = [pd.DataFrame(columns=["code name", "display name"])]
 
         required_columns = ["display name"]
-        defaults = {"components": None, "denominator": None, "default value": None, "databook page": None, "databook order": None, "guidance": None, "population type": None}
+        defaults = {
+            "components": None,
+            "denominator": None,
+            "default value": None,
+            "databook page": None,
+            "databook order": None,
+            "databook default all": "n",
+            "guidance": None,
+            "population type": None,
+            "provenance": FS.DEFAULT_PROVENANCE,
+        }
         valid_content = {
             "display name": None,
             "components": None,
+            "databook default all": {"y", "n"},
         }
         numeric_columns = ["databook order", "default value"]
 
@@ -727,9 +750,9 @@ class ProjectFramework:
             self.characs["setup weight"] = (~self.characs["databook page"].isna() | ~self.characs["default value"].isna()).astype(float)
         else:
             fill_ones = self.characs["setup weight"].isna() & (~self.characs["databook page"].isna() | ~self.characs["default value"].isna())
+            self.characs["setup weight"] = self.characs["setup weight"].astype(float)
             self.characs.loc[fill_ones, "setup weight"] = 1
             self.characs.loc[self.characs["setup weight"].isna(), "setup weight"] = 0
-            self.characs["setup weight"] = self.characs["setup weight"].astype(float)
 
         if "calibrate" not in self.characs:
             # If calibration column is not present, then it calibrate if in the databook
@@ -801,7 +824,12 @@ class ProjectFramework:
             self.sheets["interactions"] = [pd.DataFrame(columns=["code name", "display name", "to population type", "from population type"])]
 
         required_columns = ["display name"]
-        defaults = {"default value": None, "from population type": None, "to population type": None}
+        defaults = {
+            "default value": None,
+            "from population type": None,
+            "to population type": None,
+            "provenance": FS.DEFAULT_PROVENANCE,
+        }
         valid_content = {
             "display name": None,
         }
@@ -837,18 +865,21 @@ class ProjectFramework:
             "function": None,
             "databook page": None,
             "databook order": None,
+            "databook default all": "n",
             "targetable": "n",
             "guidance": None,
             "timescale": None,
             "population type": None,
             "is derivative": "n",
             "timed": "n",
+            "provenance": FS.DEFAULT_PROVENANCE,
         }
         valid_content = {
             "display name": None,
             "targetable": {"y", "n"},
             "is derivative": {"y", "n"},
             "timed": {"y", "n"},
+            "databook default all": {"y", "n"},
         }
         numeric_columns = ["databook order", "default value", "minimum value", "maximum value", "timescale"]
 
@@ -872,7 +903,7 @@ class ProjectFramework:
         # If framework has units that case-insensitively match the standard units, then correct the case
         if not self.pars.empty:
             lower_idx = self.pars["format"].str.lower().isin(FS.STANDARD_UNITS)
-            self.pars["format"][lower_idx] = self.pars["format"][lower_idx].str.lower()
+            self.pars.loc[lower_idx, "format"] = self.pars.loc[lower_idx, "format"].str.lower()
 
     def _process_transitions(self) -> None:
         """

@@ -1,0 +1,23 @@
+calibration:
+    pop cal:
+      repeats: 1
+
+      match population sizes:
+        adjustables:
+          #general, then pop-specific
+          b_rate, mig_rate: [ 0.1, 10 ]
+          (b_rate, 0-4):
+            initial_value: 2
+            upper_bound: 10
+            lower_bound: 0.1
+
+          typ_active_inf, typ_car, par_active_inf, par_car: [0, 0]
+        measurables:  alive
+
+
+      other formats, hierarchical tests:
+        adjustables: #[ [ b_rate, 0.1, 10 ], [ mig_rate ] ]
+          b_rate, mig_rate: [ 0.1, 10 ]
+          (b_rate, 0-4), mig_rate: [ 0.5, 20 ]
+          (b_rate, 0-4):
+            initial_value: 1.2
