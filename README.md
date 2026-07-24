@@ -50,7 +50,7 @@ python tests/testworkflow.py
 To run the automated suite, install the test dependencies using
 
 ```
-pip install -r requirements.txt
+pip install -e ".[test]"
 ```
 
 which will install the additional development dependencies. Then, to run the automated suite, from the root directory (the one containing `README.md`) run:
@@ -73,7 +73,7 @@ tox -e py312
 
 ## Claude Code integration
 
-Atomica ships an MCP server (`atomica.mcp`) that exposes tools for querying framework files and a set of built-in workflow skills (MCP prompts). The tools let Claude read compartments, parameters, transitions, and variable metadata directly from `.xlsx` framework files. The skills guide Claude through multi-step workflows such as producing a structured summary of a framework.
+Atomica ships an MCP server (`atomica.mcp`) that exposes tools for querying framework and databook files and a set of built-in workflow skills (MCP prompts). The tools let Claude read compartments, parameters, transitions, and variable metadata directly from `.xlsx` framework files, as well as read and write data in `.xlsx` databook files. The skills guide Claude through multi-step workflows such as producing a structured summary of a framework.
 
 To register the server with Claude Code, run the following from within your project directory:
 

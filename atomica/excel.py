@@ -360,6 +360,29 @@ def read_dataframes(worksheet, merge=False) -> list:
     return dfs
 
 
+def _effective_tvec(tvec, ts: dict) -> np.array:
+    """
+    Return the time values to write for a TDVE/TDC table
+
+    This is the sorted union of the table's ``tvec`` with every time point that actually
+    has data in any of the table's :class:`TimeSeries` objects. Using this when writing
+    ensures that values inserted at times outside the table's ``tvec`` are still written to
+    the spreadsheet, rather than being silently dropped (for :class:`TimeDependentValuesEntry`)
+    or raising an ``IndexError`` (for :class:`TimeDependentConnections`). Any declared-but-empty
+    years already present in ``tvec`` are preserved, since the union only ever adds times.
+
+    :param tvec: The table's ``tvec`` (list or array of times, possibly empty)
+    :param ts: The table's ``ts`` dict mapping keys to :class:`TimeSeries` objects
+    :return: A sorted numpy array of time values
+
+    """
+
+    times = {float(x) for x in tvec}
+    for series in ts.values():
+        times.update(float(t) for t in series.t)
+    return np.array(sorted(times))
+
+
 class TimeDependentConnections:
     """
     Structure for reading/writing interactions
@@ -589,6 +612,10 @@ class TimeDependentConnections:
         write_uncertainty = self.write_uncertainty if self.write_uncertainty is not None else any((ts.sigma is not None for ts in self.ts.values()))
         write_assumption = self.write_assumption if self.write_assumption is not None else any((ts.assumption is not None for ts in self.ts.values()))
 
+        # Write the union of the table's tvec and any times that actually have data, so that values
+        # entered at times outside the tvec are not lost (or raising) when writing - see _effective_tvec
+        tvec = _effective_tvec(self.tvec, self.ts)
+
         if not references:
             references = {x: x for x in self.from_pops + self.to_pops}  # Default null mapping for populations
 
@@ -662,10 +689,10 @@ class TimeDependentConnections:
             headings.append("")
             constant_index = offset
             offset += 1
-            if len(self.tvec):
+            if len(tvec):
                 offset += 1  # Additional offset for the 'OR' column
 
-        headings += [float(x) for x in self.tvec]
+        headings += [float(x) for x in tvec]
         for i, entry in enumerate(headings):
             worksheet.write(current_row, i, entry, formats["center_bold"])
             update_widths(widths, i, entry)
@@ -730,7 +757,7 @@ class TimeDependentConnections:
 
                     if self.write_assumption:
                         worksheet.write(current_row, constant_index, ts.assumption, format)
-                        if len(self.tvec):
+                        if len(tvec):
                             worksheet.write_formula(current_row, constant_index + 1, gate_content("OR", entry_cell), formats["center"], value="OR")
                             update_widths(widths, constant_index + 1, "OR")
 
@@ -749,15 +776,15 @@ class TimeDependentConnections:
 
                     if self.write_assumption:
                         worksheet.write_blank(current_row, constant_index, "", format)
-                        if len(self.tvec):
+                        if len(tvec):
                             worksheet.write_formula(current_row, constant_index + 1, gate_content("OR", entry_cell), formats["center"], value="...")
                             update_widths(widths, constant_index + 1, "...")
 
-                content = [None] * len(self.tvec)
+                content = [None] * len(tvec)
 
                 if ts:
                     for t, v in zip(ts.t, ts.vals):
-                        idx = np.where(self.tvec == t)[0][0]
+                        idx = np.where(tvec == t)[0][0]
                         content[idx] = v
 
                 for idx, v in enumerate(content):
@@ -770,7 +797,7 @@ class TimeDependentConnections:
                 if not content:
                     idx = 0
 
-                if self.write_assumption and len(self.tvec):
+                if self.write_assumption and len(tvec):
                     # Conditional formatting for the assumption, depending on whether time-values were entered
                     fcn_empty_times = 'COUNTIF(%s:%s,"<>" & "")>0' % (xlrc(current_row, offset), xlrc(current_row, offset + idx))
                     worksheet.conditional_format(xlrc(current_row, constant_index), {"type": "formula", "criteria": "=" + fcn_empty_times, "format": formats["ignored"]})
@@ -1040,6 +1067,10 @@ class TimeDependentValuesEntry:
         write_uncertainty = self.write_uncertainty if self.write_uncertainty is not None else any((ts.sigma is not None for ts in self.ts.values()))
         write_assumption = self.write_assumption if self.write_assumption is not None else any((ts.assumption is not None for ts in self.ts.values()))
 
+        # Write the union of the table's tvec and any times that actually have data, so that values
+        # entered at times outside the tvec are not silently dropped when writing - see _effective_tvec
+        tvec = _effective_tvec(self.tvec, self.ts)
+
         if not references:
             references = dict()
 
@@ -1073,7 +1104,7 @@ class TimeDependentValuesEntry:
             constant_index = offset
             offset += 2
 
-        headings += [float(x) for x in self.tvec]
+        headings += [float(x) for x in tvec]
         for i, entry in enumerate(headings):
             worksheet.write(current_row, i, entry, formats["center_bold"])
             update_widths(widths, i, entry)
@@ -1147,17 +1178,17 @@ class TimeDependentValuesEntry:
 
             if write_assumption:
                 worksheet.write(current_row, constant_index, row_ts.assumption, format)
-                if len(self.tvec):
+                if len(tvec):
                     worksheet.write(current_row, constant_index + 1, "OR", formats["center"])
                     update_widths(widths, constant_index + 1, "OR")
 
             # Write the time values if they are present
-            if len(self.tvec):
-                content = [None] * len(self.tvec)  # Initialize an empty entry for every time in the TDVE's tvec
+            if len(tvec):
+                content = [None] * len(tvec)  # Initialize an empty entry for every time in the TDVE's tvec
 
                 for t, v in zip(row_ts.t, row_ts.vals):
                     # If the TimeSeries contains data for that time point, then insert it now
-                    idx = np.where(self.tvec == t)[0]
+                    idx = np.where(tvec == t)[0]
                     if len(idx):
                         content[idx[0]] = v
 

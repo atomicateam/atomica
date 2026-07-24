@@ -107,6 +107,30 @@ def test_databooks():
     assert d3.tdve["alive"].ts[0].sigma is None
 
 
+def test_out_of_tvec_write():
+    # Regression: values inserted at times outside a table's tvec must still be written and round-trip.
+    # Previously these were silently dropped for TDVE tables and raised IndexError for transfers.
+    F = ProjectFramework(at.LIBRARY_PATH / "tb_framework.xlsx")
+    D = ProjectData.from_spreadsheet(at.LIBRARY_PATH / "tb_databook.xlsx", F)
+
+    new_year = 2099  # deliberately outside the databook's tvec
+
+    tdve = D.tdve["alive"]
+    pop = list(tdve.ts.keys())[0]
+    assert new_year not in [float(x) for x in tdve.tvec]
+    tdve.ts[pop].insert(new_year, 12345.0)
+
+    transfer = D.transfers[0]
+    conn = list(transfer.ts.keys())[0]
+    transfer.ts[conn].insert(new_year, 0.4242)
+
+    D.save(tmpdir / "d_out_of_tvec.xlsx")
+
+    D2 = ProjectData.from_spreadsheet(tmpdir / "d_out_of_tvec.xlsx", F)
+    assert D2.get_ts("alive", pop).get(new_year) == 12345.0
+    assert np.isclose(D2.get_ts(transfer.code_name, conn).get(new_year), 0.4242)
+
+
 def test_mixed_years_1():
     F = ProjectFramework(at.LIBRARY_PATH / "sir_framework.xlsx")
 

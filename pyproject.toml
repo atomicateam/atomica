@@ -23,7 +23,8 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13"
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14"
 ]
 requires-python = ">=3.10"
 
@@ -39,6 +40,31 @@ dependencies = [
     "sciris",
     "tqdm",
     "mcp",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+    "pytest-xdist",
+    "pytest-env",
+    "pytest-cov",
+    "nbval",
+    "nbconvert",
+    "ipykernel",
+    "mpld3",
+]
+docs = [
+    "sphinx",
+    "sphinx-autodoc-typehints",
+    "sphinx-markdown-tables",
+    "sphinx-rtd-theme",
+    "recommonmark",
+    "nbsphinx",
+    "nbconvert",
+    "ipykernel",
+    "pypandoc",
+    "pandoc",
+    "mpld3",
 ]
 
 [project.urls]
