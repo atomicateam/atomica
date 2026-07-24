@@ -2,6 +2,12 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.32.1] - 2026-07-24
+
+- Added MCP functions to read and edit data in databooks
+- Modified databook writing to automatically add TDVE/TDC columns if the data contains additional values, so that timeseries data in a `ProjectData` instance is never dropped due to a mismatch. 
+
+
 ## [1.32.0] - 2026-06-03
 
 - Improve performance by caching previously parsed functions
