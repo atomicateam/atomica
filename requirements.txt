@@ -4,7 +4,7 @@ pytest
 pytest-xdist
 pytest-env
 pytest-cov
-nbsmoke
+nbval
 mpld3
 nbsphinx
 ipykernel

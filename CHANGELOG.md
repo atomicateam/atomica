@@ -7,7 +7,6 @@ This file records changes to the codebase grouped by version release. Unreleased
 - Added MCP functions to read and edit data in databooks
 - Modified databook writing to automatically add TDVE/TDC columns if the data contains additional values, so that timeseries data in a `ProjectData` instance is never dropped due to a mismatch. 
 
-
 ## [1.32.0] - 2026-06-03
 
 - Improve performance by caching previously parsed functions
@@ -32,10 +31,6 @@ This file records changes to the codebase grouped by version release. Unreleased
 *Backwards-compatibility notes*
 
 - Models that previously targeted junctions and were being run without a coverage overwrite will now raise a `ModelError` upon execution, whereas previously they would run but produce invalid results
-
-## [1.31.6] - 2026-05-27
-
-- Update `ProjectData` so that variable codenames are written to the databook as named cells for each table in the databook
 
 ## [1.31.6] - 2026-05-27
 
