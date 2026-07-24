@@ -53,7 +53,7 @@ jobs:
     - task: UsePythonVersion@0
       displayName: 'Select python version'
       inputs:
-        versionSpec: '3.12'
+        versionSpec: '3.14'
     - script: |
         sudo apt install pandoc -y
       displayName: 'Install pandoc'
@@ -89,7 +89,7 @@ jobs:
     - task: UsePythonVersion@0
       displayName: 'Select python version'
       inputs:
-        versionSpec: '3.12'
+        versionSpec: '3.14'
     - script: |
         python -m pip install build
         python -m pip install twine
