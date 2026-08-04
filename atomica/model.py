@@ -2243,6 +2243,17 @@ class Model:
                     raise ModelError(f'Program "{prog.name}" does not target any compartments, but the program instructions did not specify coverage for this program. Programs without target compartments require their coverage to be explicitly specified in the instructions')
                 if non_targetable and not non_targetable.isdisjoint(prog.target_comps) and prog.name not in self._program_cache["prop_coverage"]:
                     raise ModelError(f'Program "{prog.name}" targets special compartments {non_targetable.intersection(prog.target_comps)}, but the program instructions did not specify coverage for this program. Programs that target special compartments (junctions/sources/sinks) require their coverage to be explicitly specified in the instructions')
+                if non_targetable and not non_targetable.isdisjoint(prog.target_comps) and set(prog.target_comps) - non_targetable:
+                    # A junction/source/sink contributes a per-timestep FLOW to the coverage denominator, while a
+                    # normal compartment contributes a STOCK. They have different units, so adding them together
+                    # (as the denominator sum does) is meaningless and the resulting coverage would be arbitrary.
+                    raise ModelError(f'Program "{prog.name}" targets both special compartments {sorted(non_targetable.intersection(prog.target_comps))} and ordinary compartments {sorted(set(prog.target_comps) - non_targetable)}. These cannot be combined: the coverage denominator for a junction/source/sink is the number of people flowing through per timestep, whereas for an ordinary compartment it is the number of people resident. Split these into separate programs, or target only one kind of compartment.')
+                if non_targetable and not non_targetable.isdisjoint(prog.target_comps) and not prog.is_one_off:
+                    # Nobody resides in a junction - it is a flow, not a stock - so the only meaningful unit of
+                    # cost is per person passing through. With a continuous ($/person/year) unit cost, the capacity
+                    # is a concurrent-enrolment stock while the denominator is a per-timestep flow, so the implied
+                    # coverage scales with the timestep (halving dt would double it). Require a one-off unit cost.
+                    raise ModelError(f'Program "{prog.name}" targets special compartments {non_targetable.intersection(prog.target_comps)} but has a continuous unit cost ("{prog.unit_cost.units}"). Nobody is ever resident in a junction/source/sink, so its coverage denominator is the number of people flowing through per timestep. A continuous cost would make the implied coverage depend on the simulation timestep. Specify the unit cost as "$/person (one-off)" instead - the annual spend is then the annualised throughput multiplied by the unit cost.')
         else:
             self.programs_active = False
 

@@ -1117,6 +1117,98 @@ class ProgramSet(NamedItem):
 
         return prop_coverage
 
+    def get_num_eligible(self, result, tvec=None) -> dict:
+        """
+        Return the coverage denominator for each program, from a model result
+
+        The number eligible is the sum of the program's target compartments across its target populations -
+        the same quantity the integration loop computes internally when converting capacity to coverage.
+        It is a model *output*, so it can only be evaluated after a simulation has been run.
+
+        **Junctions** are handled separately. A junction is zero-duration - people flush through it within a
+        timestep - so its compartment size is always zero and would give a meaningless (zero) denominator.
+        For a junction the eligible population is instead its *throughput*, i.e. the number of people passing
+        through per timestep, taken from :attr:`Compartment.outflow`. This is what makes it possible to cost a
+        program targeted at a flow rather than a stock, e.g. a birth-dose vaccination targeting
+        ``dem_j_bir_vac``, where the eligible population is the birth cohort.
+
+        :param result: A :class:`Result` (or :class:`Model`) that has been integrated
+        :param tvec: Optionally interpolate onto these times (default: the result's own time vector)
+        :return: Dict like ``{prog_name: np.array()}`` with the number eligible, in units of 'people'
+
+        """
+
+        from .model import JunctionCompartment  # Avoid circular import
+
+        model = result.model if hasattr(result, "model") else result
+        t_model = model.t
+        out = sc.odict()
+        for prog in self.programs.values():
+            n = np.zeros(t_model.shape)
+            kinds = set()
+            for pop_name in prog.target_pops:
+                pop = model.get_pop(pop_name)
+                for comp_name in prog.target_comps:
+                    comp = pop.get_comp(comp_name)
+                    is_junction = isinstance(comp, JunctionCompartment)
+                    kinds.add(is_junction)
+                    if len(kinds) > 1:
+                        # A junction contributes a per-timestep FLOW and an ordinary compartment a STOCK. They
+                        # have different units, so summing them would give an arbitrary denominator. The model
+                        # raises the same error; guard here too so costing never silently returns nonsense.
+                        raise Exception(f'Program "{prog.name}" targets both a junction (a per-timestep flow) and an ordinary compartment (a stock) in {prog.target_comps}. These cannot be combined into a single coverage denominator - split them into separate programs.')
+                    # A junction holds nobody, so use the number flowing through it instead of its size
+                    n = n + (comp.outflow if is_junction else comp.vals)
+            out[prog.name] = n if tvec is None else np.interp(sc.promotetoarray(tvec), t_model, n)
+        return out
+
+    def get_spend_from_coverage(self, result, instructions=None, tvec=None, dt=None) -> dict:
+        """
+        Cost a coverage scenario - the spending implied by a set of fractional coverages
+
+        A coverage overwrite in :class:`ProgramInstructions` bypasses the spend -> capacity -> coverage
+        chain entirely, so a coverage scenario normally reports no cost at all. This method runs that
+        chain backwards, using the eligible populations realised in ``result``:
+
+            coverage  ->  capacity (:meth:`Program.get_capacity_from_prop_covered`)
+                      ->  spending (:meth:`Program.get_spend_from_capacity`)
+
+        Because the eligible population depends on the epidemic, which in turn depends on the coverage,
+        the implied spending is only knowable *after* running - it cannot be constrained in advance. That
+        is what makes a budget-constrained coverage optimization a fixed-point problem rather than a
+        projection (see :func:`atomica.optimization.rescale_coverage_to_budget`).
+
+        :param result: A :class:`Result` (or :class:`Model`) that has been integrated
+        :param instructions: The instructions containing the coverage overwrites (default: those used in ``result``)
+        :param tvec: Optionally evaluate at these times (default: the result's own time vector)
+        :param dt: Simulation timestep (default: taken from the result)
+        :return: Dict like ``{prog_name: np.array()}`` with spending in '$/year'. ``inf`` marks a coverage
+                 that cannot be purchased (above saturation, or above the capacity constraint).
+
+        """
+
+        model = result.model if hasattr(result, "model") else result
+        if instructions is None:
+            instructions = model.program_instructions
+        if dt is None:
+            dt = model.dt
+        t = model.t if tvec is None else sc.promotetoarray(tvec)
+
+        eligible = self.get_num_eligible(result, tvec=t)
+        spend = sc.odict()
+        for prog in self.programs.values():
+            if instructions is not None and prog.name in instructions.coverage:
+                prop = instructions.coverage[prog.name].interpolate(t, method="previous")
+                if prog.is_one_off:
+                    prop = prop * dt  # matches the adjustment applied in get_prop_coverage()
+            else:
+                # No coverage overwrite - the program is spend-driven, so report its actual spend
+                spend[prog.name] = prog.spend_data.interpolate(t, method="previous") if prog.spend_data.has_data else np.zeros(t.shape)
+                continue
+            capacity = prog.get_capacity_from_prop_covered(t, prop, eligible[prog.name])
+            spend[prog.name] = prog.get_spend_from_capacity(t, capacity, dt)
+        return spend
+
     def get_outcomes(self, prop_coverage: dict) -> dict:
         """
         Get program outcomes given fractional coverage
@@ -1340,6 +1432,85 @@ class Program(NamedItem):
             prop_covered = np.divide(capacity, eligible, out=np.ones_like(capacity), where=eligible > capacity)
 
         return prop_covered
+
+    def get_capacity_from_prop_covered(self, tvec, prop_covered, eligible):
+        """
+        Invert :meth:`get_prop_covered` - the capacity required to reach a given coverage
+
+        This is the first half of costing a coverage scenario: given the fractional coverage that was
+        requested (or optimized), how many people must the program actually reach? Note that the answer
+        depends on ``eligible``, which is a model *output* (the size of the target compartments) and is
+        therefore only known after a simulation has been run.
+
+        With saturation, :meth:`get_prop_covered` applies
+
+        .. math:: p = \\frac{2\\sigma}{1+e^{-2c/\\sigma}} - \\sigma
+
+        where :math:`c` is the capacity per eligible person. Inverting gives
+
+        .. math:: c = -\\frac{\\sigma}{2}\\ln\\left(\\frac{2\\sigma}{p+\\sigma}-1\\right)
+
+        which diverges as :math:`p \\rightarrow \\sigma` - coverage approaching the saturation ceiling
+        costs unboundedly much, and coverage above it cannot be bought at any price (returns ``inf``).
+
+        :param tvec: A scalar, list, or array of times
+        :param prop_covered: Fractional coverage, same size as ``tvec``
+        :param eligible: Number of people eligible (the coverage denominator), same size as ``tvec``
+        :return: Array of capacity in units of 'people'. ``inf`` where the coverage is unreachable.
+
+        """
+
+        tvec = sc.promotetoarray(tvec)
+        prop_covered = sc.promotetoarray(prop_covered).astype(float)
+        eligible = sc.promotetoarray(eligible).astype(float)
+
+        if self.saturation.has_data:
+            saturation = self.saturation.interpolate(tvec, method="previous")
+            # ratio = 2*sigma/(p+sigma) - 1 must be strictly positive to take the log; it goes to zero
+            # as p -> sigma (infinite capacity) and negative for p > sigma (unreachable at any cost).
+            with np.errstate(divide="ignore", invalid="ignore"):
+                ratio = np.divide(2 * saturation, prop_covered + saturation, out=np.full_like(prop_covered, np.inf), where=(prop_covered + saturation) > 0) - 1
+                per_eligible = np.where(ratio > 0, -(saturation / 2) * np.log(np.where(ratio > 0, ratio, 1.0)), np.inf)
+            capacity = per_eligible * eligible
+        else:
+            capacity = prop_covered * eligible
+
+        return capacity
+
+    def get_spend_from_capacity(self, tvec, capacity, dt):
+        """
+        Invert :meth:`get_capacity` - the spending required to reach a given capacity
+
+        The counterpart to :meth:`get_capacity_from_prop_covered`. Note that :meth:`get_capacity` clips
+        the capacity at ``capacity_constraint``; that clipping is *not* invertible, so any requested
+        capacity above the constraint is flagged by returning ``inf`` (the capacity cannot be purchased
+        no matter how much is spent).
+
+        :param tvec: A scalar, list, or array of times
+        :param capacity: Number of people reached (units of 'people'), same size as ``tvec``
+        :param dt: The simulation timestep (needed to undo the timestep scaling applied to one-off programs)
+        :return: Array of spending in units of '$/year'. ``inf`` where the capacity exceeds the capacity constraint.
+
+        """
+
+        tvec = sc.promotetoarray(tvec)
+        capacity = sc.promotetoarray(capacity).astype(float)
+        unit_cost = self.unit_cost.interpolate(tvec, method="previous")
+
+        if self.capacity_constraint.has_data:
+            capacity_constraint = self.capacity_constraint.interpolate(tvec, method="previous")
+            if "/year" in self.capacity_constraint.units:
+                capacity_constraint = capacity_constraint * dt
+            # Above the constraint the forward map saturates, so no finite spend achieves it.
+            # Use a small tolerance so that exactly hitting the constraint is treated as feasible.
+            capacity = np.where(capacity > capacity_constraint * (1 + 1e-9), np.inf, capacity)
+
+        spending = capacity * unit_cost
+        if self.is_one_off:
+            # get_capacity() multiplies the spending by dt for one-off programs, so undo that here
+            spending = spending / dt
+
+        return spending
 
 
 class Covout:

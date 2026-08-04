@@ -228,6 +228,79 @@ class SpendingAdjustment(Adjustment):
         return initialization
 
 
+class CoverageAdjustment(Adjustment):
+    """
+    Adjust program fractional coverage
+
+    Makes a program's *coverage* adjustable instead of its spending. Writing to
+    ``instructions.coverage`` causes :meth:`ProgramSet.get_prop_coverage` to bypass the
+    spend -> capacity -> coverage chain entirely, so the program's budget no longer determines its
+    coverage. Do not combine with a :class:`SpendingAdjustment` for the same program - the coverage
+    overwrite would silently win.
+
+    Because the budget is disconnected, a coverage optimization is *unconstrained in cost* unless a
+    budget is imposed separately. The implied spending can only be computed after running (it depends
+    on the eligible population, a model output), so use :func:`rescale_coverage_to_budget` to bring a
+    coverage vector back onto a budget, rather than a :class:`Constraint` - constraints are applied to
+    the instructions before the model runs and so cannot see the realised cost.
+
+    :param prog_name: The code name of a program
+    :param t: A single time, or list/array of times at which to make adjustments
+    :param limit_type: Interpret ``lower`` and ``upper`` as absolute or relative limits (``'abs'`` or ``'rel'``)
+    :param lower: Lower bound (0 by default)
+    :param upper: Upper bound (1 by default - coverage is a fraction and is clipped to 1 during integration,
+                  so allowing values above 1 creates a flat region that the optimizer cannot descend)
+    :param initial: Initial coverage. If not given it is taken from the instructions, and failing that from
+                    a baseline run (coverage is not otherwise recoverable without running the model).
+    """
+
+    def __init__(self, prog_name, t, limit_type="abs", lower=0.0, upper=1.0, initial=None):
+        Adjustment.__init__(self, name=prog_name)
+        self.prog_name = prog_name
+        self.t = sc.promotetoarray(t)
+
+        def _expand(v, label):
+            v = sc.promotetolist(v, keepnone=True)
+            if len(v) == 1:
+                return v * len(self.t)
+            assert len(v) == len(self.t), f"If supplying {label}, you must either specify one, or one for every time point"
+            return v
+
+        lower, upper, initial = _expand(lower, "lower bounds"), _expand(upper, "upper bounds"), _expand(initial, "initial values")
+        self.adjustables = [Adjustable(prog_name, limit_type, lower_bound=lb, upper_bound=ub, initial_value=init) for lb, ub, init in zip(lower, upper, initial)]
+
+    def update_instructions(self, adjustable_values, instructions: ProgramInstructions):
+        for i, t in enumerate(self.t):
+            if self.prog_name not in instructions.coverage:
+                instructions.coverage[self.prog_name] = TimeSeries(t=t, vals=adjustable_values[i])
+            else:
+                instructions.coverage[self.prog_name].insert(t, adjustable_values[i])
+
+    def get_initialization(self, progset: ProgramSet, instructions: ProgramInstructions) -> list:
+        """
+        Return initial coverage values for ASD
+
+        Taken from the explicit initial value, else the coverage already present in the instructions.
+        Unlike spending, coverage cannot be read off the progset alone - it depends on the eligible
+        population - so if neither is available the caller must supply it (e.g. from a baseline run).
+
+        :param progset: The :class:`ProgramSet` being used for the optimization
+        :param instructions: The initial instructions
+        :return: A list of initial values, one for each adjustable
+
+        """
+
+        initialization = []
+        for adjustable, t in zip(self.adjustables, self.t):
+            if adjustable.initial_value is not None:
+                initialization.append(adjustable.initial_value)
+            elif self.prog_name in instructions.coverage:
+                initialization.append(instructions.coverage[self.prog_name].interpolate(t, method="previous")[0])
+            else:
+                raise ValueError(f'No initial coverage for "{self.prog_name}". Coverage cannot be derived from the progset alone (it depends on the eligible population) - supply `initial`, or put a coverage value in the instructions, e.g. from a baseline run.')
+        return initialization
+
+
 class StartTimeAdjustment(Adjustment):
     """
     Optimize program start year
@@ -1563,3 +1636,125 @@ def constrain_sum_bounded(x: np.array, s: float, lb: np.array, ub: np.array) -> 
     sol = np.minimum(np.maximum(res["x"], lb_scaled), ub_scaled) * s
     assert np.isclose(sol.sum(), s), f"FAILED as {sol} has a total of {sol.sum()} which is not sufficiently close to the target value {s}"
     return sol
+
+
+def coverage_spend(result, progset: ProgramSet = None, instructions: ProgramInstructions = None, t=None) -> float:
+    """
+    Total annual spending implied by a coverage scenario
+
+    Convenience wrapper around :meth:`ProgramSet.get_spend_from_coverage` that reduces the per-program,
+    per-timestep spending to a single annual figure, for comparison against a budget.
+
+    :param result: An integrated :class:`Result` (or :class:`Model`)
+    :param progset: Optionally specify the progset (default: the one used in ``result``)
+    :param instructions: Optionally specify the instructions (default: those used in ``result``)
+    :param t: A year, or ``[start, stop)`` window over which to average. Default: the instructions' start year.
+    :return: Total spending across all programs, in '$/year'. ``inf`` if any coverage is unpurchasable.
+
+    """
+
+    model = result.model if hasattr(result, "model") else result
+    progset = progset if progset is not None else model.progset
+    instructions = instructions if instructions is not None else model.program_instructions
+    if t is None:
+        t = instructions.start_year
+    t = sc.promotetoarray(t)
+    tvec = model.t[(model.t >= t[0]) & (model.t < t[1])] if len(t) == 2 else t
+
+    spend = progset.get_spend_from_coverage(result, instructions=instructions, tvec=tvec)
+    total = np.zeros(np.shape(tvec))
+    for v in spend.values():
+        total = total + np.asarray(v)
+    return float(np.mean(total))
+
+
+def rescale_coverage_to_budget(project, parset, progset: ProgramSet, instructions: ProgramInstructions, budget: float, prog_names: list = None, t=None, max_iter: int = 20, tol: float = 1e-3, alpha_max: float = 20.0, verbose: bool = False):
+    """
+    Scale a set of coverages so that the spending they imply meets a budget (fixed-point solve)
+
+    A coverage vector cannot be projected onto a budget in advance: the spending it implies depends on
+    the eligible populations, which are model outputs that themselves depend on the coverage. So the
+    budget is enforced by solving
+
+    .. math:: S(\alpha) = B
+
+    for a single scalar multiplier :math:`\alpha` applied to the adjustable coverages, where
+    :math:`S(\alpha)` is the realised spend from a full model run. :math:`S` is monotonically increasing
+    in :math:`\alpha` (more coverage always costs more), so the root is bracketed and then bisected -
+    robust, at the cost of one model run per iteration.
+
+    The epidemic feedback works in favour of convergence: raising coverage shrinks the eligible pool,
+    which makes further coverage *cheaper*, so the map is contracting rather than divergent.
+
+    :param project: A :class:`Project` used to run the model
+    :param parset: The :class:`ParameterSet` to run with
+    :param progset: The :class:`ProgramSet`
+    :param instructions: Instructions containing the coverage overwrites to scale (not modified in place)
+    :param budget: Target total spending in '$/year'
+    :param prog_names: Programs whose coverage may be scaled (default: all programs with a coverage overwrite)
+    :param t: Year or ``[start, stop)`` window over which spending is evaluated (default: instructions start year)
+    :param max_iter: Maximum bisection iterations
+    :param tol: Relative tolerance on the budget
+    :param alpha_max: Largest multiplier to consider when bracketing
+    :param verbose: Print the iteration history
+    :return: Tuple ``(scaled_instructions, alpha, achieved_spend)``
+
+    """
+
+    if prog_names is None:
+        prog_names = list(instructions.coverage.keys())
+    if not prog_names:
+        raise ValueError("No coverage overwrites to scale - rescale_coverage_to_budget() operates on instructions.coverage")
+
+    def _scaled(alpha):
+        ins = sc.dcp(instructions)
+        for name in prog_names:
+            ts = ins.coverage[name]
+            ts.vals = [float(np.clip(v * alpha, 0.0, 1.0)) for v in ts.vals]
+        return ins
+
+    def _spend(alpha):
+        ins = _scaled(alpha)
+        res = project.run_sim(parset=parset, progset=progset, progset_instructions=ins, result_name="_budget_probe")
+        return coverage_spend(res, progset=progset, instructions=ins, t=t), ins
+
+    s1, _ = _spend(1.0)
+    if verbose:
+        logger.info(f"rescale_coverage_to_budget: alpha=1.000 spend={s1:,.0f} target={budget:,.0f}")
+    if abs(s1 - budget) <= tol * budget:
+        return _scaled(1.0), 1.0, s1
+
+    # Bracket the root. S is increasing in alpha, so search downward if over budget and upward if under.
+    if s1 > budget:
+        lo, s_lo = 0.0, 0.0
+        hi, s_hi = 1.0, s1
+    else:
+        lo, s_lo = 1.0, s1
+        hi = 1.0
+        s_hi = s1
+        while s_hi < budget and hi < alpha_max:
+            lo, s_lo = hi, s_hi
+            hi = min(hi * 2.0, alpha_max)
+            s_hi, _ = _spend(hi)
+            if verbose:
+                logger.info(f"rescale_coverage_to_budget: alpha={hi:.3f} spend={s_hi:,.0f} (bracketing)")
+        if s_hi < budget:
+            # Even at alpha_max (or full coverage) the budget is not exhausted - return the most that can be bought
+            ins = _scaled(hi)
+            return ins, hi, s_hi
+
+    alpha, spend = hi, s_hi
+    for i in range(max_iter):
+        alpha = 0.5 * (lo + hi)
+        spend, ins = _spend(alpha)
+        if verbose:
+            logger.info(f"rescale_coverage_to_budget: iter {i+1} alpha={alpha:.4f} spend={spend:,.0f}")
+        if abs(spend - budget) <= tol * budget:
+            return ins, alpha, spend
+        if spend > budget:
+            hi, s_hi = alpha, spend
+        else:
+            lo, s_lo = alpha, spend
+
+    logger.warning(f"rescale_coverage_to_budget did not converge to {tol:.1%}: spend={spend:,.0f} vs budget={budget:,.0f}")
+    return _scaled(alpha), alpha, spend
