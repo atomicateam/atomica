@@ -1084,6 +1084,27 @@ class ProgramSet(NamedItem):
 
         return capacities
 
+    @property
+    def flow_targeted_programs(self) -> set:
+        """
+        Names of programs that target a per-timestep flow rather than a stock
+
+        Junctions, sources and sinks hold nobody, so the eligible population for a program targeting them is the
+        number of people passing through *in that timestep* - a flow - rather than the number resident - a stock.
+        That difference determines whether a fractional coverage is a rate or a dimensionless proportion:
+
+        - For a **stock**, covering a fraction ``g`` of the compartment per year reaches ``g*dt`` of it each
+          timestep, so a one-off program's coverage is a ``/year`` quantity that must be scaled by ``dt``.
+        - For a **flow**, covering a fraction ``f`` of the people passing through is the same number whether it
+          is evaluated over one timestep or over a year, so there is nothing to annualize.
+
+        :return: Set of program names whose target compartments are junctions/sources/sinks
+
+        """
+
+        non_targetable = {comp for comp, spec in self.comps.items() if spec["non_targetable"]}
+        return {p.name for p in self.programs.values() if p.target_comps and not non_targetable.isdisjoint(p.target_comps)}
+
     def get_prop_coverage(self, tvec, dt, capacities: dict, num_eligible: dict, instructions=None) -> dict:
         """
         Return dimensionless (timestep) fractional coverage
@@ -1114,20 +1135,28 @@ class ProgramSet(NamedItem):
         """
 
         prop_coverage = sc.odict()  # Initialise outputs
+        flow_targeted = self.flow_targeted_programs
 
         for prog in self.programs.values():
             if instructions is not None and prog.name in instructions.coverage:
                 prop_coverage[prog.name] = instructions.coverage[prog.name].interpolate(tvec, method="previous")
-                if prog.is_one_off:
-                    # Coverage overwrites for one off programs are specified in /year units, therefore they get adjusted by dt here
-                    prop_coverage[prog.name] *= dt
+                annualized = prog.is_one_off and prog.name not in flow_targeted
             elif prog.is_coverage_driven:
                 # Coverage is an input for this program - the progbook gives the fraction directly, so the
                 # capacity and the coverage denominator are both bypassed (spending is the derived quantity)
                 prop_coverage[prog.name] = prog.get_prop_covered_from_data(tvec)
+                annualized = prog.is_one_off and prog.name not in flow_targeted
             else:
+                annualized = False
                 # The capacities have already been converted to timestep values, so no further transformation is necessary
                 prop_coverage[prog.name] = prog.get_prop_covered(tvec, capacities[prog.name], num_eligible[prog.name])
+
+            if annualized:
+                # Coverage supplied for a one-off program targeting a STOCK is a '/year' quantity - covering a
+                # fraction of the compartment over a year reaches dt of that fraction each timestep. Programs
+                # targeting a junction/source/sink are excluded: their denominator is already a per-timestep
+                # flow, so the fraction is dimensionless and scaling it by dt would shrink it by 1/dt.
+                prop_coverage[prog.name] = prop_coverage[prog.name] * dt
 
             prop_coverage[prog.name] = np.minimum(prop_coverage[prog.name], 1.0)
 
@@ -1211,18 +1240,19 @@ class ProgramSet(NamedItem):
         t = model.t if tvec is None else sc.promotetoarray(tvec)
 
         eligible = self.get_num_eligible(result, tvec=t)
+        flow_targeted = self.flow_targeted_programs
         spend = sc.odict()
         for prog in self.programs.values():
             if instructions is not None and prog.name in instructions.coverage:
                 prop = instructions.coverage[prog.name].interpolate(t, method="previous")
-                if prog.is_one_off:
-                    prop = prop * dt  # matches the adjustment applied in get_prop_coverage()
             elif prog.is_coverage_driven:
                 prop = prog.get_prop_covered_from_data(t)  # coverage came from the progbook as a proportion
             else:
                 # No coverage overwrite - the program is spend-driven, so report its actual spend
                 spend[prog.name] = prog.spend_data.interpolate(t, method="previous") if prog.spend_data.has_data else np.zeros(t.shape)
                 continue
+            if prog.is_one_off and prog.name not in flow_targeted:
+                prop = prop * dt  # matches the annualization applied in get_prop_coverage()
             capacity = prog.get_capacity_from_prop_covered(t, prop, eligible[prog.name])
             spend[prog.name] = prog.get_spend_from_capacity(t, capacity, dt)
         return spend
@@ -1381,16 +1411,17 @@ class Program(NamedItem):
         """
         Return fractional coverage read directly from the program's coverage data
 
-        Only meaningful for coverage-driven programs (see :meth:`Program.is_coverage_driven`). Unlike a
-        coverage overwrite in the instructions, the value is *not* scaled by ``dt`` for one-off programs -
-        a proportion of the people arriving in a timestep is already dimensionless.
+        Only meaningful for coverage-driven programs (see :meth:`Program.is_coverage_driven`). The raw
+        proportion is returned - it is *not* annualized and *not* capped. Both of those are applied by
+        :meth:`ProgramSet.get_prop_coverage`, which is the only place that knows whether the program targets
+        a stock (where a one-off program's coverage is a ``/year`` rate) or a flow (where it is dimensionless).
 
         :param tvec: Scalar or array of times
-        :return: Array of fractional coverage values, capped at 1
+        :return: Array of fractional coverage values
 
         """
         assert self.is_coverage_driven, f'Program "{self.name}" does not have coverage specified as a proportion'
-        return np.minimum(self.coverage.interpolate(tvec, method="previous") * self.coverage_proportion_factor, 1.0)
+        return self.coverage.interpolate(tvec, method="previous") * self.coverage_proportion_factor
 
     def sample(self, constant: bool) -> None:
         """

@@ -18,7 +18,7 @@ from collections import defaultdict
 import sciris as sc
 import numpy as np
 import matplotlib.pyplot as plt
-from .programs import ProgramSet, ProgramInstructions
+from .programs import ProgramSet, ProgramInstructions, PROPORTION_COVERAGE_UNITS
 from .parameters import Parameter as ParsetParameter
 from .parameters import ParameterSet as ParameterSet
 import math
@@ -2244,26 +2244,38 @@ class Model:
             for prog in self.progset.programs.values():
                 if not self._program_cache["comps"][prog.name] and prog.name not in self._program_cache["prop_coverage"]:
                     raise ModelError(f'Program "{prog.name}" does not target any compartments, but the program instructions did not specify coverage for this program. Programs without target compartments require their coverage to be explicitly specified in the instructions')
-                if non_targetable and not non_targetable.isdisjoint(prog.target_comps) and prog.name not in self._program_cache["prop_coverage"]:
-                    raise ModelError(f'Program "{prog.name}" targets special compartments {non_targetable.intersection(prog.target_comps)}, but the program instructions did not specify coverage for this program. Programs that target special compartments (junctions/sources/sinks) require their coverage to be explicitly specified in the instructions')
-                if non_targetable and not non_targetable.isdisjoint(prog.target_comps) and set(prog.target_comps) - non_targetable:
+
+                special = non_targetable.intersection(prog.target_comps)
+                if not special:
+                    continue
+
+                # Special compartments (junctions/sources/sinks) hold nobody - a junction is zero-duration and a
+                # source/sink is unbounded - so there is no stock to serve as a coverage denominator. Spending
+                # therefore cannot be converted into a fraction covered, and these programs must instead have
+                # their coverage supplied directly. The checks below enforce that.
+                if set(prog.target_comps) - special:
                     # A junction/source/sink contributes a per-timestep FLOW to the coverage denominator, while a
                     # normal compartment contributes a STOCK. They have different units, so adding them together
                     # (as the denominator sum does) is meaningless and the resulting coverage would be arbitrary.
-                    raise ModelError(f'Program "{prog.name}" targets both special compartments {sorted(non_targetable.intersection(prog.target_comps))} and ordinary compartments {sorted(set(prog.target_comps) - non_targetable)}. These cannot be combined: the coverage denominator for a junction/source/sink is the number of people flowing through per timestep, whereas for an ordinary compartment it is the number of people resident. Split these into separate programs, or target only one kind of compartment.')
-                if non_targetable and not non_targetable.isdisjoint(prog.target_comps) and not prog.is_one_off:
+                    raise ModelError(f'Program "{prog.name}" targets both special compartments {sorted(special)} and ordinary compartments {sorted(set(prog.target_comps) - special)}. These cannot be combined: a junction/source/sink is a per-timestep flow whereas an ordinary compartment is a stock of resident people, so there is no consistent coverage denominator. Split these into separate programs, or target only one kind of compartment.')
+
+                if not prog.is_one_off:
                     # Nobody resides in a junction - it is a flow, not a stock - so the only meaningful unit of
-                    # cost is per person passing through. With a continuous ($/person/year) unit cost, the capacity
-                    # is a concurrent-enrolment stock while the denominator is a per-timestep flow, so the implied
-                    # coverage scales with the timestep (halving dt would double it). Require a one-off unit cost.
-                    raise ModelError(f'Program "{prog.name}" targets special compartments {non_targetable.intersection(prog.target_comps)} but has a continuous unit cost ("{prog.unit_cost.units}"). Nobody is ever resident in a junction/source/sink, so its coverage denominator is the number of people flowing through per timestep. A continuous cost would make the implied coverage depend on the simulation timestep. Specify the unit cost as "$/person (one-off)" instead - the annual spend is then the annualised throughput multiplied by the unit cost.')
-                if non_targetable and not non_targetable.isdisjoint(prog.target_comps) and prog.name not in self._program_cache["prop_coverage"]:
-                    # Recommended setup for a junction is coverage-driven (coverage + unit cost, spending derived),
-                    # because the fraction is then known up-front and no denominator is needed. Deriving coverage
-                    # from spending instead requires the junction throughput, which is only available with a
-                    # one-timestep lag - fine for a smoothly-varying junction, unreliable for a fast-moving one
-                    # (update_pars warns at runtime if it does move fast).
-                    logger.warning('Program "%s" targets junction/source/sink %s and is spend-driven, so its coverage must be derived from the junction throughput at the PREVIOUS timestep. Prefer entering its Coverage as a proportion ("fraction" or "%%") in the progbook, which makes coverage an input and spending the derived quantity, requiring no denominator at all.', prog.name, sorted(non_targetable.intersection(prog.target_comps)))
+                    # cost is per person passing through. A continuous ($/person/year) unit cost prices a
+                    # concurrent-enrolment stock, which does not exist here, and would make the annualised
+                    # spending depend on the simulation timestep.
+                    raise ModelError(f'Program "{prog.name}" targets special compartments {sorted(special)} but has a continuous unit cost ("{prog.unit_cost.units}"). Nobody is ever resident in a junction/source/sink - people only pass through - so the only meaningful cost is per person reached. Specify the unit cost as "{self.progset.currency}/person (one-off)" instead; the annual spend is then the annualised throughput multiplied by the unit cost.')
+
+                if not prog.coverage_is_proportion:
+                    # Coverage as a NUMBER of people would have to be divided by the junction throughput to get a
+                    # fraction, and that throughput is not resolved until after the parameters have been updated -
+                    # only the previous timestep's value is available. That lag is invisibly wrong whenever
+                    # throughput moves quickly (e.g. treatment initiation when case finding scales up or down),
+                    # so it is rejected rather than approximated. A proportion needs no denominator at all.
+                    raise ModelError(f'Program "{prog.name}" targets special compartments {sorted(special)}, so its coverage must be entered as a proportion - set the Coverage units in the progbook to one of {sorted(PROPORTION_COVERAGE_UNITS)} (currently "{prog.coverage.units}"). A junction/source/sink holds nobody, so a coverage denominator is not available and coverage cannot be derived from spending. With a proportion, coverage is an input and the spending is the derived quantity (see Result.get_equivalent_alloc).')
+
+                if prog.name not in self._program_cache["prop_coverage"]:
+                    raise ModelError(f'Program "{prog.name}" targets special compartments {sorted(special)} and has proportion coverage units ("{prog.coverage.units}") but no coverage values were entered. Enter the coverage proportion in the progbook, or specify it in the program instructions.')
         else:
             self.programs_active = False
 
