@@ -2228,7 +2228,6 @@ class Model:
                     for comp_name in prog.target_comps:
                         self._program_cache["comps"][prog.name].append(self.get_pop(pop_name).get_comp(comp_name))
 
-            self._junction_lag_warned = set()  # Programs already warned about a fast-moving junction denominator
             self._program_cache["capacities"] = self.progset.get_capacities(tvec=self.t, dt=self.dt, instructions=self.program_instructions)
 
             # Cache the proportion coverage for coverage scenarios so that we don't call interpolate() every timestep
@@ -2245,13 +2244,8 @@ class Model:
             for prog in self.progset.programs.values():
                 if not self._program_cache["comps"][prog.name] and prog.name not in self._program_cache["prop_coverage"]:
                     raise ModelError(f'Program "{prog.name}" does not target any compartments, but the program instructions did not specify coverage for this program. Programs without target compartments require their coverage to be explicitly specified in the instructions')
-                # Junctions CAN be costed spend-driven: their coverage denominator is the number of people
-                # flowing through per timestep (see update_pars). Sources and sinks cannot - a source has no
-                # bounded population to cover and a sink only accumulates - so those still require an
-                # explicit coverage overwrite.
-                src_sink = {c.name for c in self._program_cache["comps"][prog.name] if isinstance(c, (SourceCompartment, SinkCompartment))}
-                if src_sink and prog.name not in self._program_cache["prop_coverage"]:
-                    raise ModelError(f'Program "{prog.name}" targets source/sink compartments {sorted(src_sink)}, but the program instructions did not specify coverage for this program. Sources and sinks have no bounded eligible population, so programs targeting them require their coverage to be explicitly specified in the instructions')
+                if non_targetable and not non_targetable.isdisjoint(prog.target_comps) and prog.name not in self._program_cache["prop_coverage"]:
+                    raise ModelError(f'Program "{prog.name}" targets special compartments {non_targetable.intersection(prog.target_comps)}, but the program instructions did not specify coverage for this program. Programs that target special compartments (junctions/sources/sinks) require their coverage to be explicitly specified in the instructions')
                 if non_targetable and not non_targetable.isdisjoint(prog.target_comps) and set(prog.target_comps) - non_targetable:
                     # A junction/source/sink contributes a per-timestep FLOW to the coverage denominator, while a
                     # normal compartment contributes a STOCK. They have different units, so adding them together
@@ -2762,35 +2756,7 @@ class Model:
                 else:
                     n = 0.0
                     for comp in comp_list:
-                        if isinstance(comp, JunctionCompartment):
-                            # A junction is zero-duration - nobody is ever resident in it - so its compartment
-                            # value is always 0 and would give a meaningless (zero) denominator. The eligible
-                            # population is instead the number of people flowing THROUGH it.
-                            #
-                            # Junction inflows for this timestep are not resolved until update_links(), which
-                            # runs after update_pars(), so the current throughput is not yet available. Use the
-                            # previous timestep's throughput instead (its outflows equal its inflows after
-                            # balance()). This one-step lag is immaterial for the quantities junctions usually
-                            # carry, e.g. a birth cohort, which change slowly relative to the timestep.
-                            if ti > 0:
-                                lagged = 0.0
-                                for link in comp.outlinks:
-                                    lagged += link.vals[ti - 1]
-                                n += lagged
-                                # The lag is only safe while throughput changes slowly relative to the timestep.
-                                # It is NOT safe for a junction whose throughput can jump (e.g. treatment
-                                # initiation when case-finding scales abruptly) or that carries seasonality -
-                                # and where the program itself feeds the junction, the lagged feedback can
-                                # oscillate. Warn once per program if the denominator is moving quickly.
-                                if ti > 1 and k not in self._junction_lag_warned:
-                                    prev = 0.0
-                                    for link in comp.outlinks:
-                                        prev += link.vals[ti - 2]
-                                    if prev > 0 and abs(lagged - prev) / prev > 0.1:
-                                        self._junction_lag_warned.add(k)
-                                        logger.warning(f'Program "{k}" targets junction "{comp.name}" whose throughput changed by {abs(lagged - prev) / prev:.0%} in one timestep (at t={self.t[ti]:.2f}). The coverage denominator for a junction uses the PREVIOUS timestep\'s throughput, because this timestep\'s inflows are not resolved until after parameters are updated. That lag is unreliable when throughput moves this fast, so the resulting coverage may be inaccurate. Consider specifying this program\'s coverage explicitly in the program instructions instead, which needs no denominator, or using a smaller timestep.')
-                        else:
-                            n += comp[ti]
+                        n += comp[ti]
                     prop_coverage[k] = self.progset.programs[k].get_prop_covered(self.t[ti], self._program_cache["capacities"][k][ti], n)
             prog_vals = self.progset.get_outcomes(prop_coverage)
 
