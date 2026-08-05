@@ -2233,7 +2233,10 @@ class Model:
 
             # Cache the proportion coverage for coverage scenarios so that we don't call interpolate() every timestep
             coverage = self.progset.get_prop_coverage(tvec=self.t, dt=self.dt, capacities=self._program_cache["capacities"], num_eligible={k: np.nan for k in self.progset.programs}, instructions=self.program_instructions)
-            self._program_cache["prop_coverage"] = {k: coverage[k] for k in self.program_instructions.coverage}
+            # Coverage-driven programs (coverage entered as a proportion) are state-independent just like a
+            # coverage scenario, so they are precomputed here too and never consult a coverage denominator
+            precomputed = set(self.program_instructions.coverage) | {p.name for p in self.progset.programs.values() if p.is_coverage_driven}
+            self._program_cache["prop_coverage"] = {k: coverage[k] for k in precomputed}
 
             # Check that any programs with no coverage denominator have been given coverage overwrites
             # Otherwise, the coverage denominator will be treated as 0 and will result in 100% coverage
@@ -2260,6 +2263,13 @@ class Model:
                     # is a concurrent-enrolment stock while the denominator is a per-timestep flow, so the implied
                     # coverage scales with the timestep (halving dt would double it). Require a one-off unit cost.
                     raise ModelError(f'Program "{prog.name}" targets special compartments {non_targetable.intersection(prog.target_comps)} but has a continuous unit cost ("{prog.unit_cost.units}"). Nobody is ever resident in a junction/source/sink, so its coverage denominator is the number of people flowing through per timestep. A continuous cost would make the implied coverage depend on the simulation timestep. Specify the unit cost as "$/person (one-off)" instead - the annual spend is then the annualised throughput multiplied by the unit cost.')
+                if non_targetable and not non_targetable.isdisjoint(prog.target_comps) and prog.name not in self._program_cache["prop_coverage"]:
+                    # Recommended setup for a junction is coverage-driven (coverage + unit cost, spending derived),
+                    # because the fraction is then known up-front and no denominator is needed. Deriving coverage
+                    # from spending instead requires the junction throughput, which is only available with a
+                    # one-timestep lag - fine for a smoothly-varying junction, unreliable for a fast-moving one
+                    # (update_pars warns at runtime if it does move fast).
+                    logger.warning('Program "%s" targets junction/source/sink %s and is spend-driven, so its coverage must be derived from the junction throughput at the PREVIOUS timestep. Prefer entering its Coverage as a proportion ("fraction" or "%%") in the progbook, which makes coverage an input and spending the derived quantity, requiring no denominator at all.', prog.name, sorted(non_targetable.intersection(prog.target_comps)))
         else:
             self.programs_active = False
 

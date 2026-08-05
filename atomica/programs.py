@@ -21,6 +21,12 @@ from .system import logger, FrameworkSettings as FS
 from .utils import NamedItem, TimeSeries
 from .version import version, gitinfo
 
+#: Coverage units that denote a dimensionless proportion of the eligible population rather than a number of
+#: people, mapped to the factor that converts them to a fraction. If a program's coverage is given in one of
+#: these units then coverage is an *input* - it is used directly as the program's fractional coverage, no
+#: coverage denominator is required, and the spending is a derived quantity (see ``Program.is_coverage_driven``).
+PROPORTION_COVERAGE_UNITS = {"fraction": 1.0, "proportion": 1.0, "%": 0.01, "percentage": 0.01, "percent": 0.01}
+
 __all__ = ["ProgramInstructions", "ProgramSet", "Program", "Covout", "InvalidProgramBook"]
 
 
@@ -764,7 +770,13 @@ class ProgramSet(NamedItem):
             tdve.write_units = True
             tdve.write_uncertainty = True
 
-            tdve.allowed_units = {"Unit cost": [self.currency + "/person (one-off)", self.currency + "/person/year"], "Capacity": ["people/year", "people"]}
+            tdve.allowed_units = {
+                "Unit cost": [self.currency + "/person (one-off)", self.currency + "/person/year"],
+                "Capacity": ["people/year", "people"],
+                # Coverage as a 'fraction' or '%' makes coverage an input and spending the derived quantity -
+                # this is the recommended setup for programs targeting a junction (see Program.is_coverage_driven)
+                "Coverage": ["people/year", "people", "fraction", "%"],
+            }
 
             # NOTE - If the ts contains time values that aren't in the ProgramSet's tvec, then an error will be thrown
             # However, if the ProgramSet's tvec contains values that the ts does not, then that's fine, there
@@ -1104,14 +1116,18 @@ class ProgramSet(NamedItem):
         prop_coverage = sc.odict()  # Initialise outputs
 
         for prog in self.programs.values():
-            if instructions is None or prog.name not in instructions.coverage:
-                # The capacities have already been converted to timestep values, so no further transformation is necessary
-                prop_coverage[prog.name] = prog.get_prop_covered(tvec, capacities[prog.name], num_eligible[prog.name])
-            else:
+            if instructions is not None and prog.name in instructions.coverage:
                 prop_coverage[prog.name] = instructions.coverage[prog.name].interpolate(tvec, method="previous")
                 if prog.is_one_off:
                     # Coverage overwrites for one off programs are specified in /year units, therefore they get adjusted by dt here
                     prop_coverage[prog.name] *= dt
+            elif prog.is_coverage_driven:
+                # Coverage is an input for this program - the progbook gives the fraction directly, so the
+                # capacity and the coverage denominator are both bypassed (spending is the derived quantity)
+                prop_coverage[prog.name] = prog.get_prop_covered_from_data(tvec)
+            else:
+                # The capacities have already been converted to timestep values, so no further transformation is necessary
+                prop_coverage[prog.name] = prog.get_prop_covered(tvec, capacities[prog.name], num_eligible[prog.name])
 
             prop_coverage[prog.name] = np.minimum(prop_coverage[prog.name], 1.0)
 
@@ -1201,6 +1217,8 @@ class ProgramSet(NamedItem):
                 prop = instructions.coverage[prog.name].interpolate(t, method="previous")
                 if prog.is_one_off:
                     prop = prop * dt  # matches the adjustment applied in get_prop_coverage()
+            elif prog.is_coverage_driven:
+                prop = prog.get_prop_covered_from_data(t)  # coverage came from the progbook as a proportion
             else:
                 # No coverage overwrite - the program is spend-driven, so report its actual spend
                 spend[prog.name] = prog.spend_data.interpolate(t, method="previous") if prog.spend_data.has_data else np.zeros(t.shape)
@@ -1312,6 +1330,67 @@ class Program(NamedItem):
 
         """
         return "/year" not in self.unit_cost.units
+
+    @property
+    def coverage_is_proportion(self) -> bool:
+        """
+        Flag for coverage specified as a proportion
+
+        Coverage is normally entered as a number of people (``people`` or ``people/year``), which must be
+        divided by the number of people eligible - the coverage denominator - to obtain a fractional coverage.
+        Alternatively it can be entered as a dimensionless proportion of the eligible population
+        (see ``PROPORTION_COVERAGE_UNITS``), in which case it *is* the fractional coverage and no denominator
+        is needed. That matters for programs targeting junctions, where the denominator is a per-timestep flow
+        that is not resolved until after the parameters have been updated.
+
+        :return: True if the coverage units express a proportion rather than a number of people
+
+        """
+        return self.coverage.units is not None and self.coverage.units.strip().lower() in PROPORTION_COVERAGE_UNITS
+
+    @property
+    def coverage_proportion_factor(self) -> float:
+        """
+        Factor converting the coverage values to a fraction (e.g. 0.01 if the coverage is a percentage)
+
+        :return: Multiplicative factor, or ``None`` if the coverage is not specified as a proportion
+
+        """
+        if not self.coverage_is_proportion:
+            return None
+        return PROPORTION_COVERAGE_UNITS[self.coverage.units.strip().lower()]
+
+    @property
+    def is_coverage_driven(self) -> bool:
+        """
+        Flag for programs where coverage is an input rather than an output
+
+        A program is defined by any two of {coverage, unit cost, spending} with the third derived. Ordinarily
+        the knowns are *spending* and *unit cost*, and coverage is computed from them. If instead the coverage
+        is entered as a proportion (rather than a number of people), the knowns are taken to be *coverage* and
+        *unit cost*, and the spending becomes the derived quantity - retrieved with
+        :meth:`ProgramSet.get_spend_from_coverage`. This is the recommended mode for programs targeting a
+        junction, because it needs no coverage denominator at all.
+
+        :return: True if the program's fractional coverage is read directly from its coverage data
+
+        """
+        return self.coverage_is_proportion and self.coverage.has_data
+
+    def get_prop_covered_from_data(self, tvec):
+        """
+        Return fractional coverage read directly from the program's coverage data
+
+        Only meaningful for coverage-driven programs (see :meth:`Program.is_coverage_driven`). Unlike a
+        coverage overwrite in the instructions, the value is *not* scaled by ``dt`` for one-off programs -
+        a proportion of the people arriving in a timestep is already dimensionless.
+
+        :param tvec: Scalar or array of times
+        :return: Array of fractional coverage values, capped at 1
+
+        """
+        assert self.is_coverage_driven, f'Program "{self.name}" does not have coverage specified as a proportion'
+        return np.minimum(self.coverage.interpolate(tvec, method="previous") * self.coverage_proportion_factor, 1.0)
 
     def sample(self, constant: bool) -> None:
         """

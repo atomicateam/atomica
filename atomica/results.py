@@ -212,7 +212,11 @@ class Result(NamedItem):
 
             equivalent_alloc[prog] = uc * num_costed_coverage
 
-            if "/year" in self.model.progset.programs[prog].coverage.units:  # it's a one-off program, need to multiply by the time step to annualize spending
+            if self.model.progset.programs[prog].is_one_off:  # one-off program - annualize the timestep spending
+                # NB this used to test for "/year" in the COVERAGE units as a proxy for one-off-ness. The
+                # authoritative source is the unit cost ($/person = one-off, $/person/year = continuous), which
+                # is what is_one_off uses. Going via the unit cost also frees the coverage units to express a
+                # proportion rather than a number of people (see Program.coverage_is_proportion).
                 equivalent_alloc[prog] /= self.dt
 
         return equivalent_alloc
