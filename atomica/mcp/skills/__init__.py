@@ -2,7 +2,7 @@ from pathlib import Path
 
 
 def register_skills(mcp) -> None:
-    """Scan *.md files in this directory and register each as a FastMCP prompt.
+    """Scan *.md files in this directory and register each as an MCP prompt.
 
     Each .md file should be structured as:
 
