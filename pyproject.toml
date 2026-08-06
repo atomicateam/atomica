@@ -39,7 +39,7 @@ dependencies = [
     "hyperopt",
     "sciris",
     "tqdm",
-    "mcp",
+    "mcp>=2.0",
 ]
 
 [project.optional-dependencies]

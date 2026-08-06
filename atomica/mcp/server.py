@@ -1,13 +1,13 @@
 from typing import Annotated
 import pandas as pd
 from pydantic import Field
-from mcp.server.fastmcp import FastMCP
+from mcp.server import MCPServer
 from mcp.types import ToolAnnotations
 import atomica as at
 from atomica.function_parser import parse_function
 from atomica.mcp.skills import register_skills
 
-mcp = FastMCP(
+mcp = MCPServer(
     "atomica",
     instructions=(
         "Tools for querying Atomica framework .xlsx files. "
