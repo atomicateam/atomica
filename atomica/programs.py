@@ -748,9 +748,11 @@ class ProgramSet(NamedItem):
                 hi = np.asarray(prog.saturation.interpolate(t_check, method="previous"), dtype=float)
                 if np.any(lo < 0):
                     raise Exception('Program "%s" has a negative "Saturation lower" value' % prog.name)
-                if np.any(lo >= hi):
-                    bad = np.argmax(lo >= hi)
-                    raise Exception('Program "%s" has a "Saturation lower" value (%g) that is not below its "Saturation" value (%g). The cost curve is linear below the lower value and saturates towards the upper one, so the lower must be strictly smaller.' % (prog.name, lo[bad], hi[bad]))
+                # Equal bounds are allowed and are useful: they give a strictly linear cost curve with no
+                # saturating region at all, i.e. the unit cost is exact right up to the ceiling.
+                if np.any(lo > hi):
+                    bad = np.argmax(lo > hi)
+                    raise Exception('Program "%s" has a "Saturation lower" value (%g) above its "Saturation" value (%g). The cost curve is linear below the lower value and saturates towards the upper one, so the lower cannot exceed it. Setting the two equal is allowed and gives a strictly linear curve.' % (prog.name, lo[bad], hi[bad]))
 
             if not _allow_missing_data:
                 assert prog.unit_cost.has_data, 'Unit cost data for %s not was not entered (in table on sheet "%s" starting on row %d' % (prog.name, sheet.title, start_row)
@@ -1552,6 +1554,14 @@ class Program(NamedItem):
         exceeds its own recorded spending, by the average multiplier :math:`\\mathrm{arctanh}(r)/r` where
         :math:`r = p/\\sigma`. Setting :math:`\\lambda` to the program's current coverage makes the entered
         unit cost exact at that coverage and applies the non-linearity only to scale-up beyond it.
+
+        The two limiting cases are both useful and both supported:
+
+        - :math:`\\lambda = 0` - the original curve, non-linear everywhere, diverging at :math:`\\sigma`.
+        - :math:`\\lambda = \\sigma` - a strictly LINEAR curve with no saturating region. The unit cost is
+          exact all the way to the ceiling, reaching :math:`\\sigma` costs exactly
+          ``unit_cost * sigma * eligible``, and coverage above :math:`\\sigma` is unpurchasable. This is a
+          hard capacity ceiling expressed as a coverage rather than as a number of people.
 
         :param tvec: Array of times
         :return: Tuple of arrays ``(lower, upper)``, both the same size as ``tvec``

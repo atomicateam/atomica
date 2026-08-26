@@ -4,7 +4,9 @@ This file records changes to the codebase grouped by version release. Unreleased
 
 ## [1.32.2] - 2026-08-26
 
-- Added `Program.saturation_lower`, giving the cost-coverage curve a linear region. `saturation` is the coverage ceiling that costs diverge at; `saturation_lower` is the coverage below which the curve is linear, i.e. below which the entered unit cost is exactly the cost of reaching the next person. It is optional and defaults to zero, which reproduces the previous single-parameter curve exactly. Progbooks carry it as an optional `Saturation lower` row on the spending sheet.
+- Added `Program.saturation_lower`, giving the cost-coverage curve a linear region. `saturation` is the coverage ceiling that costs diverge at; `saturation_lower` is the coverage below which the curve is linear, i.e. below which the entered unit cost is exactly the cost of reaching the next person. Progbooks carry it as an optional `Saturation lower` row on the spending sheet. Both limiting cases are supported:
+  - `saturation_lower = 0` (the default, and what an absent row means) reproduces the previous single-parameter curve, non-linear everywhere and diverging at `saturation`.
+  - `saturation_lower = saturation` gives a strictly linear curve with no saturating region at all: the unit cost is exact right up to the ceiling, reaching `saturation` costs exactly `unit_cost * saturation * eligible`, and coverage above it is unpurchasable. This expresses a hard capacity ceiling as a coverage rather than as a number of people, and unlike the saturating curve it does not make the last increment before the ceiling cost unboundedly much.
 - `Result.get_equivalent_alloc()` now inverts the cost curve by calling `Program.get_capacity_from_prop_covered()` rather than repeating the algebra inline, so the curve is defined in one place.
 
 *Backwards-compatibility notes*

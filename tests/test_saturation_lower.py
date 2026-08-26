@@ -130,11 +130,38 @@ assert abs(at_join - 1.0) < 1e-3, "marginal cost should be continuous at the joi
 assert above >= below - 1e-6, "marginal cost should be non-decreasing through the join"
 print("   OK\n")
 
-# ---------------------------------------------------------------- validation
-print("5. an invalid lower bound must be rejected when the progbook is read")
+# ---------------------------------------------------------------- 5. lambda == sigma
+print("5. saturation_lower == saturation must give a STRICTLY LINEAR curve with a hard ceiling")
+sig = 0.6
+p3 = _prog(sig, sig)
+print("   forward: coverage must equal capacity/eligible up to the ceiling, then stop there")
+for c_per in [0.0, 0.2, 0.45, 0.5999, 0.6, 0.8, 5.0]:
+    cov = p3.get_prop_covered(t, np.array([c_per * 1000.0]), eligible)[0]
+    expected = min(c_per, sig)
+    assert abs(cov - expected) < TOL, f"expected min(c, sigma)={expected}, got {cov}"
+    print(f"   c/eligible={c_per:<7} coverage={cov:.10f}  expected={expected:.10f}")
+
+print("   inverse: cost must be exactly linear up to the ceiling, and unbuyable above it")
+for cov in [0.0, 0.25, 0.5, 0.5999, 0.6]:
+    cap = p3.get_capacity_from_prop_covered(t, np.array([cov]), eligible)[0]
+    assert abs(cap - cov * 1000.0) < 1e-9, f"expected linear {cov * 1000.0}, got {cap}"
+    print(f"   coverage={cov:<7} capacity={cap:.6f}  linear={cov * 1000.0:.6f}")
+# reaching the ceiling itself must cost a FINITE amount - this is what distinguishes a linear curve with a
+# hard ceiling from the saturating curve, where approaching sigma costs unboundedly much
+cap_at = p3.get_capacity_from_prop_covered(t, np.array([sig]), eligible)[0]
+assert np.isfinite(cap_at) and abs(cap_at - sig * 1000.0) < 1e-9, "reaching sigma should cost exactly sigma*eligible"
+print(f"   reaching the ceiling costs {cap_at:.4f} (finite, = sigma*eligible)  OK")
+for cov in [0.6001, 0.8, 1.0]:
+    cap = p3.get_capacity_from_prop_covered(t, np.array([cov]), eligible)[0]
+    assert not np.isfinite(cap), f"coverage {cov} above the ceiling should be unpurchasable"
+    print(f"   coverage={cov:<7} capacity={cap}  (unpurchasable)  OK")
+print()
+
+# ---------------------------------------------------------------- 6. degenerate safety
+print("6. a lower bound ABOVE saturation is rejected on read, and cannot produce nan if constructed")
 bad = _prog(0.5, 0.6)
 lo, up = bad._saturation_bounds(t)
-assert lo[0] > up[0]  # the read path raises on this; the curve itself just degenerates safely
+assert lo[0] > up[0]
 cov = bad.get_prop_covered(t, np.array([600.0]), eligible)[0]
 assert np.isfinite(cov), "a degenerate bound pair must not produce nan during integration"
 print(f"   degenerate bounds give finite coverage {cov:.6f} rather than nan  OK\n")
