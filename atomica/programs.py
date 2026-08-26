@@ -1598,14 +1598,23 @@ class Program(NamedItem):
         if self.saturation.has_data:
             # If the coverage denominator (eligible) is 0, then we need to use the saturation value
             per_eligible = np.divide(capacity, eligible, out=np.full(capacity.shape, np.inf), where=eligible != 0)
-            lower, upper = self._saturation_bounds(tvec)
-            width = upper - lower
-            with np.errstate(divide="ignore", invalid="ignore"):
-                excess = np.divide(per_eligible - lower, width, out=np.zeros_like(per_eligible), where=width > 0)
-                saturating = lower + width * np.tanh(excess)
-            # Below `lower` the curve is the identity, so the unit cost is exactly the cost of the next
-            # person reached. Above it, coverage saturates towards `upper`.
-            prop_covered = np.where(per_eligible <= lower, per_eligible, saturating)
+            if not self.saturation_lower.has_data:
+                # FAST PATH for the usual case of no lower bound, where the curve collapses to
+                # sigma*tanh(c/sigma). Worth special-casing rather than falling through the general form:
+                # `Model.update_program_cache` calls this once per TIMESTEP per spend-driven program with
+                # SCALAR arguments, so per-call numpy overhead dominates and the extra interpolate, masked
+                # divide and np.where below cost ~45% of the call.
+                saturation = self.saturation.interpolate(tvec, method="previous")
+                prop_covered = saturation * np.tanh(per_eligible / saturation)
+            else:
+                lower, upper = self._saturation_bounds(tvec)
+                width = upper - lower
+                with np.errstate(divide="ignore", invalid="ignore"):
+                    excess = np.divide(per_eligible - lower, width, out=np.zeros_like(per_eligible), where=width > 0)
+                    saturating = lower + width * np.tanh(excess)
+                # Below `lower` the curve is the identity, so the unit cost is exactly the cost of the next
+                # person reached. Above it, coverage saturates towards `upper`.
+                prop_covered = np.where(per_eligible <= lower, per_eligible, saturating)
             prop_covered = np.minimum(prop_covered, 1.0)  # Ensure that coverage doesn't go above 1 (if saturation is < 1)
         else:
             # The division below means that 0/0 is treated as returning 1
