@@ -869,3 +869,16 @@ def _progset_nontargetable_flag(progset):
         if 'non_targetable' not in d:
             d['non_targetable'] = False
     return progset
+
+
+@migration("ProgramSet", "1.32.1", "1.32.2", "Add saturation_lower to programs")
+def _progset_saturation_lower(progset):
+    # `saturation_lower` marks the coverage below which the cost curve is linear. Programs saved before it
+    # existed have no such bound, and an empty TimeSeries means the curve saturates from zero - which is
+    # exactly the behaviour they were saved with, so this migration cannot change any existing result.
+    from .utils import TimeSeries
+
+    for program in progset.programs.values():
+        if not hasattr(program, "saturation_lower"):
+            program.saturation_lower = TimeSeries(units=FS.DEFAULT_SYMBOL_INAPPLICABLE)
+    return progset

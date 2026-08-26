@@ -2,6 +2,17 @@
 
 This file records changes to the codebase grouped by version release. Unreleased changes are generally only present during development (relevant parts of the changelog can be written and saved in that section before a version number has been assigned)
 
+## [1.32.2] - 2026-08-26
+
+- Added `Program.saturation_lower`, giving the cost-coverage curve a linear region. `saturation` is the coverage ceiling that costs diverge at; `saturation_lower` is the coverage below which the curve is linear, i.e. below which the entered unit cost is exactly the cost of reaching the next person. It is optional and defaults to zero, which reproduces the previous single-parameter curve exactly. Progbooks carry it as an optional `Saturation lower` row on the spending sheet.
+- `Result.get_equivalent_alloc()` now inverts the cost curve by calling `Program.get_capacity_from_prop_covered()` rather than repeating the algebra inline, so the curve is defined in one place.
+
+*Backwards-compatibility notes*
+
+- No behavioural change to existing projects or progbooks. With `saturation_lower` absent the curve is `p = sigma*tanh(c/sigma)` as before. The expressions were rewritten in terms of `tanh`/`arctanh` rather than the algebraically equivalent `exp`/`log` forms, so results can differ in the last few bits: measured across the TB demo and a large TB project, the worst relative difference was `1e-13` and model outputs (coverage, incidence, mortality) were bit-identical. The `arctanh` inverse is better conditioned than the `log` form it replaces (an order of magnitude nearer saturation).
+- A migration adds the empty `saturation_lower` attribute to programs in projects saved earlier.
+- Progbooks written by this version contain an extra `Saturation lower` row. Older versions of Atomica ignore unrecognised rows, so such a book still loads, but the values will not be read.
+
 ## [1.32.1] - 2026-07-24
 
 - Added MCP functions to read and edit data in databooks

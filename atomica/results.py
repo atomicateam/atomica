@@ -189,26 +189,25 @@ class Result(NamedItem):
 
         equivalent_alloc = sc.odict()
         for prog in prop_coverage.keys():
-            uc = self.model.progset.programs[prog].unit_cost.interpolate(year)
+            program = self.model.progset.programs[prog]
+            uc = program.unit_cost.interpolate(year)
             pc = sc.dcp(prop_coverage[prog])
 
-            if self.model.progset.programs[prog].saturation.has_data:
-                sat = self.model.progset.programs[prog].saturation.interpolate(year)
+            # Invert the coverage to get the capacity that would have to be purchased. This goes through
+            # Program.get_capacity_from_prop_covered rather than repeating the algebra here, so that the
+            # cost curve is defined in exactly one place - it is parametrised by both `saturation` and
+            # `saturation_lower` and the two must not be able to drift apart.
+            num_costed_coverage = program.get_capacity_from_prop_covered(year, pc, num_eligible[prog])
 
-                # If prop_covered is higher than the saturation then set it to nan (without the error that would happen from np.log)
-                pc[pc >= sat] = np.nan
-
-                # invert the calculation on the proportional coverage to determine the necessary "costed" coverage
-                pc = -sat * np.log((sat - pc) / (sat + pc)) / 2.0
+            # An unreachable coverage comes back as inf; report it as nan, which is what this method has
+            # always returned for a coverage at or above saturation.
+            num_costed_coverage = np.where(np.isfinite(num_costed_coverage), num_costed_coverage, np.nan)
 
             # Calculating the program coverage, capacity constraint is applied first, then saturation, so it needs to happen second when reversing the calculation
-            if self.model.progset.programs[prog].capacity_constraint.has_data:
-                cap = self.model.progset.programs[prog].capacity_constraint.interpolate(year)
+            if program.capacity_constraint.has_data:
+                cap = program.capacity_constraint.interpolate(year)
                 # If prop_covered is higher than the capacity constraint then set it to nan as it wouldn't be possible to reach that coverage
-                pc[(pc * num_eligible[prog] - cap) > 1e-6] = np.nan
-
-            # multiply the proportion of naively costed coverage by the number of actually eligible people (catching the case where number covered would be higher than the number eligible)
-            num_costed_coverage = pc * num_eligible[prog]
+                num_costed_coverage = np.where((num_costed_coverage - cap) > 1e-6, np.nan, num_costed_coverage)
 
             equivalent_alloc[prog] = uc * num_costed_coverage
 

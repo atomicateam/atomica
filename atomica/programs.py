@@ -731,6 +731,27 @@ class ProgramSet(NamedItem):
             set_ts(prog, "coverage", tdve.ts["Coverage"])
             set_ts(prog, "saturation", tdve.ts["Saturation"])
 
+            # Optional - progbooks written before this row existed simply omit it, and the cost curve
+            # then saturates from zero exactly as before
+            if "Saturation lower" in tdve.ts:
+                set_ts(prog, "saturation_lower", tdve.ts["Saturation lower"])
+
+            if prog.saturation_lower.has_data:
+                if not prog.saturation.has_data:
+                    raise Exception('Program "%s" has a "Saturation lower" value but no "Saturation" value. The lower bound marks where the cost curve stops being linear, so it is only meaningful together with the ceiling it saturates towards.' % prog.name)
+                # Compare on the union of both series' times. An assumption-only series returns its
+                # assumption at any time, so a fallback time is enough when neither has time values.
+                t_check = np.array(sorted({float(t) for t in list(prog.saturation_lower.t) + list(prog.saturation.t) if np.isfinite(t)}))
+                if t_check.size == 0:
+                    t_check = np.zeros(1)
+                lo = np.asarray(prog.saturation_lower.interpolate(t_check, method="previous"), dtype=float)
+                hi = np.asarray(prog.saturation.interpolate(t_check, method="previous"), dtype=float)
+                if np.any(lo < 0):
+                    raise Exception('Program "%s" has a negative "Saturation lower" value' % prog.name)
+                if np.any(lo >= hi):
+                    bad = np.argmax(lo >= hi)
+                    raise Exception('Program "%s" has a "Saturation lower" value (%g) that is not below its "Saturation" value (%g). The cost curve is linear below the lower value and saturates towards the upper one, so the lower must be strictly smaller.' % (prog.name, lo[bad], hi[bad]))
+
             if not _allow_missing_data:
                 assert prog.unit_cost.has_data, 'Unit cost data for %s not was not entered (in table on sheet "%s" starting on row %d' % (prog.name, sheet.title, start_row)
                 assert prog.spend_data.has_data, 'Spending data for %s not was not entered (in table on sheet "%s" starting on row %d' % (prog.name, sheet.title, start_row)
@@ -762,6 +783,7 @@ class ProgramSet(NamedItem):
             tdve.ts["Annual spend"] = prog.spend_data
             tdve.ts["Unit cost"] = prog.unit_cost
             tdve.ts["Capacity constraint"] = prog.capacity_constraint
+            tdve.ts["Saturation lower"] = prog.saturation_lower
             tdve.ts["Saturation"] = prog.saturation
             tdve.ts["Coverage"] = prog.coverage
 
@@ -1339,6 +1361,7 @@ class Program(NamedItem):
         self.unit_cost = TimeSeries(units=currency + "/person (one-off)")  #: TimeSeries with unit cost of the program
         self.capacity_constraint = TimeSeries(units="people/year")  #: TimeSeries with capacity constraint for the program
         self.saturation = TimeSeries(units=FS.DEFAULT_SYMBOL_INAPPLICABLE)  #: TimeSeries with saturation constraint that is applied to fractional coverage
+        self.saturation_lower = TimeSeries(units=FS.DEFAULT_SYMBOL_INAPPLICABLE)  #: TimeSeries with the coverage below which the cost curve is linear - optional, defaults to 0 (the cost curve saturates from zero)
         self.coverage = TimeSeries(units="people/year")  #: TimeSeries with capacity of program - optional - if not supplied, cost function is assumed to be linear
 
     @property
@@ -1439,6 +1462,7 @@ class Program(NamedItem):
         self.unit_cost = self.unit_cost.sample(constant)
         self.capacity_constraint = self.capacity_constraint.sample(constant)
         self.saturation = self.saturation.sample(constant)
+        self.saturation_lower = self.saturation_lower.sample(constant)
         self.coverage = self.coverage.sample(constant)
 
     def __repr__(self):
@@ -1510,6 +1534,36 @@ class Program(NamedItem):
 
         return capacity
 
+    def _saturation_bounds(self, tvec):
+        """
+        Return the bounds of the saturating region of the cost curve
+
+        The cost curve has two parameters:
+
+        - ``saturation`` (:math:`\\sigma`) is the coverage ceiling. Cost diverges as coverage approaches it
+          and coverage above it cannot be purchased at any price.
+        - ``saturation_lower`` (:math:`\\lambda`) is the coverage below which the curve is LINEAR, i.e.
+          below which the unit cost is exactly the cost of reaching the next person. It is optional and
+          defaults to zero, which recovers the original single-parameter curve exactly.
+
+        Separating the two matters because :math:`\\sigma` alone controls both where the curve bends and
+        where it diverges. With :math:`\\lambda = 0` the curve bends from zero, so the entered unit cost is
+        never the realised cost of anything - the spending implied by a program's own recorded coverage
+        exceeds its own recorded spending, by the average multiplier :math:`\\mathrm{arctanh}(r)/r` where
+        :math:`r = p/\\sigma`. Setting :math:`\\lambda` to the program's current coverage makes the entered
+        unit cost exact at that coverage and applies the non-linearity only to scale-up beyond it.
+
+        :param tvec: Array of times
+        :return: Tuple of arrays ``(lower, upper)``, both the same size as ``tvec``
+        """
+
+        upper = np.asarray(self.saturation.interpolate(tvec, method="previous"), dtype=float)
+        if self.saturation_lower.has_data:
+            lower = np.asarray(self.saturation_lower.interpolate(tvec, method="previous"), dtype=float)
+        else:
+            lower = np.zeros_like(upper)
+        return lower, upper
+
     def get_prop_covered(self, tvec, capacity, eligible):
         """
         Return proportion of people covered
@@ -1533,9 +1587,15 @@ class Program(NamedItem):
 
         if self.saturation.has_data:
             # If the coverage denominator (eligible) is 0, then we need to use the saturation value
-            prop_covered = np.divide(capacity, eligible, out=np.full(capacity.shape, np.inf), where=eligible != 0)
-            saturation = self.saturation.interpolate(tvec, method="previous")
-            prop_covered = 2 * saturation / (1 + exp(-2 * prop_covered / saturation)) - saturation
+            per_eligible = np.divide(capacity, eligible, out=np.full(capacity.shape, np.inf), where=eligible != 0)
+            lower, upper = self._saturation_bounds(tvec)
+            width = upper - lower
+            with np.errstate(divide="ignore", invalid="ignore"):
+                excess = np.divide(per_eligible - lower, width, out=np.zeros_like(per_eligible), where=width > 0)
+                saturating = lower + width * np.tanh(excess)
+            # Below `lower` the curve is the identity, so the unit cost is exactly the cost of the next
+            # person reached. Above it, coverage saturates towards `upper`.
+            prop_covered = np.where(per_eligible <= lower, per_eligible, saturating)
             prop_covered = np.minimum(prop_covered, 1.0)  # Ensure that coverage doesn't go above 1 (if saturation is < 1)
         else:
             # The division below means that 0/0 is treated as returning 1
@@ -1554,14 +1614,20 @@ class Program(NamedItem):
 
         With saturation, :meth:`get_prop_covered` applies
 
-        .. math:: p = \\frac{2\\sigma}{1+e^{-2c/\\sigma}} - \\sigma
+        .. math:: p = \\lambda + (\\sigma-\\lambda)\\tanh\\left(\\frac{c-\\lambda}{\\sigma-\\lambda}\\right)
+                  \\quad (c > \\lambda), \\qquad p = c \\quad (c \\le \\lambda)
 
-        where :math:`c` is the capacity per eligible person. Inverting gives
+        where :math:`c` is the capacity per eligible person, :math:`\\sigma` is ``saturation`` and
+        :math:`\\lambda` is ``saturation_lower`` (zero by default). Inverting gives
 
-        .. math:: c = -\\frac{\\sigma}{2}\\ln\\left(\\frac{2\\sigma}{p+\\sigma}-1\\right)
+        .. math:: c = \\lambda + (\\sigma-\\lambda)\\,\\mathrm{arctanh}\\left(\\frac{p-\\lambda}{\\sigma-\\lambda}\\right)
+                  \\quad (p > \\lambda), \\qquad c = p \\quad (p \\le \\lambda)
 
         which diverges as :math:`p \\rightarrow \\sigma` - coverage approaching the saturation ceiling
         costs unboundedly much, and coverage above it cannot be bought at any price (returns ``inf``).
+
+        With :math:`\\lambda = 0` this reduces to :math:`c = \\sigma\\,\\mathrm{arctanh}(p/\\sigma)`, which is
+        the original single-parameter curve.
 
         :param tvec: A scalar, list, or array of times
         :param prop_covered: Fractional coverage, same size as ``tvec``
@@ -1575,12 +1641,16 @@ class Program(NamedItem):
         eligible = sc.promotetoarray(eligible).astype(float)
 
         if self.saturation.has_data:
-            saturation = self.saturation.interpolate(tvec, method="previous")
-            # ratio = 2*sigma/(p+sigma) - 1 must be strictly positive to take the log; it goes to zero
-            # as p -> sigma (infinite capacity) and negative for p > sigma (unreachable at any cost).
+            lower, upper = self._saturation_bounds(tvec)
+            width = upper - lower
+            # z is the position within the saturating region. It must be strictly below 1 to take the
+            # arctanh; z -> 1 as p -> sigma (infinite capacity) and z >= 1 means the coverage is
+            # unreachable at any cost. The clip only affects entries that are masked out below, but it
+            # keeps arctanh from being evaluated at 1 and warning.
             with np.errstate(divide="ignore", invalid="ignore"):
-                ratio = np.divide(2 * saturation, prop_covered + saturation, out=np.full_like(prop_covered, np.inf), where=(prop_covered + saturation) > 0) - 1
-                per_eligible = np.where(ratio > 0, -(saturation / 2) * np.log(np.where(ratio > 0, ratio, 1.0)), np.inf)
+                z = np.divide(prop_covered - lower, width, out=np.full_like(prop_covered, np.inf), where=width > 0)
+                saturating = np.where(z < 1.0, lower + width * np.arctanh(np.clip(z, 0.0, 1.0 - 1e-15)), np.inf)
+            per_eligible = np.where(prop_covered <= lower, prop_covered, saturating)
             capacity = per_eligible * eligible
         else:
             capacity = prop_covered * eligible
