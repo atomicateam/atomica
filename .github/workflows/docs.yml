@@ -1,0 +1,86 @@
+name: Documentation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, reopened, synchronize, closed]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  # Publish main docs to atomica.tools/docs/main/
+  publish:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: docs-${{ github.ref_name }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - name: Install pandoc
+        run: sudo apt-get install -y pandoc
+      - name: Install Python dependencies
+        run: |
+          python -m pip install uv
+          uv pip install --system -e ".[docs]"
+      - name: Build documentation
+        run: python -m sphinx.cmd.build docs doc_build -j2
+      - name: Deploy to atomicateam/docs
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          repository-name: atomicateam/docs
+          token: ${{ secrets.DOCS_DEPLOY_TOKEN }}
+          branch: master               # docs repo serves Pages from master root
+          folder: doc_build
+          target-folder: ${{ github.ref_name }}
+          clean: true                  # scoped to target-folder; leaves other folders, .nojekyll and index.html intact
+          single-commit: true          # keep the docs repo history from ballooning
+
+  # Deploy/remove a per-PR preview at atomica.tools/docs/pr-preview/pr-<N>/
+  preview:
+    # Skip forks: they cannot access the deploy secret
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    concurrency:
+      group: docs-preview-${{ github.event.number }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        if: github.event.action != 'closed'
+        with:
+          python-version: '3.14'
+      - name: Install pandoc
+        if: github.event.action != 'closed'
+        run: sudo apt-get install -y pandoc
+      - name: Install Python dependencies
+        if: github.event.action != 'closed'
+        run: |
+          python -m pip install uv
+          uv pip install --system -e ".[docs]"
+      - name: Build documentation
+        if: github.event.action != 'closed'
+        run: python -m sphinx.cmd.build docs doc_build -j2
+      - name: Deploy / update / remove preview
+        uses: rossjrw/pr-preview-action@v1
+        with:
+          token: ${{ secrets.DOCS_DEPLOY_TOKEN }}
+          source-dir: doc_build
+          deploy-repository: atomicateam/docs
+          preview-branch: master
+          umbrella-dir: pr-preview
+          pages-base-url: atomica.tools
+          pages-base-path: docs
+          action: auto
