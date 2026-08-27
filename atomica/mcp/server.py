@@ -6,6 +6,7 @@ from mcp.types import ToolAnnotations
 import atomica as at
 from atomica.function_parser import parse_function
 from atomica.mcp.skills import register_skills
+import networkx as nx
 
 mcp = MCPServer(
     "atomica",
@@ -116,6 +117,49 @@ def detail_parameter(
 
     return result
 
+@mcp.tool()
+def find_dependents(
+    framework_path: Annotated[str, Field(description="Absolute path to the .xlsx framework file")],
+    code_name: Annotated[str, Field(description="Code name or display name of the target variable")],
+) -> dict:
+    """
+    Find dependencies downstream of a parameter
+
+    The `detail_parameter` function describes which quantities are required to compute a variable. This
+    function traces parameters that depend on the specified target parameter.  The result is an adjacency
+    dict {downstream_par: [direct_dependencies]}. For A -> B, A -> C, (B, C) -> D, this function
+    will return find_dependents(A) == {"B": ["A"], "C": ["A"], "D": ["B", "C"]}. Walk the values backward
+    to reconstruct any/all paths to the target. An empty dict means no parameter references the target. Note
+    that parameters can still exert an indirect effect on each other via transitions - is it common for most
+    parameters to be connected in this way. This function only considers direct parameter function dependencies.
+    """
+    F = at.ProjectFramework(framework_path)
+    target = F.get_variable(code_name)[0].name
+    G = nx.DiGraph()
+    for par_name, fcn in F.pars["function"].items():
+        if not isinstance(fcn, str):
+            continue
+        _, deps = parse_function(fcn)
+        for dep in deps:
+            if dep in ("t", "dt"):
+                continue  # special variables supplied by model.py
+            if "___" in dep:  # a flow reference, e.g. 'par:flow' (___flow) or 'comp1:comp2'
+                dep = dep.replace("___flow", "")
+                if "___" in dep:
+                    continue  # inter-compartment flow, not a named-variable dependency
+            if dep == par_name:
+                continue  # derivative self-reference
+            G.add_edge(dep, par_name)
+
+    if target not in G:
+        return {}
+
+    # The influence subgraph is everything reachable from the target. Key each reachable node to its
+    # on-path direct dependencies (predecessors that are the target or themselves reachable), giving
+    # the subgraph's edge list without arbitrary spanning-tree choices or exponential path expansion.
+    reachable = nx.descendants(G, target)
+    return {n: sorted(p for p in G.predecessors(n) if p == target or p in reachable) for n in reachable}
+
 
 @mcp.tool()
 def map_transitions(
@@ -134,6 +178,7 @@ def map_transitions(
             if code_name == src:
                 out.append([dst, par])
     return out
+
 
 @mcp.tool()
 def get_populations(
