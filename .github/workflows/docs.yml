@@ -81,6 +81,7 @@ jobs:
           deploy-repository: atomicateam/docs
           preview-branch: master
           umbrella-dir: pr-preview
-          pages-base-url: atomica.tools
-          pages-base-path: docs
+          pages-base-url: atomica.tools/docs
+          qr-code: false
+          wait-for-pages-deployment: true
           action: auto
