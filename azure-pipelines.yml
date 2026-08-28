@@ -45,40 +45,7 @@ jobs:
         summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/coverage.xml'
 #        reportDirectory: '$(System.DefaultWorkingDirectory)/**/htmlcov'
 
-- job: 'docs'
-  condition: and(ne(variables['Build.Reason'], 'PullRequest'), ne(variables['Build.Reason'], 'Schedule')) # Skip if it's a PR build or a scheduled build
-  pool:
-    vmImage: 'ubuntu-latest'
-  steps:
-    - task: UsePythonVersion@0
-      displayName: 'Select python version'
-      inputs:
-        versionSpec: '3.14'
-    - script: |
-        sudo apt install pandoc -y
-      displayName: 'Install pandoc'
-    - script: |
-        python -m pip install uv
-        uv pip install --system -e ".[docs]"
-      displayName: 'Install Python dependencies'
-    - script: |
-        mkdir doc_build
-        python -m sphinx.cmd.build "docs" "doc_build/$(Build.SourceBranchName)" -j2
-      displayName: 'Build documentation'
-      # Invoke directly with `python -m sphinx.cmd.build` instead of `sphinx-build` to avoid "sphinx-build: command not found" on Azure
-    - script: |
-        git clone --depth 1 https://github.com/atomicateam/docs doc_repo
-        rm -rf doc_repo/$(Build.SourceBranchName)
-        mv doc_build/$(Build.SourceBranchName) doc_repo/$(Build.SourceBranchName)
-        git -C doc_repo config user.email ci@azurepipelines
-        git -C doc_repo config user.name "Azure Pipelines"
-        git -C doc_repo add .
-        git -C doc_repo commit -m "Automatic update"
-        git -C doc_repo push https://$(GithubToken)@github.com/atomicateam/docs
-      displayName: 'Publish site'
-#    - publish: docs/_build
-#      artifact: docs
-#      displayName: 'Publish documentation as Azure zip file'
+# Documentation is built and published via GitHub Actions (.github/workflows/docs.yml)
 
 - job: 'deploy'
   dependsOn: 'tox'

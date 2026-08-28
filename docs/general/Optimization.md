@@ -62,7 +62,7 @@ An `Adjustment` contains
 An `Adjustment` has the following methods
 
 - `Adjustment.get_initialization(progset,instructions)` - this method returns a vector of initial values for each adjustable, which are the default initial values for ASD. There are several possible places where initial values can be stored. Consider spending values. In order of precedence, the places where default values could be defined are:
-	- In the `Adjustable`. For example, the `SpendingAdjustment` in an optimization might wish to explictly store an initial value to start the optimization at
+	- In the `Adjustable`. For example, the `SpendingAdjustment` in an optimization might wish to explicitly store an initial value to start the optimization at
 	- In the `ProgramInstructions` - the program instructions optionally contains a `TimeSeries` of spending values that overwrite the data spending values stored in the `ProgramSet`, which is the used to implementing budget scenarios
 	- In the `ProgramSet`, each program by default has spending specified in the Progbook file
 
