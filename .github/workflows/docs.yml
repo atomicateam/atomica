@@ -28,7 +28,7 @@ jobs:
       - name: Install pandoc
         run: sudo apt-get install -y pandoc
       - name: Install Python dependencies
-        run: uv sync --python 3.14 --extra docs --no-default-groups --frozen
+        run: uv sync --extra docs --no-default-groups --frozen
       - name: Build documentation
         run: uv run python -m sphinx.cmd.build docs doc_build -j2
       - name: Deploy to atomicateam/docs
@@ -65,7 +65,7 @@ jobs:
         run: sudo apt-get install -y pandoc
       - name: Install Python dependencies
         if: github.event.action != 'closed'
-        run: uv sync --python 3.14 --extra docs --no-default-groups --frozen
+        run: uv sync --extra docs --no-default-groups --frozen
       - name: Build documentation
         if: github.event.action != 'closed'
         run: uv run python -m sphinx.cmd.build docs doc_build -j2
