@@ -46,27 +46,5 @@ jobs:
 #        reportDirectory: '$(System.DefaultWorkingDirectory)/**/htmlcov'
 
 # Documentation is built and published via GitHub Actions (.github/workflows/docs.yml)
-
-- job: 'deploy'
-  dependsOn: 'tox'
-  condition: and(ne(variables['Build.Reason'], 'Schedule'),and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main')))
-  pool:
-    vmImage: 'ubuntu-latest'
-  steps:
-    - task: UsePythonVersion@0
-      displayName: 'Select python version'
-      inputs:
-        versionSpec: '3.14'
-    - script: |
-        python -m pip install build
-        python -m pip install twine
-        python -m build
-      displayName: 'Build Atomica'
-    - task: TwineAuthenticate@1
-      displayName: 'Twine Authenticate'
-      inputs:
-        pythonUploadServiceConnection: pypi_atomica
-    - script: |
-        python -m twine upload -r "pypi_atomica" --config-file $(PYPIRC_PATH) dist/*
-      displayName: 'Upload to PyPI'
+# PyPI publishing is handled via GitHub Actions (.github/workflows/publish.yml)
 
