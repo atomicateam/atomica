@@ -1,24 +1,23 @@
 name: Publish
-
 # Publish to PyPI whenever main is updated (any push, not only PR merges),
-# but only after the full test suite passes.
+# but only after the full test suite passes
+
 on:
   push:
     branches: [main]
 
-# Ceiling for the reusable test job (its junit reporter needs checks: write);
-# the build/publish jobs narrow this further at the job level.
 permissions:
   contents: read
   checks: write
   pull-requests: write
 
 jobs:
-  # Run the full cross-platform test suite (reusable workflow)
+
+  # Run pre-deployment tests
   test:
     uses: ./.github/workflows/tests.yml
 
-  # Build sdist + wheel once, on a job with no publishing privileges
+  # Build
   build:
     needs: test
     runs-on: ubuntu-latest
@@ -36,7 +35,7 @@ jobs:
           name: dist
           path: dist/
 
-  # Publish via PyPI Trusted Publishing (OIDC) - no API token/secret needed
+  # Publish
   publish:
     needs: build
     runs-on: ubuntu-latest
@@ -53,6 +52,5 @@ jobs:
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          # main can be pushed without a version bump; skip instead of failing
-          # when the version already exists on PyPI
+          # main can be pushed without a version bump; skip instead of failing when the version already exists on PyPI
           skip-existing: true
