@@ -42,19 +42,13 @@ jobs:
         with:
           report_paths: junit/test-results.xml
 
-      # Surface coverage in the Actions run summary (no PR comment). Only on
-      # Linux: this is a Docker action, and coverage is the same across the OS
-      # matrix, so one report avoids duplication.
+      # Surface coverage in the Actions run summary (no PR comment) using
+      # coverage.py's own markdown output - no third-party action needed. Only
+      # once (Linux); coverage is the same across the OS matrix.
       - name: Coverage summary
-        uses: irongut/CodeCoverageSummary@v1.3.0
-        if: always() && matrix.os == 'ubuntu-latest'
-        continue-on-error: true
-        with:
-          filename: coverage.xml
-          format: markdown
-          output: both
-      - name: Add coverage to job summary
         if: always() && matrix.os == 'ubuntu-latest'
         continue-on-error: true
         shell: bash
-        run: cat code-coverage-results.md >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          echo "## Coverage" >> "$GITHUB_STEP_SUMMARY"
+          uv run coverage report --format=markdown >> "$GITHUB_STEP_SUMMARY"
