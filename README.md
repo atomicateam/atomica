@@ -26,7 +26,7 @@ pip install -e .
 
 ## Running tests
 
-Atomica includes a suite of tests, some of which get automatically run and others that are used manually. The automated test suite can be executed with `pytest`, and can be run from within an isolated environment using `tox`. To use the tests, you will need to follow the steps above to perform a 'Git installation' because the tests are not included in the PyPI distribution. After installation, you can run individual test scripts from the `tests` directory with commands like:
+Atomica includes a suite of tests, some of which get automatically run and others that are used manually. The automated test suite can be executed with `pytest`. To use the tests, you will need to follow the steps above to perform a 'Git installation' because the tests are not included in the PyPI distribution. After installation, you can run individual test scripts from the `tests` directory with commands like:
 
 ```
 python tests/testworkflow.py
@@ -57,16 +57,16 @@ which will install the additional development dependencies. Then, to run the aut
 pytest
 ```
 
-To run the tests in an isolated virtual environment, from the root directory, run
+Alternatively, if you use [uv](https://docs.astral.sh/uv/), you can run the suite in a managed environment that matches CI, without installing the dependencies manually:
 
 ```
-tox
+uv run --extra test pytest
 ```
 
-If you don't have `tox`, install it using `pip install tox`. To test against a specific Python version, pass it as an argument, e.g.
+To also validate the example and tutorial notebooks (as CI does), add the nbval options:
 
 ```
-tox -e py312
+uv run --extra test pytest --nbval-lax --current-env --nbval-cell-timeout=600 --dist loadscope
 ```
 
 ## Claude Code integration
