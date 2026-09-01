@@ -1,8 +1,7 @@
 # Atomica
 
-[![Build Status](https://dev.azure.com/AtomicaTeam/Atomica/_apis/build/status/atomicateam.atomica?branchName=master)](https://dev.azure.com/AtomicaTeam/Atomica/_build/latest?definitionId=1&branchName=master)
-
 [![PyPi version](https://badgen.net/pypi/v/atomica/)](https://pypi.org/project/atomica)
+[![Tests](https://github.com/atomicateam/atomica/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/atomicateam/atomica/actions/workflows/tests.yml)
 
 Atomica is a simulation engine for compartmental models. It can be used to simulate disease epidemics, health care cascades, and many other things.
 
@@ -10,65 +9,16 @@ For detailed documentation, visit [https://atomica.tools/docs](https://atomica.t
 
 ## Installation
 
-Atomica requires Python 3.10 or later and is distributed via PyPI. To install, run
+Atomica requires Python 3.11 or later and is distributed via PyPI. To install, run
 
 ```
 pip install atomica
 ```
 
-## Git installation
-
-If you want to install a different branch of Atomica, or plan to make changes to the Atomica source code, you will need to install Atomica via Git rather than via PyPI. This can be performed using
+Atomica is mainly used as the modelling platform for downstream analyses. Therefore, the most common usage is to set up an analysis-specific repository, and simply include `atomica` as a dependency that will be installed automatically via PyPI. We recommend using [uv](https://docs.astral.sh/uv/) to manage Python environments, in which case `atomica` can be added as a dependency using
 
 ```
-git clone https://github.com/atomicateam/atomica.git
-cd atomica
-pip install -e .
-```
-
-## Running tests
-
-Atomica includes a suite of tests, some of which get automatically run and others that are used manually. The automated test suite can be executed with `pytest`, and can be run from within an isolated environment using `tox`. To use the tests, you will need to follow the steps above to perform a 'Git installation' because the tests are not included in the PyPI distribution. After installation, you can run individual test scripts from the `tests` directory with commands like:
-
-```
-python tests/testworkflow.py
-```
-
-Note that many of the tests open `matplotlib` figures as part of the test. If the test script is run on a machine without a display available, the error
-
-```
-_tkinter.TclError: couldn't connect to display "localhost:0.0"
-```
-
-will be raised. In that case, simply set the `matplotlib` backend to `agg` which allows the calls to succeed with a display present. For example, run
-
-```
-export MPLBACKEND=agg
-python tests/testworkflow.py
-```
-
-To run the automated suite, install the test dependencies using
-
-```
-pip install -e ".[test]"
-```
-
-which will install the additional development dependencies. Then, to run the automated suite, from the root directory (the one containing `README.md`) run:
-
-```
-pytest
-```
-
-To run the tests in an isolated virtual environment, from the root directory, run
-
-```
-tox
-```
-
-If you don't have `tox`, install it using `pip install tox`. To test against a specific Python version, pass it as an argument, e.g.
-
-```
-tox -e py312
+uv add atomica
 ```
 
 ## Claude Code integration
@@ -89,9 +39,68 @@ claude mcp add -s user atomica -- uv run python -m atomica.mcp
 
 The Atomica MCP will then be used whenever you are working within a project that has `atomica` as a dependency.
 
+## Advanced usage
+
+### Using a branch in a downstream project
+
+To use an Atomica branch in a downstream project with `uv`, you can add the Git repository directly as a dependency
+
+```
+uv add git+https://github.com/atomicateam/atomica --branch <branch name>
+```
+
+For more information on this usage, see https://docs.astral.sh/uv/concepts/projects/dependencies/.
+
+### Developer installation
+
+If you want to install a different branch of Atomica, or plan to make changes to the Atomica source code, you will need to install Atomica via Git rather than via PyPI. 
+
+```
+git clone https://github.com/atomicateam/atomica.git
+cd atomica
+pip install -e .
+```
+
+If using `uv`, simply cloning the repository is sufficient, and scripts can be run with `uv run`. If you are developing Atomica in parallel with your own analysis repository, it would be recommended to clone `atomica` and then install it in your analysis repository as an editable package with `uv` 
+
+```
+uv add --editable ../<path to atomica>
+```
+
+In which case you can edit your local copy of Atomica and have it reflected in your analysis code. 
+
+### Running tests
+
+Atomica includes a suite of tests. The automated test suite can be executed with `pytest`. 
+
+```
+uv run --extra test pytest
+```
+
+Note the inclusion of the extra `test` dependencies that are not installed by default. Many of the tests open `matplotlib` figures as part of the test. If the test script is run on a machine without a display available, the error
+
+```
+_tkinter.TclError: couldn't connect to display "localhost:0.0"
+```
+
+will be raised. In that case, simply set the `matplotlib` backend to `agg` which allows the calls to succeed with a display present. For example, run
+
+```
+export MPLBACKEND=agg
+uv run --extra test pytest
+```
+
+To also validate the example and tutorial notebooks, include the `nbval` options:
+
+```
+uv run --extra test pytest --nbval-lax --current-env --nbval-cell-timeout=600 --dist loadscope
+```
+
+This will reproduce the automated testing that is executed on GitHub as part of the CI workflow. 
+
 ### Adding custom skills
 
-Skills are plain Markdown files in `atomica/mcp/skills/`. To add a new workflow, drop a `.md` file into that directory — it is registered as an MCP prompt automatically when the server starts, with no code changes required. The first `# Heading` line becomes the prompt description shown in the MCP client.
+The MCP server publishes a set of skills, which are plain Markdown files in `atomica/mcp/skills/`. To add a new workflow, add a `.md` file into that directory — it is registered as an MCP prompt automatically when the server starts, with no code changes required. The first `# Heading` line becomes the prompt description shown in the MCP client.
 
 ## Troubleshooting
 

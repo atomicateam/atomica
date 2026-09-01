@@ -73,7 +73,7 @@ target/
 .ipynb_checkpoints
 
 # pyenv
-.python-version
+# .python-version is intentionally tracked to pin the Python version for uv
 
 # celery beat schedule file
 celerybeat-schedule
