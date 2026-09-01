@@ -36,6 +36,7 @@ dependencies = [
     "openpyxl",
     "pyswarm",
     "hyperopt",
+    "networkx",
     "sciris",
     "tqdm",
     "mcp>=2.0",

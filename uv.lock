@@ -69,6 +69,7 @@ dependencies = [
     { name = "hyperopt" },
     { name = "matplotlib" },
     { name = "mcp" },
+    { name = "networkx" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "numpy", version = "2.5.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "openpyxl" },
@@ -131,6 +132,7 @@ requires-dist = [
     { name = "nbconvert", marker = "extra == 'test'" },
     { name = "nbsphinx", marker = "extra == 'docs'" },
     { name = "nbval", marker = "extra == 'test'" },
+    { name = "networkx" },
     { name = "numpy", specifier = ">=1.10.1" },
     { name = "openpyxl" },
     { name = "pandas" },
@@ -3604,8 +3606,8 @@ name = "uvicorn"
 version = "0.52.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "click" },
-    { name = "h11" },
+    { name = "click", marker = "sys_platform != 'emscripten'" },
+    { name = "h11", marker = "sys_platform != 'emscripten'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/f2/0f/3f86e61397dd33bf2ccf28188c40db6a740658aeebbbf6e7dbc101a1f487/uvicorn-0.52.4.tar.gz", hash = "sha256:73acfee47a0b133c5de13d219492d62d8a31e935f4fe6e41a232451a15379f86", size = 100627, upload-time = "2026-08-19T06:27:41.821Z" }
 wheels = [
