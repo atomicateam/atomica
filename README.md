@@ -1,6 +1,7 @@
 # Atomica
 
 [![PyPi version](https://badgen.net/pypi/v/atomica/)](https://pypi.org/project/atomica)
+[![Tests](https://github.com/atomicateam/atomica/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/atomicateam/atomica/actions/workflows/tests.yml)
 
 Atomica is a simulation engine for compartmental models. It can be used to simulate disease epidemics, health care cascades, and many other things.
 
