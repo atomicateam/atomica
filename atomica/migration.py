@@ -869,3 +869,4 @@ def _progset_nontargetable_flag(progset):
         if 'non_targetable' not in d:
             d['non_targetable'] = False
     return progset
+
