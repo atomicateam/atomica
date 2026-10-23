@@ -40,7 +40,7 @@ The restriction that transfers cannot take place across population types helps t
 
 - There can never be a transfer between a mosquito population and a human population, because this would represent mosquitos turning into humans. Thus, a population type would be appropriate for this
 - Similarly, there can never be a transfer between a human population and the environment e.g. a human turning into a lake. Thus, an environment population to track water pollution would be well represented with a different population type
-- There may be a separate set of disease states if a model includes coinfection. For example, there may be more possible treatment states for TB+HIV compared to TB or HIV alone. If it is possible for an individual to move from TB to TB+HIV or between other coinfection states, then these should *not* be different population types. Instead, the all of the coinfection states should be added as compartments within a single population type
+- There may be a separate set of disease states if a model includes coinfection. For example, there may be more possible treatment states for TB+HIV compared to TB or HIV alone. If it is possible for an individual to move from TB to TB+HIV or between other coinfection states, then these should *not* be different population types. Instead, all of the coinfection states should be added as compartments within a single population type
 - Some nutrition models for maternal and child health model adult women and children completely independently, such that no children grow up and become adult women. In these types of models, children simply exit the model once they reach a certain age (e.g. 5 years old). For this type of model, it would be suitable to have separate population types for women and children. That way, stunting and wasting compartments would not need to be created for adults, only children. However, if it is possible for children to become adults within the model, then there should *not* be different population types - otherwise, it would be impossible to transfer people from the child populations to the adult population
 
 .. note::
@@ -77,7 +77,7 @@ Next, do the same for Characteristics and Parameters.
 
 Notice how the characteristics sheet has omitted the population type for the 'sir'-related quantities, which will be automatically assigned because the 'sir' population type is the first one in the list. In general, it is better to explicitly specify the population type for all quantities. However, if there are many quantities and only a few of them belong to a different population type, this default behaviour can make it easier to fill out the Framework.
 
-Note that characteristics cannot span population types - the included compartments and the denominator must all belong to the same population type as the characteristic itself. This is because characteristics are always evaluated within a single population, so all of the constitutents of the characteristic must exist within that population. 
+Note that characteristics cannot span population types - the included compartments and the denominator must all belong to the same population type as the characteristic itself. This is because characteristics are always evaluated within a single population, so all of the constituents of the characteristic must exist within that population. 
 
 .. image:: framework_4.png
 	:width: 650px
@@ -108,12 +108,12 @@ If your parameter function refers to an interaction, then the quantity being agg
 	
 	If you want to have an interaction only between certain populations within a population type - for example, if only adults contribute to water pollution - then create an Interaction and set the weights to 0 in the databook for the populations that should be excluded.
 
-The final place population types appear in the Framework is in the transition matrix. Transitions are possible between compartments of the same population type. As a general rule, you should have as many transition matrices as you do population types with compartments. In the example above, there are three population types, but only the ``sir`` and ``udt`` population types have compartments within them. Therefore, we will have two transition matrices. These both appear on the 'Transitions' sheet. To define multiple transition matricies, simply insert them onto the transitions sheet stacked vertically, separated by an empty row. For example:
+The final place population types appear in the Framework is in the transition matrix. Transitions are possible between compartments of the same population type. As a general rule, you should have as many transition matrices as you do population types with compartments. In the example above, there are three population types, but only the ``sir`` and ``udt`` population types have compartments within them. Therefore, we will have two transition matrices. These both appear on the 'Transitions' sheet. To define multiple transition matrices, simply insert them onto the transitions sheet stacked vertically, separated by an empty row. For example:
 
 .. image:: framework_6.png
 	:width: 500px
 
-In the top left cell of the transition matrix, enter the code name for the population type. For example, the above screenshot shows 'udt' entered into cell A7. If the population type is omitted, it will default to the first population type in the framework. So the empty cell A1 will be automatically populated with 'sir' in this example. All of the compartments in the transition matrix must have the same type as the transition matrix itself (e.g., with 'udt' in cell A7, the compartment in cell B7 must exist in the 'udt' population type). This is atuomatically checked and validated when the framework is loaded. Similarly, all of the parameters in each transition matrix must belong the corresponding population type. 
+In the top left cell of the transition matrix, enter the code name for the population type. For example, the above screenshot shows 'udt' entered into cell A7. If the population type is omitted, it will default to the first population type in the framework. So the empty cell A1 will be automatically populated with 'sir' in this example. All of the compartments in the transition matrix must have the same type as the transition matrix itself (e.g., with 'udt' in cell A7, the compartment in cell B7 must exist in the 'udt' population type). This is automatically checked and validated when the framework is loaded. Similarly, all of the parameters in each transition matrix must belong the corresponding population type. 
 
 Databook population types
 --------------------------
@@ -137,7 +137,7 @@ Notice how every population has both a label and a type. The 'Population Definit
 
 .. warning::
 
-	The data entry rows are created when the databook is generated, and they take into account the population types. It is not possible to change the type of a population after it has been created. The population type cells are grey to reflect this. Changing the population type by overwriting those cells will likely result in an error (unless all of the data entry tables are also updated manually). Instead, you should load the databook into Atomica and programatically remove the old population, and make a new one with the desired type.  
+	The data entry rows are created when the databook is generated, and they take into account the population types. It is not possible to change the type of a population after it has been created. The population type cells are grey to reflect this. Changing the population type by overwriting those cells will likely result in an error (unless all of the data entry tables are also updated manually). Instead, you should load the databook into Atomica and programmatically remove the old population, and make a new one with the desired type.  
 
 The data entry tables are essentially unchanged from normal databooks where there is only one population type. However, notice that the available populations under each quantity depend on the population type. For example, 'All people with condition' is defined in the 'udt' population type, so data entry is provided only for the UDT populations.
 
@@ -174,7 +174,7 @@ Programs and population types
 
 Programs also support population types, but the implementation is relatively simple compared to frameworks and databooks. 
 
-On the 'Program targeting' sheet, all populations and all compartments are shown, regardless of which population type they are in. You can select any population and any compartment to target. The number of people targeted by the program is defined as the sum of all compartments that are targeted by the program. Thus, any nonexistent compartments will simply be skipped in the this summation. Consider the example shown below:
+On the 'Program targeting' sheet, all populations and all compartments are shown, regardless of which population type they are in. You can select any population and any compartment to target. The number of people targeted by the program is defined as the sum of all compartments that are targeted by the program. Thus, any nonexistent compartments will simply be skipped in this summation. Consider the example shown below:
 
 .. image:: progbook_1.png
 	:width: 650px

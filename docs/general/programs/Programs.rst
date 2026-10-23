@@ -70,7 +70,7 @@ When the program book is loaded in, these data are stored in three key classes
 
 - A :class:`ProgramSet` contains a collection of :class:`Program` objects and a collection of :class:`Covout` objects
 - A :class:`Program` object contains all of the information on the 'Program targeting' sheet and the 'Spending data' sheet. There is one program object for each row in the 'Program targeting' sheet
-- A :class:`Covout` object contains all of the information on a single row of the 'Program effects' sheet. It thus contains all of the program outcomes for a single parameter in a single population. Storing the program outcomes grouped by parameter rather than grouped by program facilitates computing interations between programs. This process is described in more detail below - :ref:`Outcomes`. 
+- A :class:`Covout` object contains all of the information on a single row of the 'Program effects' sheet. It thus contains all of the program outcomes for a single parameter in a single population. Storing the program outcomes grouped by parameter rather than grouped by program facilitates computing interactions between programs. This process is described in more detail below - :ref:`Outcomes`. 
 
 This class structure is depicted visually below:
 
