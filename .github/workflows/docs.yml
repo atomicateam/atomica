@@ -44,10 +44,11 @@ jobs:
 
   # Deploy/remove a per-PR preview at atomica.tools/docs/pr-preview/pr-<N>/
   preview:
-    # Skip forks: they cannot access the deploy secret
+    # Skip forks and Dependabot: they cannot access the deploy secret
     if: >-
       github.event_name == 'pull_request' &&
-      github.event.pull_request.head.repo.full_name == github.repository
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     concurrency:
       group: docs-preview-${{ github.event.number }}
