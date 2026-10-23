@@ -173,7 +173,7 @@ def run_regenerated_framework(proj):
 # each function call as a separate test, which can be run in parallel
 # simply by adding `pytest -n 4` for instance. Or via tox
 # `tox -- -o -n 4` (because the default config is to use n=2 for TravisCI)
-@pytest.mark.parametrize("model", models)
+@pytest.mark.parametrize("model", at.demo_projects)
 def test_model(model):
 
     framework_file = at.LIBRARY_PATH / f"{model}_framework.xlsx"

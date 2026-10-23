@@ -516,6 +516,7 @@ class PlotData:
                             numerator = sum(aggregated_outputs[x][output_name] * weights[x] for x in pop_labels)  # Add together all the outputs
                             denominator = sum([weights[x] for x in pop_labels])
                             vals = np.divide(numerator, denominator, out=np.full(numerator.shape, np.nan, dtype=float), where=numerator != 0)
+
                         else:
                             raise Exception(f'Unknown population aggregation method "{aggregation}"')
 
@@ -1132,7 +1133,9 @@ class PlotData:
         elif isinstance(colors, list):
             assert len(colors) == len(targets), "Number of colors must either be a string, or a list with as many elements as colors to set"
             colors = colors
-        elif colors.startswith("#") or colors not in [m for m in plt.cm.datad if not m.endswith("_r")]:
+        elif isinstance(colors, tuple) and colors[0].startswith("#"): # tuple with (color, opacity)
+            colors = [colors for _ in range(len(targets))]  # Apply color to all requested outputs
+        elif isinstance(colors, str) and (colors.startswith("#") or colors not in [m for m in plt.cm.datad if not m.endswith("_r")]):
             colors = [colors for _ in range(len(targets))]  # Apply color to all requested outputs
         else:
             color_norm = matplotlib_colors.Normalize(vmin=-1, vmax=len(targets))
@@ -1658,7 +1661,8 @@ def plot_bars(plotdata, stack_pops=None, stack_outputs=None, outer=None, legend_
     return figs
 
 
-def plot_series(plotdata, plot_type="line", axis=None, data=None, legend_mode=None, lw=None, n_cols: int = None) -> list:
+def plot_series(plotdata, plot_type="line", axis=None, data=None, legend_mode=None, lw=None, n_cols: int = None,
+                colors=None) -> list:
     """
     Produce a time series plot
 
@@ -1671,6 +1675,7 @@ def plot_series(plotdata, plot_type="line", axis=None, data=None, legend_mode=No
     :param lw: override the default line width
     :param n_cols: If None (default), separate figures will be created for each axis. If provided, axes will be tiled as subplots in a single figure
                    window with the requested number of columns
+    :param colors: Colors to be passed to plotdata.set_colors
     :return: A list of newly created Figures
 
     """
@@ -1724,7 +1729,7 @@ def plot_series(plotdata, plot_type="line", axis=None, data=None, legend_mode=No
         logger.warning("At least one Series has only one timepoint. Series must have at least 2 time points to be rendered as a line - `plot_bars` may be more suitable for such data")
 
     if axis == "results":
-        plotdata.set_colors(results=plotdata.results.keys())
+        plotdata.set_colors(colors=colors, results=plotdata.results.keys())
 
         figs, axes = _prepare_figures(plotdata.pops, plotdata.outputs, n_cols)
 
@@ -1759,7 +1764,7 @@ def plot_series(plotdata, plot_type="line", axis=None, data=None, legend_mode=No
                 _render_legend(ax, plot_type)
 
     elif axis == "pops":
-        plotdata.set_colors(pops=plotdata.pops.keys())
+        plotdata.set_colors(colors=colors, pops=plotdata.pops.keys())
 
         figs, axes = _prepare_figures(plotdata.results, plotdata.outputs, n_cols)
 
@@ -1792,7 +1797,7 @@ def plot_series(plotdata, plot_type="line", axis=None, data=None, legend_mode=No
                 _render_legend(ax, plot_type)
 
     elif axis == "outputs":
-        plotdata.set_colors(outputs=plotdata.outputs.keys())
+        plotdata.set_colors(colors=colors, outputs=plotdata.outputs.keys())
 
         figs, axes = _prepare_figures(plotdata.results, plotdata.pops, n_cols)
 
