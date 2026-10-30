@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/atomicateam-atomica-badge.png)](https://mseep.ai/app/atomicateam-atomica)
+
 # Atomica
 
 [![PyPi version](https://badgen.net/pypi/v/atomica/)](https://pypi.org/project/atomica)
